@@ -51,15 +51,26 @@
   .seg button.active{background:var(--emerald);color:#0c1410;font-weight:700}
   .grid-wrap{overflow:auto;-webkit-overflow-scrolling:touch;max-height:78vh}
   /* шапка с днями недели прилипает при вертикальной прокрутке */
-  .grid-wrap thead th{position:sticky;top:0;background:var(--card);z-index:6;
-    box-shadow:0 1px 0 var(--line)}
-  /* колонка с именами прилипает при горизонтальной прокрутке */
+  .grid-wrap thead th{position:sticky;top:0;background:var(--panel);z-index:6;
+    box-shadow:0 2px 0 var(--line)}
+  /* колонка с именами прилипает при горизонтальной прокрутке;
+     непрозрачный фон обязателен, иначе слои просвечивают */
   .grid-wrap th:first-child,.grid-wrap td:first-child{
-    position:sticky;left:0;background:var(--card);z-index:5}
+    position:sticky;left:0;background:var(--panel);z-index:4;
+    box-shadow:2px 0 0 var(--line)}
   .grid-wrap thead th:first-child{z-index:7}
-  .grid-wrap tfoot td{position:sticky;bottom:0;background:var(--card);z-index:6;
-    box-shadow:0 -1px 0 var(--line)}
+  .grid-wrap tfoot td{position:sticky;bottom:0;background:var(--panel);z-index:6;
+    box-shadow:0 -2px 0 var(--line)}
   .grid-wrap tfoot td:first-child{z-index:7}
+  /* плашки групп: их градиент прозрачен, поэтому первая (липкая) ячейка
+     получает сплошной фон с тем же градиентом поверх */
+  .grid-wrap tr.pos-head td:first-child{
+    background:linear-gradient(90deg,rgba(31,191,122,.16),transparent 70%) var(--panel)}
+  .grid-wrap tr.pos-head.club td:first-child{
+    background:linear-gradient(90deg,rgba(122,76,217,.18),transparent 70%) var(--panel)}
+  .grid-wrap tr.pos-head.both td:first-child{
+    background:linear-gradient(90deg,rgba(217,176,76,.16),transparent 70%) var(--panel)}
+  .grid-wrap tr.role-head td:first-child{background:var(--panel)}
   table{border-collapse:collapse;width:100%}
   th,td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
   thead th{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600}
