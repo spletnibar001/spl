@@ -282,6 +282,7 @@
       </table>
     </div>
     <div class="empty" id="grid-empty" style="display:none">В графике этой недели пока никого нет</div>
+    <div class="day-totals" id="staff-totals"></div>
     <div class="week-totals money-only" id="week-totals"></div>
     <div class="day-totals money-only" id="day-totals"></div>
   </div>
@@ -911,6 +912,7 @@ function render(){
       dayCounts.map(c=>`<td style="color:var(--emerald);font-size:14px">${c}</td>`).join("") +
       `<td></td>`:"";
   }
+  renderStaffTotals(days, list);
   renderDayTotals(days, roster);
 
   body.querySelectorAll(".cell").forEach(c=>{
@@ -1019,6 +1021,32 @@ function renderPenList(){
         <button class="del" onclick="delPenalty('${pn.id}')">✕</button>
       </div>`).join("")
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
+}
+
+/* человек на смене по дням: разбивка по ключевым должностям */
+const STAFF_COUNT_ROLES = ["Бармен","Хостес","Официант","Охрана"];
+function renderStaffTotals(days, list){
+  const el = $("staff-totals");
+  if(!el) return;
+  if(!list.length){ el.innerHTML = ""; return; }
+  const counts = {};
+  for(const r of STAFF_COUNT_ROLES) counts[r] = [0,0,0,0,0,0,0];
+  for(const e of list){
+    if(!counts[e.emp_role]) continue;
+    for(let i=0;i<7;i++){
+      const sh = shiftOf(e.id, iso(days[i]));
+      if(sh && sh.status !== 2) counts[e.emp_role][i]++;
+    }
+  }
+  const rows = STAFF_COUNT_ROLES
+    .filter(r => list.some(e => e.emp_role === r))
+    .map(r => `<tr><td>${r === "Бармен" ? "Бармены" : r === "Хостес" ? "Хостес" :
+                 r === "Официант" ? "Официанты" : "Охрана"}</td>${
+      counts[r].map(c=>`<td>${c || "—"}</td>`).join("")}</tr>`);
+  el.innerHTML = rows.length ? `<table>
+    <tr><th>На смене, чел.</th>${days.map(d=>`<th>${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}</th>`).join("")}</tr>
+    ${rows.join("")}
+  </table>` : "";
 }
 
 /* суммы за день по позициям (стоимость смен минус штрафы этого дня) */
