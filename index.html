@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Табель и зарплата</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1c1f25; --panel2:#22262e; --line:#2e333d;
+    --text:#e8eaee; --muted:#8b93a1; --emerald:#1fbf7a; --gold:#d9b04c;
+    --violet:#b79aee; --red:#e25c5c; --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    font-size:14px;min-height:100vh;padding:12px}
+  header{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  header h1{font-size:18px;letter-spacing:.2em;font-weight:800}
+  header h1 span{color:var(--emerald)}
+  .role-badge{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    border:1px solid var(--emerald);color:var(--emerald);border-radius:20px;padding:3px 10px}
+  .layout{display:flex;flex-direction:column;gap:12px;max-width:1380px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);
+    margin-bottom:10px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .form-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px;position:relative}
+  .field label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .fix-note{position:absolute;top:100%;left:2px;font-size:10px;color:var(--gold);white-space:nowrap}
+  input,select,button{font:inherit;color:var(--text);background:var(--panel2);
+    border:1px solid var(--line);border-radius:7px;padding:8px 10px;outline:none}
+  input:focus,select:focus{border-color:var(--emerald)}
+  input:disabled{opacity:.4} select:disabled{opacity:.6}
+  input[type=date]{color-scheme:dark}
+  button{cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--emerald)}
+  .btn-primary{background:var(--emerald);border-color:var(--emerald);color:#0c1410;font-weight:700}
+  .btn-mini{padding:4px 10px;font-size:12px}
+  .btn-ghost{background:transparent}
+  .msg{margin-top:6px;font-size:13px;min-height:16px}
+  .msg.err{color:var(--red)} .msg.ok{color:var(--emerald)}
+  .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between}
+  .controls .group{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .weeknav .label{font-weight:700;text-align:center}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{border:none;border-radius:0;background:transparent;padding:7px 11px}
+  .seg button.active{background:var(--emerald);color:#0c1410;font-weight:700}
+  .grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%}
+  th,td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
+  thead th{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600}
+  thead th .d{display:block;font-size:12px;color:var(--text);font-weight:700}
+  tr.pos-head td{background:linear-gradient(90deg,rgba(31,191,122,.16),transparent 70%);
+    text-align:left;font-weight:800;letter-spacing:.15em;text-transform:uppercase;
+    font-size:11px;color:var(--emerald);padding:8px;border-bottom:1px solid var(--emerald)}
+  tr.pos-head.club td{background:linear-gradient(90deg,rgba(122,76,217,.18),transparent 70%);
+    color:var(--violet);border-bottom-color:#7a4cd9}
+  tr.pos-head.both td{background:linear-gradient(90deg,rgba(217,176,76,.16),transparent 70%);
+    color:var(--gold);border-bottom-color:var(--gold)}
+  tr.role-head td{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);padding:6px 8px 3px;
+    border-bottom:1px dashed var(--line)}
+  td.emp{text-align:left;min-width:150px}
+  td.emp .nm{font-weight:700;font-size:13px}
+  td.emp .meta{font-size:11px;color:var(--muted)}
+  td.emp .meta b{color:var(--gold)}
+  .cell{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);
+    background:#f2f3f5;display:inline-block;cursor:pointer;transition:.1s}
+  .cell.on{background:var(--emerald);border-color:var(--emerald);
+    box-shadow:0 0 8px rgba(31,191,122,.45)}
+  th.today,td.today-col{background:rgba(31,191,122,.06)}
+  td.sale input{width:105px;text-align:right;padding:4px 7px;font-size:12px}
+  td.sale .suff{font-size:10px;color:var(--muted);margin-left:2px}
+  .dash{color:#3d434e}
+  td.steps{font-weight:600;color:var(--gold);white-space:nowrap;font-size:12px}
+  td.steps .lbl{display:block;font-size:9px;color:var(--muted);font-weight:400}
+  td.earn{text-align:right;font-weight:700;white-space:nowrap;font-size:13px}
+  td.earn .sh{display:block;font-size:10px;color:var(--muted);font-weight:400}
+  td.actions{white-space:nowrap}
+  td.actions button{padding:3px 7px;font-size:12px;margin-left:3px}
+  td.actions .del:hover{border-color:var(--red);color:var(--red)}
+  tfoot td{font-weight:800;border-bottom:none;padding-top:10px}
+  tfoot td.earn{color:var(--emerald)}
+  .empty{color:var(--muted);text-align:center;padding:24px 0}
+  .hint{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
+  .btn-approve{background:var(--emerald);border-color:var(--emerald);color:#0c1410;font-weight:700}
+  .btn-approve.unlock{background:var(--gold);border-color:var(--gold)}
+  .lock-badge{display:inline-flex;margin-left:8px;font-size:10px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--emerald);
+    border:1px solid var(--emerald);border-radius:20px;padding:2px 8px}
+  table.locked .cell{cursor:default;opacity:.85}
+  .week-totals{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .wt{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px}
+  .wt .t{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .wt .v{font-size:15px;font-weight:800}
+  .wt .n{font-size:10px;color:var(--muted)}
+  .wt.karaoke{border-left:3px solid var(--emerald)}
+  .wt.club{border-left:3px solid #7a4cd9}
+  .wt.both{border-left:3px solid var(--gold)}
+  .wt.total{border-left:3px solid var(--text)} .wt.total .v{color:var(--emerald)}
+  .base-table{width:100%;border-collapse:collapse}
+  .base-table td,.base-table th{padding:6px;border-bottom:1px solid var(--line);
+    text-align:left;font-size:12px}
+  .base-table th{font-size:10px;color:var(--muted);text-transform:uppercase}
+  .base-table .arch{opacity:.45} .base-table .arch .nm{text-decoration:line-through}
+  #auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:80vh;gap:16px;text-align:center;padding:20px}
+  #auth-screen .spinner{width:36px;height:36px;border:3px solid var(--line);
+    border-top-color:var(--emerald);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #app{display:none}
+</style>
+</head>
+<body>
+
+<!-- ЭКРАН ВХОДА -->
+<div id="auth-screen">
+  <h1 style="letter-spacing:.2em;font-weight:800">ТАБЕЛЬ</h1>
+  <div class="spinner" id="auth-spinner"></div>
+  <div id="auth-status" style="color:var(--muted)">Проверка доступа…</div>
+</div>
+
+<!-- ПРИЛОЖЕНИЕ -->
+<div id="app">
+<header>
+  <h1>ТАБЕЛЬ<span>·</span>ЗП</h1>
+  <span class="role-badge" id="role-badge"></span>
+</header>
+
+<div class="layout">
+
+  <div class="card" id="card-add">
+    <h2>Добавить сотрудника в график недели <span id="form-week" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
+    <div class="form-row">
+      <div class="field">
+        <label>Должность</label>
+        <select id="f-role"></select>
+        <div class="fix-note" id="fix-note"></div>
+      </div>
+      <div class="field" style="flex:1;min-width:170px">
+        <label>Имя Фамилия</label>
+        <input id="f-name" type="text" placeholder="Имя Фамилия" list="emp-datalist" autocomplete="off">
+        <datalist id="emp-datalist"></datalist>
+      </div>
+      <div class="field">
+        <label>Позиция</label>
+        <select id="f-pos">
+          <option value="karaoke">Караоке</option>
+          <option value="club">Клуб</option>
+          <option value="both" hidden>Общая</option>
+        </select>
+      </div>
+      <div class="field money-only">
+        <label>Ставка за смену, сум</label>
+        <input id="f-rate" type="text" inputmode="numeric" placeholder="300 000">
+      </div>
+      <div class="field money-only">
+        <label>Ставка в Пн, сум</label>
+        <input id="f-rate-mon" type="text" inputmode="numeric" placeholder="—">
+      </div>
+      <button class="btn-primary" id="btn-add">Добавить</button>
+      <button class="btn-ghost" id="btn-cancel-edit" style="display:none">Отмена</button>
+    </div>
+    <div class="msg" id="form-msg"></div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <div class="group">
+        <div class="field">
+          <label>Позиция</label>
+          <div class="seg" id="pos-filter">
+            <button data-v="all" class="active">Все</button>
+            <button data-v="karaoke">Караоке</button>
+            <button data-v="club">Клуб</button>
+            <button data-v="both">Общие</button>
+          </div>
+        </div>
+        <div class="field money-only">
+          <label>Период: с</label>
+          <input type="date" id="p-from">
+        </div>
+        <div class="field money-only">
+          <label>по</label>
+          <input type="date" id="p-to">
+        </div>
+        <button id="btn-curweek" class="btn-mini">Текущая неделя</button>
+      </div>
+      <div class="weeknav">
+        <button id="wk-prev">◀</button>
+        <div class="label" id="wk-label"></div>
+        <button id="wk-next">▶</button>
+        <button id="btn-approve" class="btn-approve">Утвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>График <span class="money-only" style="text-transform:none;letter-spacing:0;font-weight:400">· сумма за период <b id="period-label"></b></span>
+      <button class="btn-mini money-only" id="btn-export" style="margin-left:auto">⬇ Excel</button>
+    </h2>
+    <div class="grid-wrap">
+      <table id="grid">
+        <thead><tr id="grid-head"></tr></thead>
+        <tbody id="grid-body"></tbody>
+        <tfoot><tr id="grid-foot"></tr></tfoot>
+      </table>
+    </div>
+    <div class="empty" id="grid-empty" style="display:none">В графике этой недели пока никого нет</div>
+    <div class="week-totals money-only" id="week-totals"></div>
+  </div>
+
+  <div class="card" id="card-base">
+    <h2>База сотрудников <span id="base-count" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
+      <button class="btn-mini btn-ghost" id="base-toggle">Показать</button>
+    </h2>
+    <div id="base-wrap" style="display:none;overflow-x:auto">
+      <table class="base-table" id="base-table"></table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+/* ============================================================
+   НАСТРОЙКА — вставьте значения своего проекта Supabase:
+   (Settings -> API: Project URL и anon public key)
+============================================================ */
+const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co/rest/v1/";        // например https://abcd1234.supabase.co
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+
+/* ================= справочники (как в локальной версии) ================= */
+const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар",
+  "Охрана","Звук Большой Зал","Звук Малый Зал","Свето-оператор","Менеджер"];
+const UNIQUE_ROLES = ["Старший бармен","Бар-менеджер"];
+const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Бармен":300000,
+  "Звук Малый Зал":400000,"Звук Большой Зал":500000,"Свето-оператор":300000};
+const DEFAULT_MON_RATES = {"Бармен":250000};
+const FIXED_POS = {"Звук Малый Зал":"karaoke","Звук Большой Зал":"karaoke",
+  "Старший бармен":"karaoke","Свето-оператор":"club",
+  "Бар-менеджер":"both","Повар":"both","Охрана":"both"};
+const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звук Большой Зал";
+const POS_NAME = {club:"Клуб",karaoke:"Караоке",both:"Общие (клуб + караоке)"};
+const POS_SHORT = {club:"Клуб",karaoke:"Караоке",both:"Общие"};
+const POS_ORDER = ["karaoke","club","both"];
+const DISPLAY_ORDER = ["Менеджер","Повар","Охрана","Хостес","Бар-менеджер",
+  "Старший бармен","Бармен","Официант","Звук Большой Зал","Звук Малый Зал","Свето-оператор"];
+const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
+
+/* ================= права ролей приложения ================= */
+/* scope: пары [должность, позиция]; "*" = любая позиция; null = всё */
+const CAPS = {
+  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true},
+  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true},
+  bar_manager: {label:"Бар-менеджер",  money:false,
+                scope:[["Бармен","club"],["Бармен","karaoke"],["Официант","club"]],
+                approve:false, unapprove:false, archive:false},
+  manager:     {label:"Менеджер караоке", money:false,
+                scope:[["Официант","karaoke"],["Хостес","karaoke"]],
+                approve:false, unapprove:false, archive:false},
+};
+
+/* ================= состояние ================= */
+let sb = null, ME = null, CAP = null;
+let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [];
+let posFilter = "all", viewStart = null, editId = null;
+
+/* ================= даты и числа ================= */
+function payWeekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  x.setDate(x.getDate()-((x.getDay()-3+7)%7));return x;}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fromIso(s){const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);}
+function fmtD(d){return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0");}
+function fmtFull(d){return fmtD(d)+"."+d.getFullYear();}
+function money(n){return Math.round(n).toLocaleString("ru-RU")+" сум";}
+function fmtNum(n){if(n===null||n===undefined||n==="")return"";
+  return Number(n).toLocaleString("ru-RU").replace(/\u00A0/g," ");}
+function parseNum(s){const v=parseInt(String(s).replace(/[^\d]/g,""),10);return isNaN(v)?NaN:v;}
+function attachThousands(inp){inp.addEventListener("input",()=>{
+  const d=inp.value.replace(/[^\d]/g,"");inp.value=d?fmtNum(d):"";});}
+const $ = id => document.getElementById(id);
+const byId = id => employees.find(e=>e.id===id);
+
+/* ================= авторизация через Telegram ================= */
+async function authorize(){
+  const tg = window.Telegram?.WebApp;
+  if(!tg || !tg.initData){
+    $("auth-spinner").style.display="none";
+    $("auth-status").textContent = "Откройте приложение через Telegram (кнопка у бота).";
+    return;
+  }
+  tg.ready(); tg.expand();
+  try{
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/tg-auth`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
+               "Authorization":"Bearer "+SUPABASE_ANON_KEY},
+      body:JSON.stringify({initData: tg.initData})
+    });
+    const data = await r.json();
+    if(!r.ok){ throw new Error(data.error || "Ошибка входа"); }
+    ME = data; CAP = CAPS[ME.role];
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
+      {global:{headers:{Authorization:"Bearer "+ME.token}}});
+    $("auth-screen").style.display="none";
+    $("app").style.display="block";
+    startApp();
+  }catch(e){
+    $("auth-spinner").style.display="none";
+    $("auth-status").innerHTML = "<b style='color:var(--red)'>"+e.message+"</b>";
+  }
+}
+
+/* ================= загрузка данных ================= */
+async function loadAll(){
+  const weekKey = iso(viewStart);
+  await sb.rpc("ensure_roster",{ws: weekKey});  // копия состава с прошлой недели при первом открытии
+  const q = [
+    sb.from("employees").select("*"),
+    sb.from("rosters").select("*"),
+    sb.from("shifts").select("*"),
+    sb.from("approvals").select("*"),
+  ];
+  if(CAP.money){
+    q.push(sb.from("emp_rates").select("*"));
+    q.push(sb.from("weekly_values").select("*"));
+  }
+  const res = await Promise.all(q);
+  for(const r of res) if(r.error) { showMsg(r.error.message); }
+  [employees, rosterRows, shiftRows, approvals] = res.slice(0,4).map(r=>r.data||[]);
+  if(CAP.money){ rates = res[4].data||[]; wvRows = res[5].data||[]; }
+}
+const isApproved = ws => approvals.some(a=>a.week_start===ws);
+const rosterOf = ws => rosterRows.filter(r=>r.week_start===ws).map(r=>r.employee_id);
+const hasShift = (id,ds) => shiftRows.some(s=>s.employee_id===id && s.work_date===ds);
+const wvOf = (id,ws) => wvRows.find(w=>w.employee_id===id && w.week_start===ws) || {};
+
+/* ================= ставки (только money-роли) ================= */
+function rateEntryFor(empId, dateS){
+  const rs = rates.filter(r=>r.employee_id===empId).sort((a,b)=>a.from_date<b.from_date?-1:1);
+  let cur = rs[0] || {rate:0, monday_rate:null};
+  for(const r of rs){ if(r.from_date <= dateS) cur = r; else break; }
+  return {rate: cur.rate||0, mondayRate: cur.monday_rate ?? null};
+}
+function rateForDate(empId, dateS){
+  const en = rateEntryFor(empId, dateS);
+  if(en.mondayRate!=null && fromIso(dateS).getDay()===1) return en.mondayRate;
+  return en.rate;
+}
+function earnedInPeriod(emp, fromS, toS){
+  let cnt=0, base=0;
+  for(const s of shiftRows){
+    if(s.employee_id!==emp.id) continue;
+    if(s.work_date>=fromS && s.work_date<=toS){ cnt++; base+=rateForDate(emp.id,s.work_date); }
+  }
+  let extra=0, extraLbl="";
+  if(CAP.money){
+    if(emp.emp_role==="Официант"){
+      for(const w of wvRows) if(w.employee_id===emp.id && w.week_start>=fromS && w.week_start<=toS)
+        extra += (w.sales||0)*STEPS_PCT;
+      extraLbl = "шаги "+money(extra);
+    }else if(emp.emp_role===SOUND_BIG){
+      for(const w of wvRows) if(w.employee_id===emp.id && w.week_start>=fromS && w.week_start<=toS)
+        extra += (w.cabin_days||0)*CABIN_BONUS;
+      extraLbl = "кабинки "+money(extra);
+    }
+  }
+  return {cnt, base, extra, extraLbl, sum: base+extra};
+}
+
+/* ================= права на сотрудника ================= */
+const scopeMatch = (er, p) => !CAP.scope ||
+  CAP.scope.some(([sr,sp]) => sr===er && (sp==="*" || sp===p));
+const inScope = e => scopeMatch(e.emp_role, e.pos);
+/* позиции, доступные роли для данной должности */
+function allowedPos(er){
+  if(!CAP.scope) return null; // любые
+  return [...new Set(CAP.scope.filter(([sr])=>sr===er).map(([,sp])=>sp))];
+}
+
+/* ================= форма ================= */
+function fillRoles(){
+  const list = CAP.scope ? [...new Set(CAP.scope.map(([r])=>r))] : ROLES;
+  $("f-role").innerHTML = (CAP.scope ? list : ROLES).map(r=>`<option>${r}</option>`).join("");
+}
+function fillDatalist(){
+  const todayS = iso(new Date());
+  $("emp-datalist").innerHTML = employees
+    .filter(e=>!e.archived && inScope(e))
+    .sort((a,b)=>a.name.localeCompare(b.name,"ru"))
+    .map(e=>{
+      const extra = CAP.money ? " · "+money(rateEntryFor(e.id,todayS).rate) : "";
+      return `<option value="${e.name}">${e.emp_role} · ${POS_SHORT[e.pos]}${extra}</option>`;
+    }).join("");
+}
+function applyRoleDefaults(){
+  const role = $("f-role").value;
+  const ap = allowedPos(role); // зона роли по позициям
+  if(FIXED_POS[role]){
+    $("f-pos").value = FIXED_POS[role]; $("f-pos").disabled = true;
+    $("fix-note").textContent = "позиция фикс.: "+POS_SHORT[FIXED_POS[role]];
+  }else if(ap && ap.length===1 && ap[0]!=="*"){
+    // роль приложения ограничена одной позицией (бар-менеджер -> клуб и т.п.)
+    $("f-pos").value = ap[0]; $("f-pos").disabled = true;
+    $("fix-note").textContent = "ваша зона: "+POS_SHORT[ap[0]];
+  }else{
+    $("f-pos").disabled = false;
+    if($("f-pos").value==="both") $("f-pos").value="karaoke";
+    $("fix-note").textContent = "";
+  }
+  if(!CAP.money) return;
+  const monAllowed = role==="Бармен";
+  $("f-rate-mon").disabled = !monAllowed;
+  if(editId) return;
+  if(DEFAULT_RATES[role]!=null) $("f-rate").value = fmtNum(DEFAULT_RATES[role]);
+  $("f-rate-mon").value = monAllowed && DEFAULT_MON_RATES[role]!=null ? fmtNum(DEFAULT_MON_RATES[role]) : "";
+}
+function onNamePick(){
+  const name = $("f-name").value.trim().toLowerCase();
+  const e = employees.find(x=>!x.archived && x.name.toLowerCase()===name);
+  if(!e || !inScope(e)) return;
+  $("f-role").value = e.emp_role; applyRoleDefaults();
+  if(!FIXED_POS[e.emp_role]) $("f-pos").value = e.pos;
+  if(CAP.money){
+    const en = rateEntryFor(e.id, iso(viewStart));
+    $("f-rate").value = fmtNum(en.rate);
+    $("f-rate-mon").value = en.mondayRate!=null ? fmtNum(en.mondayRate) : "";
+  }
+}
+function showMsg(t, ok){
+  const m = $("form-msg");
+  m.textContent = t; m.className = "msg "+(ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 5000);
+  if(!ok && t) window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("error");
+}
+
+async function addOrSaveEmployee(){
+  const weekKey = iso(viewStart);
+  const role = $("f-role").value;
+  const name = $("f-name").value.trim();
+  const pos = FIXED_POS[role] || $("f-pos").value;
+  let rate = null, mondayRate = null;
+  if(CAP.money){
+    rate = parseNum($("f-rate").value);
+    const monRaw = $("f-rate-mon").value.trim();
+    mondayRate = (role!=="Бармен"||monRaw==="") ? null : parseNum(monRaw);
+    if(!(rate>=0)){ showMsg("Укажите ставку за смену"); return; }
+  }
+  if(!name){ showMsg("Укажите имя и фамилию"); return; }
+  if(CAP.scope && !scopeMatch(role, pos)){
+    showMsg("Эта должность/позиция вне вашей зоны редактирования"); return;
+  }
+  if(!editId && isApproved(weekKey)){
+    showMsg("График этой недели утверждён — состав менять нельзя."); return;
+  }
+
+  if(editId){
+    const {error} = await sb.from("employees").update({name, emp_role:role, pos}).eq("id",editId);
+    if(error){ showMsg(error.message); return; }
+    if(CAP.money){
+      const cur = rateEntryFor(editId, weekKey);
+      if(cur.rate!==rate || (cur.mondayRate??null)!==mondayRate){
+        await sb.from("emp_rates").upsert(
+          {employee_id:editId, from_date:weekKey, rate, monday_rate:mondayRate},
+          {onConflict:"employee_id,from_date"});
+        showMsg(`Сохранено. Новая ставка действует с недели ${fmtD(viewStart)}`, true);
+      }else showMsg("Сотрудник обновлён", true);
+    }else showMsg("Сотрудник обновлён", true);
+    cancelEdit(); await refresh(); return;
+  }
+
+  const roster = rosterOf(weekKey);
+  const existing = employees.find(x=>!x.archived && x.name.toLowerCase()===name.toLowerCase());
+  if(existing){
+    if(!inScope(existing)){ showMsg("Этот сотрудник вне вашей зоны редактирования"); return; }
+    if(roster.includes(existing.id)){ showMsg(`${existing.name} уже в графике этой недели`); return; }
+    if(UNIQUE_ROLES.includes(existing.emp_role)){
+      const clash = roster.map(byId).find(e=>e && e.emp_role===existing.emp_role);
+      if(clash){ showMsg(`В этой неделе уже есть ${existing.emp_role}: ${clash.name}`); return; }
+    }
+    const {error} = await sb.from("rosters").insert({week_start:weekKey, employee_id:existing.id});
+    if(error){ showMsg(error.message); return; }
+    if(CAP.money){
+      const cur = rateEntryFor(existing.id, weekKey);
+      if(cur.rate!==rate || (cur.mondayRate??null)!==mondayRate){
+        await sb.from("emp_rates").upsert(
+          {employee_id:existing.id, from_date:weekKey, rate, monday_rate:mondayRate},
+          {onConflict:"employee_id,from_date"});
+      }
+    }
+    showMsg(`${existing.name} добавлен(а) в график недели`, true);
+  }else{
+    if(UNIQUE_ROLES.includes(role)){
+      const taken = employees.find(e=>!e.archived && e.emp_role===role);
+      if(taken){ showMsg(`Должность «${role}» уже занята: ${taken.name}`); return; }
+    }
+    const {data, error} = await sb.from("employees")
+      .insert({name, emp_role:role, pos}).select().single();
+    if(error){ showMsg(error.message); return; }
+    await sb.from("rosters").insert({week_start:weekKey, employee_id:data.id});
+    if(CAP.money && rate>=0){
+      await sb.from("emp_rates").insert(
+        {employee_id:data.id, from_date:"1900-01-01", rate, monday_rate:mondayRate});
+    }
+    showMsg("Новый сотрудник добавлен: "+name +
+      (CAP.money?"":" (ставку назначит кассир)"), true);
+  }
+  $("f-name").value=""; applyRoleDefaults();
+  await refresh();
+}
+function startEdit(id){
+  const e = byId(id); if(!e || !inScope(e)) return;
+  editId = id;
+  $("f-role").value = e.emp_role; applyRoleDefaults();
+  $("f-name").value = e.name;
+  if(!FIXED_POS[e.emp_role]) $("f-pos").value = e.pos;
+  if(CAP.money){
+    const en = rateEntryFor(id, iso(viewStart));
+    $("f-rate").value = fmtNum(en.rate);
+    $("f-rate-mon").value = en.mondayRate!=null ? fmtNum(en.mondayRate) : "";
+  }
+  $("btn-add").textContent = "Сохранить";
+  $("btn-cancel-edit").style.display = "";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEdit(){
+  editId = null;
+  $("f-name").value=""; if(CAP.money){$("f-rate").value="";$("f-rate-mon").value="";}
+  $("btn-add").textContent = "Добавить";
+  $("btn-cancel-edit").style.display = "none";
+  applyRoleDefaults();
+}
+async function removeFromWeek(id){
+  const weekKey = iso(viewStart);
+  if(isApproved(weekKey)){ showMsg("График утверждён — состав менять нельзя."); return; }
+  const e = byId(id); if(!e) return;
+  if(!confirm(`Убрать ${e.name} из графика этой недели?`)) return;
+  const days = Array.from({length:7},(_,i)=>iso(addDays(viewStart,i)));
+  await sb.from("shifts").delete().eq("employee_id",id).in("work_date",days);
+  if(CAP.money) await sb.from("weekly_values").delete()
+    .eq("employee_id",id).eq("week_start",weekKey);
+  const {error} = await sb.from("rosters").delete()
+    .eq("employee_id",id).eq("week_start",weekKey);
+  if(error) showMsg(error.message);
+  if(editId===id) cancelEdit();
+  await refresh();
+}
+async function archiveEmployee(id, undo){
+  const e = byId(id); if(!e) return;
+  if(!undo && !confirm(`Удалить ${e.name} из базы? Во всех неделях, где сотрудник уже стоит, он останется.`)) return;
+  const {error} = await sb.from("employees").update({archived:!undo}).eq("id",id);
+  if(error) showMsg(error.message);
+  await refresh();
+}
+
+/* ================= отрисовка ================= */
+async function refresh(){ await loadAll(); render(); }
+function render(){
+  const weekKey = iso(viewStart);
+  const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
+  const locked = isApproved(weekKey);
+  const fromS = CAP.money ? $("p-from").value : weekKey;
+  const toS = CAP.money ? $("p-to").value : iso(days[6]);
+  if(CAP.money) $("period-label").textContent =
+    fromS&&toS ? fmtFull(fromIso(fromS))+" — "+fmtFull(fromIso(toS)) : "—";
+
+  $("wk-label").innerHTML = fmtD(days[0])+" — "+fmtFull(days[6]) +
+    (locked?'<span class="lock-badge">🔒 утверждён</span>':"");
+  $("form-week").textContent = "· "+fmtD(days[0])+" — "+fmtD(days[6]);
+  const ab = $("btn-approve");
+  if(locked){
+    ab.textContent = "Изменить график";
+    ab.classList.add("unlock");
+    ab.style.display = CAP.unapprove ? "" : "none";
+  }else{
+    ab.textContent = "Утвердить"; ab.classList.remove("unlock");
+    ab.style.display = CAP.approve ? "" : "none";
+  }
+  $("grid").classList.toggle("locked", locked);
+
+  const todayS = iso(new Date());
+  const M = CAP.money;
+  const COLS = M ? 12 : 9;
+  $("grid-head").innerHTML =
+    `<th style="text-align:left">Сотрудник</th>` +
+    days.map(d=>`<th class="${iso(d)===todayS?'today':''}">${DOW[(d.getDay()-3+7)%7]}<span class="d">${fmtD(d)}</span></th>`).join("") +
+    (M?`<th>Продажа / Кабинки</th><th>Шаги / Бонус</th><th style="text-align:right">Заработано</th>`:"") +
+    `<th></th>`;
+
+  const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
+  const roster = rosterOf(weekKey);
+  const list = roster.map(byId).filter(Boolean)
+    .filter(e=>inScope(e))
+    .filter(e=>posFilter==="all"||e.pos===posFilter)
+    .sort((a,b)=>POS_ORDER.indexOf(a.pos)-POS_ORDER.indexOf(b.pos)
+      || roleIdx(a.emp_role)-roleIdx(b.emp_role)
+      || a.name.localeCompare(b.name,"ru"));
+
+  const body = $("grid-body"); body.innerHTML = "";
+  let totalSum=0, totalShifts=0, totalExtra=0, lastPos=null, lastRole=null;
+
+  for(const e of list){
+    if(e.pos!==lastPos){
+      const tr=document.createElement("tr"); tr.className="pos-head "+e.pos;
+      tr.innerHTML=`<td colspan="${COLS}">${POS_NAME[e.pos]}</td>`;
+      body.appendChild(tr); lastPos=e.pos; lastRole=null;
+    }
+    if(e.emp_role!==lastRole){
+      const tr=document.createElement("tr"); tr.className="role-head";
+      tr.innerHTML=`<td colspan="${COLS}">${e.emp_role}</td>`;
+      body.appendChild(tr); lastRole=e.emp_role;
+    }
+    const tr=document.createElement("tr");
+    const r = M&&fromS&&toS ? earnedInPeriod(e,fromS,toS) : {cnt:0,extra:0,extraLbl:"",sum:0};
+    totalSum+=r.sum; totalShifts+=r.cnt; totalExtra+=r.extra;
+
+    let cells="";
+    for(const d of days){
+      const ds=iso(d), on=hasShift(e.id,ds)?" on":"";
+      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cell${on}" data-emp="${e.id}" data-date="${ds}"></span></td>`;
+    }
+    let moneyCells="";
+    if(M){
+      const en = rateEntryFor(e.id, weekKey);
+      const wv = wvOf(e.id, weekKey);
+      let saleCell, stepsCell;
+      if(e.emp_role==="Официант"){
+        saleCell=`<td class="sale"><input type="text" inputmode="numeric" value="${wv.sales?fmtNum(wv.sales):""}" placeholder="0"
+          data-emp="${e.id}" data-kind="sales" class="wk-inp wk-money"><span class="suff">сум</span></td>`;
+        stepsCell=`<td class="steps">${money((wv.sales||0)*STEPS_PCT)}<span class="lbl">шаги 1%</span></td>`;
+      }else if(e.emp_role===SOUND_BIG){
+        saleCell=`<td class="sale"><input type="text" inputmode="numeric" value="${wv.cabin_days||""}" placeholder="0"
+          data-emp="${e.id}" data-kind="cabin_days" class="wk-inp" style="width:55px"><span class="suff">дн.</span></td>`;
+        stepsCell=`<td class="steps">${money((wv.cabin_days||0)*CABIN_BONUS)}<span class="lbl">бонус</span></td>`;
+      }else{
+        saleCell=`<td class="sale"><span class="dash">—</span></td>`;
+        stepsCell=`<td class="steps"><span class="dash">—</span></td>`;
+      }
+      const monNote = en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
+      moneyCells = saleCell + stepsCell +
+        `<td class="earn">${money(r.sum)}<span class="sh">${r.extraLbl?r.cnt+" смен · "+r.extraLbl:r.cnt+" смен"}</span></td>`;
+      tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
+        <div class="meta">${e.emp_role} · <b>${money(en.rate)}</b>/смена${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
+        + cells + moneyCells;
+    }else{
+      tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
+        <div class="meta">${e.emp_role}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>` + cells;
+    }
+    tr.innerHTML += `<td class="actions">
+      <button onclick="startEdit('${e.id}')" title="Редактировать">✎</button>
+      <button class="del" onclick="removeFromWeek('${e.id}')" title="Убрать из недели">✕</button></td>`;
+    body.appendChild(tr);
+  }
+  $("grid-empty").style.display = list.length?"none":"";
+
+  if(M){
+    const wkTo = iso(days[6]);
+    const wt = {karaoke:{sum:0,cnt:0},club:{sum:0,cnt:0},both:{sum:0,cnt:0}};
+    for(const id of roster){
+      const e=byId(id); if(!e) continue;
+      const rr = earnedInPeriod(e, weekKey, wkTo);
+      const g = wt[e.pos]||(wt[e.pos]={sum:0,cnt:0});
+      g.sum+=rr.sum; g.cnt+=rr.cnt;
+    }
+    const all = wt.karaoke.sum+wt.club.sum+wt.both.sum;
+    $("week-totals").innerHTML = roster.length?`
+      <div class="wt karaoke"><div class="t">Караоке · неделя</div><div class="v">${money(wt.karaoke.sum)}</div><div class="n">${wt.karaoke.cnt} смен</div></div>
+      <div class="wt club"><div class="t">Клуб · неделя</div><div class="v">${money(wt.club.sum)}</div><div class="n">${wt.club.cnt} смен</div></div>
+      <div class="wt both"><div class="t">Общие · неделя</div><div class="v">${money(wt.both.sum)}</div><div class="n">${wt.both.cnt} смен</div></div>
+      <div class="wt total"><div class="t">Всего за неделю</div><div class="v">${money(all)}</div><div class="n">${wt.karaoke.cnt+wt.club.cnt+wt.both.cnt} смен</div></div>`:"";
+    $("grid-foot").innerHTML = list.length?
+      `<td style="text-align:left">Итого (${list.length} чел.)</td><td colspan="7"></td><td></td>
+       <td class="steps">${money(totalExtra)}</td>
+       <td class="earn">${money(totalSum)}<span class="sh">${totalShifts} смен</span></td><td></td>`:"";
+  }else{
+    $("grid-foot").innerHTML = "";
+  }
+
+  body.querySelectorAll(".cell").forEach(c=>{
+    c.addEventListener("click", async ()=>{
+      if(isApproved(weekKey)){ showMsg("График утверждён. Изменения — только через администратора."); return; }
+      const id=c.dataset.emp, ds=c.dataset.date;
+      const e=byId(id);
+      if(!inScope(e)){ showMsg("Этот сотрудник вне вашей зоны редактирования"); return; }
+      const {error} = hasShift(id,ds)
+        ? await sb.from("shifts").delete().eq("employee_id",id).eq("work_date",ds)
+        : await sb.from("shifts").insert({employee_id:id, work_date:ds});
+      if(error){ showMsg(error.message); return; }
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.("light");
+      await refresh();
+    });
+  });
+  body.querySelectorAll(".wk-inp").forEach(inp=>{
+    if(inp.classList.contains("wk-money")) attachThousands(inp);
+    inp.addEventListener("change", async ()=>{
+      const v = parseNum(inp.value);
+      const patch = {employee_id:inp.dataset.emp, week_start:weekKey};
+      patch[inp.dataset.kind] = v>0 ? v : null;
+      const {error} = await sb.from("weekly_values")
+        .upsert(patch,{onConflict:"employee_id,week_start"});
+      if(error) showMsg(error.message);
+      await refresh();
+    });
+  });
+  fillDatalist(); renderBase();
+}
+
+function renderBase(){
+  const todayS = iso(new Date());
+  const visible = employees.filter(e=>inScope(e));
+  const active = visible.filter(e=>!e.archived);
+  $("base-count").textContent = `· в базе: ${active.length}`;
+  const rows = [...visible]
+    .sort((a,b)=>(a.archived?1:0)-(b.archived?1:0)
+      || ROLES.indexOf(a.emp_role)-ROLES.indexOf(b.emp_role)
+      || a.name.localeCompare(b.name,"ru"))
+    .map(e=>{
+      let rateTxt = "";
+      if(CAP.money){
+        const en = rateEntryFor(e.id, todayS);
+        const hist = rates.filter(r=>r.employee_id===e.id && r.from_date!=="1900-01-01");
+        rateTxt = `<td>${money(en.rate)}${en.mondayRate!=null?` · Пн ${money(en.mondayRate)}`:""}
+          ${hist.length?`<div style="font-size:10px;color:var(--muted)">история: ${hist.map(h=>`с ${fmtD(fromIso(h.from_date))} — ${money(h.rate)}`).join("; ")}</div>`:""}</td>`;
+      }
+      const actBtn = CAP.archive
+        ? (e.archived
+          ? `<button class="btn-mini" onclick="archiveEmployee('${e.id}',true)">Вернуть</button>`
+          : `<button class="btn-mini del" onclick="archiveEmployee('${e.id}')">Удалить из базы</button>`)
+        : "";
+      return `<tr class="${e.archived?'arch':''}">
+        <td><span class="nm">${e.name}</span></td><td>${e.emp_role}</td>
+        <td>${POS_SHORT[e.pos]||""}</td>${rateTxt}<td>${actBtn}</td></tr>`;
+    }).join("");
+  $("base-table").innerHTML = visible.length
+    ? `<tr><th>Имя</th><th>Должность</th><th>Позиция</th>${CAP.money?"<th>Ставка</th>":""}<th></th></tr>`+rows
+    : `<tr><td class="empty">База пуста</td></tr>`;
+}
+
+/* ================= экспорт (только money-роли) ================= */
+function exportXlsx(){
+  if(typeof XLSX==="undefined"){ showMsg("Библиотека Excel не загрузилась"); return; }
+  const weekKey = iso(viewStart);
+  const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
+  const fromS = $("p-from").value||weekKey, toS = $("p-to").value||iso(days[6]);
+  const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
+  const list = rosterOf(weekKey).map(byId).filter(Boolean)
+    .filter(e=>posFilter==="all"||e.pos===posFilter)
+    .sort((a,b)=>POS_ORDER.indexOf(a.pos)-POS_ORDER.indexOf(b.pos)
+      || roleIdx(a.emp_role)-roleIdx(b.emp_role) || a.name.localeCompare(b.name,"ru"));
+  const aoa = [[`График и зарплата · неделя ${fmtFull(days[0])} — ${fmtFull(days[6])}`+
+    (isApproved(weekKey)?" · ГРАФИК УТВЕРЖДЁН":"")],
+    [`Период расчёта: ${fmtFull(fromIso(fromS))} — ${fmtFull(fromIso(toS))}`],[],
+    ["Сотрудник","Должность","Ставка, сум",
+     ...days.map(d=>DOW[(d.getDay()-3+7)%7]+" "+fmtD(d)),
+     "Смен","Продажа / Кабинки","Шаги / Бонус","Заработано"]];
+  let lastPos=null,lastRole=null,tSum=0,tCnt=0,tEx=0;
+  for(const e of list){
+    if(e.pos!==lastPos){aoa.push([POS_NAME[e.pos].toUpperCase()]);lastPos=e.pos;lastRole=null;}
+    if(e.emp_role!==lastRole){aoa.push(["— "+e.emp_role]);lastRole=e.emp_role;}
+    const en=rateEntryFor(e.id,weekKey), r=earnedInPeriod(e,fromS,toS);
+    tSum+=r.sum;tCnt+=r.cnt;tEx+=r.extra;
+    const wv=wvOf(e.id,weekKey);
+    const saleTxt = e.emp_role==="Официант" ? (wv.sales?fmtNum(wv.sales)+" сум":"")
+      : e.emp_role===SOUND_BIG ? (wv.cabin_days?wv.cabin_days+" дн. кабинки":"") : "";
+    aoa.push([e.name,e.emp_role,
+      fmtNum(en.rate)+(en.mondayRate!=null?` (Пн ${fmtNum(en.mondayRate)})`:""),
+      ...days.map(d=>hasShift(e.id,iso(d))?"✓":""),
+      r.cnt, saleTxt, r.extra?Math.round(r.extra):"", Math.round(r.sum)]);
+  }
+  aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tSum)]);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[{wch:24},{wch:18},{wch:20},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:6},{wch:18},{wch:14},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "График");
+  XLSX.writeFile(wb, `график_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
+}
+
+/* ================= запуск ================= */
+function setCurrentPayWeek(){
+  if(!CAP.money) return;
+  const ws = payWeekStart(new Date());
+  $("p-from").value = iso(ws); $("p-to").value = iso(addDays(ws,6));
+}
+async function startApp(){
+  $("role-badge").textContent = CAP.label + " · " + ME.name;
+  if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
+  if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
+  viewStart = payWeekStart(new Date());
+  fillRoles(); setCurrentPayWeek(); applyRoleDefaults();
+
+  $("f-role").addEventListener("change", applyRoleDefaults);
+  if(CAP.money){ attachThousands($("f-rate")); attachThousands($("f-rate-mon")); }
+  $("f-name").addEventListener("change", onNamePick);
+  $("f-name").addEventListener("input", onNamePick);
+  $("btn-add").addEventListener("click", addOrSaveEmployee);
+  $("btn-cancel-edit").addEventListener("click", cancelEdit);
+  $("pos-filter").querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      posFilter=b.dataset.v;
+      $("pos-filter").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+      render();
+    });
+  });
+  if(CAP.money){
+    $("p-from").addEventListener("change", render);
+    $("p-to").addEventListener("change", render);
+    $("btn-export").addEventListener("click", exportXlsx);
+  }
+  $("btn-curweek").addEventListener("click", async ()=>{
+    viewStart = payWeekStart(new Date()); setCurrentPayWeek(); await refresh();
+  });
+  $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); await refresh(); });
+  $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); await refresh(); });
+  $("btn-approve").addEventListener("click", async ()=>{
+    const weekKey = iso(viewStart);
+    if(isApproved(weekKey)){
+      if(!CAP.unapprove){ showMsg("Снять утверждение может только администратор"); return; }
+      if(!confirm("Снять утверждение недели?")) return;
+      const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
+      if(error) showMsg(error.message);
+    }else{
+      if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
+      const {error} = await sb.from("approvals").insert({week_start:weekKey});
+      if(error) showMsg(error.message);
+    }
+    await refresh();
+  });
+  $("base-toggle").addEventListener("click", ()=>{
+    const w=$("base-wrap"); const open=w.style.display==="none";
+    w.style.display=open?"":"none";
+    $("base-toggle").textContent=open?"Скрыть":"Показать";
+  });
+
+  await refresh();
+}
+window.startEdit = startEdit;
+window.removeFromWeek = removeFromWeek;
+window.archiveEmployee = archiveEmployee;
+authorize();
+</script>
+</body>
+</html>
