@@ -256,20 +256,28 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар",
+const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Гостевой менеджер","Хостес","Повар",
   "Охрана","Звук Большой Зал","Звук Малый Зал","Свето-оператор","Менеджер"];
+const NO_RATE_ROLES = ["Бар-менеджер","Гостевой менеджер"]; // фикс. оклад 2 р/мес — вне табеля
+/* автографик: выходной день (JS getDay: 1=Пн, 2=Вт, 3=Ср) */
+function autoOffDay(e){
+  if(e.emp_role === "Бар-менеджер") return 2;
+  if(e.emp_role === "Гостевой менеджер") return 3;
+  if(e.emp_role === "Менеджер") return e.pos === "club" ? 1 : 2;
+  return null;
+}
 const UNIQUE_ROLES = ["Старший бармен","Бар-менеджер"];
 const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Бармен":300000,
   "Звук Малый Зал":400000,"Звук Большой Зал":500000,"Свето-оператор":300000};
 const DEFAULT_MON_RATES = {"Бармен":250000};
 const FIXED_POS = {"Звук Малый Зал":"karaoke","Звук Большой Зал":"karaoke",
   "Старший бармен":"karaoke","Свето-оператор":"club",
-  "Бар-менеджер":"both","Повар":"both","Охрана":"both"};
+  "Бар-менеджер":"both","Гостевой менеджер":"both","Повар":"both","Охрана":"both"};
 const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звук Большой Зал";
 const POS_NAME = {club:"Клуб",karaoke:"Караоке",both:"Общие (клуб + караоке)"};
 const POS_SHORT = {club:"Клуб",karaoke:"Караоке",both:"Общие"};
 const POS_ORDER = ["karaoke","club","both"];
-const DISPLAY_ORDER = ["Менеджер","Повар","Охрана","Хостес","Бар-менеджер",
+const DISPLAY_ORDER = ["Менеджер","Повар","Охрана","Хостес","Бар-менеджер","Гостевой менеджер",
   "Старший бармен","Бармен","Официант","Звук Большой Зал","Звук Малый Зал","Свето-оператор"];
 const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 
@@ -384,10 +392,11 @@ function rateForDate(empId, dateS){
   return en.rate;
 }
 function earnedInPeriod(emp, fromS, toS){
+  const noPay = NO_RATE_ROLES.includes(emp.emp_role);
   let cnt=0, base=0;
   for(const s of shiftRows){
     if(s.employee_id!==emp.id) continue;
-    if(s.work_date>=fromS && s.work_date<=toS){ cnt++; base+=rateForDate(emp.id,s.work_date); }
+    if(s.work_date>=fromS && s.work_date<=toS){ cnt++; if(!noPay) base+=rateForDate(emp.id,s.work_date); }
   }
   let extra=0, extraLbl="";
   if(CAP.money){
@@ -401,7 +410,20 @@ function earnedInPeriod(emp, fromS, toS){
       extraLbl = "кабинки "+money(extra);
     }
   }
-  return {cnt, base, extra, extraLbl, sum: base+extra};
+  return {cnt, base, extra, extraLbl, noPay, sum: noPay ? 0 : base+extra};
+}
+
+/* автографик сотруднику на отображаемую неделю */
+async function autoFillWeek(e, weekKey){
+  const off = autoOffDay(e);
+  if(off === null) return;
+  const rows = [];
+  for(let i=0;i<7;i++){
+    const d = addDays(viewStart, i);
+    if(d.getDay() === off) continue;
+    if(!hasShift(e.id, iso(d))) rows.push({employee_id: e.id, work_date: iso(d)});
+  }
+  if(rows.length) await sb.from("shifts").upsert(rows, {onConflict:"employee_id,work_date"});
 }
 
 /* ================= права на сотрудника ================= */
@@ -451,10 +473,16 @@ function applyRoleDefaults(){
     $("fix-note").textContent = "";
   }
   if(!CAP.money) return;
-  const monAllowed = role==="Бармен";
+  const noRate = NO_RATE_ROLES.includes(role);
+  $("f-rate").disabled = noRate;
+  const monAllowed = role==="Бармен" && !noRate;
   $("f-rate-mon").disabled = !monAllowed;
+  if(noRate){
+    $("f-rate").value = "";
+    $("fix-note").textContent = ($("fix-note").textContent ? $("fix-note").textContent + " · " : "") + "фикс. оклад 2 р/мес";
+  }
   if(editId) return;
-  if(DEFAULT_RATES[role]!=null) $("f-rate").value = fmtNum(DEFAULT_RATES[role]);
+  if(!noRate && DEFAULT_RATES[role]!=null) $("f-rate").value = fmtNum(DEFAULT_RATES[role]);
   $("f-rate-mon").value = monAllowed && DEFAULT_MON_RATES[role]!=null ? fmtNum(DEFAULT_MON_RATES[role]) : "";
 }
 function onNamePick(){
@@ -481,12 +509,13 @@ async function addOrSaveEmployee(){
   const role = $("f-role").value;
   const name = $("f-name").value.trim();
   const pos = FIXED_POS[role] || $("f-pos").value;
+  const noRate = NO_RATE_ROLES.includes(role);
   let rate = null, mondayRate = null;
   if(CAP.money){
-    rate = parseNum($("f-rate").value);
+    rate = noRate ? 0 : parseNum($("f-rate").value);
     const monRaw = $("f-rate-mon").value.trim();
-    mondayRate = (role!=="Бармен"||monRaw==="") ? null : parseNum(monRaw);
-    if(!(rate>=0)){ showMsg("Укажите ставку за смену"); return; }
+    mondayRate = (noRate || role!=="Бармен" || monRaw==="") ? null : parseNum(monRaw);
+    if(!noRate && !(rate>=0)){ showMsg("Укажите ставку за смену"); return; }
   }
   if(!name){ showMsg("Укажите имя и фамилию"); return; }
   if(CAP.scope && !scopeMatch(role, pos)){
@@ -522,6 +551,7 @@ async function addOrSaveEmployee(){
     }
     const {error} = await sb.from("rosters").insert({week_start:weekKey, employee_id:existing.id});
     if(error){ showMsg(error.message); return; }
+    await autoFillWeek(existing, weekKey);
     if(CAP.money){
       const cur = rateEntryFor(existing.id, weekKey);
       if(cur.rate!==rate || (cur.mondayRate??null)!==mondayRate){
@@ -540,6 +570,7 @@ async function addOrSaveEmployee(){
       .insert({name, emp_role:role, pos}).select().single();
     if(error){ showMsg(error.message); return; }
     await sb.from("rosters").insert({week_start:weekKey, employee_id:data.id});
+    await autoFillWeek(data, weekKey);
     if(CAP.money && rate>=0){
       await sb.from("emp_rates").insert(
         {employee_id:data.id, from_date:"1900-01-01", rate, monday_rate:mondayRate});
@@ -678,11 +709,15 @@ function render(){
         saleCell=`<td class="sale"><span class="dash">—</span></td>`;
         stepsCell=`<td class="steps"><span class="dash">—</span></td>`;
       }
-      const monNote = en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
-      moneyCells = saleCell + stepsCell +
-        `<td class="earn">${money(r.sum)}<span class="sh">${r.extraLbl?r.cnt+" смен · "+r.extraLbl:r.cnt+" смен"}</span></td>`;
+      const noPay = NO_RATE_ROLES.includes(e.emp_role);
+      const monNote = !noPay && en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
+      const rateNote = noPay ? "фикс. оклад · 2 р/мес" : `<b>${money(en.rate)}</b>/смена`;
+      const earnTd = noPay
+        ? `<td class="earn"><span class="dash">—</span><span class="sh">${r.cnt} смен</span></td>`
+        : `<td class="earn">${money(r.sum)}<span class="sh">${r.extraLbl?r.cnt+" смен · "+r.extraLbl:r.cnt+" смен"}</span></td>`;
+      moneyCells = saleCell + stepsCell + earnTd;
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
-        <div class="meta">${e.emp_role} · <b>${money(en.rate)}</b>/смена${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
+        <div class="meta">${e.emp_role} · ${rateNote}${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
         + cells + moneyCells;
     }else{
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
