@@ -266,7 +266,7 @@
       Метка 🔒 — неделя утверждена: состав и план заморожены, но отметку неявки ставить можно.
       Кнопки в строке: <span class="pen-only">⚠ штрафы, </span>✎ редактировать, ✕ убрать из этой недели (в базе сотрудник останется).
       Зелёные цифры под квадратиками — сколько человек на смене в каждый день.
-      <span class="money-only">«Продажа» вводится официантам за неделю (шаги = 1%), Звуку Большого Зала — дни с кабинками (бонус 100 000/день). «Заработано» = смены × ставка − штрафы (+ шаги/бонусы); у должностей с фикс. окладом — прочерк.</span>
+      <span class="money-only">«Продажа» вводится официантам за неделю (шаги = 1%), Звуку Большого Зала — количество раз с кабинками (бонус 100 000/раз, максимум 10 за неделю). «Заработано» = смены × ставка − штрафы (+ шаги/бонусы); у должностей с фикс. окладом — прочерк.</span>
     </div>
   </div>
 
@@ -364,16 +364,18 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Гостевой менеджер","Хостес","Повар",
   "Охрана","Кассир","Звук Большой Зал","Звук Малый Зал","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Гостевой менеджер"]; // фикс. оклад 2 р/мес — вне табеля
-/* автографик: выходной день (JS getDay: 1=Пн, 2=Вт, 3=Ср); -1 = без выходных */
-function autoOffDay(e){
-  if(e.emp_role === "Бар-менеджер") return 2;
-  if(e.emp_role === "Гостевой менеджер") return 3;
-  if(e.emp_role === "Менеджер") return e.pos === "club" ? 1 : 2;
+/* автографик: какие дни недели проставить (JS getDay: 0=Вс..6=Сб); null = нет */
+function autoWorkDays(e){
+  const all = [0,1,2,3,4,5,6];
+  if(e.emp_role === "Бар-менеджер")      return all.filter(d=>d!==2); // вых. ВТ
+  if(e.emp_role === "Гостевой менеджер") return all.filter(d=>d!==3); // вых. СР
+  if(e.emp_role === "Менеджер")          return all.filter(d=>d!==(e.pos==="club"?1:2));
+  if(e.emp_role === "Звук Малый Зал")    return [5,6];                // только ПТ и СБ
   return null;
 }
 const UNIQUE_ROLES = ["Старший бармен","Бар-менеджер"];
 const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Бармен":300000,"Кассир":400000,"Хостес":300000,
-  "Звук Малый Зал":400000,"Звук Большой Зал":500000,"Свето-оператор":300000};
+  "Звук Малый Зал":400000,"Звук Большой Зал":400000,"Свето-оператор":300000};
 const DEFAULT_MON_RATES = {"Бармен":250000};
 const FIXED_POS = {"Звук Малый Зал":"karaoke","Звук Большой Зал":"karaoke",
   "Старший бармен":"karaoke","Свето-оператор":"club",
@@ -534,18 +536,18 @@ function earnedInPeriod(emp, fromS, toS){
 
 /* автографик сотруднику на отображаемую неделю */
 async function autoFillWeek(e, weekKey){
-  let off = autoOffDay(e);
+  let days = autoWorkDays(e);
   if(e.emp_role === "Кассир"){
     // первый кассир недели — без выходных; у второго и далее автографика нет
     const others = rosterOf(weekKey).map(byId)
       .filter(x => x && x.emp_role === "Кассир" && x.id !== e.id);
-    off = others.length === 0 ? -1 : null;
+    days = others.length === 0 ? [0,1,2,3,4,5,6] : null;
   }
-  if(off === null) return;
+  if(days === null) return;
   const rows = [];
   for(let i=0;i<7;i++){
     const d = addDays(viewStart, i);
-    if(off !== -1 && d.getDay() === off) continue;
+    if(!days.includes(d.getDay())) continue;
     if(!shiftOf(e.id, iso(d))) rows.push({employee_id: e.id, work_date: iso(d)});
   }
   if(rows.length) await sb.from("shifts").upsert(rows, {onConflict:"employee_id,work_date"});
@@ -851,7 +853,7 @@ function render(){
         stepsCell=`<td class="steps">${money((wv.sales||0)*STEPS_PCT)}<span class="lbl">шаги 1%</span></td>`;
       }else if(e.emp_role===SOUND_BIG){
         saleCell=`<td class="sale"><input type="text" inputmode="numeric" value="${wv.cabin_days||""}" placeholder="0"
-          data-emp="${e.id}" data-kind="cabin_days" class="wk-inp" style="width:55px"><span class="suff">дн.</span></td>`;
+          data-emp="${e.id}" data-kind="cabin_days" class="wk-inp" style="width:55px"><span class="suff">раз</span></td>`;
         stepsCell=`<td class="steps">${money((wv.cabin_days||0)*CABIN_BONUS)}<span class="lbl">бонус</span></td>`;
       }else{
         saleCell=`<td class="sale"><span class="dash">—</span></td>`;
@@ -944,7 +946,11 @@ function render(){
   body.querySelectorAll(".wk-inp").forEach(inp=>{
     if(inp.classList.contains("wk-money")) attachThousands(inp);
     inp.addEventListener("change", async ()=>{
-      const v = parseNum(inp.value);
+      let v = parseNum(inp.value);
+      if(inp.dataset.kind === "cabin_days" && v > 10){
+        v = 10; inp.value = "10";
+        showMsg("Кабинки: максимум 10 раз за неделю — значение ограничено.");
+      }
       const patch = {employee_id:inp.dataset.emp, week_start:weekKey};
       patch[inp.dataset.kind] = v>0 ? v : null;
       const {error} = await sb.from("weekly_values")
@@ -1100,7 +1106,7 @@ function exportXlsx(){
     tSum+=r.sum;tCnt+=r.cnt;tEx+=r.extra;
     const wv=wvOf(e.id,weekKey);
     const saleTxt = e.emp_role==="Официант" ? (wv.sales?fmtNum(wv.sales)+" сум":"")
-      : e.emp_role===SOUND_BIG ? (wv.cabin_days?wv.cabin_days+" дн. кабинки":"") : "";
+      : e.emp_role===SOUND_BIG ? (wv.cabin_days?wv.cabin_days+" раз (кабинки)":"") : "";
     aoa.push([e.name,e.emp_role,
       fmtNum(en.rate)+(en.mondayRate!=null?` (Пн ${fmtNum(en.mondayRate)})`:""),
       ...days.map(d=>{const sh=shiftOf(e.id,iso(d)); return sh ? (sh.status===2?"Н":"✓") : "";}),
