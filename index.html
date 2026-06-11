@@ -233,6 +233,20 @@
   </div>
 
   <div class="card">
+    <div class="hint" style="margin-top:0">
+      <b style="color:var(--text)">Обозначения.</b> Квадратик дня меняется по нажатию:
+      <span class="cell" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — не запланирован →
+      <span class="cell on" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — работает →
+      <span class="cell abs" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — неявка (был в графике, не пришёл; день не оплачивается) → снова пусто.
+      <span class="pen-only">Красный уголок <span class="cellwrap" style="vertical-align:middle"><span class="cell on" style="width:15px;height:15px;cursor:default"></span><span class="pen-mark"></span></span> — у сотрудника есть штраф в этот день (подробности — по наведению или в окне ⚠).</span>
+      Метка 🔒 — неделя утверждена: состав и план заморожены, но отметку неявки ставить можно.
+      Кнопки в строке: <span class="pen-only">⚠ штрафы, </span>✎ редактировать, ✕ убрать из этой недели (в базе сотрудник останется).
+      Зелёные цифры под квадратиками — сколько человек на смене в каждый день.
+      <span class="money-only">«Продажа» вводится официантам за неделю (шаги = 1%), Звуку Большого Зала — дни с кабинками (бонус 100 000/день). «Заработано» = смены × ставка − штрафы (+ шаги/бонусы); у должностей с фикс. окладом — прочерк.</span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>График <span class="money-only" style="text-transform:none;letter-spacing:0;font-weight:400">· сумма за период <b id="period-label"></b></span>
       <button class="btn-mini money-only" id="btn-export" style="margin-left:auto">⬇ Excel</button>
     </h2>
@@ -358,7 +372,7 @@ const CAPS = {
                 approve:false, unapprove:false, archive:false,
                 pen:[["Бармен","*"]]},  // штрафы: только бармены
   manager:     {label:"Менеджер караоке", money:false,
-                scope:[["Официант","karaoke"],["Хостес","karaoke"]],
+                scope:[["Официант","karaoke"],["Хостес","karaoke"],["Охрана","both"]],
                 approve:false, unapprove:false, archive:false,
                 pen:[["*","karaoke"],["*","both"]]},  // штрафы: караоке и общие, клуб нельзя
   chief:       {label:"Шеф", money:false,
@@ -1131,6 +1145,7 @@ function setCurrentPayWeek(){
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
+  if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
   if(CAP.notify) initNotify();
   if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
   viewStart = payWeekStart(new Date());
