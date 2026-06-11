@@ -224,6 +224,26 @@
     </div>
   </div>
 
+  <!-- РАССЫЛКА (только администратор) -->
+  <div class="card" id="card-notify" style="display:none">
+    <h2>Сообщение сотрудникам в бот</h2>
+    <div class="form-row">
+      <div class="field">
+        <label>Кому</label>
+        <select id="msg-to" style="min-width:200px"></select>
+      </div>
+      <div class="field" style="flex:1;min-width:200px">
+        <label>Текст сообщения</label>
+        <input id="msg-text" type="text" placeholder="Например: не забудьте составить график на новую неделю">
+      </div>
+      <button class="btn-primary" id="msg-send">Отправить</button>
+    </div>
+    <div class="msg" id="msg-status"></div>
+    <div class="hint">Сообщение придёт получателям в чат с ботом от его имени.
+    Автонапоминания работают отдельно: менеджерам в вс 22:00, если график новой недели пуст;
+    кассиру в пн 01:00, если неделя не утверждена.</div>
+  </div>
+
 </div>
 </div>
 
@@ -232,7 +252,7 @@
    НАСТРОЙКА — вставьте значения своего проекта Supabase:
    (Settings -> API: Project URL и anon public key)
 ============================================================ */
-const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";        // например https://abcd1234.supabase.co
+const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
@@ -256,13 +276,22 @@ const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 /* ================= права ролей приложения ================= */
 /* scope: пары [должность, позиция]; "*" = любая позиция; null = всё */
 const CAPS = {
-  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true},
-  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true},
+  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true, notify:true},
+  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true, notify:false},
   bar_manager: {label:"Бар-менеджер",  money:false,
                 scope:[["Бармен","club"],["Бармен","karaoke"],["Официант","club"]],
                 approve:false, unapprove:false, archive:false},
   manager:     {label:"Менеджер караоке", money:false,
                 scope:[["Официант","karaoke"],["Хостес","karaoke"]],
+                approve:false, unapprove:false, archive:false},
+  chief:       {label:"Шеф", money:false,
+                scope:[["Повар","*"]],
+                approve:false, unapprove:false, archive:false},
+  upr:         {label:"Управляющий", money:false,
+                scope:[["*","*"]],
+                approve:true, unapprove:false, archive:false},
+  dir:         {label:"Директор клуба", money:false,
+                scope:[["*","club"],["Бар-менеджер","both"]],
                 approve:false, unapprove:false, archive:false},
 };
 
@@ -377,18 +406,24 @@ function earnedInPeriod(emp, fromS, toS){
 
 /* ================= права на сотрудника ================= */
 const scopeMatch = (er, p) => !CAP.scope ||
-  CAP.scope.some(([sr,sp]) => sr===er && (sp==="*" || sp===p));
+  CAP.scope.some(([sr,sp]) => (sr==="*" || sr===er) && (sp==="*" || sp===p));
 const inScope = e => scopeMatch(e.emp_role, e.pos);
 /* позиции, доступные роли для данной должности */
 function allowedPos(er){
   if(!CAP.scope) return null; // любые
-  return [...new Set(CAP.scope.filter(([sr])=>sr===er).map(([,sp])=>sp))];
+  return [...new Set(CAP.scope.filter(([sr])=>sr==="*"||sr===er).map(([,sp])=>sp))];
 }
 
 /* ================= форма ================= */
 function fillRoles(){
-  const list = CAP.scope ? [...new Set(CAP.scope.map(([r])=>r))] : ROLES;
-  $("f-role").innerHTML = (CAP.scope ? list : ROLES).map(r=>`<option>${r}</option>`).join("");
+  let list = ROLES;
+  if(CAP.scope && !CAP.scope.some(([r])=>r==="*")){
+    list = [...new Set(CAP.scope.map(([r])=>r))];
+  }else if(CAP.scope){
+    // '*' в должности: показываем все должности, доступные хотя бы в одной позиции зоны
+    list = ROLES.filter(r => scopeMatch(r, FIXED_POS[r] || "club") || scopeMatch(r, FIXED_POS[r] || "karaoke"));
+  }
+  $("f-role").innerHTML = list.map(r=>`<option>${r}</option>`).join("");
 }
 function fillDatalist(){
   const todayS = iso(new Date());
@@ -782,6 +817,52 @@ function exportXlsx(){
   XLSX.writeFile(wb, `график_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
 }
 
+/* ================= рассылка (только админ) ================= */
+async function initNotify(){
+  $("card-notify").style.display = "";
+  // список получателей: группы + конкретные пользователи из app_users
+  const { data: users } = await sb.from("app_users").select("telegram_id, full_name, app_role");
+  const ROLE_LBL = {admin:"Администратор", cashier:"Кассир", bar_manager:"Бар-менеджер", manager:"Менеджер караоке"};
+  let opts = `<option value="all">Всем пользователям</option>
+    <option value="role:bar_manager">Всем бар-менеджерам</option>
+    <option value="role:manager">Всем менеджерам караоке</option>
+    <option value="role:cashier">Всем кассирам</option>`;
+  for(const u of (users||[]).sort((a,b)=>a.full_name.localeCompare(b.full_name,"ru"))){
+    opts += `<option value="user:${u.telegram_id}">${u.full_name} (${ROLE_LBL[u.app_role]||u.app_role})</option>`;
+  }
+  $("msg-to").innerHTML = opts;
+  $("msg-send").addEventListener("click", sendNotify);
+}
+async function sendNotify(){
+  const v = $("msg-to").value;
+  const text = $("msg-text").value.trim();
+  const st = $("msg-status");
+  const show = (t, ok)=>{ st.textContent=t; st.className="msg "+(ok?"ok":"err"); };
+  if(!text){ show("Введите текст сообщения"); return; }
+  let to;
+  if(v === "all") to = {type:"all"};
+  else if(v.startsWith("role:")) to = {type:"role", role:v.slice(5)};
+  else to = {type:"user", telegram_id:Number(v.slice(5))};
+  $("msg-send").disabled = true; show("Отправка…", true);
+  try{
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/tg-notify`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
+               "Authorization":"Bearer "+SUPABASE_ANON_KEY},
+      body:JSON.stringify({token: ME.token, to, text})
+    });
+    const data = await r.json();
+    if(!r.ok){ show(data.error||"Ошибка отправки"); }
+    else{
+      let t = `Отправлено: ${data.sent}`;
+      if(data.failed && data.failed.length) t += ` · не доставлено: ${data.failed.join(", ")}`;
+      show(t, true);
+      $("msg-text").value = "";
+    }
+  }catch(e){ show("Ошибка сети: "+e.message); }
+  $("msg-send").disabled = false;
+}
+
 /* ================= запуск ================= */
 function setCurrentPayWeek(){
   if(!CAP.money) return;
@@ -791,6 +872,7 @@ function setCurrentPayWeek(){
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
+  if(CAP.notify) initNotify();
   if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
   viewStart = payWeekStart(new Date());
   fillRoles(); setCurrentPayWeek(); applyRoleDefaults();
