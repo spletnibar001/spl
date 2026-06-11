@@ -50,6 +50,9 @@
   .seg button{border:none;border-radius:0;background:transparent;padding:7px 11px}
   .seg button.active{background:var(--emerald);color:#0c1410;font-weight:700}
   .grid-wrap{overflow:auto;-webkit-overflow-scrolling:touch;max-height:78vh}
+  /* у sticky-ячеек в таблицах с border-collapse:collapse браузеры теряют фон —
+     поэтому таблице графика задаём separate (визуально не отличается) */
+  .grid-wrap table{border-collapse:separate;border-spacing:0}
   /* шапка с днями недели прилипает при вертикальной прокрутке */
   .grid-wrap thead th{position:sticky;top:0;background:var(--panel);z-index:6;
     box-shadow:0 2px 0 var(--line)}
