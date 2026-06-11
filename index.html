@@ -93,6 +93,38 @@
     letter-spacing:.06em;text-transform:uppercase;color:var(--emerald);
     border:1px solid var(--emerald);border-radius:20px;padding:2px 8px}
   table.locked .cell{cursor:default;opacity:.85}
+  table.locked .cell.on,table.locked .cell.abs{cursor:pointer;opacity:1}
+  .cell.abs{background:var(--red);border-color:var(--red);box-shadow:0 0 8px rgba(226,92,92,.4);position:relative}
+  .cell.abs::after{content:"✗";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:15px;font-weight:800;line-height:1}
+  .cellwrap{position:relative;display:inline-block}
+  .cellwrap .pen-mark{position:absolute;top:-3px;right:-3px;width:0;height:0;
+    border-left:9px solid transparent;border-top:9px solid var(--red);border-radius:2px;pointer-events:none}
+  td.actions .pen-btn{color:var(--red)}
+  td.actions .pen-btn:hover{border-color:var(--red)}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+    align-items:flex-start;justify-content:center;z-index:50;padding:30px 10px;overflow:auto}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;max-width:560px;width:100%}
+  .modal h3{font-size:15px;margin-bottom:4px}
+  .modal .sub{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .pen-list{margin-top:12px;border-top:1px solid var(--line)}
+  .pen-row{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+  .pen-row .d{font-weight:700;white-space:nowrap}
+  .pen-row .a{color:var(--red);font-weight:700;white-space:nowrap}
+  .pen-row .n{flex:1;color:var(--muted);min-width:120px}
+  .pen-row .by{font-size:11px;color:var(--muted);white-space:nowrap}
+  .pen-row button{padding:2px 8px;font-size:12px}
+  .earn .penal,.sh .penal{color:var(--red)}
+  .day-totals{margin-top:10px;overflow-x:auto}
+  .day-totals table{min-width:600px;border-collapse:collapse;width:100%}
+  .day-totals th,.day-totals td{padding:4px 6px;font-size:12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .day-totals th{color:var(--muted);font-size:10px;text-transform:uppercase}
+  .day-totals td:first-child,.day-totals th:first-child{text-align:left}
+  .day-totals tr.t-karaoke td:first-child{color:var(--emerald)}
+  .day-totals tr.t-club td:first-child{color:var(--violet)}
+  .day-totals tr.t-both td:first-child{color:var(--gold)}
+  .day-totals tr.t-all td{font-weight:800;color:var(--emerald)}
   .week-totals{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .wt{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--line);
     border-radius:8px;padding:8px 12px}
@@ -213,6 +245,7 @@
     </div>
     <div class="empty" id="grid-empty" style="display:none">В графике этой недели пока никого нет</div>
     <div class="week-totals money-only" id="week-totals"></div>
+    <div class="day-totals money-only" id="day-totals"></div>
   </div>
 
   <div class="card" id="card-base">
@@ -245,6 +278,40 @@
   </div>
 
 </div>
+
+<!-- ОКНО ШТРАФОВ -->
+<div class="modal-bg" id="pen-modal">
+  <div class="modal">
+    <h3 id="pen-title">Штраф</h3>
+    <div class="sub" id="pen-sub"></div>
+    <div class="form-row">
+      <div class="field">
+        <label>День</label>
+        <select id="pen-date"></select>
+      </div>
+      <div class="field">
+        <label>Сумма, сум *</label>
+        <input id="pen-amount" type="text" inputmode="numeric" style="width:115px">
+      </div>
+      <div class="field" style="flex:1;min-width:150px">
+        <label>Кем поставлен</label>
+        <input id="pen-by" type="text" disabled>
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:10px">
+      <div class="field" style="flex:1">
+        <label>Примечание — за что штраф *</label>
+        <input id="pen-note" type="text" placeholder="Например: опоздание на смену 40 минут">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:10px">
+      <button class="btn-primary" id="pen-add">Выписать штраф</button>
+      <button class="btn-ghost" id="pen-close">Закрыть</button>
+      <span class="msg" id="pen-msg" style="margin:0 0 0 6px"></span>
+    </div>
+    <div class="pen-list" id="pen-list"></div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -257,9 +324,9 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 /* ================= справочники (как в локальной версии) ================= */
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Гостевой менеджер","Хостес","Повар",
-  "Охрана","Звук Большой Зал","Звук Малый Зал","Свето-оператор","Менеджер"];
+  "Охрана","Кассир","Звук Большой Зал","Звук Малый Зал","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Гостевой менеджер"]; // фикс. оклад 2 р/мес — вне табеля
-/* автографик: выходной день (JS getDay: 1=Пн, 2=Вт, 3=Ср) */
+/* автографик: выходной день (JS getDay: 1=Пн, 2=Вт, 3=Ср); -1 = без выходных */
 function autoOffDay(e){
   if(e.emp_role === "Бар-менеджер") return 2;
   if(e.emp_role === "Гостевой менеджер") return 3;
@@ -267,45 +334,50 @@ function autoOffDay(e){
   return null;
 }
 const UNIQUE_ROLES = ["Старший бармен","Бар-менеджер"];
-const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Бармен":300000,
+const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Бармен":300000,"Кассир":400000,"Хостес":300000,
   "Звук Малый Зал":400000,"Звук Большой Зал":500000,"Свето-оператор":300000};
 const DEFAULT_MON_RATES = {"Бармен":250000};
 const FIXED_POS = {"Звук Малый Зал":"karaoke","Звук Большой Зал":"karaoke",
   "Старший бармен":"karaoke","Свето-оператор":"club",
-  "Бар-менеджер":"both","Гостевой менеджер":"karaoke","Повар":"both","Охрана":"both"};
+  "Бар-менеджер":"both","Гостевой менеджер":"karaoke","Повар":"both","Охрана":"both","Кассир":"both"};
 const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звук Большой Зал";
 const POS_NAME = {club:"Клуб",karaoke:"Караоке",both:"Общие (клуб + караоке)"};
 const POS_SHORT = {club:"Клуб",karaoke:"Караоке",both:"Общие"};
 const POS_ORDER = ["karaoke","club","both"];
-const DISPLAY_ORDER = ["Менеджер","Повар","Охрана","Хостес","Бар-менеджер","Гостевой менеджер",
+const DISPLAY_ORDER = ["Менеджер","Кассир","Повар","Охрана","Хостес","Бар-менеджер","Гостевой менеджер",
   "Старший бармен","Бармен","Официант","Звук Большой Зал","Звук Малый Зал","Свето-оператор"];
 const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 
 /* ================= права ролей приложения ================= */
 /* scope: пары [должность, позиция]; "*" = любая позиция; null = всё */
 const CAPS = {
-  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true, notify:true},
-  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true, notify:false},
+  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true, notify:true, pen:"all"},
+  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:"all"},
   bar_manager: {label:"Бар-менеджер",  money:false,
                 scope:[["Бармен","club"],["Бармен","karaoke"],["Официант","club"]],
-                approve:false, unapprove:false, archive:false},
+                approve:false, unapprove:false, archive:false,
+                pen:[["Бармен","*"]]},  // штрафы: только бармены
   manager:     {label:"Менеджер караоке", money:false,
                 scope:[["Официант","karaoke"],["Хостес","karaoke"]],
-                approve:false, unapprove:false, archive:false},
+                approve:false, unapprove:false, archive:false,
+                pen:[["*","karaoke"],["*","both"]]},  // штрафы: караоке и общие, клуб нельзя
   chief:       {label:"Шеф", money:false,
                 scope:[["Повар","*"]],
-                approve:false, unapprove:false, archive:false},
-  upr:         {label:"Управляющий", money:false,
+                approve:false, unapprove:false, archive:false,
+                pen:[["Повар","*"]]},  // штрафы: только повара
+  upr:         {label:"Управляющий", money:true,
                 scope:[["*","*"]],
-                approve:true, unapprove:false, archive:false},
+                approve:true, unapprove:false, archive:false, pen:"all"},
   dir:         {label:"Директор клуба", money:false,
                 scope:[["*","club"],["Бар-менеджер","both"]],
-                approve:false, unapprove:false, archive:false},
+                approve:false, unapprove:false, archive:false, pen:"scope"},  // штрафы: своя зона
 };
 
 /* ================= состояние ================= */
 let sb = null, ME = null, CAP = null;
-let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [];
+let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [];
+let penEmpId = null;
+const DEFAULT_PENALTY = 50000;
 let posFilter = "all", viewStart = null, editId = null;
 
 /* ================= даты и числа ================= */
@@ -369,14 +441,19 @@ async function loadAll(){
     q.push(sb.from("emp_rates").select("*"));
     q.push(sb.from("weekly_values").select("*"));
   }
+  if(CAP.pen) q.push(sb.from("penalties").select("*"));
   const res = await Promise.all(q);
   for(const r of res) if(r.error) { showMsg(r.error.message); }
   [employees, rosterRows, shiftRows, approvals] = res.slice(0,4).map(r=>r.data||[]);
-  if(CAP.money){ rates = res[4].data||[]; wvRows = res[5].data||[]; }
+  let i = 4;
+  if(CAP.money){ rates = res[i].data||[]; wvRows = res[i+1].data||[]; i += 2; }
+  if(CAP.pen){ penRows = res[i].data||[]; }
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
 const rosterOf = ws => rosterRows.filter(r=>r.week_start===ws).map(r=>r.employee_id);
-const hasShift = (id,ds) => shiftRows.some(s=>s.employee_id===id && s.work_date===ds);
+const shiftOf = (id,ds) => shiftRows.find(s=>s.employee_id===id && s.work_date===ds);
+const hasShift = (id,ds) => { const r = shiftOf(id,ds); return !!r && r.status !== 2; }; // работал
+const penaltiesIn = (id, fromS, toS) => penRows.filter(p=>p.employee_id===id && p.pen_date>=fromS && p.pen_date<=toS);
 const wvOf = (id,ws) => wvRows.find(w=>w.employee_id===id && w.week_start===ws) || {};
 
 /* ================= ставки (только money-роли) ================= */
@@ -393,10 +470,13 @@ function rateForDate(empId, dateS){
 }
 function earnedInPeriod(emp, fromS, toS){
   const noPay = NO_RATE_ROLES.includes(emp.emp_role);
-  let cnt=0, base=0;
+  let cnt=0, base=0, absent=0;
   for(const s of shiftRows){
     if(s.employee_id!==emp.id) continue;
-    if(s.work_date>=fromS && s.work_date<=toS){ cnt++; if(!noPay) base+=rateForDate(emp.id,s.work_date); }
+    if(s.work_date>=fromS && s.work_date<=toS){
+      if(s.status === 2){ absent++; }
+      else { cnt++; if(!noPay) base+=rateForDate(emp.id,s.work_date); }
+    }
   }
   let extra=0, extraLbl="";
   if(CAP.money){
@@ -410,23 +490,36 @@ function earnedInPeriod(emp, fromS, toS){
       extraLbl = "кабинки "+money(extra);
     }
   }
-  return {cnt, base, extra, extraLbl, noPay, sum: noPay ? 0 : base+extra};
+  const pen = CAP.pen ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
+  return {cnt, base, extra, extraLbl, noPay, absent, pen, sum: noPay ? 0 : base+extra-pen};
 }
 
 /* автографик сотруднику на отображаемую неделю */
 async function autoFillWeek(e, weekKey){
-  const off = autoOffDay(e);
+  let off = autoOffDay(e);
+  if(e.emp_role === "Кассир"){
+    // первый кассир недели — без выходных; у второго и далее автографика нет
+    const others = rosterOf(weekKey).map(byId)
+      .filter(x => x && x.emp_role === "Кассир" && x.id !== e.id);
+    off = others.length === 0 ? -1 : null;
+  }
   if(off === null) return;
   const rows = [];
   for(let i=0;i<7;i++){
     const d = addDays(viewStart, i);
-    if(d.getDay() === off) continue;
-    if(!hasShift(e.id, iso(d))) rows.push({employee_id: e.id, work_date: iso(d)});
+    if(off !== -1 && d.getDay() === off) continue;
+    if(!shiftOf(e.id, iso(d))) rows.push({employee_id: e.id, work_date: iso(d)});
   }
   if(rows.length) await sb.from("shifts").upsert(rows, {onConflict:"employee_id,work_date"});
 }
 
 /* ================= права на сотрудника ================= */
+/* право выписать штраф этому сотруднику */
+function penMatch(e){
+  if(!CAP.pen) return false;
+  const pairs = CAP.pen === "all" ? [["*","*"]] : (CAP.pen === "scope" ? CAP.scope : CAP.pen);
+  return pairs.some(([sr,sp]) => (sr==="*"||sr===e.emp_role) && (sp==="*"||sp===e.pos));
+}
 const scopeMatch = (er, p) => !CAP.scope ||
   CAP.scope.some(([sr,sp]) => (sr==="*" || sr===er) && (sp==="*" || sp===p));
 const inScope = e => scopeMatch(e.emp_role, e.pos);
@@ -541,7 +634,11 @@ async function addOrSaveEmployee(){
   }
 
   const roster = rosterOf(weekKey);
-  const existing = employees.find(x=>!x.archived && x.name.toLowerCase()===name.toLowerCase());
+  // существующим считается сотрудник с тем же именем, ДОЛЖНОСТЬЮ и ПОЗИЦИЕЙ —
+  // тёзки на разных должностях или позициях добавляются как разные люди
+  const existing = employees.find(x => !x.archived
+    && x.name.toLowerCase() === name.toLowerCase()
+    && x.emp_role === role && x.pos === pos);
   if(existing){
     if(!inScope(existing)){ showMsg("Этот сотрудник вне вашей зоны редактирования"); return; }
     if(roster.includes(existing.id)){ showMsg(`${existing.name} уже в графике этой недели`); return; }
@@ -663,7 +760,7 @@ function render(){
   const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
   const roster = rosterOf(weekKey);
   const list = roster.map(byId).filter(Boolean)
-    .filter(e=>inScope(e))
+    .filter(e=>inScope(e) || penMatch(e))
     .filter(e=>posFilter==="all"||e.pos===posFilter)
     .sort((a,b)=>POS_ORDER.indexOf(a.pos)-POS_ORDER.indexOf(b.pos)
       || roleIdx(a.emp_role)-roleIdx(b.emp_role)
@@ -671,6 +768,7 @@ function render(){
 
   const body = $("grid-body"); body.innerHTML = "";
   let totalSum=0, totalShifts=0, totalExtra=0, lastPos=null, lastRole=null;
+  const dayCounts = [0,0,0,0,0,0,0]; // человек на смене по дням
 
   for(const e of list){
     if(e.pos!==lastPos){
@@ -688,9 +786,21 @@ function render(){
     totalSum+=r.sum; totalShifts+=r.cnt; totalExtra+=r.extra;
 
     let cells="";
-    for(const d of days){
-      const ds=iso(d), on=hasShift(e.id,ds)?" on":"";
-      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cell${on}" data-emp="${e.id}" data-date="${ds}"></span></td>`;
+    for(let di=0; di<days.length; di++){
+      const d = days[di], ds = iso(d);
+      const sh = shiftOf(e.id, ds);
+      const st = sh ? (sh.status===2 ? " abs" : " on") : "";
+      if(sh && sh.status!==2) dayCounts[di]++;
+      let penMark = "", tip = "";
+      if(CAP.pen){
+        const dp = penaltiesIn(e.id, ds, ds);
+        if(dp.length){
+          penMark = `<span class="pen-mark"></span>`;
+          tip = `title="${dp.map(p=>"Штраф −"+fmtNum(p.amount)+": "+p.note).join("; ").replace(/"/g,"&quot;")}"`;
+        }
+      }
+      if(sh && sh.status===2) tip = `title="Неявка — день не оплачивается"`;
+      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${tip}></span>${penMark}</span></td>`;
     }
     let moneyCells="";
     if(M){
@@ -712,9 +822,12 @@ function render(){
       const noPay = NO_RATE_ROLES.includes(e.emp_role);
       const monNote = !noPay && en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
       const rateNote = noPay ? "фикс. оклад · 2 р/мес" : `<b>${money(en.rate)}</b>/смена`;
+      let det = r.extraLbl && !noPay ? `${r.cnt} смен · ${r.extraLbl}` : `${r.cnt} смен`;
+      if(r.absent) det += ` · <span class="penal">неявки: ${r.absent}</span>`;
+      if(r.pen) det += ` · <span class="penal">штрафы −${fmtNum(r.pen)}</span>`;
       const earnTd = noPay
-        ? `<td class="earn"><span class="dash">—</span><span class="sh">${r.cnt} смен</span></td>`
-        : `<td class="earn">${money(r.sum)}<span class="sh">${r.extraLbl?r.cnt+" смен · "+r.extraLbl:r.cnt+" смен"}</span></td>`;
+        ? `<td class="earn"><span class="dash">—</span><span class="sh">${det}</span></td>`
+        : `<td class="earn">${money(r.sum)}<span class="sh">${det}</span></td>`;
       moneyCells = saleCell + stepsCell + earnTd;
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
         <div class="meta">${e.emp_role} · ${rateNote}${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
@@ -723,7 +836,8 @@ function render(){
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
         <div class="meta">${e.emp_role}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>` + cells;
     }
-    tr.innerHTML += `<td class="actions">
+    const penBtn = penMatch(e) ? `<button class="pen-btn" onclick="openPenalty('${e.id}')" title="Штрафы">⚠</button>` : "";
+    tr.innerHTML += `<td class="actions">${penBtn}
       <button onclick="startEdit('${e.id}')" title="Редактировать">✎</button>
       <button class="del" onclick="removeFromWeek('${e.id}')" title="Убрать из недели">✕</button></td>`;
     body.appendChild(tr);
@@ -746,22 +860,44 @@ function render(){
       <div class="wt both"><div class="t">Общие · неделя</div><div class="v">${money(wt.both.sum)}</div><div class="n">${wt.both.cnt} смен</div></div>
       <div class="wt total"><div class="t">Всего за неделю</div><div class="v">${money(all)}</div><div class="n">${wt.karaoke.cnt+wt.club.cnt+wt.both.cnt} смен</div></div>`:"";
     $("grid-foot").innerHTML = list.length?
-      `<td style="text-align:left">Итого (${list.length} чел.)</td><td colspan="7"></td><td></td>
+      `<td style="text-align:left">Итого (${list.length} чел.)<div style="font-size:10px;color:var(--muted);font-weight:400">человек на смене ↓</div></td>` +
+      dayCounts.map(c=>`<td style="color:var(--emerald);font-size:14px">${c}</td>`).join("") +
+      `<td></td>
        <td class="steps">${money(totalExtra)}</td>
        <td class="earn">${money(totalSum)}<span class="sh">${totalShifts} смен</span></td><td></td>`:"";
   }else{
-    $("grid-foot").innerHTML = "";
+    $("grid-foot").innerHTML = list.length?
+      `<td style="text-align:left">Итого (${list.length} чел.)<div style="font-size:10px;color:var(--muted);font-weight:400">человек на смене ↓</div></td>` +
+      dayCounts.map(c=>`<td style="color:var(--emerald);font-size:14px">${c}</td>`).join("") +
+      `<td></td>`:"";
   }
+  renderDayTotals(days, roster);
 
   body.querySelectorAll(".cell").forEach(c=>{
     c.addEventListener("click", async ()=>{
-      if(isApproved(weekKey)){ showMsg("График утверждён. Изменения — только через администратора."); return; }
       const id=c.dataset.emp, ds=c.dataset.date;
       const e=byId(id);
       if(!inScope(e)){ showMsg("Этот сотрудник вне вашей зоны редактирования"); return; }
-      const {error} = hasShift(id,ds)
-        ? await sb.from("shifts").delete().eq("employee_id",id).eq("work_date",ds)
-        : await sb.from("shifts").insert({employee_id:id, work_date:ds});
+      const sh = shiftOf(id, ds);
+      let op = null;
+      if(isApproved(weekKey)){
+        // на утверждённой неделе план не меняется, но факт неявки фиксируется
+        if(sh && sh.status !== 2){
+          if(!confirm("Отметить НЕЯВКУ? День не будет оплачен, отметка останется в графике.")) return;
+          op = sb.from("shifts").update({status:2}).eq("employee_id",id).eq("work_date",ds);
+        }else if(sh && sh.status === 2){
+          if(!confirm("Снять отметку неявки и вернуть день как отработанный?")) return;
+          op = sb.from("shifts").update({status:1}).eq("employee_id",id).eq("work_date",ds);
+        }else{
+          showMsg("График утверждён — добавлять смены нельзя."); return;
+        }
+      }else{
+        // цикл: пусто -> работает -> неявка -> пусто
+        if(!sh) op = sb.from("shifts").insert({employee_id:id, work_date:ds, status:1});
+        else if(sh.status !== 2) op = sb.from("shifts").update({status:2}).eq("employee_id",id).eq("work_date",ds);
+        else op = sb.from("shifts").delete().eq("employee_id",id).eq("work_date",ds);
+      }
+      const {error} = await op;
       if(error){ showMsg(error.message); return; }
       window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.("light");
       await refresh();
@@ -780,6 +916,94 @@ function render(){
     });
   });
   fillDatalist(); renderBase();
+}
+
+/* ================= штрафы ================= */
+function openPenalty(id){
+  const e = byId(id); if(!e || !penMatch(e)) return;
+  penEmpId = id;
+  $("pen-title").textContent = "Штрафы · " + e.name;
+  $("pen-sub").textContent = e.emp_role + " · неделя " + fmtD(viewStart) + " — " + fmtD(addDays(viewStart,6));
+  const todayS = iso(new Date());
+  $("pen-date").innerHTML = Array.from({length:7},(_,i)=>addDays(viewStart,i)).map(d=>{
+    const ds = iso(d);
+    return `<option value="${ds}" ${ds===todayS?"selected":""}>${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}</option>`;
+  }).join("");
+  $("pen-amount").value = fmtNum(DEFAULT_PENALTY);
+  $("pen-note").value = "";
+  $("pen-by").value = ME.name; // кем поставлен — автоматически из учётки
+  renderPenList();
+  $("pen-modal").classList.add("open");
+}
+function closePenalty(){ $("pen-modal").classList.remove("open"); penEmpId = null; }
+function penMsg(t, ok){
+  const m = $("pen-msg");
+  m.textContent = t; m.className = "msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 4000);
+}
+async function addPenalty(){
+  if(!penEmpId) return;
+  const amount = parseNum($("pen-amount").value);
+  const note = $("pen-note").value.trim();
+  if(!(amount > 0)){ penMsg("Укажите сумму штрафа"); return; }
+  if(!note){ penMsg("Примечание обязательно — укажите, за что штраф"); return; }
+  const {error} = await sb.from("penalties").insert({
+    employee_id: penEmpId, pen_date: $("pen-date").value,
+    amount, note, created_by: ME.name
+  });
+  if(error){ penMsg(error.message); return; }
+  $("pen-amount").value = fmtNum(DEFAULT_PENALTY); $("pen-note").value = "";
+  penMsg("Штраф выписан", true);
+  await loadAll(); renderPenList(); render();
+}
+async function delPenalty(pid){
+  const pn = penRows.find(x=>x.id===pid); if(!pn) return;
+  if(!confirm(`Удалить штраф −${fmtNum(pn.amount)} (${pn.note})?`)) return;
+  const {error} = await sb.from("penalties").delete().eq("id", pid);
+  if(error){ penMsg(error.message); return; }
+  await loadAll(); renderPenList(); render();
+}
+function renderPenList(){
+  const wkFrom = iso(viewStart), wkTo = iso(addDays(viewStart,6));
+  const list = penaltiesIn(penEmpId, wkFrom, wkTo).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
+  $("pen-list").innerHTML = list.length
+    ? list.map(pn=>`<div class="pen-row">
+        <span class="d">${fmtD(fromIso(pn.pen_date))}</span>
+        <span class="a">−${fmtNum(pn.amount)}</span>
+        <span class="n">${pn.note}</span>
+        <span class="by">выписал(а): ${pn.created_by}</span>
+        <button class="del" onclick="delPenalty('${pn.id}')">✕</button>
+      </div>`).join("")
+    : `<div class="pen-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
+}
+
+/* суммы за день по позициям (стоимость смен минус штрафы этого дня) */
+function renderDayTotals(days, roster){
+  const el = $("day-totals");
+  if(!el) return;
+  if(!CAP.money || !roster.length){ el.innerHTML = ""; return; }
+  const buckets = {karaoke:[0,0,0,0,0,0,0], club:[0,0,0,0,0,0,0], both:[0,0,0,0,0,0,0]};
+  for(const id of roster){
+    const e = byId(id); if(!e) continue;
+    const noPay = NO_RATE_ROLES.includes(e.emp_role);
+    const b = buckets[e.pos] || (buckets[e.pos]=[0,0,0,0,0,0,0]);
+    for(let i=0;i<7;i++){
+      const ds = iso(days[i]);
+      const sh = shiftOf(e.id, ds);
+      if(sh && sh.status!==2 && !noPay) b[i] += rateForDate(e.id, ds);
+      if(CAP.pen) for(const pn of penaltiesIn(e.id, ds, ds)) b[i] -= pn.amount;
+    }
+  }
+  const total = [0,0,0,0,0,0,0];
+  for(const k of ["karaoke","club","both"]) for(let i=0;i<7;i++) total[i]+=buckets[k][i];
+  const row = (cls,name,arr)=>`<tr class="${cls}"><td>${name}</td>${arr.map(v=>`<td>${v?Math.round(v).toLocaleString("ru-RU"):"—"}</td>`).join("")}</tr>`;
+  el.innerHTML = `<table>
+    <tr><th>Сумма за день, сум</th>${days.map(d=>`<th>${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}</th>`).join("")}</tr>
+    ${row("t-karaoke","Караоке",buckets.karaoke)}
+    ${row("t-club","Клуб",buckets.club)}
+    ${row("t-both","Общие",buckets.both)}
+    ${row("t-all","ВСЕГО",total)}
+  </table>`;
 }
 
 function renderBase(){
@@ -841,7 +1065,7 @@ function exportXlsx(){
       : e.emp_role===SOUND_BIG ? (wv.cabin_days?wv.cabin_days+" дн. кабинки":"") : "";
     aoa.push([e.name,e.emp_role,
       fmtNum(en.rate)+(en.mondayRate!=null?` (Пн ${fmtNum(en.mondayRate)})`:""),
-      ...days.map(d=>hasShift(e.id,iso(d))?"✓":""),
+      ...days.map(d=>{const sh=shiftOf(e.id,iso(d)); return sh ? (sh.status===2?"Н":"✓") : "";}),
       r.cnt, saleTxt, r.extra?Math.round(r.extra):"", Math.round(r.sum)]);
   }
   aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tSum)]);
@@ -949,6 +1173,10 @@ async function startApp(){
     }
     await refresh();
   });
+  $("pen-add").addEventListener("click", addPenalty);
+  $("pen-close").addEventListener("click", closePenalty);
+  $("pen-modal").addEventListener("click", e=>{ if(e.target===$("pen-modal")) closePenalty(); });
+  attachThousands($("pen-amount"));
   $("base-toggle").addEventListener("click", ()=>{
     const w=$("base-wrap"); const open=w.style.display==="none";
     w.style.display=open?"":"none";
@@ -960,6 +1188,8 @@ async function startApp(){
 window.startEdit = startEdit;
 window.removeFromWeek = removeFromWeek;
 window.archiveEmployee = archiveEmployee;
+window.openPenalty = openPenalty;
+window.delPenalty = delPenalty;
 authorize();
 </script>
 </body>
