@@ -120,6 +120,7 @@
   table.locked .cell.on,table.locked .cell.abs{cursor:pointer;opacity:1}
   /* компактный режим: график крупнее, лишнее скрыто */
   body.compact .meta{display:none}
+  body.compact .full-only{display:none !important}
   body.compact .cell{width:30px;height:30px}
   body.compact .grid-wrap td,body.compact .grid-wrap th{padding:6px 7px}
   body.compact .nm{font-size:15px}
@@ -215,7 +216,7 @@
 
 <div class="layout">
 
-  <div class="card" id="card-add">
+  <div class="card full-only" id="card-add">
     <h2>Добавить сотрудника в график недели <span id="form-week" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
     <div class="form-row">
       <div class="field">
@@ -270,12 +271,16 @@
           <label>по</label>
           <input type="date" id="p-to">
         </div>
-        <button id="btn-curweek" class="btn-mini">Текущая неделя</button>
+        <button id="btn-curweek" class="btn-mini full-only">Текущая неделя</button>
       </div>
       <div class="weeknav">
-        <button id="wk-prev">◀</button>
+        <span class="full-only" id="wk-nav-grp" style="display:contents">
+          <button id="wk-prev">◀</button>
+        </span>
         <div class="label" id="wk-label"></div>
-        <button id="wk-next">▶</button>
+        <span class="full-only" id="wk-nav-grp2" style="display:contents">
+          <button id="wk-next">▶</button>
+        </span>
         <button id="btn-approve" class="btn-approve">Утвердить</button>
       </div>
     </div>
@@ -320,7 +325,7 @@
     <div class="day-totals money-only" id="day-totals"></div>
   </div>
 
-  <div class="card" id="card-base">
+  <div class="card full-only" id="card-base">
     <h2>База сотрудников <span id="base-count" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
       <button class="btn-mini btn-ghost" id="base-toggle">Показать</button>
     </h2>
@@ -330,7 +335,7 @@
   </div>
 
   <!-- РАССЫЛКА (только администратор) -->
-  <div class="card" id="card-notify" style="display:none">
+  <div class="card full-only" id="card-notify" style="display:none">
     <h2>Сообщение сотрудникам в бот</h2>
     <div class="form-row">
       <div class="field">
@@ -1111,6 +1116,11 @@ function renderPenList(){
 /* компактный / полный режим отображения */
 function applyViewMode(){
   document.body.classList.toggle("compact", compactView);
+  if(compactView){
+    // в компактном режиме всегда показываем текущую неделю
+    viewStart = payWeekStart(new Date());
+    if(typeof setCurrentPayWeek==="function") setCurrentPayWeek();
+  }
   // денежные блоки прячем в компактном (у кого они вообще есть)
   const moneyHidden = compactView || !CAP.money;
   document.querySelectorAll(".money-only").forEach(el=>el.style.display = moneyHidden ? "none" : "");
