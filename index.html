@@ -118,6 +118,23 @@
     border:1px solid var(--emerald);border-radius:20px;padding:2px 8px}
   table.locked .cell{cursor:default;opacity:.85}
   table.locked .cell.on,table.locked .cell.abs{cursor:pointer;opacity:1}
+  .cell.pl{position:relative}
+  .cell.pl::before{content:attr(data-pl);position:absolute;inset:0;display:flex;
+    align-items:center;justify-content:center;color:#0c1410;font-size:10px;font-weight:800;line-height:1}
+  /* выбор места */
+  .place-pop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:60;padding:16px}
+  .place-pop.open{display:flex}
+  .place-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;max-width:320px;width:100%}
+  .place-card h4{font-size:14px;margin-bottom:4px}
+  .place-card .who{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .place-opts{display:flex;flex-direction:column;gap:8px}
+  .place-opts button{display:flex;justify-content:space-between;align-items:center;
+    padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--text);font-size:14px;font-weight:600}
+  .place-opts button .cnt{font-size:11px;color:var(--muted);font-weight:400}
+  .place-opts button.full{opacity:.5}
+  .place-opts .clearbtn{background:transparent;color:var(--muted);justify-content:center;font-weight:400}
   .cell.abs{background:var(--red);border-color:var(--red);box-shadow:0 0 8px rgba(226,92,92,.4);position:relative}
   .cell.abs::after{content:"✗";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     color:#fff;font-size:15px;font-weight:800;line-height:1}
@@ -266,6 +283,10 @@
       Метка 🔒 — неделя утверждена: состав и план заморожены, но отметку неявки ставить можно.
       Кнопки в строке: <span class="pen-only">⚠ штрафы, </span>✎ редактировать, ✕ убрать из этой недели (в базе сотрудник останется).
       Зелёные цифры под квадратиками — сколько человек на смене в каждый день.
+      У официантов и барменов караоке клик по дню открывает выбор зала
+      (Большой зал · Малый зал · Летка · Кабинки) — буква зала видна на квадратике,
+      цвет соответствует залу. Лимиты по залам: Летка и Малый зал — до 2, Кабинки — 1,
+      Большой зал — до 4 (стоп). Малый зал (и для официантов, и для барменов) доступен только в пятницу и субботу. Сводка «Официанты по залам» — под графиком.
       <span class="money-only">«Продажа» вводится официантам за неделю (шаги = 1%), Звуку Большого Зала — количество раз с кабинками (бонус 100 000/раз, максимум 10 за неделю). «Заработано» = смены × ставка − штрафы (+ шаги/бонусы); у должностей с фикс. окладом — прочерк.</span>
     </div>
   </div>
@@ -316,6 +337,15 @@
     кассиру в пн 01:00, если неделя не утверждена.</div>
   </div>
 
+</div>
+
+<!-- ВЫБОР РАБОЧЕГО МЕСТА -->
+<div class="place-pop" id="place-pop">
+  <div class="place-card">
+    <h4 id="place-title">Где работает</h4>
+    <div class="who" id="place-who"></div>
+    <div class="place-opts" id="place-opts"></div>
+  </div>
 </div>
 
 <!-- ОКНО ШТРАФОВ -->
@@ -382,6 +412,31 @@ const FIXED_POS = {"Звук Малый Зал":"karaoke","Звук Большо
   "Старший бармен":"karaoke","Свето-оператор":"club",
   "Бар-менеджер":"both","Гостевой менеджер":"karaoke","Повар":"both","Охрана":"both","Кассир":"both"};
 const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звук Большой Зал";
+/* рабочие места (залы) для караоке */
+const PLACES = {
+  big:   {label:"Большой зал", short:"БЗ", limit:4, soft:false}, // жёсткий стоп на 4-м
+  small: {label:"Малый зал",   short:"МЗ", limit:2, soft:false},
+  letka: {label:"Летка",       short:"Л",  limit:2, soft:false},
+  cabin: {label:"Кабинки",     short:"К",  limit:1, soft:false},
+};
+const PLACE_COLORS = {big:"#1fbf7a", small:"#4ea6e2", letka:"#d9b04c", cabin:"#b79aee"};
+/* какие места доступны должности (только караоке).
+   d — день (Date); для бармена Малый зал доступен только в пятницу/субботу */
+function placesFor(e, d){
+  if(e.pos !== "karaoke") return null;
+  const weekend = d && (d.getDay()===5 || d.getDay()===6); // пятница/суббота
+  if(e.emp_role === "Официант")
+    return weekend ? ["big","small","letka","cabin"] : ["big","letka","cabin"]; // МЗ только в пт/сб
+  if(e.emp_role === "Бармен")
+    return weekend ? ["big","small"] : ["big"];            // МЗ только в пт/сб
+  return null;
+}
+/* место по умолчанию при первой отметке смены */
+function defaultPlace(e, d){
+  const av = placesFor(e, d); if(!av) return null;
+  // бармен караоке — Большой зал по умолчанию все дни (Малый выбирается вручную в пт/сб)
+  return "big";
+}
 const POS_NAME = {club:"Клуб",karaoke:"Караоке",both:"Общие (клуб + караоке)"};
 const POS_SHORT = {club:"Клуб",karaoke:"Караоке",both:"Общие"};
 const POS_ORDER = ["karaoke","club","both"];
@@ -408,7 +463,7 @@ const CAPS = {
                 pen:[["Повар","*"]]},  // штрафы: только повара
   upr:         {label:"Управляющий", money:true,
                 scope:[["*","*"]],
-                approve:true, unapprove:false, archive:false, pen:"all"},
+                approve:true, unapprove:true, archive:false, pen:"all"},
   dir:         {label:"Директор клуба", money:false,
                 scope:[["*","club"],["Бар-менеджер","both"]],
                 approve:false, unapprove:false, archive:false, pen:"scope"},  // штрафы: своя зона
@@ -549,7 +604,12 @@ async function autoFillWeek(e, weekKey){
   for(let i=0;i<7;i++){
     const d = addDays(viewStart, i);
     if(!days.includes(d.getDay())) continue;
-    if(!shiftOf(e.id, iso(d))) rows.push({employee_id: e.id, work_date: iso(d)});
+    if(!shiftOf(e.id, iso(d))){
+      const row = {employee_id: e.id, work_date: iso(d), status:1};
+      const dp = defaultPlace(e, d);
+      if(dp) row.place = dp;
+      rows.push(row);
+    }
   }
   if(rows.length) await sb.from("shifts").upsert(rows, {onConflict:"employee_id,work_date"});
 }
@@ -830,8 +890,12 @@ function render(){
     for(let di=0; di<days.length; di++){
       const d = days[di], ds = iso(d);
       const sh = shiftOf(e.id, ds);
-      const st = sh ? (sh.status===2 ? " abs" : " on") : "";
-      if(sh && sh.status!==2) dayCounts[di]++;
+      let st = sh ? (sh.status===2 ? " abs" : " on") : "";
+      let plAttr = "";
+      if(sh && sh.status!==2){
+        dayCounts[di]++;
+        if(sh.place && PLACES[sh.place]){ st += " pl"; plAttr = `data-pl="${PLACES[sh.place].short}"`; }
+      }
       let penMark = "", tip = "";
       if(CAP.pen){
         const dp = penaltiesIn(e.id, ds, ds);
@@ -841,7 +905,8 @@ function render(){
         }
       }
       if(sh && sh.status===2) tip = `title="Неявка — день не оплачивается"`;
-      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${tip}></span>${penMark}</span></td>`;
+      const plStyle = (sh && sh.place && PLACE_COLORS[sh.place]) ? `style="background:${PLACE_COLORS[sh.place]};border-color:${PLACE_COLORS[sh.place]}"` : "";
+      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${plAttr} ${plStyle} ${tip}></span>${penMark}</span></td>`;
     }
     let moneyCells="";
     if(M){
@@ -934,7 +999,14 @@ function render(){
           showMsg("График утверждён — добавлять смены нельзя."); return;
         }
       }else{
-        // цикл: пусто -> работает -> неявка -> пусто
+        const av = placesFor(e, fromIso(ds));
+        if(av){
+          // караоке-официант/бармен: открываем выбор места
+          if(!sh || sh.status===2){ openPlace(e, ds, null); return; }   // пусто/неявка -> выбрать место
+          // уже работает с местом -> по клику снова открыть выбор (можно сменить/снять/неявка)
+          openPlace(e, ds, sh.place); return;
+        }
+        // обычный цикл для остальных: пусто -> работает -> неявка -> пусто
         if(!sh) op = sb.from("shifts").insert({employee_id:id, work_date:ds, status:1});
         else if(sh.status !== 2) op = sb.from("shifts").update({status:2}).eq("employee_id",id).eq("work_date",ds);
         else op = sb.from("shifts").delete().eq("employee_id",id).eq("work_date",ds);
@@ -1023,6 +1095,63 @@ function renderPenList(){
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
 }
 
+/* сколько официантов уже на этом месте в этот день */
+function placeCount(ds, place, exceptId){
+  return shiftRows.filter(sh => sh.work_date===ds && sh.place===place && sh.status!==2
+    && sh.employee_id!==exceptId
+    && (byId(sh.employee_id)||{}).emp_role==="Официант").length;
+}
+let placeCtx = null; // {empId, ds}
+function openPlace(e, ds, current){
+  placeCtx = {empId:e.id, ds};
+  const av = placesFor(e, fromIso(ds));
+  $("place-title").textContent = "Где работает " + (current ? "· можно сменить" : "");
+  $("place-who").textContent = `${e.name} · ${e.emp_role} · ${DOW[(fromIso(ds).getDay()-3+7)%7]} ${fmtD(fromIso(ds))}`;
+  const isOfficiant = e.emp_role === "Официант";
+  $("place-opts").innerHTML = av.map(pl=>{
+    const P = PLACES[pl];
+    // лимиты считаем только по официантам (по условию)
+    const used = isOfficiant ? placeCount(ds, pl, e.id) : 0;
+    const full = isOfficiant && !P.soft && used >= P.limit;
+    const cnt = isOfficiant ? `${used}/${P.limit}${full?" — занято":""}` : "";
+    return `<button class="${full?'full':''}" ${full?'disabled':''} onclick="pickPlace('${pl}')">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${PLACE_COLORS[pl]};vertical-align:middle;margin-right:8px"></span>${P.label}</span>
+      <span class="cnt">${cnt}</span></button>`;
+  }).join("")
+   + (current ? `<button class="clearbtn" onclick="pickPlace('__absent')">Отметить неявку</button>` : "")
+   + (current ? `<button class="clearbtn" onclick="pickPlace('__clear')">Убрать смену</button>` : "")
+   + `<button class="clearbtn" onclick="closePlace()">Отмена</button>`;
+  $("place-pop").classList.add("open");
+}
+function closePlace(){ $("place-pop").classList.remove("open"); placeCtx = null; }
+async function pickPlace(pl){
+  if(!placeCtx) return;
+  const {empId, ds} = placeCtx;
+  const e = byId(empId);
+  if(pl === "__clear"){
+    await sb.from("shifts").delete().eq("employee_id",empId).eq("work_date",ds);
+    closePlace(); await refresh(); return;
+  }
+  if(pl === "__absent"){
+    const sh = shiftOf(empId, ds);
+    if(sh) await sb.from("shifts").update({status:2}).eq("employee_id",empId).eq("work_date",ds);
+    else await sb.from("shifts").insert({employee_id:empId, work_date:ds, status:2});
+    closePlace(); await refresh(); return;
+  }
+  const P = PLACES[pl];
+  // мягкое предупреждение для Большого зала
+  if(e.emp_role === "Официант" && P.soft){
+    const used = placeCount(ds, pl, empId);
+    if(used >= 3 && !confirm(`В Большом зале уже ${used} официант(а) на этот день — этого достаточно. Точно добавить ещё одного?`)){
+      return;
+    }
+  }
+  const sh = shiftOf(empId, ds);
+  if(sh) await sb.from("shifts").update({status:1, place:pl}).eq("employee_id",empId).eq("work_date",ds);
+  else   await sb.from("shifts").insert({employee_id:empId, work_date:ds, status:1, place:pl});
+  closePlace(); await refresh();
+}
+
 /* человек на смене по дням: разбивка по ключевым должностям */
 const STAFF_COUNT_ROLES = ["Бармен","Хостес","Официант","Охрана"];
 function renderStaffTotals(days, list){
@@ -1043,9 +1172,23 @@ function renderStaffTotals(days, list){
     .map(r => `<tr><td>${r === "Бармен" ? "Бармены" : r === "Хостес" ? "Хостес" :
                  r === "Официант" ? "Официанты" : "Охрана"}</td>${
       counts[r].map(c=>`<td>${c || "—"}</td>`).join("")}</tr>`);
+  // сводка официантов по залам (если в списке есть официанты караоке)
+  let placeRows = "";
+  if(list.some(e=>e.emp_role==="Официант" && e.pos==="karaoke")){
+    for(const pl of ["big","small","letka","cabin"]){
+      const arr = days.map(d=>{
+        const ds = iso(d);
+        return list.filter(e=>e.emp_role==="Официант" && e.pos==="karaoke")
+          .filter(e=>{const sh=shiftOf(e.id,ds); return sh && sh.status!==2 && sh.place===pl;}).length;
+      });
+      placeRows += `<tr><td style="padding-left:18px;color:${PLACE_COLORS[pl]}">${PLACES[pl].label} (макс. ${PLACES[pl].limit})</td>${
+        arr.map(c=>`<td>${c||"—"}</td>`).join("")}</tr>`;
+    }
+  }
   el.innerHTML = rows.length ? `<table>
     <tr><th>На смене, чел.</th>${days.map(d=>`<th>${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}</th>`).join("")}</tr>
     ${rows.join("")}
+    ${placeRows ? `<tr><td colspan="8" style="padding-top:6px;color:var(--muted);font-size:10px;text-transform:uppercase;border:0">Официанты по залам</td></tr>${placeRows}` : ""}
   </table>` : "";
 }
 
@@ -1137,7 +1280,9 @@ function exportXlsx(){
       : e.emp_role===SOUND_BIG ? (wv.cabin_days?wv.cabin_days+" раз (кабинки)":"") : "";
     aoa.push([e.name,e.emp_role,
       fmtNum(en.rate)+(en.mondayRate!=null?` (Пн ${fmtNum(en.mondayRate)})`:""),
-      ...days.map(d=>{const sh=shiftOf(e.id,iso(d)); return sh ? (sh.status===2?"Н":"✓") : "";}),
+      ...days.map(d=>{const sh=shiftOf(e.id,iso(d));
+        if(!sh) return ""; if(sh.status===2) return "Н";
+        return sh.place && PLACES[sh.place] ? PLACES[sh.place].short : "✓";}),
       r.cnt, saleTxt, r.extra?Math.round(r.extra):"", Math.round(r.sum)]);
   }
   aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tSum)]);
@@ -1235,7 +1380,7 @@ async function startApp(){
   $("btn-approve").addEventListener("click", async ()=>{
     const weekKey = iso(viewStart);
     if(isApproved(weekKey)){
-      if(!CAP.unapprove){ showMsg("Снять утверждение может только администратор"); return; }
+      if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
       if(!confirm("Снять утверждение недели?")) return;
       const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
       if(error) showMsg(error.message);
@@ -1249,6 +1394,7 @@ async function startApp(){
   $("pen-add").addEventListener("click", addPenalty);
   $("pen-close").addEventListener("click", closePenalty);
   $("pen-modal").addEventListener("click", e=>{ if(e.target===$("pen-modal")) closePenalty(); });
+  $("place-pop").addEventListener("click", e=>{ if(e.target===$("place-pop")) closePlace(); });
   attachThousands($("pen-amount"));
   $("base-toggle").addEventListener("click", ()=>{
     const w=$("base-wrap"); const open=w.style.display==="none";
@@ -1263,6 +1409,8 @@ window.removeFromWeek = removeFromWeek;
 window.archiveEmployee = archiveEmployee;
 window.openPenalty = openPenalty;
 window.delPenalty = delPenalty;
+window.pickPlace = pickPlace;
+window.closePlace = closePlace;
 authorize();
 </script>
 </body>
