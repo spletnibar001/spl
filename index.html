@@ -74,6 +74,11 @@
   .grid-wrap tr.pos-head.both td:first-child{
     background:linear-gradient(90deg,rgba(217,176,76,.16),transparent 70%) var(--panel)}
   .grid-wrap tr.role-head td:first-child{background:var(--panel)}
+  /* заголовок группы прилипает слева как имена; вторая ячейка — фон-продолжение */
+  .grid-wrap tr.pos-head td.grp-label,.grid-wrap tr.role-head td.grp-label{
+    position:sticky;left:0;z-index:3;white-space:nowrap}
+  .grid-wrap tr.pos-head td.grp-label{background:var(--panel)}
+  .grid-wrap tr.pos-head.club td.grp-label,.grid-wrap tr.pos-head.both td.grp-label{background:var(--panel)}
   table{border-collapse:collapse;width:100%}
   th,td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
   thead th{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600}
@@ -286,7 +291,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card full-only">
     <div class="hint" style="margin-top:0">
       <b style="color:var(--text)">Обозначения.</b> Квадратик дня меняется по нажатию:
       <span class="cell" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — не запланирован →
@@ -892,12 +897,12 @@ function render(){
   for(const e of list){
     if(e.pos!==lastPos){
       const tr=document.createElement("tr"); tr.className="pos-head "+e.pos;
-      tr.innerHTML=`<td colspan="${COLS}">${POS_NAME[e.pos]}</td>`;
+      tr.innerHTML=`<td class="grp-label">${POS_NAME[e.pos]}</td><td colspan="${COLS-1}"></td>`;
       body.appendChild(tr); lastPos=e.pos; lastRole=null;
     }
     if(e.emp_role!==lastRole){
       const tr=document.createElement("tr"); tr.className="role-head";
-      tr.innerHTML=`<td colspan="${COLS}">${e.emp_role}</td>`;
+      tr.innerHTML=`<td class="grp-label">${e.emp_role}</td><td colspan="${COLS-1}"></td>`;
       body.appendChild(tr); lastRole=e.emp_role;
     }
     const tr=document.createElement("tr");
