@@ -118,6 +118,14 @@
     border:1px solid var(--emerald);border-radius:20px;padding:2px 8px}
   table.locked .cell{cursor:default;opacity:.85}
   table.locked .cell.on,table.locked .cell.abs{cursor:pointer;opacity:1}
+  /* компактный режим: график крупнее, лишнее скрыто */
+  body.compact .meta{display:none}
+  body.compact .cell{width:30px;height:30px}
+  body.compact .grid-wrap td,body.compact .grid-wrap th{padding:6px 7px}
+  body.compact .nm{font-size:15px}
+  .view-toggle{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .view-toggle button{border:none;border-radius:0;background:transparent;padding:6px 12px;font-size:12px;font-weight:600}
+  .view-toggle button.active{background:var(--emerald);color:#0c1410}
   .cell.pl{position:relative}
   .cell.pl::before{content:attr(data-pl);position:absolute;inset:0;display:flex;
     align-items:center;justify-content:center;color:#0c1410;font-size:10px;font-weight:800;line-height:1}
@@ -293,7 +301,11 @@
 
   <div class="card">
     <h2>График <span class="money-only" style="text-transform:none;letter-spacing:0;font-weight:400">· сумма за период <b id="period-label"></b></span>
-      <button class="btn-mini money-only" id="btn-export" style="margin-left:auto">⬇ Excel</button>
+      <span class="view-toggle" id="view-toggle" style="margin-left:auto">
+        <button data-v="compact">Только график</button>
+        <button data-v="full">Полный режим</button>
+      </span>
+      <button class="btn-mini money-only" id="btn-export">⬇ Excel</button>
     </h2>
     <div class="grid-wrap">
       <table id="grid">
@@ -474,6 +486,7 @@ let sb = null, ME = null, CAP = null;
 let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [];
 let penEmpId = null;
 const DEFAULT_PENALTY = 50000;
+let compactView = false; // true = только график
 let posFilter = "all", viewStart = null, editId = null;
 
 /* ================= даты и числа ================= */
@@ -850,7 +863,7 @@ function render(){
   $("grid").classList.toggle("locked", locked);
 
   const todayS = iso(new Date());
-  const M = CAP.money;
+  const M = CAP.money && !compactView;
   const COLS = M ? 12 : 9;
   $("grid-head").innerHTML =
     `<th style="text-align:left">Сотрудник</th>` +
@@ -1093,6 +1106,16 @@ function renderPenList(){
         <button class="del" onclick="delPenalty('${pn.id}')">✕</button>
       </div>`).join("")
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
+}
+
+/* компактный / полный режим отображения */
+function applyViewMode(){
+  document.body.classList.toggle("compact", compactView);
+  // денежные блоки прячем в компактном (у кого они вообще есть)
+  const moneyHidden = compactView || !CAP.money;
+  document.querySelectorAll(".money-only").forEach(el=>el.style.display = moneyHidden ? "none" : "");
+  const tg = $("view-toggle");
+  if(tg) tg.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b.dataset.v===(compactView?"compact":"full")));
 }
 
 /* сколько официантов уже на этом месте в этот день */
@@ -1349,6 +1372,9 @@ async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
   if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
+  // умолчание режима: денежные роли — полный, остальные — только график
+  compactView = !CAP.money;
+  applyViewMode();
   if(CAP.notify) initNotify();
   if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
   viewStart = payWeekStart(new Date());
@@ -1395,6 +1421,9 @@ async function startApp(){
   $("pen-close").addEventListener("click", closePenalty);
   $("pen-modal").addEventListener("click", e=>{ if(e.target===$("pen-modal")) closePenalty(); });
   $("place-pop").addEventListener("click", e=>{ if(e.target===$("place-pop")) closePlace(); });
+  $("view-toggle").querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click", ()=>{ compactView = b.dataset.v==="compact"; applyViewMode(); render(); });
+  });
   attachThousands($("pen-amount"));
   $("base-toggle").addEventListener("click", ()=>{
     const w=$("base-wrap"); const open=w.style.display==="none";
