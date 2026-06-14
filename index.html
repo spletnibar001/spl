@@ -161,6 +161,9 @@
   td.pen-col{text-align:right;color:var(--red);font-weight:700;white-space:nowrap}
   td.bon-col .sh,td.pen-col .sh{display:block;font-size:10px;color:var(--muted);font-weight:400;margin-top:2px}
   .bonal{color:var(--gold)}
+  .cellwrap .chk-mark{position:absolute;top:-4px;left:-4px;width:14px;height:14px;border-radius:50%;
+    background:#fff;color:var(--emerald);font-size:9px;font-weight:900;line-height:14px;text-align:center;
+    border:1.5px solid var(--panel);pointer-events:none}
   td.actions .pen-btn:hover{border-color:var(--red)}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
     align-items:flex-start;justify-content:center;z-index:50;padding:30px 10px;overflow:auto}
@@ -185,6 +188,52 @@
   .day-totals tr.t-club td:first-child{color:var(--violet)}
   .day-totals tr.t-both td:first-child{color:var(--gold)}
   .day-totals tr.t-all td{font-weight:800;color:var(--emerald)}
+  /* ===== ЛИЧНЫЙ КАБИНЕТ СОТРУДНИКА ===== */
+  #staff-cabinet .sc-hello{font-size:13px;color:var(--muted)}
+  #staff-cabinet .sc-hello b{color:var(--text);font-size:18px;display:block;margin-top:2px;font-weight:700}
+  #staff-cabinet .sc-pill{display:inline-block;margin-top:6px;font-size:11px;color:var(--muted);
+    background:var(--panel2);border:1px solid var(--line);padding:3px 10px;border-radius:20px}
+  #staff-cabinet .sc-earn{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;user-select:none}
+  #staff-cabinet .sc-earn .cap{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  #staff-cabinet .sc-earn .cap .chev{color:#5a6270;font-size:12px;transition:transform .2s}
+  #staff-cabinet .sc-earn.open .cap .chev{transform:rotate(180deg)}
+  #staff-cabinet .sc-earn .val{font-size:26px;font-weight:800;color:var(--emerald);margin-top:6px;white-space:nowrap}
+  #staff-cabinet .sc-earn .note{font-size:11px;color:var(--muted);margin-top:4px}
+  #staff-cabinet .sc-mrow{display:flex;gap:10px;margin-top:10px}
+  #staff-cabinet .sc-card{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;user-select:none}
+  #staff-cabinet .sc-card .cap{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  #staff-cabinet .sc-card .cap .chev{transition:transform .2s;color:#5a6270;font-size:12px}
+  #staff-cabinet .sc-card.open .cap .chev{transform:rotate(180deg)}
+  #staff-cabinet .sc-card .val{font-size:18px;font-weight:800;margin-top:7px;white-space:nowrap}
+  #staff-cabinet .sc-card.bonus .val{color:var(--gold)}
+  #staff-cabinet .sc-card.pen .val{color:var(--red)}
+  #staff-cabinet .sc-card .note{font-size:10px;color:var(--muted);margin-top:3px}
+  #staff-cabinet .sc-drawer{margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:none}
+  #staff-cabinet .sc-drawer.open{display:block}
+  #staff-cabinet .sc-dh{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:11px 13px 7px}
+  #staff-cabinet .sc-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 13px;border-top:1px solid var(--line);font-size:13px}
+  #staff-cabinet .sc-row .l .d{font-weight:700}
+  #staff-cabinet .sc-row .l .s{font-size:11px;color:var(--muted);margin-top:2px}
+  #staff-cabinet .sc-row .r{font-weight:700;white-space:nowrap}
+  #staff-cabinet .sc-row .r.g{color:var(--emerald)} #staff-cabinet .sc-row .r.gd{color:var(--gold)} #staff-cabinet .sc-row .r.rd{color:var(--red)}
+  #staff-cabinet .sc-row.tot{background:var(--panel2);font-weight:800}
+  #staff-cabinet .sc-sec{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:20px 0 10px;font-weight:700}
+  #staff-cabinet .sc-day{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px}
+  #staff-cabinet .sc-day .dow{width:54px;flex-shrink:0}
+  #staff-cabinet .sc-day .dow .d{font-weight:800;font-size:14px}
+  #staff-cabinet .sc-day .dow .num{font-size:11px;color:var(--muted)}
+  #staff-cabinet .sc-day .mid{flex:1}
+  #staff-cabinet .sc-day .status{font-weight:700;font-size:14px}
+  #staff-cabinet .sc-day .place{font-size:11px;color:var(--muted);margin-top:2px}
+  #staff-cabinet .sc-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  #staff-cabinet .sc-day.work .status{color:var(--emerald)}
+  #staff-cabinet .sc-day.off{opacity:.6} #staff-cabinet .sc-day.off .status{color:var(--muted)}
+  #staff-cabinet .sc-day.absent .status{color:var(--red)}
+  #staff-cabinet .sc-day.today{border-color:var(--emerald);box-shadow:0 0 0 1px var(--emerald) inset}
+  #staff-cabinet .sc-btn{background:var(--emerald);color:#0c1410;border:none;border-radius:9px;padding:8px 14px;font-weight:800;font-size:12px;font-family:inherit}
+  #staff-cabinet .sc-checked{font-size:11px;color:var(--emerald);font-weight:700;text-align:right;white-space:nowrap}
+  #staff-cabinet .sc-checked .t{font-size:13px}
+  #staff-cabinet .sc-foot{font-size:10px;color:#4a515c;text-align:center;margin-top:18px;line-height:1.5}
   .week-totals{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .wt{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--line);
     border-radius:8px;padding:8px 12px}
@@ -226,6 +275,9 @@
 
 <div class="layout">
 
+  <!-- ЛИЧНЫЙ КАБИНЕТ СОТРУДНИКА (staff) -->
+  <div id="staff-cabinet" style="display:none"></div>
+
   <div class="card full-only" id="card-add">
     <h2>Добавить сотрудника в график недели <span id="form-week" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
     <div class="form-row">
@@ -254,6 +306,10 @@
       <div class="field money-only">
         <label>Ставка в Пн, сум</label>
         <input id="f-rate-mon" type="text" inputmode="numeric" placeholder="—">
+      </div>
+      <div class="field" id="f-tg-wrap" style="display:none">
+        <label>Telegram ID (для кабинета)</label>
+        <input id="f-tg" type="text" inputmode="numeric" placeholder="напр. 749829855">
       </div>
       <button class="btn-primary" id="btn-add">Добавить</button>
       <button class="btn-ghost" id="btn-cancel-edit" style="display:none">Отмена</button>
@@ -307,9 +363,9 @@
       Кнопки в строке: <span class="pen-only">⚠ штрафы, </span>✎ редактировать, ✕ убрать из этой недели (в базе сотрудник останется).
       Зелёные цифры под квадратиками — сколько человек на смене в каждый день.
       У официантов и барменов караоке клик по дню открывает выбор зала
-      (Большой зал · Малый зал · Летка · Кабинки) — буква зала видна на квадратике,
-      цвет соответствует залу. Лимиты по залам: Летка и Малый зал — до 2, Кабинки — 1,
-      Большой зал — до 4 (стоп). Малый зал (и для официантов, и для барменов) доступен только в пятницу и субботу. Сводка «Официанты по залам» — под графиком.
+      (Большой зал · Малый зал · Летка · Кабинки) — буква зала видна на квадратике.
+      Лимиты караоке: Летка и Малый зал — до 2, Кабинки — 1, Большой зал — до 4; Малый зал — только пятница и суббота.
+      Официантов клуба — максимум 4 в день. Сводка по залам и клубу — под графиком.
       <span class="money-only">«Продажа» вводится официантам за неделю (шаги = 1%), Звуку Большого Зала — количество раз с кабинками (бонус 100 000/раз, максимум 10 за неделю). «Заработано» = смены × ставка − штрафы (+ шаги/бонусы); у должностей с фикс. окладом — прочерк.</span>
     </div>
   </div>
@@ -507,31 +563,33 @@ const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 /* ================= права ролей приложения ================= */
 /* scope: пары [должность, позиция]; "*" = любая позиция; null = всё */
 const CAPS = {
-  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true, notify:true, pen:"all", bonus:"all"},
-  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:"all", bonus:false},
+  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true, notify:true, msg:"all", pen:"all", bonus:"all"},
+  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:false, bonus:false},
   bar_manager: {label:"Бар-менеджер",  money:false,
                 scope:[["Бармен","club"],["Бармен","karaoke"],["Официант","club"]],
                 approve:false, unapprove:false, archive:false,
-                pen:[["Бармен","*"]]},  // штрафы: только бармены
+                pen:[["Бармен","*"]], msg:"team"},  // штрафы: только бармены
   manager:     {label:"Менеджер караоке", money:false,
                 scope:[["Официант","karaoke"],["Хостес","karaoke"],["Охрана","both"]],
                 approve:false, unapprove:false, archive:false,
-                pen:[["*","karaoke"],["*","both"]]},  // штрафы: караоке и общие, клуб нельзя
+                pen:[["*","karaoke"],["*","both"]], msg:"team"},  // штрафы: караоке и общие, клуб нельзя
   chief:       {label:"Шеф", money:false,
                 scope:[["Повар","*"]],
                 approve:false, unapprove:false, archive:false,
                 pen:[["Повар","*"]]},  // штрафы: только повара
   upr:         {label:"Управляющий", money:true,
                 scope:[["*","*"]],
-                approve:true, unapprove:true, archive:false, pen:"all", bonus:"all"},
+                approve:true, unapprove:true, archive:false, msg:"team", pen:"all", bonus:"all"},
   dir:         {label:"Директор клуба", money:false,
                 scope:[["*","club"],["Бар-менеджер","both"]],
-                approve:false, unapprove:false, archive:false, pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона
+                approve:false, unapprove:false, archive:false, msg:"team", pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона
+  staff:       {label:"Сотрудник", staff:true, money:false, scope:null,
+                approve:false, unapprove:false, archive:false},  // личный кабинет
 };
 
 /* ================= состояние ================= */
 let sb = null, ME = null, CAP = null;
-let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [], bonRows = [];
+let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [], bonRows = [], checkinRows = [];
 let bonEmpId = null;
 const DEFAULT_BONUS = 50000;
 let penEmpId = null;
@@ -603,13 +661,15 @@ async function loadAll(){
   if(CAP.pen) q.push(sb.from("penalties").select("*"));
   const seeBon = CAP.money || CAP.bonus;
   if(seeBon) q.push(sb.from("bonuses").select("*"));
+  q.push(sb.from("checkins").select("*"));  // отметки прихода (RLS отдаёт по зоне)
   const res = await Promise.all(q);
   for(const r of res) if(r.error) { showMsg(r.error.message); }
   [employees, rosterRows, shiftRows, approvals] = res.slice(0,4).map(r=>r.data||[]);
   let i = 4;
   if(CAP.money){ rates = res[i].data||[]; wvRows = res[i+1].data||[]; i += 2; }
   if(CAP.pen){ penRows = res[i].data||[]; i++; }
-  if(seeBon){ bonRows = res[i].data||[]; }
+  if(seeBon){ bonRows = res[i].data||[]; i++; }
+  checkinRows = res[i].data||[];
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
 const rosterOf = ws => rosterRows.filter(r=>r.week_start===ws).map(r=>r.employee_id);
@@ -793,7 +853,10 @@ async function addOrSaveEmployee(){
   }
 
   if(editId){
-    const {error} = await sb.from("employees").update({name, emp_role:role, pos}).eq("id",editId);
+    const tgRaw = $("f-tg").value.trim();
+    const upd = {name, emp_role:role, pos};
+    if($("f-tg-wrap").style.display !== "none") upd.telegram_id = tgRaw ? parseNum(tgRaw) : null;
+    const {error} = await sb.from("employees").update(upd).eq("id",editId);
     if(error){ showMsg(error.message); return; }
     if(CAP.money){
       const cur = rateEntryFor(editId, weekKey);
@@ -863,11 +926,17 @@ function startEdit(id){
     $("f-rate").value = fmtNum(en.rate);
     $("f-rate-mon").value = en.mondayRate!=null ? fmtNum(en.mondayRate) : "";
   }
+  const canLink = CAP.archive || ME.role==="upr"; // привязку Telegram ID делают admin/cashier/upr
+  if(canLink){
+    $("f-tg-wrap").style.display = "";
+    $("f-tg").value = e.telegram_id || "";
+  }
   $("btn-add").textContent = "Сохранить";
   $("btn-cancel-edit").style.display = "";
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function cancelEdit(){
+  $("f-tg-wrap").style.display = "none"; $("f-tg").value = "";
   editId = null;
   $("f-name").value=""; if(CAP.money){$("f-rate").value="";$("f-rate-mon").value="";}
   $("btn-add").textContent = "Добавить";
@@ -928,7 +997,7 @@ function render(){
   $("grid-head").innerHTML =
     `<th style="text-align:left">Сотрудник</th>` +
     days.map(d=>`<th class="${iso(d)===todayS?'today':''}">${DOW[(d.getDay()-3+7)%7]}<span class="d">${fmtD(d)}</span></th>`).join("") +
-    (M?`<th>Продажа / Кабинки</th><th>Шаги</th><th style="text-align:right">Заработано</th><th style="text-align:right">Бонусы</th><th style="text-align:right">Штрафы</th>`:"") +
+    (M?`<th>Продажа / Кабинки</th><th>Шаги</th><th style="text-align:right">Заработано</th><th style="text-align:right">Штрафы</th><th style="text-align:right">Бонусы</th>`:"") +
     `<th></th>`;
 
   const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
@@ -978,8 +1047,17 @@ function render(){
         }
       }
       if(sh && sh.status===2) tip = `title="Неявка — день не оплачивается"`;
-      const plStyle = (sh && sh.place && PLACE_COLORS[sh.place]) ? `style="background:${PLACE_COLORS[sh.place]};border-color:${PLACE_COLORS[sh.place]}"` : "";
-      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${plAttr} ${plStyle} ${tip}></span>${penMark}</span></td>`;
+      // отметка прихода (вариант A) — только для работающих, охрана исключена
+      let chkMark = "";
+      if(sh && sh.status!==2 && e.emp_role!=="Охрана"){
+        const ci = checkinRows.find(c=>c.employee_id===e.id && c.work_date===ds);
+        if(ci){
+          const t = new Date(ci.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+          chkMark = `<span class="chk-mark" title="Пришёл, отметился в ${t}">✓</span>`;
+          if(!tip) tip = `title="Отметился о приходе в ${t}"`;
+        }
+      }
+      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${plAttr} ${tip}></span>${penMark}${chkMark}</span></td>`;
     }
     let moneyCells="";
     if(M){
@@ -1012,7 +1090,7 @@ function render(){
       const penCnt = penaltiesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
       const bonTd = `<td class="bon-col">${r.bon?`+${fmtNum(r.bon)}`:'<span class="dash">—</span>'}${r.bon?`<span class="sh">${bonCnt} ${bonCnt===1?"бонус":"бонуса"}</span>`:""}</td>`;
       const penTd = `<td class="pen-col">${r.pen?`−${fmtNum(r.pen)}`:'<span class="dash">—</span>'}${r.pen?`<span class="sh">${penCnt} ${penCnt===1?"штраф":"штрафа"}</span>`:""}</td>`;
-      moneyCells = saleCell + stepsCell + earnTd + bonTd + penTd;
+      moneyCells = saleCell + stepsCell + earnTd + penTd + bonTd;
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
         <div class="meta">${e.emp_role} · ${rateNote}${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
         + cells + moneyCells;
@@ -1050,8 +1128,8 @@ function render(){
       `<td></td>
        <td class="steps">${money(totalExtra)}</td>
        <td class="earn">${money(totalSum)}<span class="sh">${totalShifts} смен</span></td>
-       <td class="bon-col">${totalBon?`+${fmtNum(totalBon)}`:'<span class="dash">—</span>'}</td>
        <td class="pen-col">${totalPen?`−${fmtNum(totalPen)}`:'<span class="dash">—</span>'}</td>
+       <td class="bon-col">${totalBon?`+${fmtNum(totalBon)}`:'<span class="dash">—</span>'}</td>
        <td></td>`:"";
   }else{
     $("grid-foot").innerHTML = list.length?
@@ -1087,6 +1165,13 @@ function render(){
           if(!sh || sh.status===2){ openPlace(e, ds, null); return; }   // пусто/неявка -> выбрать место
           // уже работает с местом -> по клику снова открыть выбор (можно сменить/снять/неявка)
           openPlace(e, ds, sh.place); return;
+        }
+        // лимит официантов клуба: максимум 4 на день
+        if(!sh && e.emp_role==="Официант" && e.pos==="club"){
+          const cnt = shiftRows.filter(x=>x.work_date===ds && x.status!==2
+            && (byId(x.employee_id)||{}).emp_role==="Официант"
+            && (byId(x.employee_id)||{}).pos==="club").length;
+          if(cnt >= 4){ showMsg("В клубе уже 4 официанта на этот день — это максимум."); return; }
         }
         // обычный цикл для остальных: пусто -> работает -> неявка -> пусто
         if(!sh) op = sb.from("shifts").insert({employee_id:id, work_date:ds, status:1});
@@ -1236,6 +1321,155 @@ function renderBonList(){
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе бонусов нет</div>`;
 }
 
+/* ================= ЛИЧНЫЙ КАБИНЕТ СОТРУДНИКА (staff) ================= */
+let myCheckins = [];
+async function startStaffCabinet(){
+  // прячем весь управленческий интерфейс
+  document.querySelectorAll(".layout > .card, .layout > #base-wrap, .layout > div:not(#staff-cabinet)")
+    .forEach(el=>{ if(el.id!=="staff-cabinet") el.style.display="none"; });
+  $("staff-cabinet").style.display="block";
+  viewStart = payWeekStart(new Date());
+  await loadStaff();
+  renderStaffCabinet();
+}
+async function loadStaff(){
+  const weekKey = iso(viewStart);
+  // staff читает только свои строки (RLS), поэтому select * безопасен
+  const [emp, ros, shf, rt, wv, pen, bon, chk, appr] = await Promise.all([
+    sb.from("employees").select("*"),
+    sb.from("rosters").select("*"),
+    sb.from("shifts").select("*"),
+    sb.from("emp_rates").select("*"),
+    sb.from("weekly_values").select("*"),
+    sb.from("penalties").select("*"),
+    sb.from("bonuses").select("*"),
+    sb.from("checkins").select("*"),
+    sb.from("approvals").select("*"),
+  ]);
+  employees = emp.data||[]; rosterRows = ros.data||[]; shiftRows = shf.data||[];
+  rates = rt.data||[]; wvRows = wv.data||[]; penRows = pen.data||[]; bonRows = bon.data||[];
+  myCheckins = chk.data||[]; approvals = appr.data||[];
+}
+function renderStaffCabinet(){
+  const me = employees[0]; // RLS вернул только мою карточку
+  const box = $("staff-cabinet");
+  if(!me){
+    box.innerHTML = `<div class="card"><h2>Кабинет сотрудника</h2>
+      <div class="hint">Ваша учётная запись ещё не привязана к сотруднику.
+      Передайте администратору ваш Telegram ID: <b>${ME.tg_id||ME.telegram_id||"—"}</b>,
+      он привяжет вас к карточке — и здесь появится ваш график.</div></div>`;
+    return;
+  }
+  const fromS = iso(viewStart), toS = iso(addDays(viewStart,6));
+  const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
+  const r = earnedInPeriod(me, fromS, toS);
+  const noPay = NO_RATE_ROLES.includes(me.emp_role);
+  const todayS = iso(new Date());
+  const isGuard = me.emp_role === "Охрана";
+
+  // строки заработка по сменам
+  let earnRows = "";
+  for(const d of days){
+    const ds = iso(d), sh = shiftOf(me.id, ds);
+    if(sh && sh.status!==2){
+      const zal = sh.place && PLACES[sh.place] ? " · "+PLACES[sh.place].label : "";
+      earnRows += `<div class="sc-row"><div class="l"><div class="d">${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}${zal}</div><div class="s">смена</div></div><div class="r g">${noPay?"—":fmtNum(rateForDate(me.id,ds))}</div></div>`;
+    }
+  }
+  if(me.emp_role==="Официант"){
+    const wv = wvOf(me.id, iso(viewStart));
+    const steps = Math.round((wv.sales||0)*STEPS_PCT);
+    earnRows += `<div class="sc-row"><div class="l"><div class="d">Шаги с продаж</div><div class="s">1% от ${fmtNum(wv.sales||0)}</div></div><div class="r g">${fmtNum(steps)}</div></div>`;
+  }
+  if(r.bon) earnRows += `<div class="sc-row"><div class="l"><div class="d">Бонусы</div><div class="s">начислено</div></div><div class="r gd">+${fmtNum(r.bon)}</div></div>`;
+  if(r.pen) earnRows += `<div class="sc-row"><div class="l"><div class="d">Штрафы</div><div class="s">вычет</div></div><div class="r rd">−${fmtNum(r.pen)}</div></div>`;
+  earnRows += `<div class="sc-row tot"><div class="l"><div class="d">Итого к выплате</div></div><div class="r g">${fmtNum(r.sum)}</div></div>`;
+
+  // списки бонусов и штрафов
+  const bons = bonusesIn(me.id, fromS, toS).sort((a,b)=>a.bonus_date<b.bonus_date?-1:1);
+  const pens = penaltiesIn(me.id, fromS, toS).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
+  const bonList = bons.length
+    ? bons.map(b=>`<div class="sc-row"><div class="l"><div class="d">${b.note}</div><div class="s">${fmtD(fromIso(b.bonus_date))} · начислил(а): ${b.created_by}</div></div><div class="r gd">+${fmtNum(b.amount)}</div></div>`).join("")
+      + `<div class="sc-row tot"><div class="l"><div class="d">Всего бонусов</div></div><div class="r gd">+${fmtNum(r.bon)}</div></div>`
+    : `<div class="sc-row" style="color:var(--muted)">На этой неделе бонусов нет</div>`;
+  const penList = pens.length
+    ? pens.map(pn=>`<div class="sc-row"><div class="l"><div class="d">${pn.note}</div><div class="s">${fmtD(fromIso(pn.pen_date))} · выписал(а): ${pn.created_by}</div></div><div class="r rd">−${fmtNum(pn.amount)}</div></div>`).join("")
+      + `<div class="sc-row tot"><div class="l"><div class="d">Всего штрафов</div></div><div class="r rd">−${fmtNum(r.pen)}</div></div>`
+    : `<div class="sc-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
+
+  // график по дням
+  let dayRows = "";
+  for(const d of days){
+    const ds = iso(d), sh = shiftOf(me.id, ds);
+    const chk = myCheckins.find(c=>c.work_date===ds);
+    let cls="off", status="Выходной", right="";
+    if(sh && sh.status===2){ cls="absent"; status="Неявка"; right=`<div class="place" style="color:var(--red)">день не оплачивается</div>`; }
+    else if(sh){
+      cls="work"; status="Работаю";
+      const isToday = ds===todayS;
+      if(isToday) status += " · сегодня";
+      const zalBadge = sh.place && PLACES[sh.place]
+        ? `<span class="sc-badge" style="background:var(--panel2);color:var(--muted)">${PLACES[sh.place].label}</span>` : "";
+      if(chk){
+        right = `<div class="sc-checked"><div>отмечен</div><div class="t">в ${new Date(chk.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})} ✓</div></div>`;
+      }else if(isToday && !isGuard){
+        right = `<button class="sc-btn" onclick="staffCheckin('${ds}')">Я на смене</button>`;
+      }else{
+        right = zalBadge;
+      }
+    }
+    const mid = (cls==="work" && right.includes("sc-badge")===false && (sh.place&&PLACES[sh.place]))
+      ? `<div class="status">${status}</div>` : `<div class="status">${status}</div>`;
+    dayRows += `<div class="sc-day ${cls} ${ds===todayS?'today':''}">
+      <div class="dow"><div class="d">${["Вс","Пн","Вт","Ср","Чт","Пт","Сб"][d.getDay()]}</div><div class="num">${fmtD(d)}</div></div>
+      <div class="mid">${mid}</div>${right}</div>`;
+  }
+
+  box.innerHTML = `
+    <div class="sc-hello">Смена и заработок<b>${me.name}</b></div>
+    <span class="sc-pill">${me.emp_role} · ${POS_NAME[me.pos]} · неделя ${fmtD(viewStart)} — ${fmtD(addDays(viewStart,6))}</span>
+
+    <div class="sc-earn open" id="sc-c-earn" onclick="scToggle('earn')">
+      <div class="cap">Заработано за неделю <span class="chev">▾</span></div>
+      <div class="val">${fmtNum(r.sum)}</div>
+      <div class="note">${r.cnt} смен${r.bon?` · бонусы +${fmtNum(r.bon)}`:""}${r.pen?` · штрафы −${fmtNum(r.pen)}`:""}</div>
+    </div>
+    <div class="sc-mrow">
+      <div class="sc-card pen" id="sc-c-pen" onclick="scToggle('pen')">
+        <div class="cap">Штрафы <span class="chev">▾</span></div>
+        <div class="val">${r.pen?`−${fmtNum(r.pen)}`:"0"}</div><div class="note">${pens.length} ${pens.length===1?"штраф":"штрафа"}</div></div>
+      <div class="sc-card bonus" id="sc-c-bonus" onclick="scToggle('bonus')">
+        <div class="cap">Бонусы <span class="chev">▾</span></div>
+        <div class="val">${r.bon?`+${fmtNum(r.bon)}`:"0"}</div><div class="note">${bons.length} ${bons.length===1?"бонус":"бонуса"}</div></div>
+    </div>
+    <div class="sc-drawer open" id="sc-d-earn"><div class="sc-dh">Из чего сложилась сумма</div>${earnRows}</div>
+    <div class="sc-drawer" id="sc-d-bonus"><div class="sc-dh">Бонусы за неделю</div>${bonList}</div>
+    <div class="sc-drawer" id="sc-d-pen"><div class="sc-dh">Штрафы за неделю</div>${penList}</div>
+
+    <div class="sc-sec">Мой график</div>
+    ${dayRows}
+    <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.${isGuard?"":"<br>Кнопка «Я на смене» доступна в день смены."}</div>
+  `;
+}
+function scToggle(which){
+  ["earn","bonus","pen"].forEach(k=>{
+    const c=$("sc-c-"+k), d=$("sc-d-"+k);
+    if(!c||!d) return;
+    if(k===which){ c.classList.toggle("open"); d.classList.toggle("open"); }
+    else { c.classList.remove("open"); d.classList.remove("open"); }
+  });
+}
+async function staffCheckin(ds){
+  const me = employees[0]; if(!me) return;
+  if(!confirm("Отметить, что вы на смене сегодня?")) return;
+  const {error} = await sb.from("checkins").insert({employee_id: me.id, work_date: ds});
+  if(error){ alert("Не удалось отметиться: "+error.message); return; }
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  await loadStaff(); renderStaffCabinet();
+}
+window.scToggle = scToggle;
+window.staffCheckin = staffCheckin;
+
 /* компактный / полный режим отображения */
 function applyViewMode(){
   document.body.classList.toggle("compact", compactView);
@@ -1271,7 +1505,7 @@ function openPlace(e, ds, current){
     const full = isOfficiant && !P.soft && used >= P.limit;
     const cnt = isOfficiant ? `${used}/${P.limit}${full?" — занято":""}` : "";
     return `<button class="${full?'full':''}" ${full?'disabled':''} onclick="pickPlace('${pl}')">
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${PLACE_COLORS[pl]};vertical-align:middle;margin-right:8px"></span>${P.label}</span>
+      <span><span style="display:inline-block;min-width:20px;padding:1px 5px;border-radius:4px;background:var(--panel2);color:var(--muted);font-size:10px;font-weight:800;vertical-align:middle;margin-right:8px">${P.short}</span>${P.label}</span>
       <span class="cnt">${cnt}</span></button>`;
   }).join("")
    + (current ? `<button class="clearbtn" onclick="pickPlace('__absent')">Отметить неявку</button>` : "")
@@ -1328,7 +1562,7 @@ function renderStaffTotals(days, list){
     .map(r => `<tr><td>${r === "Бармен" ? "Бармены" : r === "Хостес" ? "Хостес" :
                  r === "Официант" ? "Официанты" : "Охрана"}</td>${
       counts[r].map(c=>`<td>${c || "—"}</td>`).join("")}</tr>`);
-  // сводка официантов по залам (если в списке есть официанты караоке)
+  // сводка официантов караоке по залам + официанты клуба
   let placeRows = "";
   if(list.some(e=>e.emp_role==="Официант" && e.pos==="karaoke")){
     for(const pl of ["big","small","letka","cabin"]){
@@ -1337,9 +1571,18 @@ function renderStaffTotals(days, list){
         return list.filter(e=>e.emp_role==="Официант" && e.pos==="karaoke")
           .filter(e=>{const sh=shiftOf(e.id,ds); return sh && sh.status!==2 && sh.place===pl;}).length;
       });
-      placeRows += `<tr><td style="padding-left:18px;color:${PLACE_COLORS[pl]}">${PLACES[pl].label} (макс. ${PLACES[pl].limit})</td>${
+      placeRows += `<tr><td style="padding-left:18px">Караоке · ${PLACES[pl].label} (макс. ${PLACES[pl].limit})</td>${
         arr.map(c=>`<td>${c||"—"}</td>`).join("")}</tr>`;
     }
+  }
+  if(list.some(e=>e.emp_role==="Официант" && e.pos==="club")){
+    const arr = days.map(d=>{
+      const ds = iso(d);
+      return list.filter(e=>e.emp_role==="Официант" && e.pos==="club")
+        .filter(e=>{const sh=shiftOf(e.id,ds); return sh && sh.status!==2;}).length;
+    });
+    placeRows += `<tr><td style="padding-left:18px">Клуб · официанты (макс. 4)</td>${
+      arr.map(c=>`<td>${c||"—"}</td>`).join("")}</tr>`;
   }
   el.innerHTML = rows.length ? `<table>
     <tr><th>На смене, чел.</th>${days.map(d=>`<th>${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}</th>`).join("")}</tr>
@@ -1425,7 +1668,7 @@ function exportXlsx(){
     [`Период расчёта: ${fmtFull(fromIso(fromS))} — ${fmtFull(fromIso(toS))}`],[],
     ["Сотрудник","Должность","Ставка, сум",
      ...days.map(d=>DOW[(d.getDay()-3+7)%7]+" "+fmtD(d)),
-     "Смен","Продажа / Кабинки","Шаги","Заработано","Бонусы","Штрафы"]];
+     "Смен","Продажа / Кабинки","Шаги","Заработано","Штрафы","Бонусы"]];
   let lastPos=null,lastRole=null,tSum=0,tCnt=0,tEx=0,tBon=0,tPen=0;
   for(const e of list){
     if(e.pos!==lastPos){aoa.push([POS_NAME[e.pos].toUpperCase()]);lastPos=e.pos;lastRole=null;}
@@ -1441,10 +1684,10 @@ function exportXlsx(){
         if(!sh) return ""; if(sh.status===2) return "Н";
         return sh.place && PLACES[sh.place] ? PLACES[sh.place].short : "✓";}),
       r.cnt, saleTxt, r.extra?Math.round(r.extra):"", Math.round(r.sum),
-      r.bon?Math.round(r.bon):"", r.pen?Math.round(r.pen):""]);
+      r.pen?Math.round(r.pen):"", r.bon?Math.round(r.bon):""]);
     tBon+=(r.bon||0); tPen+=(r.pen||0);
   }
-  aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tSum),Math.round(tBon),Math.round(tPen)]);
+  aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tSum),Math.round(tPen),Math.round(tBon)]);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"]=[{wch:24},{wch:18},{wch:20},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:6},{wch:18},{wch:12},{wch:14},{wch:12},{wch:12}];
   const wb = XLSX.utils.book_new();
@@ -1455,17 +1698,20 @@ function exportXlsx(){
 /* ================= рассылка (только админ) ================= */
 async function initNotify(){
   $("card-notify").style.display = "";
-  // список получателей: группы + конкретные пользователи из app_users
-  const { data: users } = await sb.from("app_users").select("telegram_id, full_name, app_role");
-  const ROLE_LBL = {admin:"Администратор", cashier:"Кассир", bar_manager:"Бар-менеджер", manager:"Менеджер караоке"};
-  let opts = `<option value="all">Всем пользователям</option>
-    <option value="role:bar_manager">Всем бар-менеджерам</option>
-    <option value="role:manager">Всем менеджерам караоке</option>
-    <option value="role:cashier">Всем кассирам</option>`;
-  for(const u of (users||[]).sort((a,b)=>a.full_name.localeCompare(b.full_name,"ru"))){
-    opts += `<option value="user:${u.telegram_id}">${u.full_name} (${ROLE_LBL[u.app_role]||u.app_role})</option>`;
+  if(CAP.msg === "all"){
+    // админ: полный список (роли + пользователи) + сотрудники
+    const { data: users } = await sb.from("app_users").select("telegram_id, full_name, app_role");
+    const ROLE_LBL = {admin:"Администратор", cashier:"Кассир", bar_manager:"Бар-менеджер", manager:"Менеджер караоке", upr:"Управляющий", dir:"Директор", chief:"Шеф"};
+    let opts = `<option value="staff">Сотрудникам (всем привязанным)</option>
+      <option value="all">Всем пользователям-руководителям</option>`;
+    for(const u of (users||[]).sort((a,b)=>a.full_name.localeCompare(b.full_name,"ru"))){
+      opts += `<option value="user:${u.telegram_id}">${u.full_name} (${ROLE_LBL[u.app_role]||u.app_role})</option>`;
+    }
+    $("msg-to").innerHTML = opts;
+  }else{
+    // руководитель зоны: только своим сотрудникам
+    $("msg-to").innerHTML = `<option value="staff">Сотрудникам моей зоны</option>`;
   }
-  $("msg-to").innerHTML = opts;
   $("msg-send").addEventListener("click", sendNotify);
 }
 async function sendNotify(){
@@ -1475,7 +1721,8 @@ async function sendNotify(){
   const show = (t, ok)=>{ st.textContent=t; st.className="msg "+(ok?"ok":"err"); };
   if(!text){ show("Введите текст сообщения"); return; }
   let to;
-  if(v === "all") to = {type:"all"};
+  if(v === "staff") to = {type:"staff"};
+  else if(v === "all") to = {type:"all"};
   else if(v.startsWith("role:")) to = {type:"role", role:v.slice(5)};
   else to = {type:"user", telegram_id:Number(v.slice(5))};
   $("msg-send").disabled = true; show("Отправка…", true);
@@ -1506,12 +1753,13 @@ function setCurrentPayWeek(){
 }
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
+  if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
   if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
   // умолчание режима: денежные роли — полный, остальные — только график
   compactView = !CAP.money;
   applyViewMode();
-  if(CAP.notify) initNotify();
+  if(CAP.notify || CAP.msg) initNotify();
   if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
   viewStart = payWeekStart(new Date());
   fillRoles(); setCurrentPayWeek(); applyRoleDefaults();
