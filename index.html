@@ -327,6 +327,10 @@
 .bk-when .t-tbl{font-size:15px;font-weight:800;color:var(--text);margin-bottom:2px;line-height:1.1}
 .bk-when .t-zone{font-size:10px;font-weight:600;color:var(--gold);line-height:1.2;margin-bottom:3px}
 .bk-when .t-time{font-weight:700;font-size:11px;color:var(--muted)}
+.bk-t.was-occ-cell{border-style:dashed;opacity:.85}
+.dep.was-occ{color:var(--muted);font-style:italic;font-size:9px}
+.bk-brow.b-finished{opacity:.55}
+.bk-brow.b-finished .bk-bstatus{color:var(--muted)}
 .bk-bmain{flex:1}
 .bk-bmain .bl-name{font-weight:700;font-size:14px}
 .bk-bmain .bl-times{font-size:11px;color:var(--blue,#4ea6e2);font-weight:400;margin-left:6px}
@@ -2249,10 +2253,12 @@ async function bkLoadRef(){
 async function bkLoadAndRender(){
   document.getElementById("bk-content").innerHTML='<div class="bk-empty">Загрузка…</div>';
   await bkLoadRef();
+  // автозавершение засидевшихся столов прошлых дней (после 05:00)
+  try{ await sb.rpc("auto_finish_seated"); }catch(_){}
   const ds = bkIso(BK.date);
   // если официант — определим его зал(ы) на выбранную дату из табеля
   await bkLoadWaiterPlaces(ds);
-  // брони выбранной бизнес-даты
+  // брони выбранной бизнес-даты (показываем активные + завершённые, без отменённых)
   const b = await sb.from("v_bookings_full").select("*").eq("business_date",ds);
   let rows = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
   rows = bkFilterForWaiter(rows);
@@ -2361,6 +2367,15 @@ function bkZonesOf(venueKey){
 function bkBookingFor(tableId){
   return BK.data.bookings.find(b=>b.table_id===tableId);
 }
+function bkBookingFor(tableId){
+  // активная бронь (занимает стол): booked или seated
+  return BK.data.bookings.find(b=>b.table_id===tableId && (b.status==="booked"||b.status==="seated"));
+}
+// был ли стол занят сегодня и уже освобождён (finished) — для пометки «были гости»
+function bkWasOccupied(tableId){
+  if(bkBookingFor(tableId)) return false; // сейчас активна — не показываем пометку
+  return BK.data.bookings.some(b=>b.table_id===tableId && b.status==="finished");
+}
 function bkTableCls(b){ return b? (b.status==="seated"?"seated":(b.status==="booked"?"booked":"")) : ""; }
 function bkDepLabel(t, weekend){
   const d = weekend? t.deposit_weekend : t.deposit_weekday;
@@ -2383,15 +2398,18 @@ function bkStaffHead(placeKey){
 function bkTableCell(t, weekend){
   const b=bkBookingFor(t.id);
   const cls=bkTableCls(b);
+  const wasOcc = !b && bkWasOccupied(t.id);
   const paid = b && b.is_paid ? '<div class="paid">✓</div>' : "";
   let inner = `<div class="tn">${t.name}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>`;
+  }else if(wasOcc){
+    inner += `<div class="dep was-occ">были гости</div>`;
   }else{
     inner += `<div class="dep">${bkDepLabel(t,weekend)}</div>`;
   }
-  return `<div class="bk-t ${cls}" data-tid="${t.id}">${inner}${paid}</div>`;
+  return `<div class="bk-t ${cls}${wasOcc?" was-occ-cell":""}" data-tid="${t.id}">${inner}${paid}</div>`;
 }
 
 function bkRenderKaraoke(){
@@ -2465,17 +2483,20 @@ function bkSchemaCell(code, style, opts){
   const weekend = bkIsWeekend(BK.date);
   const b = bkBookingFor(t.id);
   const cls = bkTableCls(b);
+  const wasOcc = !b && bkWasOccupied(t.id);
   const paid = b && b.is_paid ? '<div class="paid">✓</div>' : "";
   const num = opts.label!=null ? opts.label : t.name.replace('Стол ','').replace('Каб. слева ','').replace('Каб. справа ','').replace('Кокт. ','').replace('Подиум ','').replace('ВИП ','ВИП ');
   let inner = `<div class="tn">${num}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>`;
+  } else if(wasOcc){
+    inner += `<div class="dep was-occ">были гости</div>`;
   } else if(opts.showDep!==false){
     inner += `<div class="dep">${bkDepLabel(t,weekend)}</div>`;
   }
   const round = opts.round ? " round" : "";
-  return `<div class="bk-t${round} ${cls}" data-tid="${t.id}" style="${style}">${inner}${paid}</div>`;
+  return `<div class="bk-t${round} ${cls}${wasOcc?" was-occ-cell":""}" data-tid="${t.id}" style="${style}">${inner}${paid}</div>`;
 }
 
 function bkSchemaKaraoke(){
@@ -2605,8 +2626,9 @@ function bkBookingList(title){
   if(!list.length) return `<div class="bk-blist"><div class="bk-empty">На эту дату броней нет</div></div>`;
   const rows = list.map(b=>{
     const seated=b.status==="seated";
+    const finished=b.status==="finished";
     const tm = b.arrive_at ? "~"+new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
-    const when = seated ? "пришли" : tm;
+    const when = finished ? "ушли" : (seated ? "пришли" : tm);
     const vc = b.visit_count>0 ? `<span class="bl-times">был(а) ${b.visit_count} раз</span>` : `<span class="bl-new">новый гость</span>`;
     const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
     const pay = b.deposit_amount>0 ? (b.is_paid?'<span class="paid-tag">✓ оплачено</span>':'<span class="unpaid-tag">не оплачено</span>') : "";
@@ -2618,14 +2640,14 @@ function bkBookingList(title){
     const callBtn = (BK.canCall && telRaw)
       ? `<a class="bk-call" href="tel:${telRaw}" title="Позвонить ${b.display_phone}" onclick="event.stopPropagation()">📞</a>`
       : "";
-    return `<div class="bk-brow ${seated?"b-seated":"b-booked"}">
+    return `<div class="bk-brow ${finished?"b-finished":(seated?"b-seated":"b-booked")}">
       <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-zone">${b.zone_title||""}</div><div class="t-time">${when}</div></div>
       <div class="bk-bmain"><div class="bl-name">${b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         ${author}
         <div class="bk-bpay">${dep} ${pay}</div></div>
       ${callBtn}
-      <div class="bk-bstatus ${seated?"st-seated":"st-booked"}">${seated?"гости сели":"бронь"}</div></div>`;
+      <div class="bk-bstatus ${finished?"st-finished":(seated?"st-seated":"st-booked")}">${finished?"гости ушли":(seated?"гости сели":"бронь")}</div></div>`;
   }).join("");
   return `<div class="bk-blist"><div class="bk-bl-head">Брони · ${bkFmtDate(BK.date)} <span>${list.length}</span></div>${rows}</div>`;
 }
@@ -2714,12 +2736,20 @@ function bkModalExisting(){
   if(b.created_by_name) log += `Создал: ${b.created_by_name}${b.created_at?" · "+bkFmtDT(b.created_at):""}<br>`;
   if(b.seated_by_name)  log += `Посадил: ${b.seated_by_name}${b.seated_at?" · "+bkFmtDT(b.seated_at):""}<br>`;
   if(b.paid_by_name)    log += `Оплату отметил: ${b.paid_by_name}${b.paid_at?" · "+bkFmtDT(b.paid_at):""}<br>`;
+  if(b.finished_by_name)log += `Гости ушли: ${b.finished_by_name}${b.finished_at?" · "+bkFmtDT(b.finished_at):""}<br>`;
   const canEdit = BK.canEdit;
   let actions = "";
   if(canEdit){
-    if(!seated) actions += `<button class="bkm-btn primary" id="bkm-seat">Гости сели</button>`;
-    if(!b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
-    actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
+    if(!seated){
+      actions += `<button class="bkm-btn primary" id="bkm-seat">Гости сели</button>`;
+      if(!b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+      actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
+    } else {
+      // гости сидят: можно отметить оплату и «гости ушли» (завершить, освободить стол)
+      if(!b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+      actions += `<button class="bkm-btn primary" id="bkm-finish">Гости ушли</button>`;
+      actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
+    }
   }
   // блок депозита: редактируемое поле, если есть право и не оплачен
   const depBlock = (canEdit && !b.is_paid)
@@ -2753,9 +2783,11 @@ function bkWireModalForm(){
   if(bkCurrentBooking){
     const seat=document.getElementById("bkm-seat"), pay=document.getElementById("bkm-pay"), can=document.getElementById("bkm-cancel");
     const savedep=document.getElementById("bkm-savedep");
+    const fin=document.getElementById("bkm-finish");
     if(seat) seat.onclick = ()=>bkActionSeat();
     if(pay)  pay.onclick  = ()=>bkActionPay();
     if(can)  can.onclick  = ()=>bkActionCancel();
+    if(fin)  fin.onclick  = ()=>bkActionFinish();
     if(savedep) savedep.onclick = ()=>bkActionSaveDep();
     return;
   }
@@ -2896,6 +2928,13 @@ async function bkActionSaveDep(){
   bkCurrentBooking = bkBookingFor(b.table_id) || bkCurrentBooking;
   document.getElementById("bkm-body").innerHTML = bkModalExisting();
   bkWireModalForm();
+}
+async function bkActionFinish(){
+  const b=bkCurrentBooking; if(!b) return;
+  bkMsg("…",true);
+  const {error}=await sb.from("bookings").update({status:"finished", finished_by_name:ME.name, finished_at:new Date().toISOString()}).eq("id",b.id);
+  if(error){ bkMsg(error.message); return; }
+  await bkRefreshBookings(); bkCloseModal();
 }
 async function bkActionSeat(){
   const b=bkCurrentBooking; if(!b) return;
