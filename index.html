@@ -2349,11 +2349,11 @@ function bkStaffHead(placeKey){
   const s = BK.data.shiftStaff[placeKey] || {bar:[],waiter:[]};
   const lines = [];
   if(s.bar && s.bar.length){
-    const lbl = s.bar.length>1 ? "Бармены" : "Бармен";
+    const lbl = s.bar.length>1 ? "Бармены на смене" : "Бармен на смене";
     lines.push(`<div class="staff-line">${lbl}: ${s.bar.join(", ")}</div>`);
   }
   if(s.waiter && s.waiter.length){
-    const lbl = s.waiter.length>1 ? "Официанты" : "Официант";
+    const lbl = s.waiter.length>1 ? "Официанты на смене" : "Официант на смене";
     lines.push(`<div class="staff-line">${lbl}: ${s.waiter.join(", ")}</div>`);
   }
   return lines.length ? `<span class="staff">${lines.join("")}</span>` : "";
