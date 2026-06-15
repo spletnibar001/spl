@@ -264,21 +264,30 @@
 #booking-root{display:none}
 #booking-root.active{display:block}
 /* подвкладки Караоке/Клуб */
-#bk-venue-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content}
-#bk-tabrow{display:flex;align-items:center;gap:10px;margin:0 0 12px;flex-wrap:wrap}
+#bk-venue-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content;align-items:stretch}
+#bk-tabrow{display:flex;align-items:stretch;gap:10px;margin:0;flex-wrap:wrap}
 .vtoggle{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 .vtoggle:active{background:var(--panel)}
 #bk-venue-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 #bk-venue-tabs button.active{background:var(--emerald);color:#0c1410}
 /* строка даты */
-#bk-datebar{display:flex;align-items:center;gap:8px;margin:0 0 14px;flex-wrap:wrap}
-#bk-datebar .d{font-size:14px;font-weight:700}
-#bk-datebar .wk{font-size:11px;color:var(--gold);font-weight:700;border:1px solid var(--line);border-radius:20px;padding:2px 9px}
-#bk-datebar button.nav{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:6px 11px;font-family:inherit;font-weight:700;cursor:pointer}
+#bk-datebar{display:flex;justify-content:flex-end;margin:0 0 14px}
+#bk-header{display:flex;align-items:stretch;justify-content:space-between;gap:12px;margin:0 0 14px}
+#bk-header-left{display:flex;flex-direction:column;gap:12px;flex:1}
+#bk-header .bk-datecard{display:flex;flex-direction:column;justify-content:space-between;align-self:stretch;margin-top:-48px}
+@media(max-width:520px){#bk-header{flex-wrap:wrap}#bk-header .bk-datecard{align-self:auto;margin-top:0}}
+.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:12px 16px;text-align:center;min-width:140px}
+.bk-datecard .dc-num{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
+.bk-datecard .dc-month{font-size:13px;font-weight:700;color:var(--text);text-transform:lowercase;margin-top:2px}
+.bk-datecard .dc-dow{font-size:12px;color:var(--muted);margin-top:2px}
+.bk-datecard .dc-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px}
+.bk-datecard .dc-nav .wk{font-size:11px;color:var(--gold);font-weight:700;border:1px solid var(--line);border-radius:20px;padding:2px 9px;min-width:64px}
+.bk-datecard .dc-nav button.nav{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:5px 10px;font-family:inherit;font-weight:700;cursor:pointer;font-size:12px}
 /* панель зоны */
 .bk-panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin:0 0 12px}
 .bk-zone-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:800;margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.bk-zone-lbl .staff{color:var(--text);font-weight:600;letter-spacing:0;text-transform:none;font-size:13px}
+.bk-zone-lbl .staff{color:var(--text);font-weight:600;letter-spacing:0;text-transform:none;font-size:13px;display:block;margin-top:3px}
+.bk-zone-lbl .staff .staff-line{line-height:1.5}
 .bk-zone-lbl .sub{color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none;font-size:10px}
 /* стол (общий) */
 .bk-t{border:2px solid #3a4150;background:#14161a;border-radius:9px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.12s;padding:5px;position:relative}
@@ -410,23 +419,31 @@
 
 <!-- ПЕРЕКЛЮЧАТЕЛЬ ТАБЕЛЬ / БРОНИРОВАНИЕ -->
 <div id="mode-switch">
-  <button id="ms-tabel" class="active">Табель</button>
+  <button id="ms-tabel" class="active">График</button>
   <button id="ms-booking">Бронирование</button>
 </div>
 <!-- КОРЕНЬ БРОНИРОВАНИЯ -->
 <div id="booking-root">
-  <div id="bk-tabrow">
-    <div id="bk-venue-tabs">
-      <button id="bk-tab-kar" class="active">Караоке</button>
-      <button id="bk-tab-club">Клуб</button>
+  <div id="bk-header">
+    <div id="bk-header-left">
+      <div id="bk-tabrow">
+        <div id="bk-venue-tabs">
+          <button id="bk-tab-kar" class="active">Караоке</button>
+          <button id="bk-tab-club">Клуб</button>
+        </div>
+        <button id="bk-viewtoggle" class="vtoggle">▦ Схема</button>
+      </div>
     </div>
-    <button id="bk-viewtoggle" class="vtoggle">▦ Схема</button>
-  </div>
-  <div id="bk-datebar">
-    <button class="nav" id="bk-prev">◀</button>
-    <div class="d" id="bk-date-label">—</div>
-    <span class="wk" id="bk-wk"></span>
-    <button class="nav" id="bk-next">▶</button>
+    <div class="bk-datecard">
+      <div class="dc-num" id="bk-dc-num">—</div>
+      <div class="dc-month" id="bk-dc-month"></div>
+      <div class="dc-dow" id="bk-dc-dow"></div>
+      <div class="dc-nav">
+        <button class="nav" id="bk-prev">◀</button>
+        <span class="wk" id="bk-wk"></span>
+        <button class="nav" id="bk-next">▶</button>
+      </div>
+    </div>
   </div>
   <div id="bk-content"></div>
 </div>
@@ -2224,9 +2241,14 @@ async function bkLoadShiftStaff(ds){
 }
 
 function bkRender(){
-  // строка даты
-  document.getElementById("bk-date-label").textContent = bkFmtDate(BK.date);
-  document.getElementById("bk-wk").textContent = bkIsWeekend(BK.date) ? "выходные" : "будни";
+  // карточка даты
+  const d = BK.date;
+  const months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+  const dows=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+  const numEl=document.getElementById("bk-dc-num"); if(numEl) numEl.textContent=d.getDate();
+  const moEl=document.getElementById("bk-dc-month"); if(moEl) moEl.textContent=months[d.getMonth()];
+  const dowEl=document.getElementById("bk-dc-dow"); if(dowEl) dowEl.textContent=dows[d.getDay()];
+  document.getElementById("bk-wk").textContent = bkIsWeekend(d) ? "выходные" : "будни";
   const root=document.getElementById("bk-content");
   if(BK.view==="schema"){
     root.innerHTML = BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub();
@@ -2267,10 +2289,16 @@ function bkDepLabel(t, weekend){
 }
 function bkStaffHead(placeKey){
   const s = BK.data.shiftStaff[placeKey] || {bar:[],waiter:[]};
-  const parts = [];
-  if(s.bar && s.bar.length)    parts.push(`Бармены: ${s.bar.join(", ")}`);
-  if(s.waiter && s.waiter.length) parts.push(`Официанты: ${s.waiter.join(", ")}`);
-  return parts.length ? `<span class="staff">· ${parts.join(" · ")}</span>` : "";
+  const lines = [];
+  if(s.bar && s.bar.length){
+    const lbl = s.bar.length>1 ? "Бармены" : "Бармен";
+    lines.push(`<div class="staff-line">${lbl}: ${s.bar.join(", ")}</div>`);
+  }
+  if(s.waiter && s.waiter.length){
+    const lbl = s.waiter.length>1 ? "Официанты" : "Официант";
+    lines.push(`<div class="staff-line">${lbl}: ${s.waiter.join(", ")}</div>`);
+  }
+  return lines.length ? `<span class="staff">${lines.join("")}</span>` : "";
 }
 
 function bkTableCell(t, weekend){
