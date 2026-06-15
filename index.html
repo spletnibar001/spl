@@ -270,12 +270,12 @@
 #bk-content{max-width:560px}
 #booking-root.active{display:block}
 /* подвкладки Караоке/Клуб */
-#bk-venue-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content;align-items:stretch}
+#bk-venue-tabs,#bk-view-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content;align-items:stretch}
 #bk-tabrow{display:flex;align-items:stretch;gap:10px;margin:0;flex-wrap:wrap}
 .vtoggle{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 .vtoggle:active{background:var(--panel)}
-#bk-venue-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
-#bk-venue-tabs button.active{background:var(--emerald);color:#0c1410}
+#bk-venue-tabs button,#bk-view-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+#bk-venue-tabs button.active,#bk-view-tabs button.active{background:var(--emerald);color:#0c1410}
 /* строка даты */
 #bk-datebar{display:flex;justify-content:flex-end;margin:0 0 14px}
 #bk-header{display:flex;align-items:stretch;justify-content:space-between;gap:10px;margin:0 0 14px;flex-wrap:nowrap}
@@ -464,7 +464,10 @@
           <button id="bk-tab-kar" class="active">Караоке</button>
           <button id="bk-tab-club">Клуб</button>
         </div>
-        <button id="bk-viewtoggle" class="vtoggle">▦ Схема</button>
+        <div id="bk-view-tabs">
+          <button id="bk-view-grid" class="active">Сетка</button>
+          <button id="bk-view-schema">Схема</button>
+        </div>
       </div>
     </div>
     <div class="bk-datecard">
@@ -2232,11 +2235,8 @@ function bkInit(){
   if(calNext) calNext.onclick=function(){ bkCalMonth=bkAddMonths(bkCalMonth, 1); bkRenderCal(); };
   if(calToday) calToday.onclick=function(){ BK.date=bkToday(); bkCloseCal(); bkLoadAndRender(); };
   if(calBg) calBg.addEventListener("click", function(e){ if(e.target===calBg) bkCloseCal(); });
-  document.getElementById("bk-viewtoggle").onclick = function(){
-    BK.view = (BK.view==="grid") ? "schema" : "grid";
-    this.textContent = (BK.view==="grid") ? "▦ Схема" : "▤ Сетка";
-    bkRender();
-  };
+  document.getElementById("bk-view-grid").onclick = function(){ BK.view="grid"; bkRenderVenueTabs(); bkRender(); };
+  document.getElementById("bk-view-schema").onclick = function(){ BK.view="schema"; bkRenderVenueTabs(); bkRender(); };
   BK.date = bkToday();
   // делегированный тап по столу -> открыть модалку брони
   var content = document.getElementById("bk-content");
@@ -2325,6 +2325,9 @@ window.addEventListener("resize", function(){ if(BK.mode==="booking") bkAlignDat
 function bkRenderVenueTabs(){
   document.getElementById("bk-tab-kar").classList.toggle("active",BK.venue==="karaoke");
   document.getElementById("bk-tab-club").classList.toggle("active",BK.venue==="club");
+  var vg=document.getElementById("bk-view-grid"), vs=document.getElementById("bk-view-schema");
+  if(vg) vg.classList.toggle("active",BK.view==="grid");
+  if(vs) vs.classList.toggle("active",BK.view==="schema");
 }
 
 async function bkLoadRef(){
