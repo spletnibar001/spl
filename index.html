@@ -282,7 +282,24 @@
 .bk-datecard .dc-num{font-size:30px;font-weight:800;line-height:1;color:var(--text)}
 .bk-datecard .dc-pick{position:relative;cursor:pointer;border-radius:8px;padding:2px}
 .bk-datecard .dc-pick:active{background:var(--panel)}
-.bk-datecard .dc-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
+.bk-datecard .dc-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none;pointer-events:none}
+/* собственный календарь */
+.bk-cal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:1100}
+.bk-cal.open{display:flex}
+.bk-cal-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;width:300px;max-width:92vw}
+.bk-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bk-cal-title{font-size:15px;font-weight:800;text-transform:capitalize}
+.bk-cal-nav{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:6px 12px;font-family:inherit;font-weight:700;cursor:pointer}
+.bk-cal-dows{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.bk-cal-dows span{text-align:center;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.bk-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.bk-cal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;background:var(--panel2);color:var(--text)}
+.bk-cal-cell.empty{background:transparent;cursor:default}
+.bk-cal-cell.wknd{color:var(--gold)}
+.bk-cal-cell.today{border-color:var(--emerald)}
+.bk-cal-cell.sel{background:var(--emerald);color:#0c1410}
+.bk-cal-cell:not(.empty):active{background:var(--panel)}
+.bk-cal-today{margin-top:12px;width:100%;border:1px solid var(--emerald);background:transparent;color:var(--emerald);border-radius:10px;padding:9px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer}
 .bk-datecard .dc-month{font-size:13px;font-weight:700;color:var(--text);text-transform:lowercase;margin-top:2px}
 .bk-datecard .dc-dow{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bk-datecard .dc-today{display:none;margin-top:5px;font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--emerald);border:1px solid var(--emerald);border-radius:20px;padding:1px 8px}
@@ -462,6 +479,22 @@
     </div>
   </div>
   <div id="bk-content"></div>
+</div>
+
+<!-- СОБСТВЕННЫЙ КАЛЕНДАРЬ (работает на телефоне и десктопе) -->
+<div id="bk-cal" class="bk-cal">
+  <div class="bk-cal-card">
+    <div class="bk-cal-head">
+      <button class="bk-cal-nav" id="bk-cal-prev">◀</button>
+      <div class="bk-cal-title" id="bk-cal-title"></div>
+      <button class="bk-cal-nav" id="bk-cal-next">▶</button>
+    </div>
+    <div class="bk-cal-dows">
+      <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+    </div>
+    <div class="bk-cal-grid" id="bk-cal-grid"></div>
+    <button class="bk-cal-today" id="bk-cal-today">Сегодня</button>
+  </div>
 </div>
 
 <!-- МОДАЛКА БРОНИ -->
@@ -2093,6 +2126,48 @@ function bkIso(d){
   return y+"-"+m+"-"+day;
 }
 function bkAddDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function bkAddMonths(d,n){ const x=new Date(d); x.setMonth(x.getMonth()+n); return x; }
+// собственный календарь
+let bkCalMonth = null;
+function bkOpenCal(){
+  bkCalMonth = new Date(BK.date.getFullYear(), BK.date.getMonth(), 1);
+  bkRenderCal();
+  document.getElementById("bk-cal").classList.add("open");
+}
+function bkCloseCal(){ document.getElementById("bk-cal").classList.remove("open"); }
+function bkRenderCal(){
+  const months=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+  const y=bkCalMonth.getFullYear(), m=bkCalMonth.getMonth();
+  document.getElementById("bk-cal-title").textContent = months[m]+" "+y;
+  const first=new Date(y,m,1);
+  // понедельник = 0
+  let lead=(first.getDay()+6)%7;
+  const days=new Date(y,m+1,0).getDate();
+  const todayIso=bkIso(bkToday()), selIso=bkIso(BK.date);
+  let html="";
+  for(let i=0;i<lead;i++) html+=`<div class="bk-cal-cell empty"></div>`;
+  for(let dd=1;dd<=days;dd++){
+    const dObj=new Date(y,m,dd);
+    const iso=bkIso(dObj);
+    const dow=dObj.getDay(); // 5=пт,6=сб
+    const cls=["bk-cal-cell"];
+    if(dow===5||dow===6) cls.push("wknd");
+    if(iso===todayIso) cls.push("today");
+    if(iso===selIso) cls.push("sel");
+    html+=`<div class="${cls.join(" ")}" data-cal="${iso}">${dd}</div>`;
+  }
+  const grid=document.getElementById("bk-cal-grid");
+  grid.innerHTML=html;
+  grid.querySelectorAll("[data-cal]").forEach(c=>{
+    c.onclick=function(){
+      const p=this.dataset.cal.split("-").map(Number);
+      BK.date=new Date(p[0],p[1]-1,p[2]);
+      bkCloseCal();
+      bkLoadAndRender();
+    };
+  });
+}
+
 // бизнес-дата «сегодня» с учётом правила до 5:00
 function bkToday(){
   const now=new Date();
@@ -2142,29 +2217,16 @@ function bkInit(){
   document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkLoadAndRender(); };
   document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkLoadAndRender(); };
-  var dcInput=document.getElementById("bk-dc-input");
-  if(dcInput){
-    dcInput.onchange=function(){
-      if(!this.value) return;
-      var p=this.value.split("-").map(Number);
-      BK.date=new Date(p[0],p[1]-1,p[2]);
-      bkLoadAndRender();
-    };
-    var pick=document.getElementById("bk-dc-pick");
-    var openPicker=function(e){
-      if(e){ e.preventDefault(); e.stopPropagation(); }
-      try{
-        if(typeof dcInput.showPicker==="function"){ dcInput.showPicker(); return; }
-      }catch(_){}
-      // запасной вариант для десктопа: сфокусировать и кликнуть нативный инпут
-      try{ dcInput.focus(); dcInput.click(); }catch(_){}
-    };
-    if(pick){ pick.addEventListener("click", openPicker); }
-    // клик по самому инпуту тоже открывает (на десктопе)
-    dcInput.addEventListener("click", function(e){ e.stopPropagation();
-      try{ if(typeof dcInput.showPicker==="function") dcInput.showPicker(); }catch(_){}
-    });
-  }
+  // тап по дате -> открыть собственный календарь (работает и на десктопе)
+  var pick=document.getElementById("bk-dc-pick");
+  if(pick){ pick.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); bkOpenCal(); }); }
+  // кнопки/фон календаря
+  var calPrev=document.getElementById("bk-cal-prev"), calNext=document.getElementById("bk-cal-next");
+  var calToday=document.getElementById("bk-cal-today"), calBg=document.getElementById("bk-cal");
+  if(calPrev) calPrev.onclick=function(){ bkCalMonth=bkAddMonths(bkCalMonth,-1); bkRenderCal(); };
+  if(calNext) calNext.onclick=function(){ bkCalMonth=bkAddMonths(bkCalMonth, 1); bkRenderCal(); };
+  if(calToday) calToday.onclick=function(){ BK.date=bkToday(); bkCloseCal(); bkLoadAndRender(); };
+  if(calBg) calBg.addEventListener("click", function(e){ if(e.target===calBg) bkCloseCal(); });
   document.getElementById("bk-viewtoggle").onclick = function(){
     BK.view = (BK.view==="grid") ? "schema" : "grid";
     this.textContent = (BK.view==="grid") ? "▦ Схема" : "▤ Сетка";
