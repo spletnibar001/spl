@@ -1427,6 +1427,8 @@ async function startStaffCabinet(){
   viewStart = payWeekStart(new Date());
   await loadStaff();
   renderStaffCabinet();
+  // теперь, когда карточка сотрудника загружена, решаем доступ к бронированию
+  try{ bkInit(); }catch(e){ console.warn("bkInit(staff)",e); }
 }
 async function loadStaff(){
   const weekKey = iso(viewStart);
@@ -1849,7 +1851,8 @@ function setCurrentPayWeek(){
 }
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
-  try{ bkInit(); }catch(e){ console.warn("bkInit",e); }
+  // для staff bkInit вызовется внутри startStaffCabinet (после загрузки его карточки)
+  if(!CAP.staff){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
   if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
   if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
@@ -1933,21 +1936,29 @@ window.closePlace = closePlace;
    Таблицы: venues, zones, tables, bookings, guests, v_bookings_full.
    ============================================================ */
 const BK = {
-  // какие роли видят вкладку Бронирование и режим по умолчанию
-  // booking:true — есть доступ; only:true — ТОЛЬКО бронирование (хостес)
+  // Доступ к бронированию определяется так:
+  //  - по app_role (руководящие роли) ИЛИ
+  //  - по должности сотрудника emp_role (Хостес — полный доступ; Официант — только просмотр своего зала).
+  // ВРЕМЕННО (тест): из app_role открыт только admin; хостес — по должности (ниже).
+  // Полный список app_role вернуть после теста:
+  //   admin,cashier,upr,dir,bar_manager,manager — booking:true
   access: {
-    // ВРЕМЕННО (тест): бронирование видит только admin.
-    // Полный список (вернуть после теста):
-    // admin:{booking:true}, cashier:{booking:true}, upr:{booking:true},
-    // dir:{booking:true}, bar_manager:{booking:true}, manager:{booking:true}, staff:{booking:true},
-    admin:{booking:true},
+    admin:{booking:true, canEdit:true},
   },
   seeAll: ["admin","cashier","upr","dir","bar_manager","manager"],
+  // вычисляется при входе: может ли текущий пользователь СТАВИТЬ/СНИМАТЬ брони
+  canEdit: false,
+  // роль доступа: 'manage' (полный), 'hostess' (полный), 'waiter' (только свой зал, просмотр), null
+  bkRole: null,
   venue: "karaoke",          // активная подвкладка
   date: null,                // выбранная бизнес-дата (Date)
   data: {venues:[],zones:[],tables:[],bookings:[],shiftStaff:{}},
   mode: "tabel",             // tabel | booking
 };
+// должность текущего сотрудника (для staff). RLS отдаёт только его карточку.
+function bkMyEmpRole(){
+  try{ return (employees && employees[0]) ? employees[0].emp_role : null; }catch(_){ return null; }
+}
 
 function bkIso(d){ return d.toISOString().slice(0,10); }
 function bkAddDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
@@ -1971,8 +1982,22 @@ function bkInit(){
   if(!sw) return;
   var role = (typeof ME!=="undefined" && ME) ? ME.role : "?";
   var acc = BK.access[role];
-  var hasBooking = !!(acc && acc.booking);
-  if(!hasBooking){ sw.style.display="none"; return; }
+
+  // 1) доступ по app_role (руководящие роли)
+  if(acc && acc.booking){
+    BK.bkRole = "manage";
+    BK.canEdit = !!acc.canEdit;
+  } else if(role === "staff"){
+    // 2) staff: смотрим должность сотрудника
+    var er = bkMyEmpRole();
+    if(er === "Хостес"){ BK.bkRole = "hostess"; BK.canEdit = true; }
+    else if(er === "Официант"){ BK.bkRole = "waiter"; BK.canEdit = false; }
+    else { BK.bkRole = null; BK.canEdit = false; }
+  } else {
+    BK.bkRole = null; BK.canEdit = false;
+  }
+
+  if(!BK.bkRole){ sw.style.display="none"; return; }
   sw.style.display="flex";
   document.getElementById("ms-tabel").onclick = function(){ bkSetMode("tabel"); };
   document.getElementById("ms-booking").onclick = function(){ bkSetMode("booking"); };
@@ -1981,6 +2006,9 @@ function bkInit(){
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkRender(); };
   document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkRender(); };
   BK.date = bkToday();
+  // хостес заходит сразу в бронирование (у них кабинет ЗП вторичен)
+  if(BK.bkRole === "hostess") bkSetMode("booking");
+
 
 }
 
