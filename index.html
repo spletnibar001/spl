@@ -382,6 +382,14 @@
 .bkm-toggle button.active{background:var(--emerald);color:#0c1410;border-color:var(--emerald)}
 .bkm-msg{font-size:13px;font-weight:700;padding:8px 0;min-height:18px}
 .bkm-msg.err{color:var(--red)}.bkm-msg.ok{color:var(--emerald)}
+/* общий список будущих броней */
+#bk-upcoming .bk-up-date{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;margin:12px 0 6px;cursor:pointer}
+#bk-upcoming .bk-up-date:first-child{margin-top:0}
+#bk-upcoming .bk-up-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 11px;margin-bottom:5px;cursor:pointer}
+#bk-upcoming .bk-up-row:active{background:var(--panel2)}
+#bk-upcoming .u-tbl{font-weight:800;font-size:12px;min-width:80px;flex-shrink:0}
+#bk-upcoming .u-name{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bk-upcoming .u-time{font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0}
 
 </style>
 </head>
@@ -2034,7 +2042,7 @@ const BK = {
   venue: "karaoke",          // активная подвкладка
   view: "grid",              // grid | schema — вид отображения столов
   date: null,                // выбранная бизнес-дата (Date)
-  data: {venues:[],zones:[],tables:[],bookings:[],shiftStaff:{}},
+  data: {venues:[],zones:[],tables:[],bookings:[],upcoming:[],shiftStaff:{}},
   mode: "tabel",             // tabel | booking
 };
 // должность текущего сотрудника (для staff). RLS отдаёт только его карточку.
@@ -2104,6 +2112,14 @@ function bkInit(){
   if(content && !content.dataset.bkTap){
     content.dataset.bkTap = "1";
     content.addEventListener("click", function(e){
+      // тап по строке/дате в общем списке будущих броней -> перейти на эту дату
+      var up = e.target.closest("[data-d]");
+      if(up && up.dataset.d){
+        var p = up.dataset.d.split("-").map(Number);
+        BK.date = new Date(p[0],p[1]-1,p[2]);
+        bkLoadAndRender();
+        return;
+      }
       var cell = e.target.closest(".bk-t[data-tid]");
       if(!cell) return;
       bkOpenModal(parseInt(cell.dataset.tid));
@@ -2170,6 +2186,11 @@ async function bkLoadAndRender(){
   // брони выбранной бизнес-даты (RLS уже отфильтрует под официанта)
   const b = await sb.from("v_bookings_full").select("*").eq("business_date",ds);
   BK.data.bookings = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  // все будущие брони (от сегодняшней бизнес-даты) — для общего списка
+  const today = bkIso(bkToday());
+  const up = await sb.from("v_bookings_full").select("*").gte("business_date",today)
+    .in("status",["booked","seated"]).order("business_date").order("arrive_at");
+  BK.data.upcoming = up.data||[];
   // официанты на смене сегодня по залам (для руководства) — из табеля
   await bkLoadShiftStaff(ds);
   bkRender();
@@ -2296,7 +2317,7 @@ function bkRenderKaraoke(){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
       <div class="bk-letka">${lt.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
-  html+=bkLegend()+bkBookingList("Караоке");
+  html+=bkLegend()+bkBookingList("Караоке")+bkUpcomingList();
   return html;
 }
 
@@ -2320,7 +2341,7 @@ function bkRenderClub(){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>${z.zone.title} ${head}</span><span class="sub">${depNote}</span></div>
       <div class="bk-grid">${sorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   });
-  html+=bkLegend()+bkBookingList("Клуб");
+  html+=bkLegend()+bkBookingList("Клуб")+bkUpcomingList();
   return html;
 }
 
@@ -2381,7 +2402,7 @@ function bkSchemaKaraoke(){
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
       <div class="bk-letka">${lt?lt.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
   </div></div>`;
-  html += bkLegend() + bkBookingList("Караоке");
+  html += bkLegend() + bkBookingList("Караоке") + bkUpcomingList();
   return html;
 }
 
@@ -2436,7 +2457,7 @@ function bkSchemaClub(){
   let html = `<div class="bk-scheme-wrap"><div class="bk-scheme">
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Зал клуба ${bkStaffHead("club")}</span><span class="sub">депозиты ${weekend?"пт/сб · до 03:00":"будни — нет"}</span></div>${f}</div>
   </div></div>`;
-  html += bkLegend() + bkBookingList("Клуб");
+  html += bkLegend() + bkBookingList("Клуб") + bkUpcomingList();
   return html;
 }
 
@@ -2444,6 +2465,30 @@ function bkLegend(){
   return `<div class="bk-legend"><span><i class="li-free"></i>свободен</span><span><i class="li-booked"></i>бронь</span><span><i class="li-seated"></i>гости сели</span></div>`;
 }
 
+// общий список всех будущих броней (по возрастанию даты), для активного заведения
+function bkUpcomingList(){
+  const vk = BK.venue==="karaoke"?"karaoke":"club";
+  const list = (BK.data.upcoming||[]).filter(b=>b.venue_key===vk);
+  if(!list.length) return "";
+  let rows="", lastDate="";
+  list.forEach(b=>{
+    if(b.business_date!==lastDate){
+      lastDate=b.business_date;
+      const [y,m,d]=b.business_date.split("-").map(Number);
+      const dObj=new Date(y,m-1,d);
+      const isToday = b.business_date===bkIso(bkToday());
+      rows += `<div class="bk-up-date" data-d="${b.business_date}">${bkFmtDate(dObj)}${isToday?" · сегодня":""} ${bkIsWeekend(dObj)?'<span style="color:var(--gold)">вых</span>':''}</div>`;
+    }
+    const seated=b.status==="seated";
+    const tm=b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"";
+    rows += `<div class="bk-up-row" data-d="${b.business_date}">
+      <span class="u-tbl">${b.table_name}</span>
+      <span class="u-name">${b.display_name||"—"}</span>
+      <span class="u-time">${seated?"сели":("~"+tm)}</span></div>`;
+  });
+  return `<div class="bk-blist"><div class="bk-bl-head">Все брони вперёд <span>${list.length}</span></div>
+    <div id="bk-upcoming">${rows}</div></div>`;
+}
 function bkBookingList(title){
   const list = BK.data.bookings.filter(b=>b.venue_key===(BK.venue==="karaoke"?"karaoke":"club"))
     .sort((a,b)=> (a.arrive_at||"")<(b.arrive_at||"")?-1:1);
@@ -2526,18 +2571,21 @@ function bkModalNew(){
   if(!canEdit) return `<div class="bkm-msg">Этот стол свободен. У вас нет прав на создание брони.</div>`;
   const t = bkCurrentTable;
   const dep = bkCalcDeposit(t, BK.date, "");
+  const dval = bkIso(BK.date);
   return `
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Дата брони</label>
+        <input id="bkm-date" type="date" value="${dval}"></div>
+      <div class="bkm-field"><label>Время прихода</label>
+        <input id="bkm-time" type="time" value="22:00"></div>
+    </div>
     <div class="bkm-field"><label>Телефон гостя</label>
       <input id="bkm-phone" type="tel" inputmode="tel" placeholder="+998 90 123-45-67" autocomplete="off">
       <div class="bkm-guestinfo" id="bkm-guestinfo"></div></div>
     <div class="bkm-field"><label>Имя гостя</label>
       <input id="bkm-name" type="text" placeholder="Имя" autocomplete="off"></div>
-    <div class="bkm-row">
-      <div class="bkm-field"><label>Время прихода</label>
-        <input id="bkm-time" type="time" value="22:00"></div>
-      <div class="bkm-field"><label>Гостей</label>
-        <input id="bkm-guests" type="number" inputmode="numeric" min="1" placeholder="${t.capacity||""}"></div>
-    </div>
+    <div class="bkm-field"><label>Гостей</label>
+      <input id="bkm-guests" type="number" inputmode="numeric" min="1" placeholder="${t.capacity||""}"></div>
     <div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· считается автоматически, можно изменить</span></label>
       <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
     <div class="bkm-msg" id="bkm-msg"></div>
@@ -2612,6 +2660,8 @@ function bkWireModalForm(){
   };
   const time=document.getElementById("bkm-time");
   if(time) time.onchange = bkUpdateDepPreview;
+  const dateEl=document.getElementById("bkm-date");
+  if(dateEl) dateEl.onchange = bkUpdateDepPreview;
   const depEl=document.getElementById("bkm-dep");
   if(depEl) depEl.oninput = function(){ this.dataset.edited="1"; };
   if(save) save.onclick = ()=>bkActionCreate();
@@ -2639,13 +2689,18 @@ async function bkLookupGuest(){
   }catch(_){ info.textContent=""; }
 }
 
+function bkFormDate(){
+  const el=document.getElementById("bkm-date");
+  if(el && el.value){ const [y,m,d]=el.value.split("-").map(Number); return new Date(y,m-1,d); }
+  return BK.date;
+}
 function bkUpdateDepPreview(){
   const t=bkCurrentTable; if(!t) return;
   const el=document.getElementById("bkm-dep");
   if(!el) return;
   if(el.dataset.edited==="1") return; // не перетираем, если кассир изменил вручную
   const time=document.getElementById("bkm-time").value;
-  const dep=bkCalcDeposit(t, BK.date, time);
+  const dep=bkCalcDeposit(t, bkFormDate(), time);
   el.value = dep>0 ? bkFmtMoney(dep) : "0";
 }
 // сумма из поля депозита -> число
@@ -2679,17 +2734,31 @@ async function bkActionCreate(){
         if(!ge && ng) guestId=ng.id;
       }
     }
+    // дата брони из формы (можно бронировать на другой день)
+    const bizDate = bkFormDate();
+    // проверка занятости стола на выбранную дату
+    const {data:clash} = await sb.from("bookings").select("id,guest_name,status")
+      .eq("table_id",t.id).eq("business_date",bkIso(bizDate))
+      .in("status",["booked","seated"]);
+    if(clash && clash.length){
+      const who = clash[0].guest_name ? (" («"+clash[0].guest_name+"»)") : "";
+      if(!confirm("Стол "+t.name+" уже занят на "+bkFmtDate(bizDate)+who+". Всё равно создать вторую бронь?")){
+        document.getElementById("bkm-save").disabled=false; bkMsg(""); return;
+      }
+    }
     // время прихода -> timestamptz на бизнес-дату (с учётом ночных часов)
-    const arriveAt = bkComposeArrive(BK.date, time);
+    const arriveAt = bkComposeArrive(bizDate, time);
     const dep = bkReadDep(); // берём из редактируемого поля (авторасчёт + ручная правка)
     const {error} = await sb.from("bookings").insert({
-      table_id:t.id, guest_id:guestId, business_date:bkIso(BK.date),
+      table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
       deposit_amount:dep, is_paid:false, status:"booked",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
     });
     if(error){ bkMsg(error.message); document.getElementById("bkm-save").disabled=false; return; }
     bkMsg("Бронь создана", true);
+    // если бронь на другую дату — переключим вид на неё, чтобы было видно
+    if(bkIso(bizDate)!==bkIso(BK.date)){ BK.date = bizDate; }
     await bkRefreshBookings();
     bkCloseModal();
   }catch(e){ bkMsg(String(e.message||e)); document.getElementById("bkm-save").disabled=false; }
@@ -2746,6 +2815,11 @@ async function bkRefreshBookings(){
   const b=await sb.from("v_bookings_full").select("*").eq("business_date",ds);
   // отменённые не показываем на плане
   BK.data.bookings=(b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  // обновляем и общий список будущих броней
+  const today=bkIso(bkToday());
+  const up=await sb.from("v_bookings_full").select("*").gte("business_date",today)
+    .in("status",["booked","seated"]).order("business_date").order("arrive_at");
+  BK.data.upcoming=up.data||[];
   bkRender();
 }
 
