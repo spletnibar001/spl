@@ -1962,19 +1962,23 @@ function bkFmtDate(d){
 
 // показывать ли переключатель и какой режим стартовый
 function bkInit(){
-  const acc = BK.access[ME.role];
-  const hasBooking = !!(acc && acc.booking);
-  const sw = document.getElementById("mode-switch");
+  var sw = document.getElementById("mode-switch");
+  if(!sw){ document.getElementById("role-badge").textContent += "  [BK:no-switch]"; return; }
+  var role = (typeof ME!=="undefined" && ME) ? ME.role : "?";
+  var acc = BK.access[role];
+  var hasBooking = !!(acc && acc.booking);
+  // ДИАГНОСТИКА: дописываем в бейдж, чтобы было видно прямо в Telegram
+  document.getElementById("role-badge").textContent += "  [role="+role+(hasBooking?" +бронь":" нет доступа")+"]";
   if(!hasBooking){ sw.style.display="none"; return; }
-  // staff: кабинет ЗП остаётся основным, бронирование — доп.вкладка (брони своего зала)
   sw.style.display="flex";
-  document.getElementById("ms-tabel").onclick = ()=>bkSetMode("tabel");
-  document.getElementById("ms-booking").onclick = ()=>bkSetMode("booking");
-  document.getElementById("bk-tab-kar").onclick = ()=>{ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
-  document.getElementById("bk-tab-club").onclick = ()=>{ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
-  document.getElementById("bk-prev").onclick = ()=>{ BK.date=bkAddDays(BK.date,-1); bkRender(); };
-  document.getElementById("bk-next").onclick = ()=>{ BK.date=bkAddDays(BK.date, 1); bkRender(); };
+  document.getElementById("ms-tabel").onclick = function(){ bkSetMode("tabel"); };
+  document.getElementById("ms-booking").onclick = function(){ bkSetMode("booking"); };
+  document.getElementById("bk-tab-kar").onclick = function(){ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
+  document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
+  document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkRender(); };
+  document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkRender(); };
   BK.date = bkToday();
+
 }
 
 // табельные узлы, которыми переключаем видимость (кроме нашего booking-root)
