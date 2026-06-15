@@ -278,6 +278,9 @@
 @media(max-width:380px){#bk-header .bk-datecard{width:112px}}
 .bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:10px 12px;text-align:center;width:124px;flex:0 0 124px}
 .bk-datecard .dc-num{font-size:30px;font-weight:800;line-height:1;color:var(--text)}
+.bk-datecard .dc-pick{position:relative;cursor:pointer;border-radius:8px;padding:2px}
+.bk-datecard .dc-pick:active{background:var(--panel)}
+.bk-datecard .dc-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
 .bk-datecard .dc-month{font-size:13px;font-weight:700;color:var(--text);text-transform:lowercase;margin-top:2px}
 .bk-datecard .dc-dow{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bk-datecard .dc-nav{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
@@ -437,9 +440,12 @@
       </div>
     </div>
     <div class="bk-datecard">
-      <div class="dc-num" id="bk-dc-num">—</div>
-      <div class="dc-month" id="bk-dc-month"></div>
-      <div class="dc-dow" id="bk-dc-dow"></div>
+      <div class="dc-pick" id="bk-dc-pick" title="Выбрать дату">
+        <div class="dc-num" id="bk-dc-num">—</div>
+        <div class="dc-month" id="bk-dc-month"></div>
+        <div class="dc-dow" id="bk-dc-dow"></div>
+        <input type="date" id="bk-dc-input" class="dc-input">
+      </div>
       <div class="dc-nav">
         <button class="nav" id="bk-prev">◀</button>
         <span class="wk" id="bk-wk"></span>
@@ -2126,8 +2132,20 @@ function bkInit(){
   document.getElementById("ms-booking").onclick = function(){ bkSetMode("booking"); };
   document.getElementById("bk-tab-kar").onclick = function(){ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
-  document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkRender(); };
-  document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkRender(); };
+  document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkLoadAndRender(); };
+  document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkLoadAndRender(); };
+  var dcInput=document.getElementById("bk-dc-input");
+  if(dcInput){
+    dcInput.onchange=function(){
+      if(!this.value) return;
+      var p=this.value.split("-").map(Number);
+      BK.date=new Date(p[0],p[1]-1,p[2]);
+      bkLoadAndRender();
+    };
+    // на некоторых браузерах showPicker открывает календарь сразу по тапу
+    var pick=document.getElementById("bk-dc-pick");
+    if(pick) pick.onclick=function(){ try{ dcInput.showPicker&&dcInput.showPicker(); }catch(_){} };
+  }
   document.getElementById("bk-viewtoggle").onclick = function(){
     BK.view = (BK.view==="grid") ? "schema" : "grid";
     this.textContent = (BK.view==="grid") ? "▦ Схема" : "▤ Сетка";
@@ -2308,6 +2326,7 @@ function bkRender(){
   const numEl=document.getElementById("bk-dc-num"); if(numEl) numEl.textContent=d.getDate();
   const moEl=document.getElementById("bk-dc-month"); if(moEl) moEl.textContent=months[d.getMonth()];
   const dowEl=document.getElementById("bk-dc-dow"); if(dowEl) dowEl.textContent=dows[d.getDay()];
+  const dcInput=document.getElementById("bk-dc-input"); if(dcInput) dcInput.value=bkIso(d);
   document.getElementById("bk-wk").textContent = bkIsWeekend(d) ? "выходные" : "будни";
   const root=document.getElementById("bk-content");
   if(BK.view==="schema"){
