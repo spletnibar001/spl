@@ -351,6 +351,37 @@
 .bk-zoneframe.z-stage{border-color:rgba(31,191,122,.4);background:rgba(31,191,122,.03)}
 .bk-zlabel{position:absolute;width:34px;display:flex;align-items:center;justify-content:center;z-index:1;font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--gold);text-transform:uppercase;writing-mode:vertical-rl;text-orientation:upright}
 .bk-zlabel-h{position:absolute;display:flex;align-items:center;justify-content:center;z-index:1;font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--red);text-transform:uppercase}
+/* ===== модалка брони ===== */
+.bk-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:1000}
+.bk-modal.open{display:flex}
+.bk-modal-card{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:16px 16px 24px}
+@media(min-width:560px){.bk-modal{align-items:center}.bk-modal-card{border-radius:16px}}
+.bk-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px}
+.bk-modal-title{font-size:17px;font-weight:800}
+.bk-modal-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.bk-modal-x{border:none;background:var(--panel2);color:var(--text);width:32px;height:32px;border-radius:8px;font-size:15px;cursor:pointer;flex-shrink:0}
+.bkm-field{margin-bottom:12px}
+.bkm-field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:5px}
+.bkm-field input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:11px 12px;font-size:15px;font-family:inherit}
+.bkm-row{display:flex;gap:10px}.bkm-row .bkm-field{flex:1}
+.bkm-guestinfo{font-size:12px;font-weight:700;margin-top:5px;min-height:16px}
+.bkm-guestinfo.known{color:var(--blue,#4ea6e2)}.bkm-guestinfo.new{color:var(--muted)}
+.bkm-dep{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:12px}
+.bkm-dep .lbl{font-size:12px;color:var(--muted);font-weight:700}
+.bkm-dep .val{font-size:16px;font-weight:800}
+.bkm-actions{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.bkm-btn{border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer}
+.bkm-btn.primary{background:var(--emerald);color:#0c1410}
+.bkm-btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.bkm-btn.danger{background:rgba(226,92,92,.16);color:var(--red);border:1px solid rgba(226,92,92,.4)}
+.bkm-btn.gold{background:rgba(217,176,76,.16);color:var(--gold);border:1px solid rgba(217,176,76,.4)}
+.bkm-btn:disabled{opacity:.5}
+.bkm-log{margin-top:14px;border-top:1px solid var(--line);padding-top:10px;font-size:11px;color:var(--muted);line-height:1.7}
+.bkm-toggle{display:flex;gap:8px;margin-bottom:12px}
+.bkm-toggle button{flex:1;border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:9px;padding:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+.bkm-toggle button.active{background:var(--emerald);color:#0c1410;border-color:var(--emerald)}
+.bkm-msg{font-size:13px;font-weight:700;padding:8px 0;min-height:18px}
+.bkm-msg.err{color:var(--red)}.bkm-msg.ok{color:var(--emerald)}
 
 </style>
 </head>
@@ -391,6 +422,18 @@
     <button class="nav" id="bk-next">▶</button>
   </div>
   <div id="bk-content"></div>
+</div>
+
+<!-- МОДАЛКА БРОНИ -->
+<div id="bk-modal" class="bk-modal">
+  <div class="bk-modal-card">
+    <div class="bk-modal-head">
+      <div><div class="bk-modal-title" id="bkm-title">Бронь</div>
+        <div class="bk-modal-sub" id="bkm-sub"></div></div>
+      <button class="bk-modal-x" id="bkm-close">✕</button>
+    </div>
+    <div id="bkm-body"></div>
+  </div>
 </div>
 
 
@@ -2056,6 +2099,22 @@ function bkInit(){
     bkRender();
   };
   BK.date = bkToday();
+  // делегированный тап по столу -> открыть модалку брони
+  var content = document.getElementById("bk-content");
+  if(content && !content.dataset.bkTap){
+    content.dataset.bkTap = "1";
+    content.addEventListener("click", function(e){
+      var cell = e.target.closest(".bk-t[data-tid]");
+      if(!cell) return;
+      bkOpenModal(parseInt(cell.dataset.tid));
+    });
+  }
+  // закрытие модалки по фону
+  var modal=document.getElementById("bk-modal");
+  if(modal && !modal.dataset.bkBg){
+    modal.dataset.bkBg="1";
+    modal.addEventListener("click", function(e){ if(e.target===modal) bkCloseModal(); });
+  }
   // хостес и роль обзвона заходят сразу в бронирование
   if(BK.bkRole === "hostess" || BK.bkRole === "phone") bkSetMode("booking");
 
@@ -2110,7 +2169,7 @@ async function bkLoadAndRender(){
   const ds = bkIso(BK.date);
   // брони выбранной бизнес-даты (RLS уже отфильтрует под официанта)
   const b = await sb.from("v_bookings_full").select("*").eq("business_date",ds);
-  BK.data.bookings = b.data||[];
+  BK.data.bookings = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
   // официанты на смене сегодня по залам (для руководства) — из табеля
   await bkLoadShiftStaff(ds);
   bkRender();
@@ -2395,6 +2454,8 @@ function bkBookingList(title){
     const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
     const pay = b.deposit_amount>0 ? (b.is_paid?'<span class="paid-tag">✓ оплачено</span>':'<span class="unpaid-tag">не оплачено</span>') : "";
     const phone = b.display_phone? " · "+b.display_phone : "";
+    // автор брони — только в виде "Сетка"
+    const author = (BK.view==="grid" && b.created_by_name) ? `<div class="bl-meta" style="opacity:.8">поставил: ${b.created_by_name}</div>` : "";
     // иконка звонка — только для роли phone и только если есть номер
     const telRaw = b.display_phone ? String(b.display_phone).replace(/[^\d+]/g,"") : "";
     const callBtn = (BK.canCall && telRaw)
@@ -2404,11 +2465,286 @@ function bkBookingList(title){
       <div class="bk-when"><div class="t-tbl">${b.zone_title.split(" ")[0]} ${b.table_name.replace('Стол ','').replace('Каб. ','')}</div><div class="t-time">${when}</div></div>
       <div class="bk-bmain"><div class="bl-name">${b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
+        ${author}
         <div class="bk-bpay">${dep} ${pay}</div></div>
       ${callBtn}
       <div class="bk-bstatus ${seated?"st-seated":"st-booked"}">${seated?"гости сели":"бронь"}</div></div>`;
   }).join("");
   return `<div class="bk-blist"><div class="bk-bl-head">Брони · ${bkFmtDate(BK.date)} <span>${list.length}</span></div>${rows}</div>`;
+}
+
+// ===== СЛОЙ 2: создание / изменение брони по тапу =====
+// клиентский расчёт депозита (зеркало SQL calc_deposit)
+function bkClubKeyCutoff(t){
+  // отсечка по заведению: караоке 02:00, клуб 03:00
+  const z = BK.data.zones.find(z=>z.id===t.zone_id);
+  const v = z ? BK.data.venues.find(v=>v.id===z.venue_id) : null;
+  return (v && v.deposit_cutoff) ? v.deposit_cutoff.slice(0,5) : "02:00";
+}
+function bkCalcDeposit(t, dateObj, timeStr){
+  const weekend = bkIsWeekend(dateObj);
+  let dep = weekend ? (t.deposit_weekend||0) : (t.deposit_weekday||0);
+  // отсечка: время прихода >= cutoff и < 05:00 -> депозита нет
+  if(timeStr){
+    const cutoff = bkClubKeyCutoff(t);
+    const [h,m] = timeStr.split(":").map(Number);
+    const [ch,cm] = cutoff.split(":").map(Number);
+    const mins = h*60+m, cmins = ch*60+cm;
+    // ночные часы 00:00-04:59 трактуем как «поздно»
+    const isNight = mins < 5*60;
+    if(isNight && mins >= cmins) dep = 0;
+  }
+  return dep;
+}
+
+let bkCurrentTable = null;   // стол, по которому открыта модалка
+let bkCurrentBooking = null; // существующая бронь (если есть)
+let bkGuestMode = "known";   // known | new (для новой брони)
+
+function bkOpenModal(tableId){
+  const t = BK.data.tables.find(x=>x.id===tableId);
+  if(!t) return;
+  bkCurrentTable = t;
+  bkCurrentBooking = bkBookingFor(tableId) || null;
+  const z = BK.data.zones.find(z=>z.id===t.zone_id);
+  document.getElementById("bkm-title").textContent = (bkCurrentBooking?"Бронь · ":"Новая бронь · ") + t.name;
+  document.getElementById("bkm-sub").textContent = (z?z.title:"") + " · " + bkFmtDate(BK.date);
+  document.getElementById("bkm-body").innerHTML = bkCurrentBooking ? bkModalExisting() : bkModalNew();
+  bkWireModalForm();
+  document.getElementById("bk-modal").classList.add("open");
+}
+function bkCloseModal(){
+  document.getElementById("bk-modal").classList.remove("open");
+  bkCurrentTable=null; bkCurrentBooking=null;
+}
+
+// форма новой брони
+function bkModalNew(){
+  const canEdit = BK.canEdit;
+  if(!canEdit) return `<div class="bkm-msg">Этот стол свободен. У вас нет прав на создание брони.</div>`;
+  const t = bkCurrentTable;
+  const dep = bkCalcDeposit(t, BK.date, "");
+  return `
+    <div class="bkm-field"><label>Телефон гостя</label>
+      <input id="bkm-phone" type="tel" inputmode="tel" placeholder="+998 90 123-45-67" autocomplete="off">
+      <div class="bkm-guestinfo" id="bkm-guestinfo"></div></div>
+    <div class="bkm-field"><label>Имя гостя</label>
+      <input id="bkm-name" type="text" placeholder="Имя" autocomplete="off"></div>
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Время прихода</label>
+        <input id="bkm-time" type="time" value="22:00"></div>
+      <div class="bkm-field"><label>Гостей</label>
+        <input id="bkm-guests" type="number" inputmode="numeric" min="1" placeholder="${t.capacity||""}"></div>
+    </div>
+    <div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· считается автоматически, можно изменить</span></label>
+      <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
+    <div class="bkm-msg" id="bkm-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn primary" id="bkm-save">Создать бронь</button>
+    </div>`;
+}
+
+// карточка существующей брони
+function bkModalExisting(){
+  const b = bkCurrentBooking;
+  const seated = b.status==="seated";
+  const dep = b.deposit_amount||0;
+  const vc = (b.visit_count>0) ? `был(а) ${b.visit_count} раз` : "новый гость";
+  let log = "";
+  if(b.created_by_name) log += `Создал: ${b.created_by_name}${b.created_at?" · "+bkFmtDT(b.created_at):""}<br>`;
+  if(b.seated_by_name)  log += `Посадил: ${b.seated_by_name}${b.seated_at?" · "+bkFmtDT(b.seated_at):""}<br>`;
+  if(b.paid_by_name)    log += `Оплату отметил: ${b.paid_by_name}${b.paid_at?" · "+bkFmtDT(b.paid_at):""}<br>`;
+  const canEdit = BK.canEdit;
+  let actions = "";
+  if(canEdit){
+    if(!seated) actions += `<button class="bkm-btn primary" id="bkm-seat">Гости сели</button>`;
+    if(!b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+    actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
+  }
+  // блок депозита: редактируемое поле, если есть право и не оплачен
+  const depBlock = (canEdit && !b.is_paid)
+    ? `<div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· можно изменить</span></label>
+         <div style="display:flex;gap:8px">
+           <input id="bkm-dep" type="text" inputmode="numeric" value="${bkFmtMoney(dep)}" style="flex:1">
+           <button class="bkm-btn secondary" id="bkm-savedep" style="padding:11px 14px;font-size:13px">Сохранить</button>
+         </div></div>`
+    : `<div class="bkm-dep"><span class="lbl">Депозит ${b.is_paid?"· оплачен":""}</span><span class="val" style="${b.is_paid?'color:var(--emerald)':''}">${dep>0?bkFmtMoney(dep):"—"}</span></div>`;
+  return `
+    <div class="bkm-field"><label>Гость</label>
+      <div style="font-size:16px;font-weight:700">${b.display_name||"—"} <span style="font-size:12px;color:var(--blue,#4ea6e2);font-weight:400">${vc}</span></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:3px">${b.display_phone||"телефон не указан"}</div></div>
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Время</label><div style="font-size:15px;font-weight:700;padding-top:4px">${b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"—"}</div></div>
+      <div class="bkm-field"><label>Гостей</label><div style="font-size:15px;font-weight:700;padding-top:4px">${b.guests_count||"—"}</div></div>
+    </div>
+    ${depBlock}
+    <div class="bkm-msg" id="bkm-msg"></div>
+    <div class="bkm-actions">${actions||'<div class="bkm-msg">Только просмотр.</div>'}</div>
+    ${log?`<div class="bkm-log">${log}</div>`:""}`;
+}
+
+function bkFmtDT(ts){
+  try{ const d=new Date(ts); return d.toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(_){ return ""; }
+}
+
+// навешиваем обработчики на форму модалки
+function bkWireModalForm(){
+  document.getElementById("bkm-close").onclick = bkCloseModal;
+  if(bkCurrentBooking){
+    const seat=document.getElementById("bkm-seat"), pay=document.getElementById("bkm-pay"), can=document.getElementById("bkm-cancel");
+    const savedep=document.getElementById("bkm-savedep");
+    if(seat) seat.onclick = ()=>bkActionSeat();
+    if(pay)  pay.onclick  = ()=>bkActionPay();
+    if(can)  can.onclick  = ()=>bkActionCancel();
+    if(savedep) savedep.onclick = ()=>bkActionSaveDep();
+    return;
+  }
+  // новая бронь
+  const phone=document.getElementById("bkm-phone");
+  const save=document.getElementById("bkm-save");
+  if(!phone) return;
+  let lookupTimer=null;
+  phone.oninput = ()=>{
+    clearTimeout(lookupTimer);
+    lookupTimer=setTimeout(bkLookupGuest, 400);
+  };
+  const time=document.getElementById("bkm-time");
+  if(time) time.onchange = bkUpdateDepPreview;
+  const depEl=document.getElementById("bkm-dep");
+  if(depEl) depEl.oninput = function(){ this.dataset.edited="1"; };
+  if(save) save.onclick = ()=>bkActionCreate();
+}
+
+// подстановка гостя по телефону + счётчик визитов
+async function bkLookupGuest(){
+  const raw=document.getElementById("bkm-phone").value;
+  const info=document.getElementById("bkm-guestinfo");
+  const norm = "+"+raw.replace(/[^\d]/g,"");
+  if(norm.length<9){ info.textContent=""; info.className="bkm-guestinfo"; return; }
+  try{
+    const {data} = await sb.from("guests").select("name,visits_base").eq("phone_norm",norm).maybeSingle();
+    if(data){
+      // подсчёт новых посадок поверх базы
+      let extra=0;
+      try{ const r=await sb.from("bookings").select("id",{count:"exact",head:true}).eq("status","seated"); }catch(_){}
+      const total=(data.visits_base||0);
+      info.textContent = `${data.name||"Гость"} · был(а) ${total} раз`;
+      info.className="bkm-guestinfo known";
+      const nm=document.getElementById("bkm-name"); if(nm && !nm.value) nm.value=data.name||"";
+    }else{
+      info.textContent="новый гость"; info.className="bkm-guestinfo new";
+    }
+  }catch(_){ info.textContent=""; }
+}
+
+function bkUpdateDepPreview(){
+  const t=bkCurrentTable; if(!t) return;
+  const el=document.getElementById("bkm-dep");
+  if(!el) return;
+  if(el.dataset.edited==="1") return; // не перетираем, если кассир изменил вручную
+  const time=document.getElementById("bkm-time").value;
+  const dep=bkCalcDeposit(t, BK.date, time);
+  el.value = dep>0 ? bkFmtMoney(dep) : "0";
+}
+// сумма из поля депозита -> число
+function bkReadDep(){
+  const el=document.getElementById("bkm-dep");
+  if(!el) return 0;
+  return parseInt(String(el.value).replace(/[^\d]/g,""))||0;
+}
+
+function bkMsg(t,ok){ const m=document.getElementById("bkm-msg"); if(m){ m.textContent=t; m.className="bkm-msg "+(ok?"ok":"err"); } }
+
+// СОЗДАНИЕ брони
+async function bkActionCreate(){
+  const t=bkCurrentTable; if(!t) return;
+  const rawPhone=document.getElementById("bkm-phone").value.trim();
+  const name=document.getElementById("bkm-name").value.trim();
+  const time=document.getElementById("bkm-time").value;
+  const guests=parseInt(document.getElementById("bkm-guests").value)||null;
+  if(!name && !rawPhone){ bkMsg("Укажите имя или телефон гостя"); return; }
+  const phoneNorm = rawPhone ? "+"+rawPhone.replace(/[^\d]/g,"") : null;
+  document.getElementById("bkm-save").disabled=true;
+  bkMsg("Сохранение…", true);
+  try{
+    // найти/создать гостя
+    let guestId=null;
+    if(phoneNorm && phoneNorm.length>=9){
+      const {data:g} = await sb.from("guests").select("id").eq("phone_norm",phoneNorm).maybeSingle();
+      if(g) guestId=g.id;
+      else{
+        const {data:ng,error:ge} = await sb.from("guests").insert({phone_norm:phoneNorm, name:name||null, source:"manual"}).select("id").single();
+        if(!ge && ng) guestId=ng.id;
+      }
+    }
+    // время прихода -> timestamptz на бизнес-дату (с учётом ночных часов)
+    const arriveAt = bkComposeArrive(BK.date, time);
+    const dep = bkReadDep(); // берём из редактируемого поля (авторасчёт + ручная правка)
+    const {error} = await sb.from("bookings").insert({
+      table_id:t.id, guest_id:guestId, business_date:bkIso(BK.date),
+      arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
+      deposit_amount:dep, is_paid:false, status:"booked",
+      created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
+    });
+    if(error){ bkMsg(error.message); document.getElementById("bkm-save").disabled=false; return; }
+    bkMsg("Бронь создана", true);
+    await bkRefreshBookings();
+    bkCloseModal();
+  }catch(e){ bkMsg(String(e.message||e)); document.getElementById("bkm-save").disabled=false; }
+}
+
+// время прихода: для 00:00-04:59 это следующий календарный день относительно бизнес-даты
+function bkComposeArrive(bizDate, time){
+  const [h,m]=time.split(":").map(Number);
+  const d=new Date(bizDate);
+  if(h<5) d.setDate(d.getDate()+1); // ночные часы = следующий календарный день
+  d.setHours(h,m,0,0);
+  return d.toISOString();
+}
+
+async function bkActionSaveDep(){
+  const b=bkCurrentBooking; if(!b) return;
+  const dep=bkReadDep();
+  bkMsg("…",true);
+  const {error}=await sb.from("bookings").update({deposit_amount:dep}).eq("id",b.id);
+  if(error){ bkMsg(error.message); return; }
+  bkMsg("Депозит сохранён", true);
+  await bkRefreshBookings();
+  // обновим карточку, оставив модалку открытой
+  bkCurrentBooking = bkBookingFor(b.table_id) || bkCurrentBooking;
+  document.getElementById("bkm-body").innerHTML = bkModalExisting();
+  bkWireModalForm();
+}
+async function bkActionSeat(){
+  const b=bkCurrentBooking; if(!b) return;
+  bkMsg("…",true);
+  const {error}=await sb.from("bookings").update({status:"seated", seated_by_name:ME.name, seated_at:new Date().toISOString()}).eq("id",b.id);
+  if(error){ bkMsg(error.message); return; }
+  await bkRefreshBookings(); bkCloseModal();
+}
+async function bkActionPay(){
+  const b=bkCurrentBooking; if(!b) return;
+  bkMsg("…",true);
+  const {error}=await sb.from("bookings").update({is_paid:true, paid_by_name:ME.name, paid_at:new Date().toISOString()}).eq("id",b.id);
+  if(error){ bkMsg(error.message); return; }
+  await bkRefreshBookings(); bkCloseModal();
+}
+async function bkActionCancel(){
+  const b=bkCurrentBooking; if(!b) return;
+  if(!confirm("Снять бронь со стола "+(bkCurrentTable?bkCurrentTable.name:"")+"?")) return;
+  bkMsg("…",true);
+  const {error}=await sb.from("bookings").update({status:"cancelled", cancelled_by_name:ME.name, cancelled_at:new Date().toISOString()}).eq("id",b.id);
+  if(error){ bkMsg(error.message); return; }
+  await bkRefreshBookings(); bkCloseModal();
+}
+
+// перезагрузить только брони текущей даты и перерисовать
+async function bkRefreshBookings(){
+  const ds=bkIso(BK.date);
+  const b=await sb.from("v_bookings_full").select("*").eq("business_date",ds);
+  // отменённые не показываем на плане
+  BK.data.bookings=(b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  bkRender();
 }
 
 authorize();
