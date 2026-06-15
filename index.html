@@ -2390,13 +2390,15 @@ function bkSchemaClub(){
   // Высота плана 820px. Подиум — один вертикальный ряд (П3-П8) в золотой рамке,
   // деление на Подиум 1 (П3-П5) и Подиум 2 (П6-П8). Координаты только через top.
   let f = `<div class="bk-floor" style="height:820px">
-    <div class="bk-zoneframe z-blue" style="left:14px;top:14px;width:204px;height:152px"></div>
-    <div class="bk-zoneframe z-blue" style="left:234px;top:14px;width:204px;height:152px"></div>
+    <div class="bk-zoneframe z-blue" style="left:14px;top:14px;width:204px;height:170px"></div>
+    <div class="bk-zoneframe z-blue" style="left:234px;top:14px;width:204px;height:170px"></div>
+    <div class="bk-zlabel-h" style="left:14px;top:166px;width:204px;color:var(--blue,#4ea6e2)">Закрытая кабинка</div>
+    <div class="bk-zlabel-h" style="left:234px;top:166px;width:204px;color:var(--blue,#4ea6e2)">Кабинка</div>
     <div class="bk-zoneframe z-gold" style="left:14px;top:262px;width:128px;height:476px"></div>
     <div class="bk-zoneframe z-red" style="left:158px;top:520px;width:280px;height:218px"></div>
-    <div class="bk-fx" style="left:234px;top:262px;width:148px;height:62px">Сцена</div>
-    <div class="bk-fx" style="left:158px;top:340px;width:96px;height:46px;border-style:dashed">⬅ Вход</div>
-    <div class="bk-fx" style="left:344px;top:340px;width:94px;height:150px">Бар</div>
+    <div class="bk-fx" style="left:158px;top:182px;width:142px;height:62px">Сцена</div>
+    <div class="bk-fx" style="left:158px;top:262px;width:120px;height:48px;border-style:dashed">⬅ Вход</div>
+    <div class="bk-fx" style="left:330px;top:262px;width:108px;height:230px">Бар</div>
     <!-- разделитель подиума между П5 и П6 -->
     <div style="position:absolute;left:18px;top:500px;width:120px;height:0;border-top:1.5px solid rgba(217,176,76,.6);z-index:2"></div>
     <!-- подписи зон -->
@@ -2404,13 +2406,13 @@ function bkSchemaClub(){
     <div class="bk-zlabel" style="left:104px;top:512px;height:210px">Подиум 2</div>
     <div class="bk-zlabel-h" style="left:158px;top:724px;width:280px">Красные диваны</div>`;
   // Кабинка слева 1-4 (верх-лево, синяя рамка)
-  f += bkSchemaCell("cl_cabL_3","left:36px;top:30px;width:72px;height:54px",{label:"слева 3"});
-  f += bkSchemaCell("cl_cabL_4","left:128px;top:30px;width:72px;height:54px",{label:"слева 4"});
-  f += bkSchemaCell("cl_cabL_2","left:36px;top:96px;width:72px;height:54px",{label:"слева 2"});
-  f += bkSchemaCell("cl_cabL_1","left:128px;top:96px;width:72px;height:54px",{label:"слева 1"});
+  f += bkSchemaCell("cl_cabL_3","left:36px;top:30px;width:72px;height:54px",{label:"Закр. 3"});
+  f += bkSchemaCell("cl_cabL_4","left:128px;top:30px;width:72px;height:54px",{label:"Закр. 4"});
+  f += bkSchemaCell("cl_cabL_2","left:36px;top:96px;width:72px;height:54px",{label:"Закр. 2"});
+  f += bkSchemaCell("cl_cabL_1","left:128px;top:96px;width:72px;height:54px",{label:"Закр. 1"});
   // Кабинка справа 1-2 (верх-право, синяя рамка)
-  f += bkSchemaCell("cl_cabR_1","left:256px;top:42px;width:74px;height:74px",{label:"справа 1"});
-  f += bkSchemaCell("cl_cabR_2","left:344px;top:42px;width:74px;height:74px",{label:"справа 2"});
+  f += bkSchemaCell("cl_cabR_1","left:256px;top:42px;width:74px;height:74px",{label:"Каб. 1"});
+  f += bkSchemaCell("cl_cabR_2","left:344px;top:42px;width:74px;height:74px",{label:"Каб. 2"});
   // ВИП 1/2 (ряд под кабинками)
   f += bkSchemaCell("cl_vip_2","left:14px;top:182px;width:128px;height:62px",{label:"ВИП 2"});
   f += bkSchemaCell("cl_vip_1","left:310px;top:182px;width:128px;height:62px",{label:"ВИП 1"});
@@ -2462,7 +2464,7 @@ function bkBookingList(title){
       ? `<a class="bk-call" href="tel:${telRaw}" title="Позвонить ${b.display_phone}" onclick="event.stopPropagation()">📞</a>`
       : "";
     return `<div class="bk-brow ${seated?"b-seated":"b-booked"}">
-      <div class="bk-when"><div class="t-tbl">${b.zone_title.split(" ")[0]} ${b.table_name.replace('Стол ','').replace('Каб. ','')}</div><div class="t-time">${when}</div></div>
+      <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-time">${when}</div></div>
       <div class="bk-bmain"><div class="bl-name">${b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         ${author}
