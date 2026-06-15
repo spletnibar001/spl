@@ -264,7 +264,10 @@
 #booking-root{display:none}
 #booking-root.active{display:block}
 /* подвкладки Караоке/Клуб */
-#bk-venue-tabs{display:flex;gap:5px;margin:0 0 12px;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content}
+#bk-venue-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content}
+#bk-tabrow{display:flex;align-items:center;gap:10px;margin:0 0 12px;flex-wrap:wrap}
+.vtoggle{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+.vtoggle:active{background:var(--panel)}
 #bk-venue-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 #bk-venue-tabs button.active{background:var(--emerald);color:#0c1410}
 /* строка даты */
@@ -372,16 +375,18 @@
 </div>
 <!-- КОРЕНЬ БРОНИРОВАНИЯ -->
 <div id="booking-root">
-  <div id="bk-venue-tabs">
-    <button id="bk-tab-kar" class="active">Караоке</button>
-    <button id="bk-tab-club">Клуб</button>
+  <div id="bk-tabrow">
+    <div id="bk-venue-tabs">
+      <button id="bk-tab-kar" class="active">Караоке</button>
+      <button id="bk-tab-club">Клуб</button>
+    </div>
+    <button id="bk-viewtoggle" class="vtoggle">▦ Схема</button>
   </div>
   <div id="bk-datebar">
     <button class="nav" id="bk-prev">◀</button>
     <div class="d" id="bk-date-label">—</div>
     <span class="wk" id="bk-wk"></span>
     <button class="nav" id="bk-next">▶</button>
-    <button class="nav" id="bk-viewtoggle" style="margin-left:auto">▦ Схема</button>
   </div>
   <div id="bk-content"></div>
 </div>
@@ -1971,6 +1976,8 @@ const BK = {
   //   admin,cashier,upr,dir,bar_manager,manager — booking:true
   access: {
     admin:{booking:true, canEdit:true},
+    upr:{booking:true, canEdit:true},
+    dir:{booking:true, canEdit:true},
   },
   seeAll: ["admin","cashier","upr","dir","bar_manager","manager"],
   // вычисляется при входе: может ли текущий пользователь СТАВИТЬ/СНИМАТЬ брони
@@ -2319,41 +2326,41 @@ function bkSchemaKaraoke(){
 
 function bkSchemaClub(){
   const weekend = bkIsWeekend(BK.date);
-  let f = `<div class="bk-floor" style="height:690px">
+  // Высота плана 760px. Зоны разведены по вертикали, координаты только через top.
+  let f = `<div class="bk-floor" style="height:760px">
     <div class="bk-zoneframe z-blue" style="left:14px;top:14px;width:204px;height:152px"></div>
     <div class="bk-zoneframe z-blue" style="left:234px;top:14px;width:204px;height:152px"></div>
-    <div class="bk-zoneframe z-gold" style="left:14px;top:262px;width:128px;height:410px"></div>
-    <div class="bk-zoneframe z-red" style="left:14px;bottom:14px;right:36px;height:216px"></div>
-    <div class="bk-fx" style="left:152px;top:182px;width:148px;height:62px">Сцена</div>
-    <div class="bk-fx" style="left:338px;top:278px;width:100px;height:48px;border-style:dashed">⬅ Вход</div>
-    <div class="bk-fx" style="left:338px;top:378px;width:100px;height:230px">Бар</div>`;
-  // Кабинка слева 1-4
+    <div class="bk-zoneframe z-gold" style="left:14px;top:262px;width:204px;height:230px"></div>
+    <div class="bk-zoneframe z-red" style="left:14px;top:512px;width:424px;height:234px"></div>
+    <div class="bk-fx" style="left:234px;top:262px;width:148px;height:62px">Сцена</div>
+    <div class="bk-fx" style="left:234px;top:340px;width:100px;height:48px;border-style:dashed">⬅ Вход</div>
+    <div class="bk-fx" style="left:344px;top:340px;width:94px;height:152px">Бар</div>`;
+  // Кабинка слева 1-4 (верх-лево, синяя рамка)
   f += bkSchemaCell("cl_cabL_3","left:36px;top:30px;width:72px;height:54px",{label:"слева 3"});
   f += bkSchemaCell("cl_cabL_4","left:128px;top:30px;width:72px;height:54px",{label:"слева 4"});
   f += bkSchemaCell("cl_cabL_2","left:36px;top:96px;width:72px;height:54px",{label:"слева 2"});
   f += bkSchemaCell("cl_cabL_1","left:128px;top:96px;width:72px;height:54px",{label:"слева 1"});
-  // Кабинка справа 1-2
-  f += bkSchemaCell("cl_cabR_1","left:256px;top:34px;width:74px;height:74px",{label:"справа 1"});
-  f += bkSchemaCell("cl_cabR_2","left:340px;top:34px;width:74px;height:74px",{label:"справа 2"});
-  // ВИП
+  // Кабинка справа 1-2 (верх-право, синяя рамка)
+  f += bkSchemaCell("cl_cabR_1","left:256px;top:42px;width:74px;height:74px",{label:"справа 1"});
+  f += bkSchemaCell("cl_cabR_2","left:344px;top:42px;width:74px;height:74px",{label:"справа 2"});
+  // ВИП 1/2 (ряд под кабинками)
   f += bkSchemaCell("cl_vip_2","left:14px;top:182px;width:128px;height:62px",{label:"ВИП 2"});
   f += bkSchemaCell("cl_vip_1","left:310px;top:182px;width:128px;height:62px",{label:"ВИП 1"});
-  // Подиум 3-8
-  f += bkSchemaCell("cl_pod_3","left:36px;top:278px;width:62px;height:54px",{label:"П3"});
-  f += bkSchemaCell("cl_pod_4","left:36px;top:344px;width:62px;height:54px",{label:"П4"});
-  f += bkSchemaCell("cl_pod_5","left:36px;top:410px;width:62px;height:54px",{label:"П5"});
-  f += bkSchemaCell("cl_pod_6","left:36px;top:476px;width:62px;height:54px",{label:"П6"});
-  f += bkSchemaCell("cl_pod_7","left:36px;top:542px;width:62px;height:54px",{label:"П7"});
-  f += bkSchemaCell("cl_pod_8","left:36px;top:608px;width:62px;height:54px",{label:"П8"});
-  // Коктейльные (круглые) 1-3
-  f += bkSchemaCell("cl_cock_1","left:38px;bottom:148px;width:68px;height:68px",{round:true,label:"К1"});
-  f += bkSchemaCell("cl_cock_2","left:142px;bottom:148px;width:68px;height:68px",{round:true,label:"К2"});
-  f += bkSchemaCell("cl_cock_3","left:246px;bottom:148px;width:68px;height:68px",{round:true,label:"К3"});
-  // Красные диваны 9-12
-  f += bkSchemaCell("cl_div_9", "left:36px;bottom:42px;width:72px;height:62px",{label:"9"});
-  f += bkSchemaCell("cl_div_10","left:140px;bottom:42px;width:72px;height:62px",{label:"10"});
-  f += bkSchemaCell("cl_div_11","left:244px;bottom:42px;width:72px;height:62px",{label:"11"});
-  f += bkSchemaCell("cl_div_12","left:348px;bottom:42px;width:72px;height:62px",{label:"12"});
+  // Подиум 3-8 (золотая рамка, 2 столбца × 3)
+  f += bkSchemaCell("cl_pod_3","left:36px;top:278px;width:78px;height:62px",{label:"П3"});
+  f += bkSchemaCell("cl_pod_4","left:122px;top:278px;width:78px;height:62px",{label:"П4"});
+  f += bkSchemaCell("cl_pod_5","left:36px;top:348px;width:78px;height:62px",{label:"П5"});
+  f += bkSchemaCell("cl_pod_6","left:122px;top:348px;width:78px;height:62px",{label:"П6"});
+  f += bkSchemaCell("cl_pod_7","left:36px;top:418px;width:78px;height:62px",{label:"П7"});
+  f += bkSchemaCell("cl_pod_8","left:122px;top:418px;width:78px;height:62px",{label:"П8"});
+  // Красные диваны (низ): коктейльные круглые 1-3 + столы 9-12
+  f += bkSchemaCell("cl_cock_1","left:36px;top:528px;width:68px;height:68px",{round:true,label:"К1"});
+  f += bkSchemaCell("cl_cock_2","left:150px;top:528px;width:68px;height:68px",{round:true,label:"К2"});
+  f += bkSchemaCell("cl_cock_3","left:264px;top:528px;width:68px;height:68px",{round:true,label:"К3"});
+  f += bkSchemaCell("cl_div_9", "left:36px;top:664px;width:90px;height:64px",{label:"9"});
+  f += bkSchemaCell("cl_div_10","left:140px;top:664px;width:90px;height:64px",{label:"10"});
+  f += bkSchemaCell("cl_div_11","left:244px;top:664px;width:90px;height:64px",{label:"11"});
+  f += bkSchemaCell("cl_div_12","left:348px;top:664px;width:80px;height:64px",{label:"12"});
   f += `</div>`;
 
   let html = `<div class="bk-scheme-wrap"><div class="bk-scheme">
