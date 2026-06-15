@@ -2749,7 +2749,7 @@ function bkModalNew(){
         <input id="bkm-time" type="time" value="22:00"></div>
     </div>
     <div class="bkm-field"><label>Телефон гостя</label>
-      <input id="bkm-phone" type="tel" inputmode="numeric" placeholder="+998 94 406 88 88" autocomplete="off">
+      <input id="bkm-phone" type="text" inputmode="numeric" name="bkm-phone-nofill" placeholder="+998 94 063 88 88" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
       <div class="bkm-guestinfo" id="bkm-guestinfo"></div></div>
     <div class="bkm-field"><label>Имя гостя</label>
       <input id="bkm-name" type="text" placeholder="Имя" autocomplete="off"></div>
@@ -2834,6 +2834,9 @@ function bkWireModalForm(){
   const phone=document.getElementById("bkm-phone");
   const save=document.getElementById("bkm-save");
   if(!phone) return;
+  // защита от автозаполнения десктопного Telegram/браузера — очищаем поле
+  phone.value="";
+  setTimeout(function(){ if(phone && phone.value && phone.value.replace(/[^\d]/g,"")==="998") phone.value=""; }, 50);
   let lookupTimer=null;
   phone.oninput = ()=>{
     clearTimeout(lookupTimer);
