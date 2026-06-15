@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -294,6 +295,9 @@
 .bk-maly .bk-t{height:70px}
 .bk-letka{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .bk-letka .bk-t{height:74px}
+/* универсальная адаптивная сетка для Большого зала и зон клуба */
+.bk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.bk-grid .bk-t{height:84px}
 /* большой зал / клуб — план с координатами */
 .bk-floor{position:relative;background:#0a0b0e;border-radius:8px;margin:0 auto}
 .bk-floor .bk-t{position:absolute}
@@ -1932,10 +1936,11 @@ const BK = {
   // какие роли видят вкладку Бронирование и режим по умолчанию
   // booking:true — есть доступ; only:true — ТОЛЬКО бронирование (хостес)
   access: {
-    admin:{booking:true}, cashier:{booking:true}, upr:{booking:true},
-    dir:{booking:true}, bar_manager:{booking:true}, manager:{booking:true},
-    // staff видит свой кабинет + (если официант на смене) брони своего зала
-    staff:{booking:true},
+    // ВРЕМЕННО (тест): бронирование видит только admin.
+    // Полный список (вернуть после теста):
+    // admin:{booking:true}, cashier:{booking:true}, upr:{booking:true},
+    // dir:{booking:true}, bar_manager:{booking:true}, manager:{booking:true}, staff:{booking:true},
+    admin:{booking:true},
   },
   seeAll: ["admin","cashier","upr","dir","bar_manager","manager"],
   venue: "karaoke",          // активная подвкладка
@@ -1963,12 +1968,10 @@ function bkFmtDate(d){
 // показывать ли переключатель и какой режим стартовый
 function bkInit(){
   var sw = document.getElementById("mode-switch");
-  if(!sw){ document.getElementById("role-badge").textContent += "  [BK:no-switch]"; return; }
+  if(!sw) return;
   var role = (typeof ME!=="undefined" && ME) ? ME.role : "?";
   var acc = BK.access[role];
   var hasBooking = !!(acc && acc.booking);
-  // ДИАГНОСТИКА: дописываем в бейдж, чтобы было видно прямо в Telegram
-  document.getElementById("role-badge").textContent += "  [role="+role+(hasBooking?" +бронь":" нет доступа")+"]";
   if(!hasBooking){ sw.style.display="none"; return; }
   sw.style.display="flex";
   document.getElementById("ms-tabel").onclick = function(){ bkSetMode("tabel"); };
@@ -2037,16 +2040,24 @@ async function bkLoadAndRender(){
 
 // кто сегодня на смене в каждом зале караоке + в клубе (имена для шапок зон)
 async function bkLoadShiftStaff(ds){
-  BK.data.shiftStaff = {big:[],small:[],letka:[],cabin:[],club:[]};
+  // для каждой зоны: {bar:[], waiter:[]}
+  BK.data.shiftStaff = {
+    big:{bar:[],waiter:[]}, small:{bar:[],waiter:[]}, letka:{bar:[],waiter:[]},
+    cabin:{bar:[],waiter:[]}, club:{bar:[],waiter:[]}
+  };
   if(!BK.seeAll.includes(ME.role)) return; // имена показываем только руководству
   try{
     const sh = await sb.from("shifts").select("employee_id,place,work_date").eq("work_date",ds);
     const emp = await sb.from("employees").select("id,name,pos,emp_role");
     const byId = {}; (emp.data||[]).forEach(e=>byId[e.id]=e);
+    const isBar = r => r==="Бармен" || r==="Старший бармен";
+    const isWaiter = r => r==="Официант";
     (sh.data||[]).forEach(s=>{
       const e=byId[s.employee_id]; if(!e) return;
-      if(e.pos==="club"){ if(e.emp_role==="Официант"||e.emp_role==="Бармен") BK.data.shiftStaff.club.push(e.name); }
-      else if(s.place && BK.data.shiftStaff[s.place]) BK.data.shiftStaff[s.place].push(e.name);
+      const slot = isBar(e.emp_role) ? "bar" : (isWaiter(e.emp_role) ? "waiter" : null);
+      if(!slot) return;
+      if(e.pos==="club"){ BK.data.shiftStaff.club[slot].push(e.name); }
+      else if(s.place && BK.data.shiftStaff[s.place]) BK.data.shiftStaff[s.place][slot].push(e.name);
     });
   }catch(_){}
 }
@@ -2074,8 +2085,11 @@ function bkDepLabel(t, weekend){
   return d>0 ? bkFmtMoney(d) : "—";
 }
 function bkStaffHead(placeKey){
-  const names = (BK.data.shiftStaff[placeKey]||[]);
-  return names.length ? `<span class="staff">· ${names.join(", ")}</span>` : "";
+  const s = BK.data.shiftStaff[placeKey] || {bar:[],waiter:[]};
+  const parts = [];
+  if(s.bar && s.bar.length)    parts.push(`Бармены: ${s.bar.join(", ")}`);
+  if(s.waiter && s.waiter.length) parts.push(`Официанты: ${s.waiter.join(", ")}`);
+  return parts.length ? `<span class="staff">· ${parts.join(" · ")}</span>` : "";
 }
 
 function bkTableCell(t, weekend){
@@ -2097,19 +2111,15 @@ function bkRenderKaraoke(){
   const zones=bkZonesOf("karaoke");
   const Z = k => zones.find(x=>x.zone.key===k);
   let html="";
-  // Большой зал — координатный план
+  // Большой зал — сетка, столы по порядку номера
   const big=Z("big");
   if(big){
-    const w=474,h=440;
-    let cells = big.tables.map(t=>{
-      const b=bkBookingFor(t.id), cls=bkTableCls(b);
-      const paid=b&&b.is_paid?'<div class="paid">✓</div>':"";
-      const g = b?`<div class="g">${b.display_name||""}</div>`:`<div class="dep">${bkDepLabel(t,weekend)}</div>`;
-      return `<div class="bk-t ${cls}" data-tid="${t.id}" style="left:${t.pos_x}px;top:${t.pos_y}px;width:${t.w}px;height:${t.h}px">
-        <div class="tn">${t.name.replace('Стол ','')}</div>${g}${paid}</div>`;
-    }).join("");
+    const sorted=[...big.tables].sort((a,b)=>{
+      const na=parseInt(a.name.replace(/\D/g,""))||0, nb=parseInt(b.name.replace(/\D/g,""))||0;
+      return na-nb;
+    });
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Большой зал ${bkStaffHead("big")}</span><span class="sub">депозиты ${weekend?"пт/сб":"будни"}</span></div>
-      <div class="bk-floor" style="width:${w}px;height:${h}px">${cells}</div></div>`;
+      <div class="bk-grid">${sorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
   // Кабинки
   const cab=Z("cabin");
@@ -2136,18 +2146,23 @@ function bkRenderKaraoke(){
 function bkRenderClub(){
   const weekend=bkIsWeekend(BK.date);
   const zones=bkZonesOf("club");
-  // у клуба у всех столов есть координаты — один общий план
-  const all = zones.flatMap(z=>z.tables).filter(t=>t.pos_x!=null);
-  const w=452,h=690;
-  const cells = all.map(t=>{
-    const b=bkBookingFor(t.id), cls=bkTableCls(b);
-    const paid=b&&b.is_paid?'<div class="paid">✓</div>':"";
-    const g = b?`<div class="g">${b.display_name||""}</div>`:`<div class="dep">${bkDepLabel(t,weekend)}</div>`;
-    return `<div class="bk-t ${cls}" data-tid="${t.id}" style="left:${t.pos_x}px;top:${t.pos_y}px;width:${t.w}px;height:${t.h}px">
-      <div class="tn">${t.name.replace('Стол ','').replace('Каб. ','')}</div>${g}${paid}</div>`;
-  }).join("");
-  let html=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Зал клуба ${bkStaffHead("club")}</span><span class="sub">депозиты ${weekend?"пт/сб · до 03:00":"будни — нет"}</span></div>
-    <div class="bk-floor" style="width:${w}px;height:${h}px">${cells}</div></div>`;
+  // порядок зон клуба для отображения
+  const order=["cab_left","cab_right","vip","podium","divany","cocktail"];
+  const Z = k => zones.find(x=>x.zone.key===k);
+  let html="";
+  const depNote = weekend ? "депозиты пт/сб · до 03:00" : "будни — депозита нет";
+  order.forEach(key=>{
+    const z=Z(key); if(!z||!z.tables.length) return;
+    const sorted=[...z.tables].sort((a,b)=>{
+      const na=parseInt(a.name.replace(/\D/g,""))||0, nb=parseInt(b.name.replace(/\D/g,""))||0;
+      return na-nb;
+    });
+    // шапка зала клуба с барменами/официантами показываем только в первой зоне,
+    // дальше — только название зоны
+    const head = key==="cab_left" ? bkStaffHead("club") : "";
+    html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>${z.zone.title} ${head}</span><span class="sub">${depNote}</span></div>
+      <div class="bk-grid">${sorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
+  });
   html+=bkLegend()+bkBookingList("Клуб");
   return html;
 }
