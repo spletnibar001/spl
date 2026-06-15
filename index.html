@@ -321,6 +321,8 @@
 .bk-bpay .paid-tag{background:rgba(31,191,122,.18);color:var(--emerald);font-weight:800;font-size:11px;padding:2px 8px;border-radius:5px}
 .bk-bpay .unpaid-tag{background:rgba(217,176,76,.16);color:var(--gold);font-weight:700;font-size:11px;padding:2px 8px;border-radius:5px}
 .bk-bstatus{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.bk-call{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:rgba(31,191,122,.16);border:1px solid var(--emerald);font-size:18px;text-decoration:none;cursor:pointer}
+.bk-call:active{background:rgba(31,191,122,.32)}
 .bk-bstatus.st-booked{background:rgba(31,191,122,.16);color:var(--emerald)}
 .bk-bstatus.st-seated{background:rgba(226,92,92,.16);color:var(--red)}
 .bk-legend{display:flex;gap:14px;margin:4px 0 12px;font-size:12px;color:var(--muted);align-items:center;flex-wrap:wrap;justify-content:center}
@@ -681,6 +683,8 @@ const CAPS = {
                 approve:false, unapprove:false, archive:false, msg:"team", pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона
   staff:       {label:"Сотрудник", staff:true, money:false, scope:null,
                 approve:false, unapprove:false, archive:false},  // личный кабинет
+  phone:       {label:"Обзвон броней", bookingOnly:true, money:false, scope:null,
+                approve:false, unapprove:false, archive:false},  // только экран бронирований
 };
 
 /* ================= состояние ================= */
@@ -1851,6 +1855,13 @@ function setCurrentPayWeek(){
 }
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
+  // роль phone: только бронирование, табель скрыт целиком
+  if(CAP.bookingOnly){
+    document.querySelectorAll(".layout > .card, .layout > #base-wrap, #staff-cabinet")
+      .forEach(el=>{ el.style.display="none"; });
+    try{ bkInit(); }catch(e){ console.warn("bkInit(phone)",e); }
+    return;
+  }
   // для staff bkInit вызовется внутри startStaffCabinet (после загрузки его карточки)
   if(!CAP.staff){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
   if(CAP.staff){ return startStaffCabinet(); }
@@ -1948,6 +1959,8 @@ const BK = {
   seeAll: ["admin","cashier","upr","dir","bar_manager","manager"],
   // вычисляется при входе: может ли текущий пользователь СТАВИТЬ/СНИМАТЬ брони
   canEdit: false,
+  // показывать ли иконку звонка (только роль phone)
+  canCall: false,
   // роль доступа: 'manage' (полный), 'hostess' (полный), 'waiter' (только свой зал, просмотр), null
   bkRole: null,
   venue: "karaoke",          // активная подвкладка
@@ -1987,6 +2000,11 @@ function bkInit(){
   if(acc && acc.booking){
     BK.bkRole = "manage";
     BK.canEdit = !!acc.canEdit;
+  } else if(role === "phone"){
+    // роль обзвона: оба заведения, может ставить/снимать, видит иконку звонка
+    BK.bkRole = "phone";
+    BK.canEdit = true;
+    BK.canCall = true;
   } else if(role === "staff"){
     // 2) staff: смотрим должность сотрудника
     var er = bkMyEmpRole();
@@ -1998,7 +2016,8 @@ function bkInit(){
   }
 
   if(!BK.bkRole){ sw.style.display="none"; return; }
-  sw.style.display="flex";
+  // роль phone: переключать не на что (табеля нет) — прячем верхний переключатель
+  sw.style.display = (BK.bkRole==="phone") ? "none" : "flex";
   document.getElementById("ms-tabel").onclick = function(){ bkSetMode("tabel"); };
   document.getElementById("ms-booking").onclick = function(){ bkSetMode("booking"); };
   document.getElementById("bk-tab-kar").onclick = function(){ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
@@ -2006,8 +2025,8 @@ function bkInit(){
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkRender(); };
   document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkRender(); };
   BK.date = bkToday();
-  // хостес заходит сразу в бронирование (у них кабинет ЗП вторичен)
-  if(BK.bkRole === "hostess") bkSetMode("booking");
+  // хостес и роль обзвона заходят сразу в бронирование
+  if(BK.bkRole === "hostess" || BK.bkRole === "phone") bkSetMode("booking");
 
 
 }
@@ -2211,11 +2230,17 @@ function bkBookingList(title){
     const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
     const pay = b.deposit_amount>0 ? (b.is_paid?'<span class="paid-tag">✓ оплачено</span>':'<span class="unpaid-tag">не оплачено</span>') : "";
     const phone = b.display_phone? " · "+b.display_phone : "";
+    // иконка звонка — только для роли phone и только если есть номер
+    const telRaw = b.display_phone ? String(b.display_phone).replace(/[^\d+]/g,"") : "";
+    const callBtn = (BK.canCall && telRaw)
+      ? `<a class="bk-call" href="tel:${telRaw}" title="Позвонить ${b.display_phone}" onclick="event.stopPropagation()">📞</a>`
+      : "";
     return `<div class="bk-brow ${seated?"b-seated":"b-booked"}">
       <div class="bk-when"><div class="t-tbl">${b.zone_title.split(" ")[0]} ${b.table_name.replace('Стол ','').replace('Каб. ','')}</div><div class="t-time">${when}</div></div>
       <div class="bk-bmain"><div class="bl-name">${b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         <div class="bk-bpay">${dep} ${pay}</div></div>
+      ${callBtn}
       <div class="bk-bstatus ${seated?"st-seated":"st-booked"}">${seated?"гости сели":"бронь"}</div></div>`;
   }).join("");
   return `<div class="bk-blist"><div class="bk-bl-head">Брони · ${bkFmtDate(BK.date)} <span>${list.length}</span></div>${rows}</div>`;
