@@ -331,6 +331,21 @@
 .bk-legend .li-booked{border-color:var(--emerald);background:rgba(31,191,122,.14)}
 .bk-legend .li-seated{border-color:var(--red);background:rgba(226,92,92,.16)}
 .bk-empty{color:var(--muted);font-size:13px;text-align:center;padding:18px}
+/* ===== СХЕМА (точный план с координатами, масштабируется) ===== */
+.bk-scheme-wrap{position:relative;width:100%;overflow:hidden;margin:0 0 12px}
+.bk-scheme{position:relative;width:474px}
+.bk-scheme .bk-panel{margin:0 0 12px}
+.bk-floor{position:relative;background:#0a0b0e;border-radius:8px}
+.bk-floor .bk-t{position:absolute;padding:4px}
+.bk-floor .bk-t .tn{font-size:14px}
+.bk-floor .bk-t .dep,.bk-floor .bk-t .g{font-size:8px}
+.bk-floor .bk-t.round{border-radius:50%}
+.bk-fx{position:absolute;border:2px solid #3a4150;background:#14161a;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bk-zoneframe{position:absolute;border:1.5px solid;border-radius:10px;z-index:0}
+.bk-zoneframe.z-gold{border-color:rgba(217,176,76,.5)}
+.bk-zoneframe.z-red{border-color:rgba(226,92,92,.5)}
+.bk-zoneframe.z-blue{border-color:rgba(78,166,226,.55)}
+.bk-zoneframe.z-stage{border-color:rgba(31,191,122,.4);background:rgba(31,191,122,.03)}
 
 </style>
 </head>
@@ -366,6 +381,7 @@
     <div class="d" id="bk-date-label">—</div>
     <span class="wk" id="bk-wk"></span>
     <button class="nav" id="bk-next">▶</button>
+    <button class="nav" id="bk-viewtoggle" style="margin-left:auto">▦ Схема</button>
   </div>
   <div id="bk-content"></div>
 </div>
@@ -1964,6 +1980,7 @@ const BK = {
   // роль доступа: 'manage' (полный), 'hostess' (полный), 'waiter' (только свой зал, просмотр), null
   bkRole: null,
   venue: "karaoke",          // активная подвкладка
+  view: "grid",              // grid | schema — вид отображения столов
   date: null,                // выбранная бизнес-дата (Date)
   data: {venues:[],zones:[],tables:[],bookings:[],shiftStaff:{}},
   mode: "tabel",             // tabel | booking
@@ -2024,6 +2041,11 @@ function bkInit(){
   document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkRender(); };
   document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkRender(); };
+  document.getElementById("bk-viewtoggle").onclick = function(){
+    BK.view = (BK.view==="grid") ? "schema" : "grid";
+    this.textContent = (BK.view==="grid") ? "▦ Схема" : "▤ Сетка";
+    bkRender();
+  };
   BK.date = bkToday();
   // хостес и роль обзвона заходят сразу в бронирование
   if(BK.bkRole === "hostess" || BK.bkRole === "phone") bkSetMode("booking");
@@ -2114,8 +2136,28 @@ function bkRender(){
   document.getElementById("bk-date-label").textContent = bkFmtDate(BK.date);
   document.getElementById("bk-wk").textContent = bkIsWeekend(BK.date) ? "выходные" : "будни";
   const root=document.getElementById("bk-content");
-  root.innerHTML = BK.venue==="karaoke" ? bkRenderKaraoke() : bkRenderClub();
+  if(BK.view==="schema"){
+    root.innerHTML = BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub();
+    bkFitSchema();
+  } else {
+    root.innerHTML = BK.venue==="karaoke" ? bkRenderKaraoke() : bkRenderClub();
+  }
 }
+// масштабирование схемы под ширину экрана (design width 474px)
+function bkFitSchema(){
+  const wraps = document.querySelectorAll("#bk-content .bk-scheme-wrap");
+  const avail = document.getElementById("bk-content").clientWidth || 474;
+  const scale = Math.min(1, avail/474);
+  wraps.forEach(w=>{
+    const inner = w.firstElementChild;
+    inner.style.transform = "scale("+scale+")";
+    inner.style.transformOrigin = "top left";
+    // высота контейнера = высота плана × scale (чтобы не было пустоты)
+    const h = inner.offsetHeight;
+    w.style.height = (h*scale)+"px";
+  });
+}
+window.addEventListener("resize", function(){ if(BK.mode==="booking" && BK.view==="schema") bkFitSchema(); });
 
 // группировка столов по зоне для активного заведения
 function bkZonesOf(venueKey){
@@ -2211,6 +2253,113 @@ function bkRenderClub(){
       <div class="bk-grid">${sorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   });
   html+=bkLegend()+bkBookingList("Клуб");
+  return html;
+}
+
+// ===== СХЕМА: точные планы с координатами (как в макете booking_13) =====
+function bkTableByCode(code){ return BK.data.tables.find(t=>t.code===code); }
+// ячейка стола по коду на координатном плане
+function bkSchemaCell(code, style, opts){
+  opts = opts || {};
+  const t = bkTableByCode(code);
+  if(!t) return `<div class="bk-fx" style="${style}">${opts.label||code}</div>`;
+  const weekend = bkIsWeekend(BK.date);
+  const b = bkBookingFor(t.id);
+  const cls = bkTableCls(b);
+  const paid = b && b.is_paid ? '<div class="paid">✓</div>' : "";
+  const num = opts.label!=null ? opts.label : t.name.replace('Стол ','').replace('Каб. слева ','').replace('Каб. справа ','').replace('Кокт. ','').replace('Подиум ','').replace('ВИП ','ВИП ');
+  let inner = `<div class="tn">${num}</div>`;
+  if(b){
+    const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
+    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>`;
+  } else if(opts.showDep!==false){
+    inner += `<div class="dep">${bkDepLabel(t,weekend)}</div>`;
+  }
+  const round = opts.round ? " round" : "";
+  return `<div class="bk-t${round} ${cls}" data-tid="${t.id}" style="${style}">${inner}${paid}</div>`;
+}
+
+function bkSchemaKaraoke(){
+  const weekend = bkIsWeekend(BK.date);
+  // БОЛЬШОЙ ЗАЛ — координаты из макета
+  let big = `<div class="bk-floor" style="height:440px">
+    <div class="bk-zoneframe z-stage" style="left:0;bottom:0;width:268px;height:200px"></div>
+    <div class="bk-fx" style="left:8px;bottom:8px;width:58px;height:184px;writing-mode:vertical-rl;text-orientation:upright">Сцена</div>
+    <div class="bk-fx" style="right:0;bottom:0;width:88px;height:184px">Бар</div>`;
+  big += bkSchemaCell("kbig_5", "left:0;top:0;width:120px;height:78px");
+  big += bkSchemaCell("kbig_4", "left:138px;top:0;width:120px;height:54px");
+  big += bkSchemaCell("kbig_3", "right:0;top:0;width:120px;height:78px");
+  big += bkSchemaCell("kbig_6", "left:0;top:154px;width:120px;height:54px");
+  big += bkSchemaCell("kbig_7", "left:138px;top:154px;width:120px;height:54px");
+  big += bkSchemaCell("kbig_2", "right:0;top:90px;width:120px;height:54px");
+  big += bkSchemaCell("kbig_1", "right:0;top:154px;width:120px;height:54px");
+  big += bkSchemaCell("kbig_8", "left:74px;bottom:104px;width:89px;height:88px");
+  big += bkSchemaCell("kbig_9", "left:171px;bottom:104px;width:89px;height:88px");
+  big += bkSchemaCell("kbig_10","left:74px;bottom:8px;width:89px;height:88px");
+  big += bkSchemaCell("kbig_11","left:171px;bottom:8px;width:89px;height:88px");
+  big += `</div>`;
+
+  // КАБИНКИ — ряд (используем сетку плиток, она и так схематична)
+  const cab = bkZonesOf("karaoke").find(z=>z.zone.key==="cabin");
+  const sm  = bkZonesOf("karaoke").find(z=>z.zone.key==="small");
+  const lt  = bkZonesOf("karaoke").find(z=>z.zone.key==="letka");
+
+  let html = `<div class="bk-scheme-wrap"><div class="bk-scheme">
+    <div class="bk-panel"><div class="bk-zone-lbl"><span>Большой зал ${bkStaffHead("big")}</span><span class="sub">депозиты ${weekend?"пт/сб":"будни"}</span></div>${big}</div>
+    <div class="bk-panel"><div class="bk-zone-lbl"><span>Кабинки ${bkStaffHead("cabin")}</span></div>
+      <div class="bk-kab">${cab?cab.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
+    <div class="bk-panel"><div class="bk-zone-lbl"><span>Малый зал ${bkStaffHead("small")}</span><span class="sub">${weekend?"800 000 за стол":"только пт/сб"}</span></div>
+      <div class="bk-maly">${sm?sm.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
+    <div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
+      <div class="bk-letka">${lt?lt.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
+  </div></div>`;
+  html += bkLegend() + bkBookingList("Караоке");
+  return html;
+}
+
+function bkSchemaClub(){
+  const weekend = bkIsWeekend(BK.date);
+  let f = `<div class="bk-floor" style="height:690px">
+    <div class="bk-zoneframe z-blue" style="left:14px;top:14px;width:204px;height:152px"></div>
+    <div class="bk-zoneframe z-blue" style="left:234px;top:14px;width:204px;height:152px"></div>
+    <div class="bk-zoneframe z-gold" style="left:14px;top:262px;width:128px;height:410px"></div>
+    <div class="bk-zoneframe z-red" style="left:14px;bottom:14px;right:36px;height:216px"></div>
+    <div class="bk-fx" style="left:152px;top:182px;width:148px;height:62px">Сцена</div>
+    <div class="bk-fx" style="left:338px;top:278px;width:100px;height:48px;border-style:dashed">⬅ Вход</div>
+    <div class="bk-fx" style="left:338px;top:378px;width:100px;height:230px">Бар</div>`;
+  // Кабинка слева 1-4
+  f += bkSchemaCell("cl_cabL_3","left:36px;top:30px;width:72px;height:54px",{label:"слева 3"});
+  f += bkSchemaCell("cl_cabL_4","left:128px;top:30px;width:72px;height:54px",{label:"слева 4"});
+  f += bkSchemaCell("cl_cabL_2","left:36px;top:96px;width:72px;height:54px",{label:"слева 2"});
+  f += bkSchemaCell("cl_cabL_1","left:128px;top:96px;width:72px;height:54px",{label:"слева 1"});
+  // Кабинка справа 1-2
+  f += bkSchemaCell("cl_cabR_1","left:256px;top:34px;width:74px;height:74px",{label:"справа 1"});
+  f += bkSchemaCell("cl_cabR_2","left:340px;top:34px;width:74px;height:74px",{label:"справа 2"});
+  // ВИП
+  f += bkSchemaCell("cl_vip_2","left:14px;top:182px;width:128px;height:62px",{label:"ВИП 2"});
+  f += bkSchemaCell("cl_vip_1","left:310px;top:182px;width:128px;height:62px",{label:"ВИП 1"});
+  // Подиум 3-8
+  f += bkSchemaCell("cl_pod_3","left:36px;top:278px;width:62px;height:54px",{label:"П3"});
+  f += bkSchemaCell("cl_pod_4","left:36px;top:344px;width:62px;height:54px",{label:"П4"});
+  f += bkSchemaCell("cl_pod_5","left:36px;top:410px;width:62px;height:54px",{label:"П5"});
+  f += bkSchemaCell("cl_pod_6","left:36px;top:476px;width:62px;height:54px",{label:"П6"});
+  f += bkSchemaCell("cl_pod_7","left:36px;top:542px;width:62px;height:54px",{label:"П7"});
+  f += bkSchemaCell("cl_pod_8","left:36px;top:608px;width:62px;height:54px",{label:"П8"});
+  // Коктейльные (круглые) 1-3
+  f += bkSchemaCell("cl_cock_1","left:38px;bottom:148px;width:68px;height:68px",{round:true,label:"К1"});
+  f += bkSchemaCell("cl_cock_2","left:142px;bottom:148px;width:68px;height:68px",{round:true,label:"К2"});
+  f += bkSchemaCell("cl_cock_3","left:246px;bottom:148px;width:68px;height:68px",{round:true,label:"К3"});
+  // Красные диваны 9-12
+  f += bkSchemaCell("cl_div_9", "left:36px;bottom:42px;width:72px;height:62px",{label:"9"});
+  f += bkSchemaCell("cl_div_10","left:140px;bottom:42px;width:72px;height:62px",{label:"10"});
+  f += bkSchemaCell("cl_div_11","left:244px;bottom:42px;width:72px;height:62px",{label:"11"});
+  f += bkSchemaCell("cl_div_12","left:348px;bottom:42px;width:72px;height:62px",{label:"12"});
+  f += `</div>`;
+
+  let html = `<div class="bk-scheme-wrap"><div class="bk-scheme">
+    <div class="bk-panel"><div class="bk-zone-lbl"><span>Зал клуба ${bkStaffHead("club")}</span><span class="sub">депозиты ${weekend?"пт/сб · до 03:00":"будни — нет"}</span></div>${f}</div>
+  </div></div>`;
+  html += bkLegend() + bkBookingList("Клуб");
   return html;
 }
 
