@@ -272,12 +272,12 @@
 #bk-venue-tabs button.active{background:var(--emerald);color:#0c1410}
 /* строка даты */
 #bk-datebar{display:flex;justify-content:flex-end;margin:0 0 14px}
-#bk-header{display:flex;align-items:stretch;justify-content:space-between;gap:12px;margin:0 0 14px;flex-wrap:wrap}
+#bk-header{display:flex;align-items:stretch;justify-content:space-between;gap:10px;margin:0 0 14px;flex-wrap:nowrap}
 #bk-header-left{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-width:0}
-#bk-header .bk-datecard{display:flex;flex-direction:column;justify-content:space-between;align-self:stretch;margin-top:-48px;flex:0 0 auto}
-@media(max-width:520px){#bk-header{flex-wrap:wrap}#bk-header .bk-datecard{align-self:auto;margin-top:0}}
-.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:12px 14px;text-align:center;width:132px;flex-shrink:0}
-.bk-datecard .dc-num{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
+#bk-header .bk-datecard{display:flex;flex-direction:column;justify-content:space-between;align-self:flex-start;flex:0 0 auto}
+@media(max-width:380px){#bk-header .bk-datecard{width:112px}}
+.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:10px 12px;text-align:center;width:124px;flex:0 0 124px}
+.bk-datecard .dc-num{font-size:30px;font-weight:800;line-height:1;color:var(--text)}
 .bk-datecard .dc-month{font-size:13px;font-weight:700;color:var(--text);text-transform:lowercase;margin-top:2px}
 .bk-datecard .dc-dow{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bk-datecard .dc-nav{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
@@ -420,7 +420,7 @@
 <!-- ПЕРЕКЛЮЧАТЕЛЬ ТАБЕЛЬ / БРОНИРОВАНИЕ -->
 <div id="mode-switch">
   <button id="ms-tabel" class="active">График</button>
-  <button id="ms-booking">Бронирование</button>
+  <button id="ms-booking">Брони</button>
 </div>
 <!-- КОРЕНЬ БРОНИРОВАНИЯ -->
 <div id="booking-root">
@@ -2047,12 +2047,17 @@ const BK = {
     admin:{booking:true, canEdit:true},
     upr:{booking:true, canEdit:true},
     dir:{booking:true, canEdit:true},
+    manager:{booking:true, canEdit:true},
+    cashier:{booking:true, canEdit:false},
+    bar_manager:{booking:true, canEdit:false},
+    chief:{booking:true, canEdit:false},
   },
   seeAll: ["admin","cashier","upr","dir","bar_manager","manager"],
   // вычисляется при входе: может ли текущий пользователь СТАВИТЬ/СНИМАТЬ брони
   canEdit: false,
   // показывать ли иконку звонка (только роль phone)
   canCall: false,
+  waiterPlaces: null,  // зал(ы) официанта на дату; null=без ограничения, "club_all", [] или ['big',...]
   // роль доступа: 'manage' (полный), 'hostess' (полный), 'waiter' (только свой зал, просмотр), null
   bkRole: null,
   venue: "karaoke",          // активная подвкладка
@@ -2181,8 +2186,30 @@ function bkSetMode(m){
     document.getElementById("booking-root").classList.add("active");
     bkRenderVenueTabs();
     bkLoadAndRender();
+    setTimeout(bkAlignDateCard, 0);
   }
 }
+// выровнять верх карточки даты с верхом плашки роли, низ — с низом ряда вкладок
+function bkAlignDateCard(){
+  try{
+    const badge=document.getElementById("role-badge");
+    const card=document.querySelector("#bk-header .bk-datecard");
+    const tabrow=document.getElementById("bk-tabrow");
+    if(!badge||!card) return;
+    card.style.marginTop="0px";
+    card.style.height="auto";
+    const badgeTop=badge.getBoundingClientRect().top;
+    const cardTop=card.getBoundingClientRect().top;
+    card.style.marginTop=(badgeTop-cardTop)+"px";
+    // низ карточки = низ ряда Караоке/Клуб·Сетка
+    if(tabrow){
+      const bottom=tabrow.getBoundingClientRect().bottom;
+      const newTop=card.getBoundingClientRect().top;
+      card.style.height=(bottom-newTop)+"px";
+    }
+  }catch(_){}
+}
+window.addEventListener("resize", function(){ if(BK.mode==="booking") bkAlignDateCard(); });
 
 function bkRenderVenueTabs(){
   document.getElementById("bk-tab-kar").classList.toggle("active",BK.venue==="karaoke");
@@ -2203,17 +2230,48 @@ async function bkLoadAndRender(){
   document.getElementById("bk-content").innerHTML='<div class="bk-empty">Загрузка…</div>';
   await bkLoadRef();
   const ds = bkIso(BK.date);
-  // брони выбранной бизнес-даты (RLS уже отфильтрует под официанта)
+  // если официант — определим его зал(ы) на выбранную дату из табеля
+  await bkLoadWaiterPlaces(ds);
+  // брони выбранной бизнес-даты
   const b = await sb.from("v_bookings_full").select("*").eq("business_date",ds);
-  BK.data.bookings = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  let rows = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  rows = bkFilterForWaiter(rows);
+  BK.data.bookings = rows;
   // все будущие брони (от сегодняшней бизнес-даты) — для общего списка
   const today = bkIso(bkToday());
   const up = await sb.from("v_bookings_full").select("*").gte("business_date",today)
     .in("status",["booked","seated"]).order("business_date").order("arrive_at");
-  BK.data.upcoming = up.data||[];
+  BK.data.upcoming = bkFilterForWaiter(up.data||[]);
   // официанты на смене сегодня по залам (для руководства) — из табеля
   await bkLoadShiftStaff(ds);
   bkRender();
+}
+
+// зал(ы) текущего официанта на выбранную дату (из его смены в табеле)
+async function bkLoadWaiterPlaces(ds){
+  BK.waiterPlaces = null; // null = ограничение не применяется
+  if(BK.bkRole !== "waiter") return;
+  try{
+    const me = (typeof employees!=="undefined" && employees[0]) ? employees[0] : null;
+    if(!me) { BK.waiterPlaces = []; return; }
+    // официант клуба видит все брони клуба (без деления на зоны)
+    if(me.pos === "club"){ BK.waiterPlaces = "club_all"; return; }
+    const sh = await sb.from("shifts").select("place,work_date").eq("employee_id",me.id).eq("work_date",ds);
+    const places = (sh.data||[]).map(s=>s.place).filter(Boolean);
+    BK.waiterPlaces = places; // напр. ['big'] или [] если не на смене
+  }catch(_){ BK.waiterPlaces = []; }
+}
+
+// оставить официанту только брони его зала; остальным — без изменений
+function bkFilterForWaiter(list){
+  if(BK.bkRole !== "waiter" || BK.waiterPlaces===null) return list;
+  if(BK.waiterPlaces === "club_all") return list.filter(b=>b.venue_key==="club");
+  const places = BK.waiterPlaces;
+  if(!places.length) return []; // не на смене — броней не показываем
+  return list.filter(b=>{
+    if(b.venue_key!=="karaoke") return false; // караоке-официант видит только караоке
+    return places.includes(b.zone_key);
+  });
 }
 
 // кто сегодня на смене в каждом зале караоке + в клубе (имена для шапок зон)
@@ -2356,11 +2414,11 @@ function bkRenderClub(){
   const weekend=bkIsWeekend(BK.date);
   const zones=bkZonesOf("club");
   // порядок зон клуба для отображения
-  const order=["cab_left","cab_right","vip","podium","divany","cocktail"];
+  const order=["vip","podium","cocktail","divany","cab_right","cab_left"];
   const Z = k => zones.find(x=>x.zone.key===k);
   let html="";
   const depNote = weekend ? "депозиты пт/сб · до 03:00" : "будни — депозита нет";
-  order.forEach(key=>{
+  order.forEach((key,idx)=>{
     const z=Z(key); if(!z||!z.tables.length) return;
     const sorted=[...z.tables].sort((a,b)=>{
       const na=parseInt(a.name.replace(/\D/g,""))||0, nb=parseInt(b.name.replace(/\D/g,""))||0;
@@ -2368,7 +2426,7 @@ function bkRenderClub(){
     });
     // шапка зала клуба с барменами/официантами показываем только в первой зоне,
     // дальше — только название зоны
-    const head = key==="cab_left" ? bkStaffHead("club") : "";
+    const head = idx===0 ? bkStaffHead("club") : "";
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>${z.zone.title} ${head}</span><span class="sub">${depNote}</span></div>
       <div class="bk-grid">${sorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   });
@@ -2844,13 +2902,13 @@ async function bkActionCancel(){
 async function bkRefreshBookings(){
   const ds=bkIso(BK.date);
   const b=await sb.from("v_bookings_full").select("*").eq("business_date",ds);
-  // отменённые не показываем на плане
-  BK.data.bookings=(b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  let rows=(b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  BK.data.bookings=bkFilterForWaiter(rows);
   // обновляем и общий список будущих броней
   const today=bkIso(bkToday());
   const up=await sb.from("v_bookings_full").select("*").gte("business_date",today)
     .in("status",["booked","seated"]).order("business_date").order("arrive_at");
-  BK.data.upcoming=up.data||[];
+  BK.data.upcoming=bkFilterForWaiter(up.data||[]);
   bkRender();
 }
 
