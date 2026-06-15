@@ -2843,11 +2843,24 @@ function bkWireModalForm(){
 }
 
 // подстановка гостя по телефону + счётчик визитов
+// нормализация телефона с автоподстановкой кода Узбекистана (+998)
+// Примеры: "90 123 45 67" -> +998901234567 ; "998901234567" -> +998901234567 ;
+//          "8901234567" -> +998901234567 ; уже "+998..." остаётся как есть
+function bkNormPhone(raw){
+  if(!raw) return null;
+  let d = String(raw).replace(/[^\d]/g,"");
+  if(!d) return null;
+  if(d.startsWith("998")) return "+"+d;            // уже с кодом страны
+  if(d.length===9) return "+998"+d;                 // оператор(2)+номер(7) без кода страны
+  if(d.length===10 && d.startsWith("8")) return "+998"+d.slice(1); // локальный формат 8XXXXXXXXX
+  if(d.length>=11) return "+"+d;                    // длинный номер — оставляем как есть (+код)
+  return "+998"+d;                                  // короткий ввод — считаем узбекским
+}
 async function bkLookupGuest(){
   const raw=document.getElementById("bkm-phone").value;
   const info=document.getElementById("bkm-guestinfo");
-  const norm = "+"+raw.replace(/[^\d]/g,"");
-  if(norm.length<9){ info.textContent=""; info.className="bkm-guestinfo"; return; }
+  const norm = bkNormPhone(raw);
+  if(!norm || norm.length<9){ info.textContent=""; info.className="bkm-guestinfo"; return; }
   try{
     const {data} = await sb.from("guests").select("id,name,visits_kar_base,visits_club_base,visits_base").eq("phone_norm",norm).maybeSingle();
     if(data){
@@ -2912,7 +2925,7 @@ async function bkActionCreate(){
   const time=document.getElementById("bkm-time").value;
   const guests=parseInt(document.getElementById("bkm-guests").value)||null;
   if(!name && !rawPhone){ bkMsg("Укажите имя или телефон гостя"); return; }
-  const phoneNorm = rawPhone ? "+"+rawPhone.replace(/[^\d]/g,"") : null;
+  const phoneNorm = rawPhone ? bkNormPhone(rawPhone) : null;
   document.getElementById("bkm-save").disabled=true;
   bkMsg("Сохранение…", true);
   try{
