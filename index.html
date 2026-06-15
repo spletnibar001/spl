@@ -276,18 +276,18 @@
 #bk-datebar{display:flex;justify-content:flex-end;margin:0 0 14px}
 #bk-header{display:flex;align-items:stretch;justify-content:space-between;gap:10px;margin:0 0 14px;flex-wrap:nowrap}
 #bk-header-left{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-width:0}
-#bk-header .bk-datecard{display:flex;flex-direction:column;justify-content:space-between;align-self:flex-start;flex:0 0 auto}
+#bk-header .bk-datecard{display:flex;flex-direction:column;justify-content:space-between;align-self:flex-start;flex:0 0 124px;width:124px}
 @media(max-width:380px){#bk-header .bk-datecard{width:112px}}
-.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:10px 12px;text-align:center;width:124px;flex:0 0 124px}
+.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:10px 8px;text-align:center;width:124px;flex:0 0 124px;overflow:hidden;box-sizing:border-box}
 .bk-datecard .dc-num{font-size:30px;font-weight:800;line-height:1;color:var(--text)}
 .bk-datecard .dc-pick{position:relative;cursor:pointer;border-radius:8px;padding:2px}
 .bk-datecard .dc-pick:active{background:var(--panel)}
 .bk-datecard .dc-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
 .bk-datecard .dc-month{font-size:13px;font-weight:700;color:var(--text);text-transform:lowercase;margin-top:2px}
 .bk-datecard .dc-dow{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bk-datecard .dc-nav{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
-.bk-datecard .dc-nav .wk{font-size:11px;color:var(--gold);font-weight:700;border:1px solid var(--line);border-radius:20px;padding:2px 8px}
-.bk-datecard .dc-nav button.nav{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:5px 8px;font-family:inherit;font-weight:700;cursor:pointer;font-size:12px}
+.bk-datecard .dc-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:8px;width:100%}
+.bk-datecard .dc-nav .wk{font-size:10px;color:var(--gold);font-weight:700;border:1px solid var(--line);border-radius:20px;padding:2px 6px;white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+.bk-datecard .dc-nav button.nav{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:4px 6px;font-family:inherit;font-weight:700;cursor:pointer;font-size:11px;flex:0 0 auto;line-height:1}
 /* панель зоны */
 .bk-panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin:0 0 12px}
 .bk-zone-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:800;margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -2351,7 +2351,7 @@ function bkRender(){
   const moEl=document.getElementById("bk-dc-month"); if(moEl) moEl.textContent=months[d.getMonth()];
   const dowEl=document.getElementById("bk-dc-dow"); if(dowEl) dowEl.textContent=dows[d.getDay()];
   const dcInput=document.getElementById("bk-dc-input"); if(dcInput) dcInput.value=bkIso(d);
-  document.getElementById("bk-wk").textContent = bkIsWeekend(d) ? "выходные" : "будни";
+  document.getElementById("bk-wk").textContent = bkIsWeekend(d) ? "выхи" : "будни";
   const root=document.getElementById("bk-content");
   if(BK.view==="schema"){
     root.innerHTML = BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub();
