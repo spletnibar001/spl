@@ -262,6 +262,8 @@
 #mode-switch button{border:none;background:transparent;color:var(--muted);padding:8px 18px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 #mode-switch button.active{background:var(--emerald);color:#0c1410}
 #booking-root{display:none}
+#booking-root.active{max-width:560px}
+#bk-content{max-width:560px}
 #booking-root.active{display:block}
 /* подвкладки Караоке/Клуб */
 #bk-venue-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content;align-items:stretch}
@@ -2146,9 +2148,20 @@ function bkInit(){
       BK.date=new Date(p[0],p[1]-1,p[2]);
       bkLoadAndRender();
     };
-    // на некоторых браузерах showPicker открывает календарь сразу по тапу
     var pick=document.getElementById("bk-dc-pick");
-    if(pick) pick.onclick=function(){ try{ dcInput.showPicker&&dcInput.showPicker(); }catch(_){} };
+    var openPicker=function(e){
+      if(e){ e.preventDefault(); e.stopPropagation(); }
+      try{
+        if(typeof dcInput.showPicker==="function"){ dcInput.showPicker(); return; }
+      }catch(_){}
+      // запасной вариант для десктопа: сфокусировать и кликнуть нативный инпут
+      try{ dcInput.focus(); dcInput.click(); }catch(_){}
+    };
+    if(pick){ pick.addEventListener("click", openPicker); }
+    // клик по самому инпуту тоже открывает (на десктопе)
+    dcInput.addEventListener("click", function(e){ e.stopPropagation();
+      try{ if(typeof dcInput.showPicker==="function") dcInput.showPicker(); }catch(_){}
+    });
   }
   document.getElementById("bk-viewtoggle").onclick = function(){
     BK.view = (BK.view==="grid") ? "schema" : "grid";
@@ -2211,6 +2224,7 @@ function bkSetMode(m){
     bkRenderVenueTabs();
     bkLoadAndRender();
     setTimeout(bkAlignDateCard, 0);
+    setTimeout(bkAlignDateCard, 250);
   }
 }
 // выровнять верх карточки даты с верхом плашки роли, низ — с низом ряда вкладок
@@ -2224,12 +2238,16 @@ function bkAlignDateCard(){
     card.style.height="auto";
     const badgeTop=badge.getBoundingClientRect().top;
     const cardTop=card.getBoundingClientRect().top;
-    card.style.marginTop=(badgeTop-cardTop)+"px";
+    let lift=badgeTop-cardTop;            // обычно отрицательное (поднять карточку)
+    if(lift>0) lift=0;                    // никогда не опускаем ниже исходного
+    if(lift<-90) lift=-90;               // защита от слишком большого подъёма (десктоп)
+    card.style.marginTop=lift+"px";
     // низ карточки = низ ряда Караоке/Клуб·Сетка
     if(tabrow){
       const bottom=tabrow.getBoundingClientRect().bottom;
       const newTop=card.getBoundingClientRect().top;
-      card.style.height=(bottom-newTop)+"px";
+      const h=bottom-newTop;
+      if(h>40) card.style.height=h+"px";
     }
   }catch(_){}
 }
@@ -2341,6 +2359,7 @@ function bkRender(){
   } else {
     root.innerHTML = BK.venue==="karaoke" ? bkRenderKaraoke() : bkRenderClub();
   }
+  if(BK.mode==="booking") setTimeout(bkAlignDateCard,0);
 }
 // масштабирование схемы под ширину экрана (design width 474px)
 function bkFitSchema(){
@@ -2620,6 +2639,19 @@ function bkUpcomingList(){
   return `<div class="bk-blist"><div class="bk-bl-head">Все брони вперёд <span>${list.length}</span></div>
     <div id="bk-upcoming">${rows}</div></div>`;
 }
+// текст визитов из полей представления (v_bookings_full): по заведениям
+function bkVisitsTextRow(b){
+  let kar = b.visit_count_kar, club = b.visit_count_club;
+  // если новых полей нет (SQL не прогнан) — откат на общий visit_count
+  if(kar===undefined && club===undefined){
+    return b.visit_count>0 ? `был(а) ${b.visit_count} раз` : "новый гость";
+  }
+  kar = kar||0; club = club||0;
+  const parts=[];
+  if(kar>0) parts.push(`${kar} раз в караоке`);
+  if(club>0) parts.push(`${club} раз в клубе`);
+  return parts.length ? "был(а) "+parts.join(" / ") : "новый гость";
+}
 function bkBookingList(title){
   const list = BK.data.bookings.filter(b=>b.venue_key===(BK.venue==="karaoke"?"karaoke":"club"))
     .sort((a,b)=> (a.arrive_at||"")<(b.arrive_at||"")?-1:1);
@@ -2629,7 +2661,8 @@ function bkBookingList(title){
     const finished=b.status==="finished";
     const tm = b.arrive_at ? "~"+new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const when = finished ? "ушли" : (seated ? "пришли" : tm);
-    const vc = b.visit_count>0 ? `<span class="bl-times">был(а) ${b.visit_count} раз</span>` : `<span class="bl-new">новый гость</span>`;
+    const vt = bkVisitsTextRow(b);
+    const vc = (vt!=="новый гость") ? `<span class="bl-times">${vt}</span>` : `<span class="bl-new">новый гость</span>`;
     const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
     const pay = b.deposit_amount>0 ? (b.is_paid?'<span class="paid-tag">✓ оплачено</span>':'<span class="unpaid-tag">не оплачено</span>') : "";
     const phone = b.display_phone? " · "+b.display_phone : "";
@@ -2731,7 +2764,7 @@ function bkModalExisting(){
   const b = bkCurrentBooking;
   const seated = b.status==="seated";
   const dep = b.deposit_amount||0;
-  const vc = (b.visit_count>0) ? `был(а) ${b.visit_count} раз` : "новый гость";
+  const vc = bkVisitsTextRow(b);
   let log = "";
   if(b.created_by_name) log += `Создал: ${b.created_by_name}${b.created_at?" · "+bkFmtDT(b.created_at):""}<br>`;
   if(b.seated_by_name)  log += `Посадил: ${b.seated_by_name}${b.seated_at?" · "+bkFmtDT(b.seated_at):""}<br>`;
@@ -2816,19 +2849,36 @@ async function bkLookupGuest(){
   const norm = "+"+raw.replace(/[^\d]/g,"");
   if(norm.length<9){ info.textContent=""; info.className="bkm-guestinfo"; return; }
   try{
-    const {data} = await sb.from("guests").select("name,visits_base").eq("phone_norm",norm).maybeSingle();
+    const {data} = await sb.from("guests").select("id,name,visits_kar_base,visits_club_base,visits_base").eq("phone_norm",norm).maybeSingle();
     if(data){
-      // подсчёт новых посадок поверх базы
-      let extra=0;
-      try{ const r=await sb.from("bookings").select("id",{count:"exact",head:true}).eq("status","seated"); }catch(_){}
-      const total=(data.visits_base||0);
-      info.textContent = `${data.name||"Гость"} · был(а) ${total} раз`;
-      info.className="bkm-guestinfo known";
       const nm=document.getElementById("bkm-name"); if(nm && !nm.value) nm.value=data.name||"";
+      const txt = await bkVisitsText(data);
+      info.textContent = `${data.name||"Гость"} · ${txt}`;
+      info.className="bkm-guestinfo known";
     }else{
       info.textContent="новый гость"; info.className="bkm-guestinfo new";
     }
   }catch(_){ info.textContent=""; }
+}
+
+// текст визитов по заведениям: "26 раз в караоке / 8 раз в клубе"
+async function bkVisitsText(guest){
+  let kar = guest.visits_kar_base||0, club = guest.visits_club_base||0;
+  // если новые поля ещё не заполнены (SQL не прогнан) — откатываемся на общий visits_base
+  if(!guest.visits_kar_base && !guest.visits_club_base && guest.visits_base){
+    // относим к текущему заведению как приближение
+    if(BK.venue==="club") club = guest.visits_base; else kar = guest.visits_base;
+  }
+  // плюс новые состоявшиеся брони этого гостя по заведениям
+  try{
+    const {data} = await sb.from("v_bookings_full").select("venue_key,status").eq("guest_id",guest.id).in("status",["seated","finished"]);
+    (data||[]).forEach(r=>{ if(r.venue_key==="club") club++; else kar++; });
+  }catch(_){}
+  const parts=[];
+  if(kar>0) parts.push(`${kar} раз в караоке`);
+  if(club>0) parts.push(`${club} раз в клубе`);
+  if(!parts.length) return "новый гость";
+  return "был(а) " + parts.join(" / ");
 }
 
 function bkFormDate(){
