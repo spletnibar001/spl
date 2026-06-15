@@ -2749,7 +2749,7 @@ function bkModalNew(){
         <input id="bkm-time" type="time" value="22:00"></div>
     </div>
     <div class="bkm-field"><label>Телефон гостя</label>
-      <input id="bkm-phone" type="tel" inputmode="tel" placeholder="+998 90 123-45-67" autocomplete="off">
+      <input id="bkm-phone" type="tel" inputmode="numeric" value="+998 " placeholder="+998 94 406 88 88" autocomplete="off">
       <div class="bkm-guestinfo" id="bkm-guestinfo"></div></div>
     <div class="bkm-field"><label>Имя гостя</label>
       <input id="bkm-name" type="text" placeholder="Имя" autocomplete="off"></div>
@@ -2836,14 +2836,14 @@ function bkWireModalForm(){
   if(!phone) return;
   let lookupTimer=null;
   phone.oninput = ()=>{
-    // живое форматирование с пробелами, курсор в конец
-    const f = bkFmtPhone(phone.value);
-    if(f && f!==phone.value){ phone.value = f; }
+    // живое разбиение: 94 406 88 88
+    const f = bkFmtPhoneTyping(phone.value);
+    if(f!==phone.value){ phone.value = f; }
     clearTimeout(lookupTimer);
     lookupTimer=setTimeout(bkLookupGuest, 400);
   };
   phone.onblur = ()=>{
-    const f = bkFmtPhone(phone.value);
+    const f = bkFmtPhoneTyping(phone.value);
     if(f) phone.value = f;
   };
   const time=document.getElementById("bkm-time");
@@ -2874,6 +2874,20 @@ function bkNormPhone(raw){
   return "+998"+d;                                  // короткий ввод — считаем узбекским
 }
 // красивый показ телефона: +998 94 406 88 88 (код страны / оператор / 3 / 2 / 2)
+// живое разбиение по мере ввода: +998 94 406 88 88 (код страны всегда виден)
+function bkFmtPhoneTyping(raw){
+  let d = String(raw||"").replace(/[^\d]/g,"");
+  // убираем код страны/ведущую 8 из «тела», префикс +998 добавим сами
+  if(d.startsWith("998")) d = d.slice(3);
+  else if(d.length>9 && d.startsWith("8")) d = d.slice(1);
+  d = d.slice(0,9); // оператор(2)+номер(7)
+  const g=[];
+  if(d.length>0) g.push(d.slice(0,2));
+  if(d.length>2) g.push(d.slice(2,5));
+  if(d.length>5) g.push(d.slice(5,7));
+  if(d.length>7) g.push(d.slice(7,9));
+  return g.length ? "+998 "+g.join(" ") : "+998 ";
+}
 function bkFmtPhone(raw){
   if(!raw) return "";
   let d = String(raw).replace(/[^\d]/g,"");
@@ -2962,8 +2976,12 @@ async function bkActionCreate(){
   const name=document.getElementById("bkm-name").value.trim();
   const time=document.getElementById("bkm-time").value;
   const guests=parseInt(document.getElementById("bkm-guests").value)||null;
-  if(!name && !rawPhone){ bkMsg("Укажите имя или телефон гостя"); return; }
-  const phoneNorm = rawPhone ? bkNormPhone(rawPhone) : null;
+  // телефон считается введённым, только если есть оператор+номер (9 цифр после 998)
+  let phoneDigits=rawPhone.replace(/[^\d]/g,"");
+  if(phoneDigits.startsWith("998")) phoneDigits=phoneDigits.slice(3);
+  const hasPhone = phoneDigits.length>=9;
+  if(!name && !hasPhone){ bkMsg("Укажите имя или телефон гостя"); return; }
+  const phoneNorm = hasPhone ? bkNormPhone(rawPhone) : null;
   document.getElementById("bkm-save").disabled=true;
   bkMsg("Сохранение…", true);
   try{
