@@ -320,8 +320,9 @@
 .bk-brow{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:7px;border-left:3px solid var(--line)}
 .bk-brow.b-booked{border-left-color:var(--emerald)}
 .bk-brow.b-seated{border-left-color:var(--red)}
-.bk-when{width:92px;flex-shrink:0;text-align:center}
-.bk-when .t-tbl{font-size:15px;font-weight:800;color:var(--text);margin-bottom:3px;line-height:1.1}
+.bk-when{width:104px;flex-shrink:0;text-align:center}
+.bk-when .t-tbl{font-size:15px;font-weight:800;color:var(--text);margin-bottom:2px;line-height:1.1}
+.bk-when .t-zone{font-size:10px;font-weight:600;color:var(--gold);line-height:1.2;margin-bottom:3px}
 .bk-when .t-time{font-weight:700;font-size:11px;color:var(--muted)}
 .bk-bmain{flex:1}
 .bk-bmain .bl-name{font-weight:700;font-size:14px}
@@ -396,7 +397,8 @@
 #bk-upcoming .bk-up-date:first-child{margin-top:0}
 #bk-upcoming .bk-up-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 11px;margin-bottom:5px;cursor:pointer}
 #bk-upcoming .bk-up-row:active{background:var(--panel2)}
-#bk-upcoming .u-tbl{font-weight:800;font-size:12px;min-width:80px;flex-shrink:0}
+#bk-upcoming .u-tbl{font-weight:800;font-size:12px;min-width:96px;flex-shrink:0;display:flex;flex-direction:column}
+#bk-upcoming .u-zone{font-size:9px;font-weight:600;color:var(--gold);line-height:1.2}
 #bk-upcoming .u-name{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #bk-upcoming .u-time{font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0}
 
@@ -2571,7 +2573,7 @@ function bkUpcomingList(){
     const seated=b.status==="seated";
     const tm=b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"";
     rows += `<div class="bk-up-row" data-d="${b.business_date}">
-      <span class="u-tbl">${b.table_name}</span>
+      <span class="u-tbl">${b.table_name}<span class="u-zone">${b.zone_title||""}</span></span>
       <span class="u-name">${b.display_name||"—"}</span>
       <span class="u-time">${seated?"сели":("~"+tm)}</span></div>`;
   });
@@ -2598,7 +2600,7 @@ function bkBookingList(title){
       ? `<a class="bk-call" href="tel:${telRaw}" title="Позвонить ${b.display_phone}" onclick="event.stopPropagation()">📞</a>`
       : "";
     return `<div class="bk-brow ${seated?"b-seated":"b-booked"}">
-      <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-time">${when}</div></div>
+      <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-zone">${b.zone_title||""}</div><div class="t-time">${when}</div></div>
       <div class="bk-bmain"><div class="bl-name">${b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         ${author}
@@ -2846,8 +2848,9 @@ async function bkActionCreate(){
     });
     if(error){ bkMsg(error.message); document.getElementById("bkm-save").disabled=false; return; }
     bkMsg("Бронь создана", true);
-    // если бронь на другую дату — переключим вид на неё, чтобы было видно
-    if(bkIso(bizDate)!==bkIso(BK.date)){ BK.date = bizDate; }
+    // после создания возвращаем экран на сегодня (исходную дату),
+    // чтобы случайно не наставить броней на чужой день
+    BK.date = bkToday();
     await bkRefreshBookings();
     bkCloseModal();
   }catch(e){ bkMsg(String(e.message||e)); document.getElementById("bkm-save").disabled=false; }
