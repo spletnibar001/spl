@@ -840,6 +840,9 @@ const CAPS = {
 
 /* ================= состояние ================= */
 let sb = null, ME = null, CAP = null;
+// только этот Telegram ID может создавать/изменять/удалять карточки сотрудников
+const OWNER_TG = 3392227;
+function isOwner(){ return Number(ME && (ME.tg_id || ME.telegram_id)) === OWNER_TG; }
 let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [], bonRows = [], checkinRows = [];
 let cabinSeatByDate = {}; // {дата: число посадок в кабинки караоке (без №7)}
 // бонус звукооператора за одну смену: только БЗ, только будни (не пт/сб),
@@ -1128,6 +1131,7 @@ async function addOrSaveEmployee(){
   }
 
   if(editId){
+    if(!isOwner()){ showMsg("Изменять карточки сотрудников может только администратор базы."); return; }
     const tgRaw = $("f-tg").value.trim();
     const upd = {name, emp_role:role, pos};
     if($("f-tg-wrap").style.display !== "none") upd.telegram_id = tgRaw ? parseNum(tgRaw) : null;
@@ -1171,6 +1175,11 @@ async function addOrSaveEmployee(){
     }
     showMsg(`${existing.name} добавлен(а) в график недели`, true);
   }else{
+    // создавать НОВЫХ сотрудников может только владелец
+    if(!isOwner()){
+      showMsg("Новых сотрудников добавляет только администратор базы. Выберите существующего сотрудника из списка — тёзки с разной должностью/позицией считаются разными людьми.");
+      return;
+    }
     if(UNIQUE_ROLES.includes(role)){
       const taken = employees.find(e=>!e.archived && e.emp_role===role);
       if(taken){ showMsg(`Должность «${role}» уже занята: ${taken.name}`); return; }
@@ -1379,8 +1388,9 @@ function render(){
     }
     const penBtn = penMatch(e) ? `<button class="pen-btn" onclick="openPenalty('${e.id}')" title="Штрафы">⚠</button>` : "";
     const bonBtn = bonusMatch(e) ? `<button class="bon-btn" onclick="openBonus('${e.id}')" title="Бонусы">★</button>` : "";
+    const editBtn = isOwner() ? `<button onclick="startEdit('${e.id}')" title="Редактировать">✎</button>` : "";
     tr.innerHTML += `<td class="actions">${bonBtn}${penBtn}
-      <button onclick="startEdit('${e.id}')" title="Редактировать">✎</button>
+      ${editBtn}
       <button class="del" onclick="removeFromWeek('${e.id}')" title="Убрать из недели">✕</button></td>`;
     body.appendChild(tr);
   }
@@ -2194,6 +2204,12 @@ async function startApp(){
   if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
   if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
+  // создавать НОВЫЕ карточки может только владелец (OWNER_TG).
+  // Форму оставляем всем (через неё добавляют уже существующих в график недели),
+  // но заголовок и плейсхолдер меняем, а создание новых блокируется в addOrSaveEmployee.
+  if(!isOwner()){
+    const fn=$("f-name"); if(fn) fn.placeholder="Выберите из списка";
+  }
   // умолчание режима: денежные роли — полный, остальные — только график
   compactView = !CAP.money;
   applyViewMode();
