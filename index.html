@@ -3057,11 +3057,12 @@ function bkReadDep(){
 function bkMsg(t,ok){ const m=document.getElementById("bkm-msg"); if(m){ m.textContent=t; m.className="bkm-msg "+(ok?"ok":"err"); } }
 
 // СОЗДАНИЕ брони
-// уведомление в Telegram-группу (как рабочий вызов tg-notify: прямой fetch с anon-ключом)
+// уведомление в Telegram-группу (keepalive — чтобы запрос не оборвался при закрытии модалки)
 async function bkNotify(bookingId, event){
   try{
     await fetch(`${SUPABASE_URL}/functions/v1/notify-booking`,{
       method:"POST",
+      keepalive:true,
       headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
                "Authorization":"Bearer "+SUPABASE_ANON_KEY},
       body:JSON.stringify({booking_id:bookingId, event})
@@ -3116,7 +3117,7 @@ async function bkActionCreate(){
     }).select("id").single();
     if(error){ bkMsg(error.message); document.getElementById("bkm-save").disabled=false; return; }
     bkMsg("Бронь создана", true);
-    if(newB&&newB.id) bkNotify(newB.id, "new");
+    if(newB&&newB.id) await bkNotify(newB.id, "new");
     // после создания возвращаем экран на сегодня (исходную дату),
     // чтобы случайно не наставить броней на чужой день
     BK.date = bkToday();
@@ -3152,7 +3153,7 @@ async function bkActionFinish(){
   bkMsg("…",true);
   const {error}=await sb.from("bookings").update({status:"finished", finished_by_name:ME.name, finished_at:new Date().toISOString()}).eq("id",b.id);
   if(error){ bkMsg(error.message); return; }
-  bkNotify(b.id, "left");
+  await bkNotify(b.id, "left");
   await bkRefreshBookings(); bkCloseModal();
 }
 async function bkActionSeat(){
@@ -3160,7 +3161,7 @@ async function bkActionSeat(){
   bkMsg("…",true);
   const {error}=await sb.from("bookings").update({status:"seated", seated_by_name:ME.name, seated_at:new Date().toISOString()}).eq("id",b.id);
   if(error){ bkMsg(error.message); return; }
-  bkNotify(b.id, "seated");
+  await bkNotify(b.id, "seated");
   await bkRefreshBookings(); bkCloseModal();
 }
 async function bkActionPay(){
