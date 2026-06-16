@@ -223,6 +223,9 @@
   #staff-cabinet .sc-row .r.g{color:var(--emerald)} #staff-cabinet .sc-row .r.gd{color:var(--gold)} #staff-cabinet .sc-row .r.rd{color:var(--red)}
   #staff-cabinet .sc-row.tot{background:var(--panel2);font-weight:800}
   #staff-cabinet .sc-sec{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:20px 0 10px;font-weight:700}
+  #staff-cabinet .sc-rolecard{margin-top:14px;padding-top:4px}
+  #staff-cabinet .sc-rolecard + .sc-rolecard{border-top:2px solid var(--line);margin-top:22px;padding-top:14px}
+  #staff-cabinet .sc-role-head{margin:6px 0 4px;font-size:13px}
   #staff-cabinet .sc-day{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px}
   #staff-cabinet .sc-day .dow{width:54px;flex-shrink:0}
   #staff-cabinet .sc-day .dow .d{font-weight:800;font-size:14px}
@@ -1622,104 +1625,133 @@ async function loadStaff(){
   myCheckins = chk.data||[]; approvals = appr.data||[];
 }
 function renderStaffCabinet(){
-  const me = employees[0]; // RLS вернул только мою карточку
   const box = $("staff-cabinet");
-  if(!me){
+  // ВСЕ карточки этого человека (RLS вернул только его строки; может быть несколько ролей)
+  const myCards = employees.slice();
+  if(!myCards.length){
     box.innerHTML = `<div class="card"><h2>Кабинет сотрудника</h2>
       <div class="hint">Ваша учётная запись ещё не привязана к сотруднику.
       Передайте администратору ваш Telegram ID: <b>${ME.tg_id||ME.telegram_id||"—"}</b>,
       он привяжет вас к карточке — и здесь появится ваш график.</div></div>`;
     return;
   }
+
   const fromS = iso(viewStart), toS = iso(addDays(viewStart,6));
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
-  const r = earnedInPeriod(me, fromS, toS);
-  const noPay = NO_RATE_ROLES.includes(me.emp_role);
   const todayS = iso(new Date());
-  const isGuard = me.emp_role === "Охрана";
+  const multi = myCards.length > 1;
 
-  // строки заработка по сменам
-  let earnRows = "";
-  for(const d of days){
-    const ds = iso(d), sh = shiftOf(me.id, ds);
-    if(sh && sh.status!==2){
-      const zal = sh.place && PLACES[sh.place] ? " · "+PLACES[sh.place].label : "";
-      earnRows += `<div class="sc-row"><div class="l"><div class="d">${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}${zal}</div><div class="s">смена</div></div><div class="r g">${noPay?"—":fmtNum(rateForDate(me.id,ds))}</div></div>`;
+  // общий итог по всем карточкам
+  let grandSum = 0, grandPen = 0, grandBon = 0, grandCnt = 0;
+  myCards.forEach(c=>{ const rr = earnedInPeriod(c, fromS, toS);
+    grandSum+=rr.sum; grandPen+=rr.pen; grandBon+=rr.bon; grandCnt+=rr.cnt; });
+
+  const name = myCards[0].name;
+
+  // блок одной карточки (роли)
+  function cardBlock(me, idx){
+    const r = earnedInPeriod(me, fromS, toS);
+    const noPay = NO_RATE_ROLES.includes(me.emp_role);
+    const isGuard = me.emp_role === "Охрана";
+
+    // строки заработка
+    let earnRows = "";
+    for(const d of days){
+      const ds = iso(d), sh = shiftOf(me.id, ds);
+      if(sh && sh.status!==2){
+        const zal = sh.place && PLACES[sh.place] ? " · "+PLACES[sh.place].label : "";
+        earnRows += `<div class="sc-row"><div class="l"><div class="d">${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}${zal}</div><div class="s">смена</div></div><div class="r g">${noPay?"—":fmtNum(rateForDate(me.id,ds))}</div></div>`;
+      }
     }
-  }
-  if(me.emp_role==="Официант"){
-    const wv = wvOf(me.id, iso(viewStart));
-    const steps = Math.round((wv.sales||0)*STEPS_PCT);
-    earnRows += `<div class="sc-row"><div class="l"><div class="d">Шаги с продаж</div><div class="s">1% от ${fmtNum(wv.sales||0)}</div></div><div class="r g">${fmtNum(steps)}</div></div>`;
-  }
-  if(r.bon) earnRows += `<div class="sc-row"><div class="l"><div class="d">Бонусы</div><div class="s">начислено</div></div><div class="r gd">+${fmtNum(r.bon)}</div></div>`;
-  if(r.pen) earnRows += `<div class="sc-row"><div class="l"><div class="d">Штрафы</div><div class="s">вычет</div></div><div class="r rd">−${fmtNum(r.pen)}</div></div>`;
-  earnRows += `<div class="sc-row tot"><div class="l"><div class="d">Итого к выплате</div></div><div class="r g">${fmtNum(r.sum)}</div></div>`;
+    if(me.emp_role==="Официант"){
+      const wv = wvOf(me.id, iso(viewStart));
+      const steps = Math.round((wv.sales||0)*STEPS_PCT);
+      earnRows += `<div class="sc-row"><div class="l"><div class="d">Шаги с продаж</div><div class="s">1% от ${fmtNum(wv.sales||0)}</div></div><div class="r g">${fmtNum(steps)}</div></div>`;
+    }
+    if(r.bon) earnRows += `<div class="sc-row"><div class="l"><div class="d">Бонусы</div><div class="s">начислено</div></div><div class="r gd">+${fmtNum(r.bon)}</div></div>`;
+    if(r.pen) earnRows += `<div class="sc-row"><div class="l"><div class="d">Штрафы</div><div class="s">вычет</div></div><div class="r rd">−${fmtNum(r.pen)}</div></div>`;
+    earnRows += `<div class="sc-row tot"><div class="l"><div class="d">Итого по роли</div></div><div class="r g">${fmtNum(r.sum)}</div></div>`;
 
-  // списки бонусов и штрафов
-  const bons = bonusesIn(me.id, fromS, toS).sort((a,b)=>a.bonus_date<b.bonus_date?-1:1);
-  const pens = penaltiesIn(me.id, fromS, toS).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
+    // график по дням
+    let dayRows = "";
+    for(const d of days){
+      const ds = iso(d), sh = shiftOf(me.id, ds);
+      const chk = myCheckins.find(c=>c.employee_id===me.id && c.work_date===ds);
+      let cls="off", status="Выходной", right="";
+      if(sh && sh.status===2){ cls="absent"; status="Неявка"; right=`<div class="place" style="color:var(--red)">день не оплачивается</div>`; }
+      else if(sh){
+        cls="work"; status="Работаю";
+        const isToday = ds===todayS;
+        if(isToday) status += " · сегодня";
+        const zalBadge = sh.place && PLACES[sh.place]
+          ? `<span class="sc-badge" style="background:var(--panel2);color:var(--muted)">${PLACES[sh.place].label}</span>` : "";
+        if(chk){
+          right = `<div class="sc-checked"><div>отмечен</div><div class="t">в ${new Date(chk.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})} ✓</div></div>`;
+        }else if(isToday && !isGuard){
+          right = `<button class="sc-btn" onclick="staffCheckin('${ds}','${me.id}')">Я на смене</button>`;
+        }else{
+          right = zalBadge;
+        }
+      }
+      dayRows += `<div class="sc-day ${cls} ${ds===todayS?'today':''}">
+        <div class="dow"><div class="d">${["Вс","Пн","Вт","Ср","Чт","Пт","Сб"][d.getDay()]}</div><div class="num">${fmtD(d)}</div></div>
+        <div class="mid"><div class="status">${status}</div></div>${right}</div>`;
+    }
+
+    const head = multi
+      ? `<div class="sc-role-head"><span class="sc-badge" style="background:var(--emerald);color:#0c1410;font-weight:700">${me.emp_role}</span> <span style="color:var(--muted)">· ${POS_NAME[me.pos]} · ${r.cnt} смен · ${noPay?"фикс. оклад":fmtNum(r.sum)+" сум"}</span></div>`
+      : "";
+
+    return `<div class="sc-rolecard">
+      ${head}
+      <div class="sc-drawer open"><div class="sc-dh">${multi?"Из чего сложилась сумма по роли «"+me.emp_role+"»":"Из чего сложилась сумма"}</div>${earnRows}</div>
+      <div class="sc-sec">График${multi?" · "+me.emp_role:""}</div>
+      ${dayRows}
+    </div>`;
+  }
+
+  // штрафы/бонусы — общие по человеку (по всем карточкам)
+  const allIds = myCards.map(c=>c.id);
+  const bons = bonRows.filter(b=>allIds.includes(b.employee_id) && b.bonus_date>=fromS && b.bonus_date<=toS).sort((a,b)=>a.bonus_date<b.bonus_date?-1:1);
+  const pens = penRows.filter(p=>allIds.includes(p.employee_id) && p.pen_date>=fromS && p.pen_date<=toS).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
   const bonList = bons.length
     ? bons.map(b=>`<div class="sc-row"><div class="l"><div class="d">${b.note}</div><div class="s">${fmtD(fromIso(b.bonus_date))} · начислил(а): ${b.created_by}</div></div><div class="r gd">+${fmtNum(b.amount)}</div></div>`).join("")
-      + `<div class="sc-row tot"><div class="l"><div class="d">Всего бонусов</div></div><div class="r gd">+${fmtNum(r.bon)}</div></div>`
+      + `<div class="sc-row tot"><div class="l"><div class="d">Всего бонусов</div></div><div class="r gd">+${fmtNum(grandBon)}</div></div>`
     : `<div class="sc-row" style="color:var(--muted)">На этой неделе бонусов нет</div>`;
   const penList = pens.length
     ? pens.map(pn=>`<div class="sc-row"><div class="l"><div class="d">${pn.note}</div><div class="s">${fmtD(fromIso(pn.pen_date))} · выписал(а): ${pn.created_by}</div></div><div class="r rd">−${fmtNum(pn.amount)}</div></div>`).join("")
-      + `<div class="sc-row tot"><div class="l"><div class="d">Всего штрафов</div></div><div class="r rd">−${fmtNum(r.pen)}</div></div>`
+      + `<div class="sc-row tot"><div class="l"><div class="d">Всего штрафов</div></div><div class="r rd">−${fmtNum(grandPen)}</div></div>`
     : `<div class="sc-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
 
-  // график по дням
-  let dayRows = "";
-  for(const d of days){
-    const ds = iso(d), sh = shiftOf(me.id, ds);
-    const chk = myCheckins.find(c=>c.work_date===ds);
-    let cls="off", status="Выходной", right="";
-    if(sh && sh.status===2){ cls="absent"; status="Неявка"; right=`<div class="place" style="color:var(--red)">день не оплачивается</div>`; }
-    else if(sh){
-      cls="work"; status="Работаю";
-      const isToday = ds===todayS;
-      if(isToday) status += " · сегодня";
-      const zalBadge = sh.place && PLACES[sh.place]
-        ? `<span class="sc-badge" style="background:var(--panel2);color:var(--muted)">${PLACES[sh.place].label}</span>` : "";
-      if(chk){
-        right = `<div class="sc-checked"><div>отмечен</div><div class="t">в ${new Date(chk.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})} ✓</div></div>`;
-      }else if(isToday && !isGuard){
-        right = `<button class="sc-btn" onclick="staffCheckin('${ds}')">Я на смене</button>`;
-      }else{
-        right = zalBadge;
-      }
-    }
-    const mid = (cls==="work" && right.includes("sc-badge")===false && (sh.place&&PLACES[sh.place]))
-      ? `<div class="status">${status}</div>` : `<div class="status">${status}</div>`;
-    dayRows += `<div class="sc-day ${cls} ${ds===todayS?'today':''}">
-      <div class="dow"><div class="d">${["Вс","Пн","Вт","Ср","Чт","Пт","Сб"][d.getDay()]}</div><div class="num">${fmtD(d)}</div></div>
-      <div class="mid">${mid}</div>${right}</div>`;
-  }
+  const rolesLine = multi
+    ? myCards.map(c=>c.emp_role).join(" + ")
+    : `${myCards[0].emp_role} · ${POS_NAME[myCards[0].pos]}`;
 
   box.innerHTML = `
-    <div class="sc-hello">Смена и заработок<b>${me.name}</b></div>
-    <span class="sc-pill">${me.emp_role} · ${POS_NAME[me.pos]} · неделя ${fmtD(viewStart)} — ${fmtD(addDays(viewStart,6))}</span>
+    <div class="sc-hello">Смена и заработок<b>${name}</b></div>
+    <span class="sc-pill">${rolesLine} · неделя ${fmtD(viewStart)} — ${fmtD(addDays(viewStart,6))}</span>
 
     <div class="sc-earn open" id="sc-c-earn" onclick="scToggle('earn')">
-      <div class="cap">Заработано за неделю <span class="chev">▾</span></div>
-      <div class="val">${fmtNum(r.sum)}</div>
-      <div class="note">${r.cnt} смен${r.bon?` · бонусы +${fmtNum(r.bon)}`:""}${r.pen?` · штрафы −${fmtNum(r.pen)}`:""}</div>
+      <div class="cap">${multi?"Заработано за неделю (все роли)":"Заработано за неделю"} <span class="chev">▾</span></div>
+      <div class="val">${fmtNum(grandSum)}</div>
+      <div class="note">${grandCnt} смен${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}</div>
     </div>
     <div class="sc-mrow">
       <div class="sc-card pen" id="sc-c-pen" onclick="scToggle('pen')">
         <div class="cap">Штрафы <span class="chev">▾</span></div>
-        <div class="val">${r.pen?`−${fmtNum(r.pen)}`:"0"}</div><div class="note">${pens.length} ${pens.length===1?"штраф":"штрафа"}</div></div>
+        <div class="val">${grandPen?`−${fmtNum(grandPen)}`:"0"}</div><div class="note">${pens.length} ${pens.length===1?"штраф":"штрафа"}</div></div>
       <div class="sc-card bonus" id="sc-c-bonus" onclick="scToggle('bonus')">
         <div class="cap">Бонусы <span class="chev">▾</span></div>
-        <div class="val">${r.bon?`+${fmtNum(r.bon)}`:"0"}</div><div class="note">${bons.length} ${bons.length===1?"бонус":"бонуса"}</div></div>
+        <div class="val">${grandBon?`+${fmtNum(grandBon)}`:"0"}</div><div class="note">${bons.length} ${bons.length===1?"бонус":"бонуса"}</div></div>
     </div>
-    <div class="sc-drawer open" id="sc-d-earn"><div class="sc-dh">Из чего сложилась сумма</div>${earnRows}</div>
     <div class="sc-drawer" id="sc-d-bonus"><div class="sc-dh">Бонусы за неделю</div>${bonList}</div>
     <div class="sc-drawer" id="sc-d-pen"><div class="sc-dh">Штрафы за неделю</div>${penList}</div>
 
-    <div class="sc-sec">Мой график</div>
-    ${dayRows}
-    <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.${isGuard?"":"<br>Кнопка «Я на смене» доступна в день смены."}</div>
+    ${multi?`<div class="sc-sec" style="color:var(--emerald)">Итого к выплате: ${fmtNum(grandSum)} сум</div>`:""}
+
+    ${myCards.map((c,i)=>cardBlock(c,i)).join("")}
+
+    <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
   `;
 }
 function scToggle(which){
@@ -1730,10 +1762,10 @@ function scToggle(which){
     else { c.classList.remove("open"); d.classList.remove("open"); }
   });
 }
-async function staffCheckin(ds){
-  const me = employees[0]; if(!me) return;
+async function staffCheckin(ds, empId){
+  const id = empId || (employees[0] && employees[0].id); if(!id) return;
   if(!confirm("Отметить, что вы на смене сегодня?")) return;
-  const {error} = await sb.from("checkins").insert({employee_id: me.id, work_date: ds});
+  const {error} = await sb.from("checkins").insert({employee_id: id, work_date: ds});
   if(error){ alert("Не удалось отметиться: "+error.message); return; }
   window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
   await loadStaff(); renderStaffCabinet();
