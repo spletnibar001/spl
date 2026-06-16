@@ -3055,7 +3055,9 @@ function bkModalNew(){
     <div class="bkm-msg" id="bkm-msg"></div>
     <div class="bkm-actions">
       <button class="bkm-btn primary" id="bkm-save">Создать бронь</button>
-    </div>`;
+      <button class="bkm-btn" id="bkm-walkin" style="background:rgba(226,92,92,.16);color:var(--red);border:1px solid var(--red)">Посадить сейчас (по факту)</button>
+    </div>
+    <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">«Посадить сейчас» — гости уже за столом. Имя и телефон можно не указывать; достаточно числа гостей и депозита.</div>`;
 }
 
 // карточка существующей брони
@@ -3152,6 +3154,8 @@ function bkWireModalForm(){
     this.value = d?fmtNum(d):"";
   };
   if(save) save.onclick = ()=>bkActionCreate();
+  const walkin=document.getElementById("bkm-walkin");
+  if(walkin) walkin.onclick = ()=>bkActionWalkin();
 }
 
 // подстановка гостя по телефону + счётчик визитов
@@ -3332,6 +3336,63 @@ async function bkActionCreate(){
     await bkRefreshBookings();
     bkCloseModal();
   }catch(e){ bkMsg(String(e.message||e)); document.getElementById("bkm-save").disabled=false; }
+}
+
+// ПОСАДКА ПО ФАКТУ (walk-in): гость уже за столом.
+// Минимум полей: число гостей + депозит. Статус сразу seated, время прихода = сейчас.
+async function bkActionWalkin(){
+  const t=bkCurrentTable; if(!t) return;
+  const rawPhone=document.getElementById("bkm-phone").value.trim();
+  const name=document.getElementById("bkm-name").value.trim();
+  const guests=parseInt(document.getElementById("bkm-guests").value)||null;
+  // телефон/имя необязательны для посадки по факту
+  let phoneDigits=rawPhone.replace(/[^\d]/g,"");
+  if(phoneDigits.startsWith("998")) phoneDigits=phoneDigits.slice(3);
+  const hasPhone = phoneDigits.length>=9;
+  const phoneNorm = hasPhone ? bkNormPhone(rawPhone) : null;
+  const btn=document.getElementById("bkm-walkin");
+  if(btn) btn.disabled=true;
+  bkMsg("Сажаем гостей…", true);
+  try{
+    // найти/создать гостя, только если указали телефон
+    let guestId=null;
+    if(phoneNorm && phoneNorm.length>=9){
+      const {data:g} = await sb.from("guests").select("id").eq("phone_norm",phoneNorm).maybeSingle();
+      if(g) guestId=g.id;
+      else{
+        const {data:ng,error:ge} = await sb.from("guests").insert({phone_norm:phoneNorm, name:name||null, source:"manual"}).select("id").single();
+        if(!ge && ng) guestId=ng.id;
+      }
+    }
+    // посадка по факту — всегда на текущий бизнес-день
+    const bizDate = bkToday();
+    // проверка занятости стола сейчас
+    const {data:clash} = await sb.from("bookings").select("id,guest_name,status")
+      .eq("table_id",t.id).eq("business_date",bkIso(bizDate))
+      .in("status",["booked","seated"]);
+    if(clash && clash.length){
+      const who = clash[0].guest_name ? (" («"+clash[0].guest_name+"»)") : "";
+      const st = clash[0].status==="seated" ? "за ним уже сидят гости" : "на него есть бронь";
+      if(!confirm("Стол "+t.name+" — "+st+who+". Всё равно посадить?")){
+        if(btn) btn.disabled=false; bkMsg(""); return;
+      }
+    }
+    const dep = bkReadDep();
+    const nowIso = new Date().toISOString();
+    const {data:newB, error} = await sb.from("bookings").insert({
+      table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
+      arrive_at:nowIso, guests_count:guests, phone:phoneNorm, guest_name:name||null,
+      deposit_amount:dep, is_paid:false, status:"seated",
+      created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name,
+      seated_by_name: ME.name, seated_at: nowIso
+    }).select("id").single();
+    if(error){ bkMsg(error.message); if(btn) btn.disabled=false; return; }
+    bkMsg("Гости посажены", true);
+    if(newB&&newB.id) await bkNotify(newB.id, "seated");
+    BK.date = bkToday();
+    await bkRefreshBookings();
+    bkCloseModal();
+  }catch(e){ bkMsg(String(e.message||e)); if(btn) btn.disabled=false; }
 }
 
 // время прихода: для 00:00-04:59 это следующий календарный день относительно бизнес-даты
