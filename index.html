@@ -2721,7 +2721,8 @@ function bkTableCell(t, weekend){
   let inner = `<div class="tn">${t.name}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
-    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>`;
+    const depTxt = b.deposit_amount>0 ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
+    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
   }else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   }else{
@@ -2807,7 +2808,8 @@ function bkSchemaCell(code, style, opts){
   let inner = `<div class="tn">${num}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
-    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>`;
+    const depTxt = b.deposit_amount>0 ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
+    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
   } else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   } else if(opts.showDep!==false){
@@ -2963,7 +2965,10 @@ function bkBookingList(title){
     const vt = bkVisitsTextRow(b);
     const vc = (vt!=="новый гость") ? `<span class="bl-times">${vt}</span>` : `<span class="bl-new">новый гость</span>`;
     const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
-    const pay = b.deposit_amount>0 ? (b.is_paid?'<span class="paid-tag">✓ оплачено</span>':'<span class="unpaid-tag">не оплачено</span>') : "";
+    // караоке: оплату не отслеживаем. Клуб: показываем только «✓ оплачено» после оплаты,
+    // метку «не оплачено» не показываем нигде.
+    const isKar = b.venue_key === "karaoke";
+    const pay = (!isKar && b.deposit_amount>0 && b.is_paid) ? '<span class="paid-tag">✓ оплачено</span>' : "";
     const phone = b.display_phone? " · "+bkFmtPhone(b.display_phone) : "";
     // автор брони — только в виде "Сетка"
     const author = (BK.view==="grid" && b.created_by_name) ? `<div class="bl-meta" style="opacity:.8">поставил: ${b.created_by_name}</div>` : "";
@@ -3066,6 +3071,9 @@ function bkModalExisting(){
   const seated = b.status==="seated";
   const dep = b.deposit_amount||0;
   const vc = bkVisitsTextRow(b);
+  // караоке: оплату депозита не отмечаем (нет кнопки/меток «не оплачено»)
+  const isKar = (b.venue_key||BK.venue) === "karaoke";
+  const showPay = !isKar;
   let log = "";
   if(b.created_by_name) log += `Создал: ${b.created_by_name}${b.created_at?" · "+bkFmtDT(b.created_at):""}<br>`;
   if(b.seated_by_name)  log += `Посадил: ${b.seated_by_name}${b.seated_at?" · "+bkFmtDT(b.seated_at):""}<br>`;
@@ -3076,11 +3084,11 @@ function bkModalExisting(){
   if(canEdit){
     if(!seated){
       actions += `<button class="bkm-btn primary" id="bkm-seat">Гости сели</button>`;
-      if(!b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+      if(showPay && !b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
       actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
     } else {
       // гости сидят: можно отметить оплату и «гости ушли» (завершить, освободить стол)
-      if(!b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+      if(showPay && !b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
       actions += `<button class="bkm-btn primary" id="bkm-finish">Гости ушли</button>`;
       actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
     }
