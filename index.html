@@ -2017,6 +2017,11 @@ function setCurrentPayWeek(){
   const ws = payWeekStart(new Date());
   $("p-from").value = iso(ws); $("p-to").value = iso(addDays(ws,6));
 }
+// синхронизировать период (даты) с показываемой неделей Ср–Вт
+function syncPickersToWeek(){
+  if(!CAP.money) return;
+  $("p-from").value = iso(viewStart); $("p-to").value = iso(addDays(viewStart,6));
+}
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
   // роль phone: только бронирование, табель скрыт целиком
@@ -2060,8 +2065,8 @@ async function startApp(){
   $("btn-curweek").addEventListener("click", async ()=>{
     viewStart = payWeekStart(new Date()); setCurrentPayWeek(); await refresh();
   });
-  $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); await refresh(); });
-  $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); await refresh(); });
+  $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
+  $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
   $("btn-approve").addEventListener("click", async ()=>{
     const weekKey = iso(viewStart);
     if(isApproved(weekKey)){
