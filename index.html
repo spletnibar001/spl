@@ -457,6 +457,7 @@
 <div id="mode-switch">
   <button id="ms-tabel" class="active">График</button>
   <button id="ms-booking">Брони</button>
+  <button id="ms-mine" style="display:none">Моя смена</button>
 </div>
 <!-- КОРЕНЬ БРОНИРОВАНИЯ -->
 <div id="booking-root">
@@ -812,16 +813,16 @@ const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 /* scope: пары [должность, позиция]; "*" = любая позиция; null = всё */
 const CAPS = {
   admin:       {label:"Администратор", money:true, sales:true, scope:null, approve:true, unapprove:true,  archive:true, notify:true, msg:"all", pen:"all", bonus:"all"},
-  cashier:     {label:"Кассир",        money:true, sales:true, scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:false, bonus:false},
-  bar_manager: {label:"Бар-менеджер",  money:false,
+  cashier:     {label:"Кассир",        money:true, sales:true, scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:false, bonus:false, ownCabinet:true},
+  bar_manager: {label:"Бар-менеджер",  money:false, ownCabinet:true,
                 scope:[["Бармен","club"],["Бармен","karaoke"],["Официант","club"]],
                 approve:false, unapprove:false, archive:false,
                 pen:[["Бармен","*"]], msg:"team"},  // штрафы: только бармены
-  manager:     {label:"Менеджер караоке", money:false,
+  manager:     {label:"Менеджер караоке", money:false, ownCabinet:true,
                 scope:[["Официант","karaoke"],["Хостес","karaoke"],["Охрана","both"]],
                 approve:false, unapprove:false, archive:false,
                 pen:[["*","karaoke"],["*","both"]], msg:"team"},  // штрафы: караоке и общие, клуб нельзя
-  chief:       {label:"Шеф", money:false,
+  chief:       {label:"Шеф", money:false, ownCabinet:true,
                 scope:[["Повар","*"]],
                 approve:false, unapprove:false, archive:false,
                 pen:[["Повар","*"]]},  // штрафы: только повара
@@ -1624,10 +1625,60 @@ async function loadStaff(){
   rates = rt.data||[]; wvRows = wv.data||[]; penRows = pen.data||[]; bonRows = bon.data||[];
   myCheckins = chk.data||[]; approvals = appr.data||[];
 }
-function renderStaffCabinet(){
+function myEmployeeCards(){
+  // карточки, принадлежащие текущему пользователю (по telegram_id)
+  const tg = Number(ME.tg_id || ME.telegram_id || 0);
+  if(!tg) return [];
+  return employees.filter(e => Number(e.telegram_id) === tg && !e.archived);
+}
+// Загрузка СВОИХ данных для личного кабинета руководителя.
+// Тянем во временные переменные, подменяем глобальные ТОЛЬКО на время отрисовки кабинета.
+async function renderMyCabinetForManager(){
   const box = $("staff-cabinet");
-  // ВСЕ карточки этого человека (RLS вернул только его строки; может быть несколько ролей)
-  const myCards = employees.slice();
+  box.innerHTML = `<div class="card"><div class="hint">Загружаю вашу смену…</div></div>`;
+  const tg = Number(ME.tg_id || ME.telegram_id || 0);
+  const [emp, shf, rt, wv, pen, bon, chk] = await Promise.all([
+    sb.from("employees").select("*"),
+    sb.from("shifts").select("*"),
+    sb.from("emp_rates").select("*"),
+    sb.from("weekly_values").select("*"),
+    sb.from("penalties").select("*"),
+    sb.from("bonuses").select("*"),
+    sb.from("checkins").select("*"),
+  ]);
+  // мои карточки — из управленческого списка, иначе из самозапроса
+  let cards = (employees||[]).filter(e=>Number(e.telegram_id)===tg && !e.archived);
+  if(!cards.length) cards = (emp.data||[]).filter(e=>Number(e.telegram_id)===tg && !e.archived);
+  if(!cards.length){
+    box.innerHTML = `<div class="card"><h2>Моя смена</h2>
+      <div class="hint">Ваша учётная запись ещё не привязана к карточке сотрудника
+      (Telegram ID <b>${tg||"—"}</b>). Попросите администратора указать ваш Telegram ID
+      в вашей карточке сотрудника — и здесь появится ваша смена и заработок.</div></div>`;
+    return;
+  }
+  const myIds = cards.map(c=>c.id);
+  // бэкап управленческих данных
+  const bak = {employees, shiftRows, rates, wvRows, penRows, bonRows, myCheckins};
+  // подмена на свои (фильтруем по своим карточкам)
+  employees  = cards;
+  shiftRows  = (shf.data||[]).filter(s=>myIds.includes(s.employee_id));
+  rates      = (rt.data||[]).filter(r=>myIds.includes(r.employee_id));
+  wvRows     = (wv.data||[]).filter(w=>myIds.includes(w.employee_id));
+  penRows    = (pen.data||[]).filter(p=>myIds.includes(p.employee_id));
+  bonRows    = (bon.data||[]).filter(b=>myIds.includes(b.employee_id));
+  myCheckins = (chk.data||[]).filter(c=>myIds.includes(c.employee_id));
+  try{
+    renderStaffCabinet(cards);
+  } finally {
+    employees=bak.employees; shiftRows=bak.shiftRows; rates=bak.rates;
+    wvRows=bak.wvRows; penRows=bak.penRows; bonRows=bak.bonRows; myCheckins=bak.myCheckins;
+  }
+}
+function renderStaffCabinet(cardsArg){
+  const box = $("staff-cabinet");
+  // ВСЕ карточки этого человека. Для staff RLS вернул только его строки → берём все.
+  // Для руководителя (свой кабинет) передаём явно его карточки.
+  const myCards = cardsArg || employees.slice();
   if(!myCards.length){
     box.innerHTML = `<div class="card"><h2>Кабинет сотрудника</h2>
       <div class="hint">Ваша учётная запись ещё не привязана к сотруднику.
@@ -1727,14 +1778,21 @@ function renderStaffCabinet(){
     ? myCards.map(c=>c.emp_role).join(" + ")
     : `${myCards[0].emp_role} · ${POS_NAME[myCards[0].pos]}`;
 
+  // все ли карточки — на фиксированном окладе (без посменной оплаты)
+  const allFixed = myCards.every(c=>NO_RATE_ROLES.includes(c.emp_role));
+  const earnVal = allFixed ? "Фикс. оклад" : fmtNum(grandSum);
+  const earnNote = allFixed
+    ? `${grandCnt} смен · выплата 2 раза в месяц${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}`
+    : `${grandCnt} смен${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}`;
+
   box.innerHTML = `
     <div class="sc-hello">Смена и заработок<b>${name}</b></div>
     <span class="sc-pill">${rolesLine} · неделя ${fmtD(viewStart)} — ${fmtD(addDays(viewStart,6))}</span>
 
     <div class="sc-earn open" id="sc-c-earn" onclick="scToggle('earn')">
       <div class="cap">${multi?"Заработано за неделю (все роли)":"Заработано за неделю"} <span class="chev">▾</span></div>
-      <div class="val">${fmtNum(grandSum)}</div>
-      <div class="note">${grandCnt} смен${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}</div>
+      <div class="val"${allFixed?' style="font-size:20px"':''}>${earnVal}</div>
+      <div class="note">${earnNote}</div>
     </div>
     <div class="sc-mrow">
       <div class="sc-card pen" id="sc-c-pen" onclick="scToggle('pen')">
@@ -1747,7 +1805,7 @@ function renderStaffCabinet(){
     <div class="sc-drawer" id="sc-d-bonus"><div class="sc-dh">Бонусы за неделю</div>${bonList}</div>
     <div class="sc-drawer" id="sc-d-pen"><div class="sc-dh">Штрафы за неделю</div>${penList}</div>
 
-    ${multi?`<div class="sc-sec" style="color:var(--emerald)">Итого к выплате: ${fmtNum(grandSum)} сум</div>`:""}
+    ${multi && !allFixed?`<div class="sc-sec" style="color:var(--emerald)">Итого к выплате: ${fmtNum(grandSum)} сум</div>`:""}
 
     ${myCards.map((c,i)=>cardBlock(c,i)).join("")}
 
@@ -1768,7 +1826,8 @@ async function staffCheckin(ds, empId){
   const {error} = await sb.from("checkins").insert({employee_id: id, work_date: ds});
   if(error){ alert("Не удалось отметиться: "+error.message); return; }
   window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
-  await loadStaff(); renderStaffCabinet();
+  if(CAP.staff){ await loadStaff(); renderStaffCabinet(); }
+  else { await renderMyCabinetForManager(); }   // руководитель в режиме «Моя смена»
 }
 window.scToggle = scToggle;
 window.staffCheckin = staffCheckin;
@@ -2275,11 +2334,22 @@ function bkInit(){
     BK.bkRole = null; BK.canEdit = false;
   }
 
-  if(!BK.bkRole){ sw.style.display="none"; return; }
+  // кнопка «Моя смена» — для руководящих ролей со своим кабинетом
+  var mineBtn = document.getElementById("ms-mine");
+  var hasOwn = (typeof CAP!=="undefined" && CAP && CAP.ownCabinet);
+  if(mineBtn){
+    mineBtn.style.display = hasOwn ? "" : "none";
+    mineBtn.onclick = function(){ bkSetMode("mine"); };
+  }
+
+  // переключатель виден, если есть бронь-роль ИЛИ собственный кабинет
+  if(!BK.bkRole && !hasOwn){ sw.style.display="none"; return; }
   // роль phone: переключать не на что (табеля нет) — прячем верхний переключатель
   sw.style.display = (BK.bkRole==="phone") ? "none" : "flex";
   document.getElementById("ms-tabel").onclick = function(){ bkSetMode("tabel"); };
   document.getElementById("ms-booking").onclick = function(){ bkSetMode("booking"); };
+  // если у роли нет брони, прячем кнопку «Брони»
+  document.getElementById("ms-booking").style.display = BK.bkRole ? "" : "none";
   document.getElementById("bk-tab-kar").onclick = function(){ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkLoadAndRender(); };
@@ -2334,14 +2404,32 @@ function bkTabelNodes(){
 function bkSetMode(m){
   BK.mode=m;
   const tabelOn = m==="tabel";
+  const mineOn = m==="mine";
   document.getElementById("ms-tabel").classList.toggle("active",tabelOn);
-  document.getElementById("ms-booking").classList.toggle("active",!tabelOn);
+  document.getElementById("ms-booking").classList.toggle("active",m==="booking");
+  const mineBtn=document.getElementById("ms-mine"); if(mineBtn) mineBtn.classList.toggle("active",mineOn);
+
+  if(mineOn){
+    // «Моя смена»: прячем бронь и управленческий табель, показываем личный кабинет
+    document.getElementById("booking-root").classList.remove("active");
+    bkTabelNodes().forEach(el=>{
+      if(el.dataset.bkPrevDisplay===undefined) el.dataset.bkPrevDisplay = el.style.display||"";
+      el.style.display="none";
+    });
+    const box=$("staff-cabinet"); if(box) box.style.display="block";
+    if(CAP.staff){ renderStaffCabinet(); }      // штатный сотрудник
+    else { renderMyCabinetForManager(); }        // руководитель — свои данные
+    return;
+  }
+
   if(tabelOn){
     document.getElementById("booking-root").classList.remove("active");
     // восстановить ровно тот вид табеля, что был до входа в бронирование
     bkTabelNodes().forEach(el=>{
       if(el.dataset.bkPrevDisplay!==undefined){ el.style.display=el.dataset.bkPrevDisplay; delete el.dataset.bkPrevDisplay; }
     });
+    // личный кабинет руководителя (если был открыт) скрыть — табель сам решит, что показывать
+    const box=$("staff-cabinet"); if(box && !CAP.staff) box.style.display="none";
   }else{
     // запомнить текущее display и спрятать табель
     bkTabelNodes().forEach(el=>{
