@@ -837,6 +837,18 @@ const CAPS = {
 /* ================= состояние ================= */
 let sb = null, ME = null, CAP = null;
 let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [], bonRows = [], checkinRows = [];
+let cabinSeatByDate = {}; // {дата: число посадок в кабинки караоке (без №7)}
+// бонус звукооператора за одну смену: только БЗ, только будни (не пт/сб),
+// 1 посадка в кабинку = 100 000, 2 и больше = 200 000
+function soundCabinBonusForShift(shift){
+  if(!shift || shift.status===2) return 0;        // нет смены / неявка
+  if(shift.place!=="big") return 0;                // только Большой зал
+  const d = fromIso(shift.work_date).getDay();     // 5=пт,6=сб
+  if(d===5||d===6) return 0;                        // в пт/сб бонуса нет
+  const n = cabinSeatByDate[shift.work_date]||0;
+  if(n<=0) return 0;
+  return n===1 ? 100000 : 200000;
+}
 let bonEmpId = null;
 const DEFAULT_BONUS = 50000;
 let penEmpId = null;
@@ -917,6 +929,13 @@ async function loadAll(){
   if(CAP.pen){ penRows = res[i].data||[]; i++; }
   if(seeBon){ bonRows = res[i].data||[]; i++; }
   checkinRows = res[i].data||[];
+  // посадки в кабинки караоке по дням (для автобонуса звукооператора)
+  try{
+    const wkFrom = iso(viewStart), wkTo = iso(addDays(viewStart,6));
+    const cs = await sb.rpc("cabin_seatings_by_date",{d_from:wkFrom,d_to:wkTo});
+    cabinSeatByDate = {};
+    (cs.data||[]).forEach(r=>{ cabinSeatByDate[r.business_date]=r.seatings; });
+  }catch(_){ cabinSeatByDate = {}; }
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
 const rosterOf = ws => rosterRows.filter(r=>r.week_start===ws).map(r=>r.employee_id);
@@ -955,8 +974,11 @@ function earnedInPeriod(emp, fromS, toS){
         extra += (w.sales||0)*STEPS_PCT;
       extraLbl = "шаги "+money(extra);
     }else if(emp.emp_role===SOUND_BIG){
-      for(const w of wvRows) if(w.employee_id===emp.id && w.week_start>=fromS && w.week_start<=toS)
-        extra += (w.cabin_days||0)*CABIN_BONUS;
+      // автобонус за кабинки по сменам (БЗ, будни): 1 посадка=100к, 2+=200к
+      for(const s of shiftRows){
+        if(s.employee_id!==emp.id) continue;
+        if(s.work_date>=fromS && s.work_date<=toS) extra += soundCabinBonusForShift(s);
+      }
       extraLbl = "кабинки "+money(extra);
     }
   }
@@ -1316,9 +1338,8 @@ function render(){
           data-emp="${e.id}" data-kind="sales" class="wk-inp wk-money"><span class="suff">сум</span></td>`;
         stepsCell=`<td class="steps">${money((wv.sales||0)*STEPS_PCT)}<span class="lbl">шаги 1%</span></td>`;
       }else if(e.emp_role===SOUND_BIG){
-        saleCell=`<td class="sale"><input type="text" inputmode="numeric" value="${wv.cabin_days||""}" placeholder="0"
-          data-emp="${e.id}" data-kind="cabin_days" class="wk-inp" style="width:55px"><span class="suff">раз</span></td>`;
-        stepsCell=`<td class="steps">${money((wv.cabin_days||0)*CABIN_BONUS)}<span class="lbl">бонус</span></td>`;
+        saleCell=`<td class="sale"><span class="dash">авто</span></td>`;
+        stepsCell=`<td class="steps">${money(r.extra||0)}<span class="lbl">кабинки</span></td>`;
       }else{
         saleCell=`<td class="sale"><span class="dash">—</span></td>`;
         stepsCell=`<td class="steps"><span class="dash">—</span></td>`;
@@ -1435,10 +1456,6 @@ function render(){
     if(inp.classList.contains("wk-money")) attachThousands(inp);
     inp.addEventListener("change", async ()=>{
       let v = parseNum(inp.value);
-      if(inp.dataset.kind === "cabin_days" && v > 10){
-        v = 10; inp.value = "10";
-        showMsg("Кабинки: максимум 10 раз за неделю — значение ограничено.");
-      }
       const patch = {employee_id:inp.dataset.emp, week_start:weekKey};
       patch[inp.dataset.kind] = v>0 ? v : null;
       const {error} = await sb.from("weekly_values")
@@ -1926,7 +1943,7 @@ function exportXlsx(){
     tSum+=r.sum;tCnt+=r.cnt;tEx+=r.extra;
     const wv=wvOf(e.id,weekKey);
     const saleTxt = e.emp_role==="Официант" ? (wv.sales?fmtNum(wv.sales)+" сум":"")
-      : e.emp_role===SOUND_BIG ? (wv.cabin_days?wv.cabin_days+" раз (кабинки)":"") : "";
+      : e.emp_role===SOUND_BIG ? (r.extra?"кабинки":"") : "";
     aoa.push([e.name,e.emp_role,
       fmtNum(en.rate)+(en.mondayRate!=null?` (Пн ${fmtNum(en.mondayRate)})`:""),
       ...days.map(d=>{const sh=shiftOf(e.id,iso(d));
