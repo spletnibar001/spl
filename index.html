@@ -3057,6 +3057,11 @@ function bkReadDep(){
 function bkMsg(t,ok){ const m=document.getElementById("bkm-msg"); if(m){ m.textContent=t; m.className="bkm-msg "+(ok?"ok":"err"); } }
 
 // СОЗДАНИЕ брони
+// уведомление в Telegram-группу (не блокирует UI при сбое)
+async function bkNotify(bookingId, event){
+  try{ await sb.functions.invoke("notify-booking", { body:{ booking_id:bookingId, event } }); }
+  catch(_){ /* тихо игнорируем — уведомление не критично для брони */ }
+}
 async function bkActionCreate(){
   const t=bkCurrentTable; if(!t) return;
   const rawPhone=document.getElementById("bkm-phone").value.trim();
@@ -3097,14 +3102,15 @@ async function bkActionCreate(){
     // время прихода -> timestamptz на бизнес-дату (с учётом ночных часов)
     const arriveAt = bkComposeArrive(bizDate, time);
     const dep = bkReadDep(); // берём из редактируемого поля (авторасчёт + ручная правка)
-    const {error} = await sb.from("bookings").insert({
+    const {data:newB, error} = await sb.from("bookings").insert({
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
       deposit_amount:dep, is_paid:false, status:"booked",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
-    });
+    }).select("id").single();
     if(error){ bkMsg(error.message); document.getElementById("bkm-save").disabled=false; return; }
     bkMsg("Бронь создана", true);
+    if(newB&&newB.id) bkNotify(newB.id, "new");
     // после создания возвращаем экран на сегодня (исходную дату),
     // чтобы случайно не наставить броней на чужой день
     BK.date = bkToday();
@@ -3140,6 +3146,7 @@ async function bkActionFinish(){
   bkMsg("…",true);
   const {error}=await sb.from("bookings").update({status:"finished", finished_by_name:ME.name, finished_at:new Date().toISOString()}).eq("id",b.id);
   if(error){ bkMsg(error.message); return; }
+  bkNotify(b.id, "left");
   await bkRefreshBookings(); bkCloseModal();
 }
 async function bkActionSeat(){
@@ -3147,6 +3154,7 @@ async function bkActionSeat(){
   bkMsg("…",true);
   const {error}=await sb.from("bookings").update({status:"seated", seated_by_name:ME.name, seated_at:new Date().toISOString()}).eq("id",b.id);
   if(error){ bkMsg(error.message); return; }
+  bkNotify(b.id, "seated");
   await bkRefreshBookings(); bkCloseModal();
 }
 async function bkActionPay(){
