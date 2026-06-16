@@ -3057,10 +3057,16 @@ function bkReadDep(){
 function bkMsg(t,ok){ const m=document.getElementById("bkm-msg"); if(m){ m.textContent=t; m.className="bkm-msg "+(ok?"ok":"err"); } }
 
 // СОЗДАНИЕ брони
-// уведомление в Telegram-группу (не блокирует UI при сбое)
+// уведомление в Telegram-группу (как рабочий вызов tg-notify: прямой fetch с anon-ключом)
 async function bkNotify(bookingId, event){
-  try{ await sb.functions.invoke("notify-booking", { body:{ booking_id:bookingId, event } }); }
-  catch(_){ /* тихо игнорируем — уведомление не критично для брони */ }
+  try{
+    await fetch(`${SUPABASE_URL}/functions/v1/notify-booking`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
+               "Authorization":"Bearer "+SUPABASE_ANON_KEY},
+      body:JSON.stringify({booking_id:bookingId, event})
+    });
+  }catch(_){ /* тихо игнорируем — уведомление не критично для брони */ }
 }
 async function bkActionCreate(){
   const t=bkCurrentTable; if(!t) return;
