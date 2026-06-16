@@ -1006,6 +1006,8 @@ async function autoFillWeek(e, weekKey){
     const d = addDays(viewStart, i);
     if(!days.includes(d.getDay())) continue;
     if(!shiftOf(e.id, iso(d))){
+      // не дублировать смену тому же человеку (tg id), уже стоящему в этот день на другой карточке
+      if(otherCardShiftSameDay(e.id, iso(d))) continue;
       const row = {employee_id: e.id, work_date: iso(d), status:1};
       const dp = defaultPlace(e, d);
       if(dp) row.place = dp;
@@ -1439,7 +1441,12 @@ function render(){
         const av = placesFor(e, fromIso(ds));
         if(av){
           // караоке-официант/бармен: открываем выбор места
-          if(!sh || sh.status===2){ openPlace(e, ds, null); return; }   // пусто/неявка -> выбрать место
+          if(!sh || sh.status===2){
+            // не давать ставить того же человека (tg id) на вторую смену в этот день
+            const conf = otherCardShiftSameDay(id, ds);
+            if(conf){ showMsg(`Сотрудник ${e.name} на ${DOW[(fromIso(ds).getDay()-3+7)%7]} ${fmtD(fromIso(ds))} уже закреплён на позиции ${conflictWhere(conf.emp, conf.shift)}`); return; }
+            openPlace(e, ds, null); return;
+          }   // пусто/неявка -> выбрать место
           // уже работает с местом -> по клику снова открыть выбор (можно сменить/снять/неявка)
           openPlace(e, ds, sh.place); return;
         }
@@ -1449,6 +1456,11 @@ function render(){
             && (byId(x.employee_id)||{}).emp_role==="Официант"
             && (byId(x.employee_id)||{}).pos==="club").length;
           if(cnt >= 4){ showMsg("В клубе уже 4 официанта на этот день — это максимум."); return; }
+        }
+        // запрет второй смены тому же человеку (tg id) в этот день
+        if(!sh){
+          const conf = otherCardShiftSameDay(id, ds);
+          if(conf){ showMsg(`Сотрудник ${e.name} на ${DOW[(fromIso(ds).getDay()-3+7)%7]} ${fmtD(fromIso(ds))} уже закреплён на позиции ${conflictWhere(conf.emp, conf.shift)}`); return; }
         }
         // обычный цикл для остальных: пусто -> работает -> неявка -> пусто
         if(!sh) op = sb.from("shifts").insert({employee_id:id, work_date:ds, status:1});
@@ -1516,6 +1528,16 @@ async function addPenalty(){
 }
 async function delPenalty(pid){
   const pn = penRows.find(x=>x.id===pid); if(!pn) return;
+  // защита: руководитель не может снять штраф, выписанный ЕМУ другим человеком
+  const tg = Number(ME.tg_id || ME.telegram_id || 0);
+  const targetEmp = byId(pn.employee_id);
+  const isOnMe = targetEmp && tg && Number(targetEmp.telegram_id) === tg;
+  const byMe = pn.created_by && ME.name && pn.created_by === ME.name;
+  const privileged = CAP.unapprove; // админ/управляющий — полный доступ
+  if(isOnMe && !byMe && !privileged){
+    penMsg("Этот штраф выписан вам другим сотрудником — снять его можете не вы. Обратитесь к администратору или управляющему.");
+    return;
+  }
   if(!confirm(`Удалить штраф −${fmtNum(pn.amount)} (${pn.note})?`)) return;
   const {error} = await sb.from("penalties").delete().eq("id", pid);
   if(error){ penMsg(error.message); return; }
@@ -1524,14 +1546,25 @@ async function delPenalty(pid){
 function renderPenList(){
   const wkFrom = iso(viewStart), wkTo = iso(addDays(viewStart,6));
   const list = penaltiesIn(penEmpId, wkFrom, wkTo).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
+  const tg = Number(ME.tg_id || ME.telegram_id || 0);
+  const privileged = CAP.unapprove;
   $("pen-list").innerHTML = list.length
-    ? list.map(pn=>`<div class="pen-row">
-        <span class="d">${fmtD(fromIso(pn.pen_date))}</span>
-        <span class="a">−${fmtNum(pn.amount)}</span>
-        <span class="n">${pn.note}</span>
-        <span class="by">выписал(а): ${pn.created_by}</span>
-        <button class="pen-del-btn" onclick="delPenalty('${pn.id}')">Удалить штраф</button>
-      </div>`).join("")
+    ? list.map(pn=>{
+        const targetEmp = byId(pn.employee_id);
+        const isOnMe = targetEmp && tg && Number(targetEmp.telegram_id) === tg;
+        const byMe = pn.created_by && ME.name && pn.created_by === ME.name;
+        const canDelete = privileged || !isOnMe || byMe;
+        const delBtn = canDelete
+          ? `<button class="pen-del-btn" onclick="delPenalty('${pn.id}')">Удалить штраф</button>`
+          : `<span class="by" style="color:var(--muted);font-style:italic">снять может только администратор</span>`;
+        return `<div class="pen-row">
+          <span class="d">${fmtD(fromIso(pn.pen_date))}</span>
+          <span class="a">−${fmtNum(pn.amount)}</span>
+          <span class="n">${pn.note}</span>
+          <span class="by">выписал(а): ${pn.created_by}</span>
+          ${delBtn}
+        </div>`;
+      }).join("")
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе штрафов нет</div>`;
 }
 
@@ -1853,6 +1886,26 @@ function placeCount(ds, place, exceptId){
     && sh.employee_id!==exceptId
     && (byId(sh.employee_id)||{}).emp_role==="Официант").length;
 }
+/* тот же человек (по tg id) уже на смене в этот день на ДРУГОЙ карточке? */
+function otherCardShiftSameDay(empId, ds){
+  const me = byId(empId); if(!me) return null;
+  const tg = Number(me.telegram_id||0);
+  if(!tg) return null;  // без tg id не с чем сопоставлять
+  for(const sh of shiftRows){
+    if(sh.work_date!==ds || sh.status===2) continue;       // не тот день / неявка
+    if(sh.employee_id===empId) continue;                    // та же карточка — ок
+    const other = byId(sh.employee_id);
+    if(other && Number(other.telegram_id)===tg){
+      return {emp: other, shift: sh};                        // конфликт: другая карточка того же человека
+    }
+  }
+  return null;
+}
+/* текст «где уже стоит» для сообщения о конфликте */
+function conflictWhere(other, shift){
+  const place = shift.place && PLACES[shift.place] ? PLACES[shift.place].label : null;
+  return place ? `${other.emp_role} · ${place}` : other.emp_role;
+}
 let placeCtx = null; // {empId, ds}
 function openPlace(e, ds, current){
   placeCtx = {empId:e.id, ds};
@@ -1891,6 +1944,15 @@ async function pickPlace(pl){
     closePlace(); await refresh(); return;
   }
   const P = PLACES[pl];
+  // запрет второй смены тому же человеку (tg id) в этот день — только при создании новой смены
+  const existing = shiftOf(empId, ds);
+  if(!existing || existing.status===2){
+    const conf = otherCardShiftSameDay(empId, ds);
+    if(conf){
+      showMsg(`Сотрудник ${e.name} на ${DOW[(fromIso(ds).getDay()-3+7)%7]} ${fmtD(fromIso(ds))} уже закреплён на позиции ${conflictWhere(conf.emp, conf.shift)}`);
+      closePlace(); return;
+    }
+  }
   // мягкое предупреждение для Большого зала
   if(e.emp_role === "Официант" && P.soft){
     const used = placeCount(ds, pl, empId);
