@@ -808,8 +808,8 @@ const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 /* ================= права ролей приложения ================= */
 /* scope: пары [должность, позиция]; "*" = любая позиция; null = всё */
 const CAPS = {
-  admin:       {label:"Администратор", money:true,  scope:null, approve:true, unapprove:true,  archive:true, notify:true, msg:"all", pen:"all", bonus:"all"},
-  cashier:     {label:"Кассир",        money:true,  scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:false, bonus:false},
+  admin:       {label:"Администратор", money:true, sales:true, scope:null, approve:true, unapprove:true,  archive:true, notify:true, msg:"all", pen:"all", bonus:"all"},
+  cashier:     {label:"Кассир",        money:true, sales:true, scope:null, approve:true, unapprove:false, archive:true, notify:false, pen:false, bonus:false},
   bar_manager: {label:"Бар-менеджер",  money:false,
                 scope:[["Бармен","club"],["Бармен","karaoke"],["Официант","club"]],
                 approve:false, unapprove:false, archive:false,
@@ -1334,8 +1334,13 @@ function render(){
       const wv = wvOf(e.id, weekKey);
       let saleCell, stepsCell;
       if(e.emp_role==="Официант"){
-        saleCell=`<td class="sale"><input type="text" inputmode="numeric" value="${wv.sales?fmtNum(wv.sales):""}" placeholder="0"
-          data-emp="${e.id}" data-kind="sales" class="wk-inp wk-money"><span class="suff">сум</span></td>`;
+        if(CAP.sales){
+          saleCell=`<td class="sale"><input type="text" inputmode="numeric" value="${wv.sales?fmtNum(wv.sales):""}" placeholder="0"
+            data-emp="${e.id}" data-kind="sales" class="wk-inp wk-money"><span class="suff">сум</span></td>`;
+        }else{
+          // только просмотр (например, Управляющий): продажи видит, но не вводит
+          saleCell=`<td class="sale">${wv.sales?fmtNum(wv.sales):'<span class="dash">0</span>'}<span class="suff">сум</span></td>`;
+        }
         stepsCell=`<td class="steps">${money((wv.sales||0)*STEPS_PCT)}<span class="lbl">шаги 1%</span></td>`;
       }else if(e.emp_role===SOUND_BIG){
         saleCell=`<td class="sale"><span class="dash">авто</span></td>`;
