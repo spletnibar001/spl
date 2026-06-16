@@ -866,6 +866,13 @@ let posFilter = "all", viewStart = null, editId = null;
 /* ================= даты и числа ================= */
 function payWeekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
   x.setDate(x.getDate()-((x.getDay()-3+7)%7));return x;}
+// "сейчас" с учётом бизнес-дня: время до 05:00 считается ещё предыдущим днём
+// (рабочая ночь). Используется для определения текущей недели/смены.
+function businessNow(){
+  const n = new Date();
+  if(n.getHours() < 5){ const x = new Date(n); x.setDate(x.getDate()-1); return x; }
+  return n;
+}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
 function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function fromIso(s){const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);}
@@ -1275,7 +1282,7 @@ function render(){
   }
   $("grid").classList.toggle("locked", locked);
 
-  const todayS = iso(new Date());
+  const todayS = iso(businessNow());  // «сегодня» с учётом смены до 05:00
   const M = CAP.money && !compactView;
   const COLS = M ? 14 : 9;
   $("grid-head").innerHTML =
@@ -1644,7 +1651,7 @@ async function startStaffCabinet(){
   document.querySelectorAll(".layout > .card, .layout > #base-wrap, .layout > div:not(#staff-cabinet)")
     .forEach(el=>{ if(el.id!=="staff-cabinet") el.style.display="none"; });
   $("staff-cabinet").style.display="block";
-  viewStart = payWeekStart(new Date());
+  viewStart = payWeekStart(businessNow());
   await loadStaff();
   renderStaffCabinet();
   // теперь, когда карточка сотрудника загружена, решаем доступ к бронированию
@@ -1732,7 +1739,7 @@ function renderStaffCabinet(cardsArg){
 
   const fromS = iso(viewStart), toS = iso(addDays(viewStart,6));
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
-  const todayS = iso(new Date());
+  const todayS = iso(businessNow());  // «сегодня» с учётом смены до 05:00
   const multi = myCards.length > 1;
 
   // общий итог по всем карточкам
@@ -1880,7 +1887,7 @@ function applyViewMode(){
   document.body.classList.toggle("compact", compactView);
   if(compactView){
     // в компактном режиме всегда показываем текущую неделю
-    viewStart = payWeekStart(new Date());
+    viewStart = payWeekStart(businessNow());
     if(typeof setCurrentPayWeek==="function") setCurrentPayWeek();
   }
   // денежные блоки прячем в компактном (у кого они вообще есть)
@@ -2182,7 +2189,7 @@ async function sendNotify(){
 /* ================= запуск ================= */
 function setCurrentPayWeek(){
   if(!CAP.money) return;
-  const ws = payWeekStart(new Date());
+  const ws = payWeekStart(businessNow());
   $("p-from").value = iso(ws); $("p-to").value = iso(addDays(ws,6));
 }
 // синхронизировать период (даты) с показываемой неделей Ср–Вт
@@ -2215,7 +2222,7 @@ async function startApp(){
   applyViewMode();
   if(CAP.notify || CAP.msg) initNotify();
   if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
-  viewStart = payWeekStart(new Date());
+  viewStart = payWeekStart(businessNow());
   fillRoles(); setCurrentPayWeek(); applyRoleDefaults();
 
   $("f-role").addEventListener("change", applyRoleDefaults);
@@ -2237,7 +2244,7 @@ async function startApp(){
     $("btn-export").addEventListener("click", exportXlsx);
   }
   $("btn-curweek").addEventListener("click", async ()=>{
-    viewStart = payWeekStart(new Date()); setCurrentPayWeek(); await refresh();
+    viewStart = payWeekStart(businessNow()); setCurrentPayWeek(); await refresh();
   });
   $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
   $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
