@@ -2011,10 +2011,16 @@ let MYBK_LAST = null;        // последняя заявка гостя (лю
 let MYBK_SEEN_ID = null;     // id заявки, статус которой гость уже «видел» (для бейджа)
 let MYBK_SEEN_STATUS = null;
 const MYBK_DISMISSED = new Set();   // id отклонённых заявок, скрытых гостем (крестик)
+let MYBK_TOAST_TIMER = null;        // таймер авто-скрытия отклонённого баннера
 const MYBK_CS_KEY = "dismissed_declined";   // ключ в Telegram CloudStorage
 
 // загрузить список скрытых заявок из Telegram CloudStorage (между сессиями)
 function mybkLoadDismissed(cb){
+  // 0) sessionStorage — переживает перерисовки в рамках открытия
+  try{
+    const sv = window.sessionStorage && sessionStorage.getItem(MYBK_CS_KEY);
+    if(sv){ JSON.parse(sv).forEach(id=>MYBK_DISMISSED.add(Number(id))); }
+  }catch(_){}
   // 1) localStorage — синхронно, надёжно в Telegram WebView
   try{
     const v = window.localStorage && localStorage.getItem(MYBK_CS_KEY);
@@ -2037,6 +2043,7 @@ function mybkLoadDismissed(cb){
 function mybkDismiss(id){
   MYBK_DISMISSED.add(Number(id));
   const payload = JSON.stringify([...MYBK_DISMISSED]);
+  try{ if(window.sessionStorage) sessionStorage.setItem(MYBK_CS_KEY, payload); }catch(_){}
   try{ if(window.localStorage) localStorage.setItem(MYBK_CS_KEY, payload); }catch(_){}
   try{
     const cs = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage;
@@ -2111,6 +2118,12 @@ function mybkRenderHomeSlot(b){
   if(closable){
     const x=document.getElementById("hb-close");
     if(x) x.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); mybkDismiss(b.id); slot.innerHTML=""; mybkBadge(b); };
+    // отклонённый баннер ведёт себя как уведомление: сам исчезает через 8 сек
+    if(MYBK_TOAST_TIMER){ clearTimeout(MYBK_TOAST_TIMER); }
+    MYBK_TOAST_TIMER = setTimeout(()=>{
+      const w = slot.querySelector(".hb-wrap.no");
+      if(w){ mybkDismiss(b.id); slot.innerHTML=""; mybkBadge(b); }
+    }, 8000);
   }
 }
 
