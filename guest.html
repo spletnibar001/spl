@@ -29,15 +29,18 @@ button{font-family:inherit;cursor:pointer}
 .lang-tabs{display:flex;gap:3px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .lang-tabs button{border:none;background:transparent;color:var(--muted);padding:5px 9px;font-size:12px;font-weight:700}
 .lang-tabs button.active{background:var(--emerald);color:#08130d}
-#tb-mybk{position:relative;flex-shrink:0;border:1px solid var(--line);background:transparent;color:var(--text);
-  width:34px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0}
-#tb-mybk svg{width:19px;height:19px}
+#tb-mybk{position:relative;flex-shrink:0;border:1px solid var(--emerald);
+  background:rgba(35,209,139,.14);color:var(--emerald);
+  height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:5px;padding:0 9px}
+#tb-mybk svg{width:18px;height:18px}
+#tb-mybk .tb-lbl{font-size:12px;font-weight:700}
 #tb-mybk.live{border-color:var(--emerald);color:var(--emerald)}
 #tb-mybk .dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
   background:var(--gold);border:2px solid #0d0f12;display:none}
 #tb-mybk.has-dot .dot{display:block}
 #tb-mybk.dot-ok .dot{background:var(--emerald)}
 #tb-mybk.dot-no .dot{background:#e06464}
+@media (max-width:390px){ #tb-mybk .tb-lbl{display:none} #tb-mybk{padding:0 8px} }
 .hb-wrap{display:flex;align-items:stretch;gap:0;margin:0 0 4px;border:1px solid var(--line);
   border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
 .hb-wrap.ok{border-color:rgba(35,209,139,.45);background:rgba(35,209,139,.08)}
@@ -336,6 +339,7 @@ textarea.bk-input{resize:vertical;min-height:48px}
   </div>
   <button id="tb-mybk" aria-label="Мои брони" title="Мои брони">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>
+    <span class="tb-lbl" id="tb-mybk-lbl">Брони</span>
     <span class="dot"></span>
   </button>
   <div class="lang-tabs" id="lang-tabs">
@@ -1766,15 +1770,15 @@ function bkfDrawForm(){
     <label class="bk-lbl">${t('bk_venue')}</label>
     ${venueBtns}
 
+    <label class="bk-lbl">${t('bk_zone')}</label>
+    ${zoneBtns}
+
     <label class="bk-lbl">${t('bk_date')}</label>
     ${dateBtns}
 
     <label class="bk-lbl">${t('bk_time')}</label>
     ${timeBtns}
     <div class="bk-bizday">${t('bk_bizday')}</div>
-
-    <label class="bk-lbl">${t('bk_zone')}</label>
-    ${zoneBtns}
 
     <label class="bk-lbl">${t('bk_guests')}</label>
     <select id="bk-guests" class="bk-input"><option value="">—</option>${guestOpts}</select>
@@ -1792,7 +1796,33 @@ function bkfDrawForm(){
   body.querySelectorAll("[data-bd]").forEach(b=>b.onclick=()=>{ BK_STATE.date=b.dataset.bd; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
+  // форматирование телефона с пробелами при вводе: +998 90 063 88 88
+  const phEl=document.getElementById("bk-phone");
+  if(phEl){
+    const fmt=()=>{ phEl.value = bkfFmtPhoneInput(phEl.value); };
+    phEl.oninput=fmt; fmt();
+  }
   document.getElementById("bk-submit").onclick = bkfSubmit;
+}
+
+// форматирование телефона для поля ввода: группировка пробелами
+function bkfFmtPhoneInput(raw){
+  if(!raw) return "";
+  let plus = String(raw).trim().startsWith("+");
+  let d = String(raw).replace(/[^\d]/g,"");
+  // узбекский номер: 998 + 9 цифр -> "+998 90 063 88 88"
+  if(d.startsWith("998")){
+    const rest = d.slice(3,12); // до 9 цифр оператора+номера
+    const parts = [rest.slice(0,2), rest.slice(2,5), rest.slice(5,7), rest.slice(7,9)].filter(Boolean);
+    return ("+998" + (parts.length?(" "+parts.join(" ")):"")).trim();
+  }
+  // 9 цифр без кода страны -> добавим +998
+  if(d.length<=9 && (plus===false)){
+    const parts = [d.slice(0,2), d.slice(2,5), d.slice(5,7), d.slice(7,9)].filter(Boolean);
+    return parts.length ? ("+998 "+parts.join(" ")) : "";
+  }
+  // прочее (другой код страны) — просто группируем по 3
+  return (plus?"+":"") + d.replace(/(\d{1,3})(?=(\d{3})+$)/g,"$1 ").trim();
 }
 
 // интервалы времени 30 мин: 18:00 → 23:30, затем 00:00 → 04:30 (ночь)
@@ -2144,6 +2174,8 @@ function renderAll(){
   renderBook();
   renderDress();
   renderNav();
+  const mybkLbl=document.getElementById("tb-mybk-lbl");
+  if(mybkLbl) mybkLbl.textContent=t('nav_book');
   mybkRefresh();
 }
 
