@@ -279,6 +279,18 @@ textarea.bk-input{resize:vertical;min-height:48px}
 .bk-res-v.dep{color:var(--gold)}
 .bk-res-reason{background:rgba(226,101,92,.08);border-radius:10px;padding:12px;margin-top:4px;
   font-size:14px;line-height:1.5}
+/* быстрые действия в подтверждённой брони */
+.bk-acts{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.bk-act-row{display:flex;gap:8px}
+.bk-act{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;
+  padding:12px 10px;border-radius:11px;font-size:14px;font-weight:700;border:1px solid var(--line);
+  background:var(--panel);color:var(--text)}
+.bk-act:active{opacity:.85}
+.bk-act svg{width:18px;height:18px;flex-shrink:0}
+.bk-act.call{background:rgba(31,191,122,.14);border-color:rgba(31,191,122,.4);color:var(--emerald)}
+.bk-act.tg{flex:0 0 auto;width:52px;background:rgba(74,155,226,.14);border-color:rgba(74,155,226,.4);color:#4a9be2}
+.bk-act.taxi{background:rgba(201,161,74,.14);border-color:rgba(201,161,74,.45);color:var(--gold)}
+.bk-act.map{background:var(--panel)}
 </style>
 </head>
 <body>
@@ -1251,6 +1263,8 @@ async function bkfHomeCard(){
       .order("id",{ascending:false}).limit(1);
     if(data && data.length) last=data[0];
   }catch(_){}
+  // прошедшую бронь на главной не показываем
+  if(last && bkfIsPast(last)) last=null;
   bkfHomeRender(last);
   if(last){
     // realtime: карточка на главной обновляется сама
@@ -1411,6 +1425,17 @@ function renderStub(secId, title){
 // ============ БРОНИРОВАНИЕ (заявка) ============
 // форматирование даты YYYY-MM-DD
 function bkfIso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+// текущий бизнес-день: до 05:00 утра — это ещё «вчерашняя» ночь
+function bkfBizToday(){
+  const n=new Date();
+  if(n.getHours()<5){ const y=new Date(n.getFullYear(),n.getMonth(),n.getDate()-1); return bkfIso(y); }
+  return bkfIso(n);
+}
+// бронь прошла, если её бизнес-дата строго раньше текущего бизнес-дня
+function bkfIsPast(b){
+  if(!b || !b.business_date) return false;
+  return String(b.business_date) < bkfBizToday();
+}
 // список ближайших дат для выбора (сегодня + 13 дней)
 function bkfDates(){
   const out=[]; const now=new Date();
@@ -1508,6 +1533,9 @@ async function renderBook(force){
     if(data && data.length) last = data[0];
   }catch(_){}
 
+  // прошедшую бронь (её ночь уже закончилась) не показываем — сразу форма
+  if(last && bkfIsPast(last)) last = null;
+
   // активные (request/booked) — показываем статус и блокируем форму
   if(last && (last.status==="request" || last.status==="booked")){
     const note = last.status==="request" ? `<div class="bk-note">${t('bk_have_active')}</div>` : "";
@@ -1538,6 +1566,25 @@ function bkfStatusCard(b){
     const dep = (Number(b.deposit_amount)>0) ? bkfMoney(b.deposit_amount) : t('bk_no_deposit');
     const guests = b.guests_count ? `
         <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_guests')}</span><span class="bk-res-v">${b.guests_count}</span></div>` : "";
+    // заведение брони -> контакты караоке или клуба
+    const {venue} = bkfResolveTable(b.table_id);
+    const isClub = venue && venue.key==="club";
+    const phone = isClub ? PHONE_CLUB : PHONE_KAR;
+    const tg = isClub ? TG_CLUB : TG_KAR;
+    const callTxt = isClub ? t('call_club') : t('call_kar');
+    const ymapsUrl = `https://yandex.uz/maps/?rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=auto`;
+    const yandexGo = `https://3.redirect.appmetrica.yandex.com/route?end-lat=${ADDR_LAT}&end-lon=${ADDR_LNG}&ref=spletni`;
+    const actions = `
+        <div class="bk-acts">
+          <div class="bk-act-row">
+            <a class="bk-act call" href="tel:${phone}">${IC.phone}<span>${callTxt}</span></a>
+            <a class="bk-act tg" href="https://t.me/${tg}" target="_blank" rel="noopener" aria-label="Telegram">${IC.tg}</a>
+          </div>
+          <div class="bk-act-row">
+            <a class="bk-act taxi" href="${yandexGo}" target="_blank" rel="noopener">${IC.taxi}<span>${t('call_taxi')}</span></a>
+            <a class="bk-act map" href="${ymapsUrl}" target="_blank" rel="noopener">${IC.where}<span>${t('open_maps')}</span></a>
+          </div>
+        </div>`;
     return `
       <div class="bk-res ok">
         <div class="bk-res-ic">✓</div>
@@ -1548,6 +1595,7 @@ function bkfStatusCard(b){
           <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_when')}</span><span class="bk-res-v">${when}</span></div>${guests}
           <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_deposit')}</span><span class="bk-res-v dep">${dep}</span></div>
         </div>
+        ${actions}
       </div>`;
   }
   // отклонена
