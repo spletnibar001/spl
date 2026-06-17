@@ -2334,24 +2334,23 @@ function renderBase(){
 /* ================= экспорт (только money-роли) ================= */
 // надёжное скачивание .xlsx: Blob + временная ссылка (работает во всех десктоп-браузерах)
 function xlsxDownload(wb, filename){
-  const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
-  const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  const url = URL.createObjectURL(blob);
-  let clicked = false;
+  // base64 + data: URL — работает в Telegram Web, где blob: открывается пустой вкладкой
+  const b64 = XLSX.write(wb, {bookType:"xlsx", type:"base64"});
+  const dataUrl = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + b64;
+  let ok = false;
   try{
     const a = document.createElement("a");
-    a.href = url; a.download = filename; a.rel = "noopener";
+    a.href = dataUrl; a.download = filename;
     document.body.appendChild(a);
     a.click();
-    clicked = true;
+    ok = true;
     setTimeout(()=>{ try{ document.body.removeChild(a); }catch(_){} }, 1500);
   }catch(_){}
-  if(clicked){
+  if(ok){
     showMsg("Файл «"+filename+"» готов — проверьте папку «Загрузки».", true);
   } else {
-    showMsg("Не удалось сохранить файл. Откройте табель в браузере на компьютере и повторите.", true);
+    showMsg("Не удалось сохранить файл — откройте табель в обычном браузере и повторите.", true);
   }
-  setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 60000);
 }
 async function exportXlsx(){
   showMsg("Готовлю Excel…");
