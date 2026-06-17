@@ -8,6 +8,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>if(typeof XLSX==="undefined"){document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');}</script>
 <style>
   :root{
     --bg:#14161a; --panel:#1c1f25; --panel2:#22262e; --line:#2e333d;
@@ -2192,8 +2193,19 @@ function renderBase(){
 }
 
 /* ================= экспорт (только money-роли) ================= */
+// надёжное скачивание .xlsx: Blob + временная ссылка (работает во всех десктоп-браузерах)
+function xlsxDownload(wb, filename){
+  const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+  const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+}
 function exportXlsx(){
   if(typeof XLSX==="undefined"){ showMsg("Библиотека Excel не загрузилась"); return; }
+  try{
   const weekKey = iso(viewStart);
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
   const fromS = $("p-from").value||weekKey, toS = $("p-to").value||iso(days[6]);
@@ -2231,13 +2243,18 @@ function exportXlsx(){
   ws["!cols"]=[{wch:24},{wch:18},{wch:20},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:6},{wch:18},{wch:12},{wch:14},{wch:12},{wch:12}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "График");
-  XLSX.writeFile(wb, `график_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
+  xlsxDownload(wb, `график_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
+  }catch(err){
+    console.error("exportXlsx", err);
+    showMsg("Не удалось сформировать Excel: " + (err && err.message ? err.message : err));
+  }
 }
 
 // ===== Выгрузка ИТОГИ ПО ЗП за неделю (только админ/кассир, десктоп) =====
 // Колонки: Место · Должность · Имя · ЗП · Штраф(−) · Бонус · Шаги · Итого · Дни · Примечания(штрафы)
 function exportPayrollXlsx(){
   if(typeof XLSX==="undefined"){ showMsg("Библиотека Excel не загрузилась"); return; }
+  try{
   const weekKey = iso(viewStart);
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
   const fromS = weekKey, toS = iso(days[6]);
@@ -2319,7 +2336,11 @@ function exportPayrollXlsx(){
   }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "ЗП");
-  XLSX.writeFile(wb, `зп_итоги_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
+  xlsxDownload(wb, `зп_итоги_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
+  }catch(err){
+    console.error("exportPayrollXlsx", err);
+    showMsg("Не удалось сформировать Excel: " + (err && err.message ? err.message : err));
+  }
 }
 
 /* ================= рассылка (только админ) ================= */
@@ -3355,7 +3376,7 @@ async function bkConfirmRequest(rid){
   document.getElementById("bkm-title").textContent = "Подтвердить заявку";
   document.getElementById("bkm-sub").textContent = (venueKey==="club"?"Клуб":"Караоке")+" · "+bkFmtDate(fromIso(r.business_date));
   document.getElementById("bkm-body").innerHTML = `
-    <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${r.phone}`:""}</div></div>
+    <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>
     ${note?`<div class="bkm-field"><label>Заявка</label><div>${note}</div></div>`:""}
     <div class="bkm-field"><label>Назначить стол</label>
       <select id="bk-req-table" class="bkm-input">${opts}</select></div>
@@ -3366,6 +3387,12 @@ async function bkConfirmRequest(rid){
       <button class="bkm-btn primary" id="bk-req-ok">Подтвердить бронь</button>
       <button class="bkm-btn" onclick="bkOpenRequests()">Назад</button>
     </div>`;
+  // форматирование депозита пробелами при вводе: 1000000 -> 1 000 000
+  const depEl = document.getElementById("bk-req-dep");
+  if(depEl) depEl.oninput = function(){
+    const digits = this.value.replace(/[^\d]/g,"");
+    this.value = digits ? Number(digits).toLocaleString("ru-RU").replace(/,/g," ") : "";
+  };
   document.getElementById("bk-req-ok").onclick = async function(){
     const tid = Number(document.getElementById("bk-req-table").value);
     if(!tid){ document.getElementById("bk-req-msg").textContent="Выберите стол"; return; }
