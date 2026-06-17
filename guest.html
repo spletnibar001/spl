@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SPLETNI</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#0d0f12; --panel:#15181d; --panel2:#1c2025; --line:#2a2f37;
+  --text:#eef1f4; --muted:#9aa3ad; --emerald:#1fbf7a; --gold:#c9a14a;
+  --hot:#e2655c; --new:#4a9be2; --veg:#5cbf7a;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px;line-height:1.5}
+img{max-width:100%;display:block}
+button{font-family:inherit;cursor:pointer}
+
+/* ВЕРХНЯЯ ПАНЕЛЬ */
+#topbar{position:sticky;top:0;z-index:50;background:rgba(13,15,18,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
+#topbar .brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+#topbar .brand svg{width:22px;height:22px;flex-shrink:0}
+#topbar .brand b{font-size:16px;font-weight:800;letter-spacing:.14em}
+.lang-tabs{display:flex;gap:3px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.lang-tabs button{border:none;background:transparent;color:var(--muted);padding:5px 9px;font-size:12px;font-weight:700}
+.lang-tabs button.active{background:var(--emerald);color:#08130d}
+
+/* КОНТЕНТ */
+#app{max-width:560px;margin:0 auto;padding:0 0 84px}
+.section{display:none;padding:14px}
+.section.active{display:block}
+
+/* ГЛАВНАЯ */
+.hero{position:relative;border-radius:18px;overflow:hidden;margin-bottom:16px;border:1px solid var(--line)}
+.hero img{width:100%;height:200px;object-fit:cover;opacity:.85}
+.hero .hero-ov{position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,15,18,.1),rgba(13,15,18,.9))}
+.hero .hero-mark{position:absolute;left:0;right:0;bottom:14px;text-align:center}
+.hero .hero-mark svg{width:42px;height:42px;margin-bottom:2px}
+.hero .hero-mark .name{font-size:26px;font-weight:800;letter-spacing:.2em}
+.hero .hero-mark .tag{font-size:11px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:2px}
+
+.venue-switch{display:flex;gap:8px;margin-bottom:18px}
+.venue-switch button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--text);
+  border-radius:14px;padding:16px 10px;font-size:15px;font-weight:800;letter-spacing:.04em;position:relative}
+.venue-switch button.active{border-color:var(--emerald);background:var(--panel2)}
+.venue-switch button .vs-sub{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:3px;letter-spacing:0}
+
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:16px;text-align:left;
+  color:var(--text);display:flex;flex-direction:column;gap:6px;min-height:92px;justify-content:center}
+.tile:active{background:var(--panel2)}
+.tile .t-ic{width:24px;height:24px;color:var(--emerald)}
+.tile .t-name{font-size:15px;font-weight:700}
+.tile .t-sub{font-size:11px;color:var(--muted)}
+
+/* ЗАГОЛОВОК РАЗДЕЛА */
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sec-head .back{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:9px;
+  width:36px;height:36px;font-size:16px;flex-shrink:0}
+.sec-head h2{margin:0;font-size:20px;font-weight:800;letter-spacing:.02em}
+
+/* МЕНЮ */
+.menu-tabs{display:flex;gap:6px;margin-bottom:14px}
+.menu-tabs button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  border-radius:10px;padding:9px;font-size:13px;font-weight:700}
+.menu-tabs button.active{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.cat{margin-bottom:18px}
+.cat-title{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:8px}
+.cat-title .cat-bar{width:4px;height:15px;border-radius:3px;flex-shrink:0}
+.mi{display:flex;justify-content:space-between;gap:12px;padding:7px 0;align-items:baseline}
+.mi .mi-n{font-size:14px}
+.mi .mi-badges{display:inline-flex;gap:4px;margin-left:2px;vertical-align:middle}
+.mi .bdg{font-size:9px;font-weight:700;padding:1px 5px;border-radius:6px;white-space:nowrap;letter-spacing:.02em}
+.bdg.chef{color:var(--gold);border:1px solid var(--gold)}
+.bdg.hot{color:var(--hot);border:1px solid var(--hot)}
+.bdg.new{color:var(--new);border:1px solid var(--new)}
+.bdg.veg{color:var(--veg);border:1px solid var(--veg)}
+.mi .mi-p{font-size:13px;color:var(--muted);font-weight:700;white-space:nowrap}
+.mi .mi-p.dash{color:var(--line)}
+.menu-note{text-align:center;color:var(--muted);font-size:12px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
+.menu-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;font-size:11px;color:var(--muted)}
+.menu-legend .lg{display:inline-flex;align-items:center;gap:4px}
+
+/* КАК ДОБРАТЬСЯ / КОНТАКТЫ */
+.info-card{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:16px;margin-bottom:12px}
+.info-card h3{margin:0 0 8px;font-size:15px;font-weight:700}
+.info-card p{margin:0 0 4px;color:var(--muted);font-size:14px}
+.btn-row{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--text);border-radius:11px;padding:13px;font-size:14px;font-weight:700;
+  text-decoration:none}
+.btn.primary{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.btn svg{width:18px;height:18px}
+.hours-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-top:1px solid var(--line)}
+.hours-row:first-of-type{border-top:none}
+.hours-row .h-d{color:var(--muted)}
+
+/* ЗАГЛУШКА */
+.stub{text-align:center;color:var(--muted);padding:50px 20px}
+.stub svg{width:46px;height:46px;opacity:.4;margin-bottom:12px}
+
+/* ВИТРИНА ЗАЛОВ */
+.zone-venue-tabs{display:flex;gap:8px;margin-bottom:16px}
+.zone-venue-tabs button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  border-radius:10px;padding:10px;font-size:14px;font-weight:700}
+.zone-venue-tabs button.active{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.zone-card{border:1px solid var(--line);background:var(--panel);border-radius:16px;overflow:hidden;margin-bottom:16px}
+.zone-gallery{position:relative;width:100%;aspect-ratio:3/2;background:var(--panel2);overflow:hidden}
+.zone-gallery .zg-track{display:flex;height:100%;transition:transform .3s ease;will-change:transform}
+.zone-gallery .zg-slide{min-width:100%;height:100%;position:relative}
+.zone-gallery .zg-slide img{width:100%;height:100%;object-fit:cover}
+.zone-gallery .zg-nophoto{display:flex;align-items:center;justify-content:center;flex-direction:column;
+  height:100%;color:var(--muted);gap:8px}
+.zone-gallery .zg-nophoto svg{width:42px;height:42px;opacity:.35}
+.zone-gallery .zg-arrow{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;
+  border:none;border-radius:50%;background:rgba(13,15,18,.6);color:#fff;font-size:18px;display:flex;
+  align-items:center;justify-content:center;backdrop-filter:blur(4px);z-index:2}
+.zone-gallery .zg-prev{left:8px}.zone-gallery .zg-next{right:8px}
+.zone-gallery .zg-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:5px;z-index:2}
+.zone-gallery .zg-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+.zone-gallery .zg-dot.on{background:#fff}
+.zone-gallery .zg-count{position:absolute;top:8px;right:10px;background:rgba(13,15,18,.6);color:#fff;
+  font-size:11px;padding:2px 8px;border-radius:10px;backdrop-filter:blur(4px);z-index:2}
+.zone-body{padding:14px}
+.zone-body h3{margin:0 0 4px;font-size:18px;font-weight:800}
+.zone-meta{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 10px}
+.zone-tag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+.zone-tag b{color:var(--text);font-weight:700}
+.zone-tag .zt-ic{width:13px;height:13px}
+.zone-desc{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:12px}
+.zone-book-btn{width:100%;border:1px solid var(--emerald);background:var(--emerald);color:#08130d;
+  border-radius:11px;padding:13px;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px}
+.zone-book-btn svg{width:17px;height:17px}
+.zone-note{font-size:11px;color:var(--gold);margin-top:-4px;margin-bottom:10px;font-weight:600}
+
+/* НИЖНЯЯ НАВИГАЦИЯ */
+#navbar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(13,15,18,.95);
+  backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto}
+#navbar button{flex:1;border:none;background:transparent;color:var(--muted);padding:9px 4px 8px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600}
+#navbar button.active{color:var(--emerald)}
+#navbar button svg{width:21px;height:21px}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">
+    <!-- замочная скважина -->
+    <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+      <circle cx="50" cy="38" r="20"/>
+      <path d="M42 50 L58 50 L64 82 L36 82 Z"/>
+    </svg>
+    <b>SPLETNI</b>
+  </div>
+  <div class="lang-tabs" id="lang-tabs">
+    <button data-l="ru" class="active">RU</button>
+    <button data-l="uz">UZ</button>
+    <button data-l="en">EN</button>
+  </div>
+</div>
+
+<div id="app">
+  <!-- ГЛАВНАЯ -->
+  <div class="section active" id="sec-home"></div>
+  <!-- ЗАЛЫ -->
+  <div class="section" id="sec-zones"></div>
+  <!-- МЕНЮ -->
+  <div class="section" id="sec-menu"></div>
+  <!-- БРОНИРОВАНИЕ -->
+  <div class="section" id="sec-book"></div>
+  <!-- КАК ДОБРАТЬСЯ -->
+  <div class="section" id="sec-location"></div>
+  <!-- КОНТАКТЫ -->
+  <div class="section" id="sec-contacts"></div>
+</div>
+
+<div id="navbar"></div>
+
+<script>
+// ============================================================
+// SPLETNI — БАРНОЕ МЕНЮ (для гостевого приложения)
+// Трёхъязычная структура: ru / uz (латиница) / en.
+// Переводятся только КАТЕГОРИИ и ОПИСАТЕЛЬНЫЕ позиции.
+// Бренды, коктейли, шутеры — в оригинале (одинаково на всех языках).
+// Цены в сумах. Формат позиции:
+//   { n:{ru,uz,en}, p:"цена" }   — если название переводится
+//   { n:"Hennessy V.S.", p:"120 000" } — если бренд (строкой, без перевода)
+// ============================================================
+
+const BAR_MENU = [
+  {
+    cat: { ru: "Водка 40мл", uz: "Aroq 40ml", en: "Vodka 40ml" },
+    items: [
+      { n: "Stolichnaya", p: "50 000" },
+      { n: "Русский Стандарт Original", p: "50 000" },
+      { n: "Romanov", p: "50 000" },
+      { n: "Бульбашъ", p: "50 000" },
+      { n: "Finlandia Vodka", p: "50 000" },
+      { n: "Absolut", p: "55 000" },
+      { n: "Beluga Noble", p: "85 000" },
+      { n: "Grey Goose", p: "95 000" },
+      { n: "Reyka", p: "80 000" },
+      { n: "Чистые Росы Organic", p: "70 000" },
+      { n: "Онегин", p: "80 000" },
+    ],
+  },
+  {
+    cat: { ru: "Виски 40мл", uz: "Viski 40ml", en: "Whisky 40ml" },
+    items: [
+      { n: "Glenmorangie 12 Y.O.", p: "130 000" },
+      { n: "Glenfiddich 12 Y.O.", p: "170 000" },
+      { n: "Glenfiddich 15 Y.O.", p: "200 000" },
+      { n: "Singleton 12 Y.O.", p: "120 000" },
+      { n: "The Glenlivet 12 Y.O.", p: "145 000" },
+      { n: "Bruichladdich Classic Laddie", p: "200 000" },
+      { n: "The Macallan 12 Y.O.", p: "215 000" },
+      { n: "Monkey Shoulder", p: "115 000" },
+      { n: "Ballantine's", p: "75 000" },
+      { n: "Dewar's White Label", p: "90 000" },
+      { n: "Chivas Regal 12 Y.O.", p: "100 000" },
+      { n: "Chivas Regal 18 Y.O.", p: "215 000" },
+      { n: "Royal Salute 21 Y.O.", p: "385 000" },
+      { n: "Tullamore D.E.W.", p: "85 000" },
+      { n: "Jameson", p: "85 000" },
+      { n: "Jameson Black Barrel", p: "125 000" },
+      { n: "Paddy", p: "75 000" },
+      { n: "Four Roses", p: "85 000" },
+      { n: "Jack Daniel's Old №7", p: "85 000" },
+    ],
+  },
+  {
+    cat: { ru: "Коньяк и бренди 40мл", uz: "Konyak va brendi 40ml", en: "Cognac & Brandy 40ml" },
+    items: [
+      { n: "Ararat 3", p: "60 000" },
+      { n: "Ararat 5", p: "80 000" },
+      { n: "Martell V.S.", p: "115 000" },
+      { n: "Martell V.S.O.P.", p: "130 000" },
+      { n: "Hennessy V.S.", p: "120 000" },
+      { n: "Hennessy V.S.O.P.", p: "135 000" },
+      { n: "Hennessy X.O.", p: "325 000" },
+      { n: "Remy Martin V.S.O.P.", p: "200 000" },
+    ],
+  },
+  {
+    cat: { ru: "Текила 40мл", uz: "Tekila 40ml", en: "Tequila 40ml" },
+    items: [
+      { n: "Olmeca Silver", p: "80 000" },
+      { n: "Olmeca Gold", p: "80 000" },
+      { n: "Olmeca Altos Plata", p: "110 000" },
+      { n: "Olmeca Altos Reposado", p: "110 000" },
+      { n: "Patron Silver", p: "145 000" },
+      { n: "Patron Reposado", p: "145 000" },
+      { n: "Espolon Blanco", p: "140 000" },
+      { n: "Espolon Reposado", p: "140 000" },
+    ],
+  },
+  {
+    cat: { ru: "Вермут 80мл", uz: "Vermut 80ml", en: "Vermouth 80ml" },
+    items: [
+      { n: "Cinzano Bianco", p: "100 000" },
+      { n: "Cinzano Rosso", p: "100 000" },
+      { n: "Cinzano Extra Dry", p: "100 000" },
+    ],
+  },
+  {
+    cat: { ru: "Джин 40мл", uz: "Jin 40ml", en: "Gin 40ml" },
+    items: [
+      { n: "Ginster London Dry", p: "50 000" },
+      { n: "Beefeater", p: "60 000" },
+      { n: "Bombay Sapphire", p: "80 000" },
+      { n: "Hendrick's", p: "100 000" },
+    ],
+  },
+  {
+    cat: { ru: "Ром 40мл", uz: "Rom 40ml", en: "Rum 40ml" },
+    items: [
+      { n: "Lamb's Navy", p: "60 000" },
+      { n: "Lamb's Spiced", p: "60 000" },
+      { n: "Havana Club 3 Y.O.", p: "60 000" },
+      { n: "Havana Club 7 Y.O.", p: "120 000" },
+      { n: "Oakheart Original", p: "60 000" },
+      { n: "Bacardi Carta Blanca", p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Ликёры 40мл", uz: "Likyorlar 40ml", en: "Liquors 40ml" },
+    items: [
+      { n: "Kahlua", p: "75 000" },
+      { n: "Jagermeister", p: "75 000" },
+      { n: "Baileys", p: "75 000" },
+      { n: "Cointreau", p: "75 000" },
+      { n: "Xenta Absente", p: "85 000" },
+      { n: "Sambuca Ramazotti", p: "75 000" },
+    ],
+  },
+  {
+    cat: { ru: "Коктейли", uz: "Kokteyllar", en: "Cocktails" },
+    items: [
+      { n: "Aperol Spritz", p: "120 000" },
+      { n: "Negroni", p: "115 000" },
+      { n: "Whisky Sour", p: "115 000" },
+      { n: "Margarita", p: "115 000" },
+      { n: "Mai Tai", p: "130 000" },
+      { n: "Mojito", p: "110 000" },
+      { n: "Tequila Sunrise", p: "115 000" },
+      { n: "Bull Frog", p: "200 000" },
+      { n: "Long Island Ice Tea", p: "170 000" },
+      { n: "Clover Club", p: "95 000" },
+      { n: "Cosmopolitan", p: "100 000" },
+      { n: "Sex on the Beach", p: "100 000" },
+      { n: "Between the Sheets", p: "115 000" },
+      { n: "Чёрный Русский / Black Russian", p: "115 000" },
+      { n: "Boulevardier", p: "115 000" },
+      { n: "Cardinale", p: "115 000" },
+      { n: "Dry Martini", p: "115 000" },
+      { n: "Lamborghini", p: "300 000" },
+    ],
+  },
+  {
+    cat: { ru: "Микс-дринк", uz: "Miks-drink", en: "Mix Drink" },
+    items: [
+      { n: "Tequila Boom", p: "115 000" },
+      { n: "Jager Bomb", p: "110 000" },
+      { n: "Vodka Bull", p: "90 000" },
+      { n: "Whiskey Cola", p: "100 000" },
+      { n: "Gin Tonic", p: "110 000" },
+      { n: "Cuba Libre", p: "100 000" },
+    ],
+  },
+  {
+    cat: { ru: "Шутеры", uz: "Shooterlar", en: "Shooters" },
+    items: [
+      { n: "B-52", p: "110 000" },
+      { n: "B-53", p: "110 000" },
+      { n: "Hiroshima", p: "110 000" },
+      { n: "Medusa", p: "110 000" },
+    ],
+  },
+  {
+    cat: { ru: "Безалкогольные коктейли", uz: "Alkogolsiz kokteyllar", en: "Non-Alcoholic Cocktails" },
+    items: [
+      { n: { ru: "Мохито", uz: "Mohito", en: "Mojito" }, p: "60 000 / 120 000" },
+      { n: { ru: "Мохито Маракуя", uz: "Mohito Marakuya", en: "Passion Fruit Mojito" }, p: "60 000 / 120 000" },
+      { n: { ru: "Мохито Малина", uz: "Mohito Malina", en: "Raspberry Mojito" }, p: "60 000 / 120 000" },
+      { n: { ru: "Малина-Маракуя", uz: "Malina-Marakuya", en: "Raspberry–Passion Fruit" }, p: "60 000 / 120 000" },
+      { n: { ru: "Яблоко-Тархун", uz: "Olma-Tarxun", en: "Apple–Tarragon" }, p: "60 000 / 120 000" },
+      { n: { ru: "Манго-Маракуя", uz: "Mango-Marakuya", en: "Mango–Passion Fruit" }, p: "60 000 / 120 000" },
+      { n: "Baby Colada", p: "70 000" },
+    ],
+  },
+  {
+    cat: { ru: "Пиво бутылочное", uz: "Pivo (shisha)", en: "Bottled Beer" },
+    items: [
+      { n: "Miller", p: "60 000" },
+      { n: "Estrella Damm", p: "80 000" },
+      { n: "Estrella Free Damm 0%", p: "70 000" },
+      { n: "Bud", p: "70 000" },
+      { n: "Hoegaarden White", p: "70 000" },
+      { n: "Corona Extra", p: "80 000" },
+      { n: "Heineken", p: "70 000" },
+      { n: "Stella Artois", p: "70 000" },
+      { n: "Kronenbourg Blanc 1664", p: "70 000" },
+      { n: "Krombacher", p: "80 000" },
+    ],
+  },
+  {
+    cat: { ru: "Пиво разливное", uz: "Pivo (quyma)", en: "Draft Beer" },
+    items: [
+      { n: "Carlsberg", p: "60 000" },
+      { n: "Zatecky Gus", p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Пати-бокс", uz: "Party-box", en: "Party Box" },
+    items: [
+      { n: "Absolut 1L + 4 Red Bull", p: "1 400 000" },
+      { n: "Jagermeister 1L + 4 Red Bull", p: "1 800 000" },
+      { n: "Jameson 1L + 4 Red Bull", p: "2 000 000" },
+    ],
+  },
+  {
+    cat: { ru: "Чай", uz: "Choy", en: "Tea" },
+    items: [
+      { n: { ru: "Чёрный", uz: "Qora choy", en: "Black tea" }, p: "30 000" },
+      { n: { ru: "Зелёный", uz: "Ko'k choy", en: "Green tea" }, p: "30 000" },
+      { n: { ru: "С лимоном", uz: "Limonli", en: "With lemon" }, p: "50 000" },
+      { n: { ru: "С имбирём", uz: "Zanjabilli", en: "With ginger" }, p: "60 000" },
+      { n: { ru: "Ягодный", uz: "Rezavorli", en: "Berry tea" }, p: "60 000" },
+      { n: { ru: "Марокканский", uz: "Marokash choyi", en: "Moroccan tea" }, p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Кофе", uz: "Qahva", en: "Coffee" },
+    items: [
+      { n: "Espresso", p: "60 000" },
+      { n: "Americano", p: "60 000" },
+      { n: "Latte", p: "60 000" },
+      { n: "Cappuccino", p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Фреши", uz: "Freshlar", en: "Fresh Juices" },
+    items: [
+      { n: { ru: "Яблочный", uz: "Olma", en: "Apple" }, p: "60 000" },
+      { n: { ru: "Морковный", uz: "Sabzi", en: "Carrot" }, p: "60 000" },
+      { n: { ru: "Яблочно-морковный", uz: "Olma-sabzi", en: "Apple–Carrot" }, p: "60 000" },
+      { n: { ru: "Апельсиновый", uz: "Apelsin", en: "Orange" }, p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Напитки", uz: "Ichimliklar", en: "Drinks" },
+    items: [
+      { n: "Red Bull 0,25L", p: "60 000" },
+      { n: { ru: "Cola / Fanta / Sprite / Сок", uz: "Cola / Fanta / Sprite / Sharbat", en: "Cola / Fanta / Sprite / Juice" }, p: "35 000" },
+      { n: "Tonic Schweppes 0,25L", p: "35 000" },
+      { n: { ru: "Вода 0,33L", uz: "Suv 0,33L", en: "Water 0.33L" }, p: "30 000" },
+      { n: { ru: "Premium вода 0,75L", uz: "Premium suv 0,75L", en: "Premium Water 0.75L" }, p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Снеки", uz: "Sneklar", en: "Snacks" },
+    items: [
+      { n: { ru: "Миндаль", uz: "Bodom", en: "Almonds" }, p: "60 000" },
+      { n: { ru: "Фисташки", uz: "Pista", en: "Pistachios" }, p: "60 000" },
+      { n: { ru: "Чечел", uz: "Chechil pishloq", en: "Chechil cheese" }, p: "60 000" },
+      { n: { ru: "Чипсы", uz: "Chips", en: "Chips" }, p: "60 000" },
+      { n: { ru: "Микс снеков", uz: "Snek miks", en: "Snack mix" }, p: "180 000" },
+    ],
+  },
+  {
+    cat: { ru: "Сигареты", uz: "Sigaretalar", en: "Cigarettes" },
+    items: [
+      { n: "Parliament", p: "60 000" },
+      { n: "Terea Sticks", p: "60 000" },
+    ],
+  },
+  {
+    cat: { ru: "Особое", uz: "Maxsus", en: "Special" },
+    items: [
+      { n: { ru: "Jagermeister Ice Cold Shot −18°C, 50мл", uz: "Jagermeister Ice Cold Shot −18°C, 50ml", en: "Jagermeister Ice Cold Shot −18°C, 50ml" }, p: "75 000" },
+      { n: { ru: "Продление зала (1 час)", uz: "Zalni uzaytirish (1 soat)", en: "Hall extension (1 hour)" }, p: "2 000 000" },
+    ],
+  },
+];
+
+// служебная строка (показываем внизу меню)
+const BAR_MENU_NOTE = {
+  ru: "Обслуживание 0%",
+  uz: "Xizmat haqi 0%",
+  en: "Service charge 0%",
+};
+
+// ============================================================
+// SPLETNI — МЕНЮ КУХНИ (для гостевого приложения)
+// Трёхъязычно: ru / uz (латиница) / en.
+// Бейджи: chef (ШЕФ рекомендует), hot (остро), new (новинка), veg (вегетарианское).
+// Граммовки сохранены в названии. Цена "" = прочерк (не указана).
+// Фирменные названия в кавычках — без перевода.
+// ============================================================
+
+// подписи бейджей на 3 языках (для легенды и подсказок)
+const KITCHEN_BADGES = {
+  chef: { ru: "Шеф рекомендует", uz: "Oshpaz tavsiyasi", en: "Chef's choice" },
+  hot:  { ru: "Острое",          uz: "Achchiq",          en: "Spicy" },
+  new:  { ru: "Новинка",         uz: "Yangi",            en: "New" },
+  veg:  { ru: "Вегетарианское",  uz: "Vegetarian",       en: "Vegetarian" },
+};
+
+const KITCHEN_MENU = [
+  {
+    cat: { ru: "Холодные закуски", uz: "Sovuq gazaklar", en: "Cold Appetizers" },
+    items: [
+      { n: { ru: "Мясное сырное изобилие", uz: "Go'sht va pishloq assortisi", en: "Meat & cheese platter" }, p: "300 000", b: ["chef"] },
+      { n: { ru: "Маринованное по-русски", uz: "Ruscha marinad assortisi", en: "Russian-style pickles" }, p: "120 000" },
+      { n: { ru: "Брускетта с вяленой куриной грудкой", uz: "Quritilgan tovuq ko'kragi bilan brusketta", en: "Bruschetta with cured chicken" }, p: "85 000" },
+      { n: { ru: "Соте из баклажанов", uz: "Baqlajon sote", en: "Eggplant sauté" }, p: "75 000" },
+      { n: { ru: "Маслины / оливки", uz: "Qora / yashil zaytun", en: "Black / green olives" }, p: "45 000" },
+      { n: { ru: "Рулетики с лососем", uz: "Losos ruletchalari", en: "Salmon rolls" }, p: "150 000" },
+      { n: { ru: "Хоровац", uz: "Xorovats", en: "Khorovats" }, p: "75 000" },
+      { n: { ru: "Овощные стики", uz: "Sabzavot stiklari", en: "Veggie sticks" }, p: "50 000", b: ["veg"] },
+    ],
+  },
+  {
+    cat: { ru: "Салаты", uz: "Salatlar", en: "Salads" },
+    items: [
+      { n: { ru: "Салат от шефа", uz: "Oshpaz salati", en: "Chef's salad" }, p: "135 000", b: ["chef"] },
+      { n: { ru: "Салат с баклажанами", uz: "Baqlajonli salat", en: "Eggplant salad" }, p: "85 000" },
+      { n: { ru: "Цезарь с курицей", uz: "Tovuqli Sezar", en: "Caesar with chicken" }, p: "95 000" },
+      { n: { ru: "Цезарь с креветками", uz: "Krevetkali Sezar", en: "Caesar with shrimp" }, p: "130 000" },
+      { n: { ru: "Греческий салат", uz: "Yunon salati", en: "Greek salad" }, p: "85 000" },
+      { n: { ru: "Салат под водочку", uz: "\"Pod vodochku\" salati", en: "\"Pod vodochku\" salad" }, p: "85 000" },
+      { n: { ru: "Салат с лососем в кунжуте", uz: "Kunjutli losos salati", en: "Sesame salmon salad" }, p: "115 000" },
+      { n: { ru: "Весенний салат", uz: "Bahor salati", en: "Spring salad" }, p: "65 000" },
+      { n: { ru: "Салат со свёклой и апельсином", uz: "Lavlagi va apelsinli salat", en: "Beetroot & orange salad" }, p: "65 000" },
+      { n: { ru: "Салат «Спринг» с креветками", uz: "«Spring» krevetkali salat", en: "\"Spring\" shrimp salad" }, p: "160 000" },
+      { n: { ru: "Фруктовый салат", uz: "Mevali salat", en: "Fruit salad" }, p: "100 000" },
+      { n: { ru: "Тёплый салат с креветками", uz: "Issiq krevetkali salat", en: "Warm shrimp salad" }, p: "100 000" },
+      { n: { ru: "Салат с томатами и баклажанами", uz: "Pomidor va baqlajonli salat", en: "Tomato & eggplant salad" }, p: "65 000" },
+      { n: { ru: "Салат с ростбифом", uz: "Rostbifli salat", en: "Roast beef salad" }, p: "125 000" },
+      { n: { ru: "Салат со шпинатом", uz: "Ismaloqli salat", en: "Spinach salad" }, p: "65 000" },
+      { n: { ru: "Оливье", uz: "Olivye", en: "Olivier" }, p: "85 000" },
+    ],
+  },
+  {
+    cat: { ru: "Горячие закуски", uz: "Issiq gazaklar", en: "Hot Appetizers" },
+    items: [
+      { n: { ru: "Бараньи семечки 250 гр", uz: "Qo'y \"semechki\" 250 g", en: "Lamb bites 250g" }, p: "170 000" },
+      { n: { ru: "Куриные семечки", uz: "Tovuq \"semechki\"", en: "Chicken bites" }, p: "120 000" },
+      { n: { ru: "Семечки из вырезки", uz: "Bel go'shti \"semechki\"", en: "Tenderloin bites" }, p: "130 000" },
+      { n: { ru: "Куриные крылышки BBQ", uz: "Tovuq qanotchalari BBQ", en: "BBQ chicken wings" }, p: "95 000" },
+      { n: { ru: "Куриные крылья в печи Josper", uz: "Josper pechida tovuq qanotlari", en: "Josper oven chicken wings" }, p: "95 000", b: ["chef"] },
+      { n: { ru: "Куриные крылья с чесноком и розмарином", uz: "Sarimsoq va rozmarinli tovuq qanotlari", en: "Garlic & rosemary chicken wings" }, p: "95 000" },
+      { n: { ru: "Жареные спринг-роллы с креветками", uz: "Krevetkali qovurilgan spring-roll", en: "Fried shrimp spring rolls" }, p: "95 000" },
+      { n: { ru: "Горячая брускетта с лососем под сырной шапкой", uz: "Pishloq qoplamali issiq losos brusketta", en: "Hot salmon bruschetta with cheese" }, p: "95 000" },
+      { n: { ru: "Лосось в лаваше со шпинатом и крем-чизом", uz: "Ismaloq va krem-pishloqli lavashda losos", en: "Salmon in lavash with spinach & cream cheese" }, p: "95 000" },
+      { n: { ru: "Брускетта с вялеными томатами под сырной шапкой", uz: "Quritilgan pomidor va pishloqli brusketta", en: "Bruschetta with sun-dried tomatoes & cheese" }, p: "85 000" },
+      { n: { ru: "«Айдахо» с грибами и томатами черри", uz: "«Aydaxo» qo'ziqorin va cherri pomidor bilan", en: "\"Idaho\" with mushrooms & cherry tomatoes" }, p: "85 000" },
+      { n: { ru: "Гарлики", uz: "Garliki (sarimsoqli non)", en: "Garlic bread" }, p: "45 000" },
+      { n: { ru: "Жареный чечил", uz: "Qovurilgan chechil pishloq", en: "Fried chechil cheese" }, p: "45 000" },
+      { n: { ru: "Пивчики", uz: "Pivchiki", en: "Beer snacks" }, p: "75 000" },
+      { n: { ru: "Сыр в кляре", uz: "Klyarda pishloq", en: "Battered cheese" }, p: "95 000" },
+      { n: { ru: "Пивная малая", uz: "Kichik pivo to'plami", en: "Small beer platter" }, p: "320 000" },
+      { n: { ru: "Пивная доска «Сплетни»", uz: "«Spletni» pivo doskasi", en: "\"Spletni\" beer board" }, p: "450 000", b: ["chef"] },
+    ],
+  },
+  {
+    cat: { ru: "Супы", uz: "Sho'rvalar", en: "Soups" },
+    items: [
+      { n: { ru: "Консоме с языком", uz: "Tilli konsome", en: "Consommé with tongue" }, p: "65 000" },
+      { n: { ru: "Борщ вчерашний", uz: "«Kechagi» borsch", en: "\"Yesterday's\" borscht" }, p: "80 000" },
+      { n: { ru: "Кукси с лапшой рамен", uz: "Ramen ugrasi bilan kuksi", en: "Kuksi with ramen noodles" }, p: "100 000" },
+      { n: { ru: "Солянка", uz: "Solyanka", en: "Solyanka" }, p: "80 000" },
+      { n: { ru: "Куриная лапша", uz: "Tovuqli ugra", en: "Chicken noodle soup" }, p: "80 000" },
+      { n: { ru: "Том ям", uz: "Tom yam", en: "Tom Yum" }, p: "120 000", b: ["hot"] },
+      { n: { ru: "Уха с лососем", uz: "Lososli baliq sho'rva", en: "Salmon fish soup" }, p: "95 000" },
+      { n: { ru: "Окрошка", uz: "Okroshka", en: "Okroshka" }, p: "75 000" },
+    ],
+  },
+  {
+    cat: { ru: "Роллы", uz: "Rolllar", en: "Rolls" },
+    items: [
+      { n: { ru: "Ролл «Филадельфия»", uz: "«Filadelfiya» roll", en: "Philadelphia roll" }, p: "120 000", b: ["chef"] },
+      { n: { ru: "Ролл «Калифорния»", uz: "«Kaliforniya» roll", en: "California roll" }, p: "110 000" },
+      { n: { ru: "Ролл «Канада»", uz: "«Kanada» roll", en: "Canada roll" }, p: "120 000" },
+      { n: { ru: "Ролл запечённый с курицей", uz: "Tovuqli pishirilgan roll", en: "Baked chicken roll" }, p: "80 000" },
+      { n: { ru: "Ролл запечённый с угрём", uz: "Ilon balig'i bilan pishirilgan roll", en: "Baked eel roll" }, p: "120 000" },
+      { n: { ru: "Ролл запечённый с лососем", uz: "Lososli pishirilgan roll", en: "Baked salmon roll" }, p: "120 000" },
+      { n: { ru: "Ролл жареный с угрём", uz: "Ilon balig'i bilan qovurilgan roll", en: "Fried eel roll" }, p: "105 000" },
+      { n: { ru: "Ролл жареный с лососем", uz: "Lososli qovurilgan roll", en: "Fried salmon roll" }, p: "95 000" },
+      { n: { ru: "Ролл жареный с курицей", uz: "Tovuqli qovurilgan roll", en: "Fried chicken roll" }, p: "80 000" },
+    ],
+  },
+  {
+    cat: { ru: "Горячие блюда", uz: "Issiq taomlar", en: "Main Dishes" },
+    items: [
+      { n: { ru: "Картофель по-домашнему с яйцом", uz: "Uy uslubidagi kartoshka tuxum bilan", en: "Home-style potatoes with egg" }, p: "100 000" },
+      { n: { ru: "Баранья рулька под соусом BBQ", uz: "BBQ sousli qo'y soni", en: "Lamb shank in BBQ sauce" }, p: "270 000", b: ["chef"] },
+      { n: { ru: "Рубленая вырезка в лаваше со сметаной", uz: "Smetana bilan lavashda maydalangan go'sht", en: "Minced tenderloin in lavash with sour cream" }, p: "165 000" },
+      { n: { ru: "Рулет со шпинатом и калифорнийским перцем с хоровацем", uz: "Ismaloq, qalampir va xorovats bilan rulet", en: "Roll with spinach, bell pepper & khorovats" }, p: "165 000" },
+      { n: { ru: "Картофель по-домашнему", uz: "Uy uslubidagi kartoshka", en: "Home-style potatoes" }, p: "95 000" },
+      { n: { ru: "Курица в кисло-сладком соусе", uz: "Nordon-shirin sousli tovuq", en: "Sweet & sour chicken" }, p: "95 000" },
+      { n: { ru: "Медальоны с овощами 200 гр", uz: "Sabzavotli medalonlar 200 g", en: "Medallions with vegetables 200g" }, p: "200 000" },
+      { n: { ru: "Медальоны под грибным соусом 200 гр", uz: "Qo'ziqorin sousli medalonlar 200 g", en: "Medallions in mushroom sauce 200g" }, p: "200 000" },
+      { n: { ru: "Куриное филе с грибами", uz: "Qo'ziqorinli tovuq filesi", en: "Chicken fillet with mushrooms" }, p: "" },
+      { n: { ru: "Рёбра BBQ", uz: "BBQ qovurg'alar", en: "BBQ ribs" }, p: "175 000", b: ["chef"] },
+      { n: { ru: "Телятина с грибами", uz: "Qo'ziqorinli buzoq go'shti", en: "Veal with mushrooms" }, p: "185 000" },
+    ],
+  },
+  {
+    cat: { ru: "Колбаски", uz: "Kolbasalar", en: "Sausages" },
+    items: [
+      { n: { ru: "Куриные классик 240 гр", uz: "Tovuq klassik 240 g", en: "Chicken classic 240g" }, p: "90 000" },
+      { n: { ru: "Говядина классик 240 гр", uz: "Mol go'shti klassik 240 g", en: "Beef classic 240g" }, p: "100 000" },
+      { n: { ru: "Баранина классик 240 гр", uz: "Qo'y go'shti klassik 240 g", en: "Lamb classic 240g" }, p: "100 000" },
+    ],
+  },
+  {
+    cat: { ru: "Бургеры", uz: "Burgerlar", en: "Burgers" },
+    items: [
+      { n: { ru: "Бургер «Лесник» с грибами", uz: "«Lesnik» qo'ziqorinli burger", en: "\"Lesnik\" mushroom burger" }, p: "95 000" },
+      { n: { ru: "Бургер «Мехико вайб» с халапеньо", uz: "«Mexiko vayb» xalapenyo bilan", en: "\"Mexico vibe\" with jalapeño" }, p: "120 000", b: ["hot"] },
+      { n: { ru: "Бургер «Дабл чиззззз»", uz: "«Dabl chizzzz» burger", en: "\"Double cheeeese\" burger" }, p: "150 000", b: ["chef"] },
+      { n: { ru: "Бургер «Чикен чизз» с куриным бедром", uz: "«Chiken chizz» tovuq soni bilan", en: "\"Chicken cheese\" with chicken thigh" }, p: "100 000" },
+      { n: { ru: "Бургер «Веган»", uz: "«Vegan» burger", en: "\"Vegan\" burger" }, p: "65 000", b: ["veg"] },
+    ],
+  },
+  {
+    cat: { ru: "Стейки (на углях)", uz: "Steyklar (ko'mirda)", en: "Steaks (charcoal-grilled)" },
+    items: [
+      { n: { ru: "Фланк-стейк 1 кг", uz: "Flank-steyk 1 kg", en: "Flank steak 1kg" }, p: "700 000" },
+      { n: { ru: "Стейк рибай премиум 850 гр", uz: "Ribay premium steyk 850 g", en: "Premium ribeye 850g" }, p: "450 000", b: ["chef"] },
+      { n: { ru: "Стейк со шпинатом в сливочном соусе 300 гр", uz: "Qaymoqli sousda ismaloqli steyk 300 g", en: "Steak with spinach in cream sauce 300g" }, p: "250 000" },
+      { n: { ru: "Стейк из вырезки в азиатском стиле 300 гр", uz: "Osiyocha bel go'shti steyki 300 g", en: "Asian-style tenderloin steak 300g" }, p: "240 000" },
+      { n: { ru: "Классический стейк 300 гр", uz: "Klassik steyk 300 g", en: "Classic steak 300g" }, p: "220 000" },
+      { n: { ru: "Пеппер-стейк 300 гр", uz: "Pepper-steyk 300 g", en: "Pepper steak 300g" }, p: "220 000" },
+      { n: { ru: "Рибай без кости, ферментированный 350 гр", uz: "Suyaksiz fermentlangan ribay 350 g", en: "Boneless aged ribeye 350g" }, p: "280 000", b: ["new"] },
+      { n: { ru: "Ти-бон, ферментированный 420 гр", uz: "Fermentlangan ti-bon 420 g", en: "Aged T-bone 420g" }, p: "250 000", b: ["new"] },
+      { n: { ru: "Куриное магре в печи Josper 250 гр", uz: "Josper pechida tovuq magre 250 g", en: "Josper oven chicken magret 250g" }, p: "95 000" },
+    ],
+  },
+  {
+    cat: { ru: "Пасты", uz: "Pastalar", en: "Pasta" },
+    items: [
+      { n: { ru: "Фрутти ди маре", uz: "Frutti di mare", en: "Frutti di mare" }, p: "120 000" },
+      { n: { ru: "Альфредо", uz: "Alfredo", en: "Alfredo" }, p: "95 000" },
+      { n: { ru: "Карбонара", uz: "Karbonara", en: "Carbonara" }, p: "100 000" },
+      { n: { ru: "Паста с грибами и шпинатом", uz: "Qo'ziqorin va ismaloqli pasta", en: "Pasta with mushrooms & spinach" }, p: "95 000", b: ["veg"] },
+      { n: { ru: "Болоньезе", uz: "Bolonez", en: "Bolognese" }, p: "95 000" },
+    ],
+  },
+  {
+    cat: { ru: "Гарниры", uz: "Garnirlar", en: "Sides" },
+    items: [
+      { n: { ru: "Рис с овощами", uz: "Sabzavotli guruch", en: "Rice with vegetables" }, p: "35 000" },
+      { n: { ru: "Рис", uz: "Guruch", en: "Rice" }, p: "30 000" },
+      { n: { ru: "Картофель фри", uz: "Fri kartoshka", en: "French fries" }, p: "30 000" },
+      { n: { ru: "Картофель фри спайси", uz: "Achchiq fri kartoshka", en: "Spicy fries" }, p: "30 000", b: ["hot"] },
+      { n: { ru: "Картофель с сыром", uz: "Pishloqli kartoshka", en: "Cheesy potatoes" }, p: "45 000" },
+      { n: { ru: "Картофель фри с соусом гриль", uz: "Gril sousli fri kartoshka", en: "Fries with grill sauce" }, p: "40 000" },
+      { n: { ru: "Луковые кольца", uz: "Piyoz halqalari", en: "Onion rings" }, p: "45 000" },
+      { n: { ru: "Овощи на гриле", uz: "Grilda sabzavotlar", en: "Grilled vegetables" }, p: "45 000", b: ["veg"] },
+    ],
+  },
+  {
+    cat: { ru: "Хлеб", uz: "Non", en: "Bread" },
+    items: [
+      { n: { ru: "Артезианский мини-багет", uz: "Artezian mini-baget", en: "Artisan mini baguette" }, p: "15 000" },
+      { n: { ru: "Злаковый", uz: "Donli non", en: "Grain bread" }, p: "15 000" },
+      { n: { ru: "Морковный с луком", uz: "Sabzili piyozli non", en: "Carrot & onion bread" }, p: "15 000" },
+      { n: { ru: "Тёмный со злаками", uz: "Donli qora non", en: "Dark grain bread" }, p: "15 000" },
+      { n: { ru: "Хлеб ассорти", uz: "Non assortisi", en: "Bread assortment" }, p: "45 000" },
+    ],
+  },
+  {
+    cat: { ru: "Десерты", uz: "Desertlar", en: "Desserts" },
+    items: [
+      { n: { ru: "Чизкейк", uz: "Chizkeyk", en: "Cheesecake" }, p: "90 000", b: ["chef"] },
+      { n: { ru: "Шоколадный фондан", uz: "Shokoladli fondan", en: "Chocolate fondant" }, p: "95 000" },
+      { n: { ru: "Фруктовое ассорти", uz: "Meva assortisi", en: "Fruit platter" }, p: "350 000" },
+      { n: { ru: "Нетирамису", uz: "Netiramisu", en: "Netiramisu" }, p: "70 000" },
+      { n: { ru: "Десерт «Мартинка»", uz: "«Martinka» deserti", en: "\"Martinka\" dessert" }, p: "70 000" },
+      { n: { ru: "Сливочное мороженое с ягодами и шоколадом", uz: "Rezavor va shokoladli muzqaymoq", en: "Ice cream with berries & chocolate" }, p: "70 000" },
+    ],
+  },
+];
+
+
+/* ===== ДАННЫЕ ЗОН ===== */
+// ============================================================
+// SPLETNI — ЗОНЫ (витрина залов для гостевого приложения)
+// Трёхъязычно: ru / uz / en.
+// dep: депозит. Формат:
+//   {wd:"...", we:"..."} — будни (incl. вс) / Пт-Сб
+//   "request" в значении = «по запросу»
+//   "" = без депозита
+// imgs: имена файлов (лежат рядом с guest.html в подпапке img/ или рядом)
+// cap: вместимость (строка, как показывать гостю)
+// ============================================================
+
+const ZONE_DEP_NOTE = {
+  request: { ru: "по запросу", uz: "so'rov bo'yicha", en: "on request" },
+  after2:  { ru: "после 02:00 — без депозита", uz: "02:00 dan keyin — depozitsiz", en: "after 2:00 — no deposit" },
+  wd:      { ru: "будни", uz: "ish kunlari", en: "weekdays" },
+  we:      { ru: "Пт–Сб", uz: "Juma–Shanba", en: "Fri–Sat" },
+  from:    { ru: "от", uz: "dan", en: "from" },
+  sum:     { ru: "сум", uz: "so'm", en: "UZS" },
+  deposit: { ru: "Депозит", uz: "Depozit", en: "Deposit" },
+  capacity:{ ru: "Вместимость", uz: "Sig'im", en: "Capacity" },
+  book:    { ru: "Забронировать", uz: "Bron qilish", en: "Book" },
+  upto:    { ru: "до", uz: "gacha", en: "up to" },
+  guests:  { ru: "чел.", uz: "kishi", en: "guests" },
+  photos_soon:{ ru: "Фото скоро", uz: "Foto tez orada", en: "Photos soon" },
+};
+
+const KARAOKE_ZONES = [
+  {
+    id: "big",
+    name: { ru: "Большой зал", uz: "Katta zal", en: "Big Hall" },
+    desc: {
+      ru: "Главный зал со сценой, барабанами и большим экраном. Живые выступления, диваны и столы — для больших компаний и праздников.",
+      uz: "Sahna, barabanlar va katta ekranli asosiy zal. Jonli chiqishlar, divanlar va stollar — katta kompaniyalar va bayramlar uchun.",
+      en: "The main hall with a stage, drums and a big screen. Live performances, sofas and tables — for big groups and celebrations.",
+    },
+    cap: { ru: "до 80 чел.", uz: "80 kishigacha", en: "up to 80" },
+    dep: "request",
+    imgs: ["bz_1.jpg","bz_2.jpg","bz_3.jpg","bz_4.jpg","bz_5.jpg","bz_6.jpg"],
+  },
+  {
+    id: "small",
+    name: { ru: "Малый зал", uz: "Kichik zal", en: "Small Hall" },
+    desc: {
+      ru: "Уютный зал с кожаными диванами и баром. Только по Пятницам и Субботам.",
+      uz: "Charm divanlar va barli shinam zal. Faqat Juma va Shanba kunlari.",
+      en: "A cosy hall with leather sofas and a bar. Fridays & Saturdays only.",
+    },
+    cap: { ru: "до 30 чел.", uz: "30 kishigacha", en: "up to 30" },
+    dep: "request",
+    note: { ru: "Только Пт–Сб", uz: "Faqat Juma–Shanba", en: "Fri–Sat only" },
+    imgs: ["mz_1.jpg","mz_2.jpg","mz_3.jpg"],
+  },
+  {
+    id: "cab1",
+    name: { ru: "Кабинка №1", uz: "№1 kabina", en: "Room №1" },
+    desc: {
+      ru: "Просторная кабинка с зелёным диваном и неоном SPLETNI. Большой экран, своя аудиосистема.",
+      uz: "Yashil divan va SPLETNI neoni bilan keng kabina. Katta ekran, o'z audio tizimi.",
+      en: "Spacious room with a green sofa and SPLETNI neon. Big screen, own sound system.",
+    },
+    cap: { ru: "до 15 чел.", uz: "15 kishigacha", en: "up to 15" },
+    dep: "request",
+    imgs: ["k1_1.jpg","k1_2.jpg"],
+  },
+  {
+    id: "cab2",
+    name: { ru: "Кабинка №2", uz: "№2 kabina", en: "Room №2" },
+    desc: {
+      ru: "Небольшая уютная кабинка с бежевым диваном — для тёплой компании.",
+      uz: "Bej divanli kichik shinam kabina — yaqin do'stlar uchun.",
+      en: "A small cosy room with a beige sofa — for a close group.",
+    },
+    cap: { ru: "до 4 чел.", uz: "4 kishigacha", en: "up to 4" },
+    dep: "request",
+    imgs: ["k2_1.jpg"],
+  },
+  {
+    id: "cab3",
+    name: { ru: "Кабинка №3", uz: "№3 kabina", en: "Room №3" },
+    desc: {
+      ru: "Небольшая кабинка с зеленью на стене и собственным экраном.",
+      uz: "Devorida ko'kalamzor va o'z ekrani bo'lgan kichik kabina.",
+      en: "A small room with greenery on the wall and its own screen.",
+    },
+    cap: { ru: "до 4 чел.", uz: "4 kishigacha", en: "up to 4" },
+    dep: "request",
+    imgs: ["k3_1.jpg"],
+  },
+  {
+    id: "cab5",
+    name: { ru: "Кабинка №5", uz: "№5 kabina", en: "Room №5" },
+    desc: {
+      ru: "Большая кабинка с диванами и креслами, бонсай в подсвеченном круге.",
+      uz: "Divan va kreslolar, yoritilgan doiradagi bonsay bilan katta kabina.",
+      en: "A large room with sofas and armchairs, bonsai in a lit circle.",
+    },
+    cap: { ru: "до 15 чел.", uz: "15 kishigacha", en: "up to 15" },
+    dep: "request",
+    imgs: ["k5_1.jpg","k5_2.jpg"],
+  },
+  {
+    id: "cab6",
+    name: { ru: "Кабинка №6", uz: "№6 kabina", en: "Room №6" },
+    desc: {
+      ru: "Большая кабинка для компании. Большой экран и аудиосистема.",
+      uz: "Kompaniya uchun katta kabina. Katta ekran va audio tizim.",
+      en: "A large room for a group. Big screen and sound system.",
+    },
+    cap: { ru: "до 15 чел.", uz: "15 kishigacha", en: "up to 15" },
+    dep: "request",
+    imgs: [],
+  },
+  {
+    id: "vip7",
+    name: { ru: "VIP-кабинка №7", uz: "VIP №7 kabina", en: "VIP Room №7" },
+    desc: {
+      ru: "Самая большая VIP-кабинка с неоном SPLETNI, отдельной зоной отдыха и DJ-стойкой. Премиальное пространство для особых вечеров.",
+      uz: "SPLETNI neoni, alohida dam olish zonasi va DJ-stoyka bilan eng katta VIP kabina. Maxsus oqshomlar uchun premium makon.",
+      en: "The largest VIP room with SPLETNI neon, a separate lounge area and a DJ booth. A premium space for special nights.",
+    },
+    cap: { ru: "до 25 чел.", uz: "25 kishigacha", en: "up to 25" },
+    dep: "request",
+    imgs: ["vip7_1.jpg","vip7_2.jpg","vip7_3.jpg"],
+  },
+  {
+    id: "letka",
+    name: { ru: "Летка (терраса)", uz: "Letka (terrasa)", en: "Letka (terrace)" },
+    desc: {
+      ru: "Летняя терраса под навесом: плетёные кресла, зелень, цветы и свежий воздух. Уютные беседки с экранами.",
+      uz: "Soyabon ostidagi yozgi terrasa: to'qilgan kreslolar, ko'kalamzor, gullar va toza havo. Ekranli shinam altanka.",
+      en: "A summer terrace under a canopy: wicker chairs, greenery, flowers and fresh air. Cosy gazebos with screens.",
+    },
+    cap: { ru: "", uz: "", en: "" },
+    dep: "request",
+    imgs: ["letka_1.jpg","letka_2.jpg","letka_3.jpg","letka_4.jpg","letka_5.jpg"],
+  },
+];
+
+const CLUB_ZONES = [
+  {
+    id: "vip",
+    name: { ru: "ВИП", uz: "VIP", en: "VIP" },
+    desc: {
+      ru: "Лучшие места клуба с собственным пространством и сервисом. Идеально для больших компаний.",
+      uz: "Klubning eng yaxshi joylari, alohida makon va xizmat bilan. Katta kompaniyalar uchun ideal.",
+      en: "The club's best seats with a private space and service. Perfect for big groups.",
+    },
+    cap: { ru: "большая компания", uz: "katta kompaniya", en: "large group" },
+    dep: "request",
+    imgs: [],
+  },
+  {
+    id: "podium",
+    name: { ru: "Подиум", uz: "Podium", en: "Podium" },
+    desc: {
+      ru: "Возвышенная зона с синими диванами и видом на танцпол. В центре событий.",
+      uz: "Ko'k divanlar va raqs maydoniga nazar bilan ko'tarilgan zona. Voqealar markazida.",
+      en: "An elevated area with blue sofas and a view of the dance floor. In the heart of the action.",
+    },
+    cap: { ru: "компания", uz: "kompaniya", en: "group" },
+    dep: "request",
+    imgs: ["club_podium_1.jpg","club_podium_2.jpg","club_podium_3.jpg","club_podium_4.jpg"],
+  },
+  {
+    id: "divany",
+    name: { ru: "Красные диваны", uz: "Qizil divanlar", en: "Red Sofas" },
+    desc: {
+      ru: "Яркая зона с красными диванами под неоном — эффектное место в клубе.",
+      uz: "Neon ostidagi qizil divanlar bilan yorqin zona — klubdagi ta'sirli joy.",
+      en: "A vivid area with red sofas under neon — a striking spot in the club.",
+    },
+    cap: { ru: "компания", uz: "kompaniya", en: "group" },
+    dep: "request",
+    imgs: ["club_divany_1.jpg"],
+  },
+  {
+    id: "cocktail",
+    name: { ru: "Коктейльные", uz: "Kokteyl zonasi", en: "Cocktail Area" },
+    desc: {
+      ru: "Уютные места для небольшой компании рядом с баром и танцполом.",
+      uz: "Bar va raqs maydoni yonidagi kichik kompaniya uchun shinam joylar.",
+      en: "Cosy seats for a small group next to the bar and dance floor.",
+    },
+    cap: { ru: "небольшая компания", uz: "kichik kompaniya", en: "small group" },
+    dep: "request",
+    imgs: ["club_cocktail_1.jpg"],
+  },
+  {
+    id: "cab_right",
+    name: { ru: "Кабинка", uz: "Kabina", en: "Room" },
+    desc: {
+      ru: "Отдельная кабинка-клетка с креслами — приватное место в клубе.",
+      uz: "Kreslolar bilan alohida kabina — klubdagi shaxsiy joy.",
+      en: "A separate cage-room with armchairs — a private spot in the club.",
+    },
+    cap: { ru: "компания", uz: "kompaniya", en: "group" },
+    dep: "request",
+    imgs: ["club_cab_1.jpg"],
+  },
+];
+
+
+// ============ СЛОВАРЬ ИНТЕРФЕЙСА (ru/uz/en) ============
+const T = {
+  karaoke:   {ru:"Караоке", uz:"Karaoke", en:"Karaoke"},
+  club:      {ru:"Клуб", uz:"Klub", en:"Club"},
+  tagline:   {ru:"Первый музыкальный мультикомплекс", uz:"Birinchi musiqiy multikompleks", en:"The first music multicomplex"},
+  nav_home:  {ru:"Главная", uz:"Asosiy", en:"Home"},
+  nav_zones: {ru:"Залы", uz:"Zallar", en:"Halls"},
+  nav_menu:  {ru:"Меню", uz:"Menyu", en:"Menu"},
+  nav_book:  {ru:"Бронь", uz:"Bron", en:"Book"},
+  nav_where: {ru:"Адрес", uz:"Manzil", en:"Location"},
+  zones_t:   {ru:"Залы и кабинки", uz:"Zal va kabinalar", en:"Halls & rooms"},
+  menu_t:    {ru:"Меню", uz:"Menyu", en:"Menu"},
+  book_t:    {ru:"Бронирование", uz:"Bron qilish", en:"Booking"},
+  where_t:   {ru:"Как добраться", uz:"Qanday borish", en:"Getting here"},
+  contacts_t:{ru:"Контакты", uz:"Kontaktlar", en:"Contacts"},
+  tab_bar:   {ru:"Бар", uz:"Bar", en:"Bar"},
+  tab_kitchen:{ru:"Кухня", uz:"Oshxona", en:"Kitchen"},
+  tile_menu_sub:{ru:"Бар и кухня", uz:"Bar va oshxona", en:"Bar & kitchen"},
+  tile_zones_sub:{ru:"Фото и вместимость", uz:"Foto va sig'im", en:"Photos & capacity"},
+  tile_book_sub:{ru:"Выбрать стол", uz:"Stol tanlash", en:"Pick a table"},
+  tile_where_sub:{ru:"Адрес и такси", uz:"Manzil va taksi", en:"Address & taxi"},
+  open_maps: {ru:"Маршрут на карте", uz:"Xaritada yo'nalish", en:"Open in maps"},
+  call_taxi: {ru:"Вызвать Яндекс Go", uz:"Yandex Go chaqirish", en:"Order Yandex Go"},
+  call_kar:  {ru:"Позвонить (караоке)", uz:"Qo'ng'iroq (karaoke)", en:"Call (karaoke)"},
+  call_club: {ru:"Позвонить (клуб)", uz:"Qo'ng'iroq (klub)", en:"Call (club)"},
+  hours_t:   {ru:"Часы работы", uz:"Ish vaqti", en:"Opening hours"},
+  addr_t:    {ru:"Адрес", uz:"Manzil", en:"Address"},
+  addr_val:  {ru:"г. Ташкент, Яшнабадский р-н, ул. Sultronali Mashhady, 62",
+              uz:"Toshkent sh., Yashnobod tumani, Sultronali Mashhadiy ko'chasi, 62",
+              en:"Tashkent, Yashnabad district, Sultronali Mashhady st. 62"},
+  daily:     {ru:"Ежедневно", uz:"Har kuni", en:"Daily"},
+  weekdays:  {ru:"Будни", uz:"Ish kunlari", en:"Weekdays"},
+  weekend:   {ru:"Пт–Сб", uz:"Juma–Shanba", en:"Fri–Sat"},
+  soon:      {ru:"Раздел в разработке", uz:"Bo'lim ishlab chiqilmoqda", en:"Coming soon"},
+  soon_sub:  {ru:"Скоро здесь появятся фото залов и онлайн-бронирование столов.",
+              uz:"Tez orada bu yerda zallar fotosi va onlayn bron paydo bo'ladi.",
+              en:"Photos of the halls and online table booking will appear here soon."},
+};
+
+let LANG = "ru";
+let VENUE = "karaoke";       // выбранное заведение
+let MENU_TAB = "bar";        // bar | kitchen
+
+// праздничная палитра для категорий меню (чередуется по кругу)
+const CAT_PALETTE = ["#c9a14a","#1fbf7a","#e2655c","#4a9be2","#b06fd6","#e0913a","#d65c8a","#3fb8b0"];
+
+function t(key){ return (T[key]&&T[key][LANG])||key; }
+function nm(n){ return typeof n==="string" ? n : (n[LANG]||n.ru); }
+
+const KEYHOLE = '<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="38" r="20"/><path d="M42 50 L58 50 L64 82 L36 82 Z"/></svg>';
+
+// иконки навигации
+const IC = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+  zones:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
+  menu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>',
+  where:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.4-7-11A7 7 0 0 1 19 10c0 4.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  taxi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="19.5" r="1.5"/><circle cx="16.5" cy="19.5" r="1.5"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.5 2.6a2 2 0 0 1-.5 1.8L8 9.4a16 16 0 0 0 6 6l1.3-1.1a2 2 0 0 1 1.8-.5l2.6.5a2 2 0 0 1 1.7 2z"/></svg>',
+};
+
+// телефоны и адрес
+const PHONE_KAR = "+998900638888";
+const PHONE_CLUB = "+998940808088";
+const ADDR_LAT = 41.312011, ADDR_LNG = 69.316505; // точные координаты SPLETNI
+
+// ============ РЕНДЕР ГЛАВНОЙ ============
+function renderHome(){
+  const el = document.getElementById("sec-home");
+  el.innerHTML = `
+    <div class="hero">
+      <img src="EXT.jpg" alt="SPLETNI" onerror="this.style.display='none'">
+      <div class="hero-ov"></div>
+      <div class="hero-mark">
+        <div style="color:var(--text)">${KEYHOLE}</div>
+        <div class="name">SPLETNI</div>
+        <div class="tag">${t('tagline')}</div>
+      </div>
+    </div>
+    <div class="venue-switch" id="venue-switch">
+      <button data-v="karaoke" class="${VENUE==='karaoke'?'active':''}">${t('karaoke')}
+        <span class="vs-sub">17:00 – 05:00</span></button>
+      <button data-v="club" class="${VENUE==='club'?'active':''}">${t('club')}
+        <span class="vs-sub">23:00 – 06:00</span></button>
+    </div>
+    <div class="tiles">
+      <button class="tile" data-go="zones"><div class="t-ic">${IC.zones}</div>
+        <div class="t-name">${t('nav_zones')}</div><div class="t-sub">${t('tile_zones_sub')}</div></button>
+      <button class="tile" data-go="menu"><div class="t-ic">${IC.menu}</div>
+        <div class="t-name">${t('nav_menu')}</div><div class="t-sub">${t('tile_menu_sub')}</div></button>
+      <button class="tile" data-go="book"><div class="t-ic">${IC.book}</div>
+        <div class="t-name">${t('nav_book')}</div><div class="t-sub">${t('tile_book_sub')}</div></button>
+      <button class="tile" data-go="location"><div class="t-ic">${IC.where}</div>
+        <div class="t-name">${t('nav_where')}</div><div class="t-sub">${t('tile_where_sub')}</div></button>
+    </div>`;
+  el.querySelectorAll("#venue-switch button").forEach(b=>b.onclick=()=>{VENUE=b.dataset.v;renderAll();});
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+// ============ РЕНДЕР МЕНЮ ============
+function renderMenu(){
+  const el = document.getElementById("sec-menu");
+  const data = MENU_TAB==="bar" ? BAR_MENU : KITCHEN_MENU;
+  let legend = "";
+  if(MENU_TAB==="kitchen"){
+    legend = `<div class="menu-legend">
+      <span class="lg"><span class="bdg chef">${KITCHEN_BADGES.chef[LANG]}</span></span>
+      <span class="lg"><span class="bdg hot">${KITCHEN_BADGES.hot[LANG]}</span></span>
+      <span class="lg"><span class="bdg new">${KITCHEN_BADGES.new[LANG]}</span></span>
+      <span class="lg"><span class="bdg veg">${KITCHEN_BADGES.veg[LANG]}</span></span>
+    </div>`;
+  }
+  const cats = data.map((sec,ci)=>{
+    const col = CAT_PALETTE[ci % CAT_PALETTE.length];
+    const rows = sec.items.map(it=>{
+      const badges = (it.b||[]).map(k=>`<span class="bdg ${k}">${KITCHEN_BADGES[k][LANG]}</span>`).join("");
+      const price = it.p ? it.p : "—";
+      return `<div class="mi"><div class="mi-n">${nm(it.n)}${badges?`<span class="mi-badges">${badges}</span>`:""}</div>
+        <div class="mi-p ${it.p?'':'dash'}">${price}</div></div>`;
+    }).join("");
+    return `<div class="cat"><div class="cat-title" style="color:${col}"><span class="cat-bar" style="background:${col}"></span>${sec.cat[LANG]}</div>${rows}</div>`;
+  }).join("");
+  const note = MENU_TAB==="bar" ? `<div class="menu-note">${BAR_MENU_NOTE[LANG]}</div>` : "";
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('menu_t')}</h2></div>
+    <div class="menu-tabs">
+      <button data-mt="bar" class="${MENU_TAB==='bar'?'active':''}">${t('tab_bar')}</button>
+      <button data-mt="kitchen" class="${MENU_TAB==='kitchen'?'active':''}">${t('tab_kitchen')}</button>
+    </div>
+    ${legend}${cats}${note}`;
+  el.querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>{MENU_TAB=b.dataset.mt;renderMenu();window.scrollTo(0,0);});
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+// ============ КАК ДОБРАТЬСЯ ============
+function renderLocation(){
+  const el = document.getElementById("sec-location");
+  const ymapsUrl = `https://yandex.uz/maps/?rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=auto`;
+  const yandexGo = `https://3.redirect.appmetrica.yandex.com/route?end-lat=${ADDR_LAT}&end-lon=${ADDR_LNG}&ref=spletni`;
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('where_t')}</h2></div>
+    <div class="info-card">
+      <h3>${t('addr_t')}</h3>
+      <p>${t('addr_val')}</p>
+      <div class="btn-row">
+        <a class="btn primary" href="${yandexGo}" target="_blank">${IC.taxi}${t('call_taxi')}</a>
+        <a class="btn" href="${ymapsUrl}" target="_blank">${IC.where}${t('open_maps')}</a>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>${t('hours_t')}</h3>
+      <div class="hours-row"><span class="h-d">${t('karaoke')} · ${t('daily')}</span><span>17:00 – 05:00</span></div>
+      <div class="hours-row"><span class="h-d">${t('club')} · ${t('weekdays')}</span><span>23:00 – 05:00</span></div>
+      <div class="hours-row"><span class="h-d">${t('club')} · ${t('weekend')}</span><span>22:00 – 06:00</span></div>
+    </div>
+    <div class="info-card">
+      <h3>${t('contacts_t')}</h3>
+      <div class="btn-row">
+        <a class="btn" href="tel:${PHONE_KAR}">${IC.phone}${t('call_kar')}</a>
+        <a class="btn" href="tel:${PHONE_CLUB}">${IC.phone}${t('call_club')}</a>
+      </div>
+    </div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+// ============ КОНТАКТЫ ============
+function renderContacts(){
+  const el = document.getElementById("sec-contacts");
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('contacts_t')}</h2></div>
+    <div class="info-card">
+      <h3>Instagram</h3>
+      <div class="btn-row">
+        <a class="btn" href="https://instagram.com/spletni.bar" target="_blank">@spletni.bar (${t('karaoke')})</a>
+        <a class="btn" href="https://instagram.com/spletnibar.ts" target="_blank">@spletnibar.ts (${t('club')})</a>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>${t('hours_t')}</h3>
+      <div class="btn-row">
+        <a class="btn" href="tel:${PHONE_KAR}">${IC.phone}${t('call_kar')}</a>
+        <a class="btn" href="tel:${PHONE_CLUB}">${IC.phone}${t('call_club')}</a>
+      </div>
+    </div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+// ============ ЗАГЛУШКИ (бронь) ============
+function renderStub(secId, title){
+  const el = document.getElementById(secId);
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${title}</h2></div>
+    <div class="stub">${IC.zones}<div style="font-weight:700;margin-bottom:6px">${t('soon')}</div>
+      <div>${t('soon_sub')}</div></div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+// ============ ВИТРИНА ЗАЛОВ ============
+let ZONE_VENUE = "karaoke";          // какой набор зон показываем
+const zgState = {};                  // индекс текущего слайда галереи по zoneId
+
+function zoneImgPath(f){ return "img/" + f; }   // фото лежат в подпапке img/
+
+function renderZones(){
+  const el = document.getElementById("sec-zones");
+  const Z = ZONE_DEP_NOTE;
+  const zones = ZONE_VENUE === "karaoke" ? KARAOKE_ZONES : CLUB_ZONES;
+
+  const cards = zones.map(z => {
+    // галерея
+    let gallery;
+    if (z.imgs && z.imgs.length) {
+      if (zgState[z.id] == null) zgState[z.id] = 0;
+      const slides = z.imgs.map(f => `<div class="zg-slide"><img src="${zoneImgPath(f)}" alt="" loading="lazy"></div>`).join("");
+      const dots = z.imgs.length > 1
+        ? `<div class="zg-dots">${z.imgs.map((_,i)=>`<span class="zg-dot ${i===0?'on':''}" data-zd="${z.id}:${i}"></span>`).join("")}</div>` : "";
+      const arrows = z.imgs.length > 1
+        ? `<button class="zg-arrow zg-prev" data-zg="${z.id}:-1">‹</button><button class="zg-arrow zg-next" data-zg="${z.id}:1">›</button>` : "";
+      const count = z.imgs.length > 1 ? `<div class="zg-count" id="zgc-${z.id}">1 / ${z.imgs.length}</div>` : "";
+      gallery = `<div class="zone-gallery" id="zg-${z.id}">
+        <div class="zg-track" id="zgt-${z.id}">${slides}</div>${arrows}${dots}${count}</div>`;
+    } else {
+      gallery = `<div class="zone-gallery"><div class="zg-nophoto">${KEYHOLE}<span>${Z.photos_soon[LANG]}</span></div></div>`;
+    }
+
+    // метки: вместимость + депозит «по запросу»
+    const tags = [];
+    if (z.cap && z.cap[LANG]) {
+      tags.push(`<span class="zone-tag"><svg class="zt-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 6a3 3 0 0 1 0 6M21 20c0-2.5-2-4-4-4.5"/></svg><b>${z.cap[LANG]}</b></span>`);
+    }
+    tags.push(`<span class="zone-tag">${Z.deposit[LANG]}: <b>${Z.request[LANG]}</b></span>`);
+
+    const note = z.note ? `<div class="zone-note">${z.note[LANG]}</div>` : "";
+
+    return `<div class="zone-card">
+      ${gallery}
+      <div class="zone-body">
+        <h3>${z.name[LANG]}</h3>
+        <div class="zone-meta">${tags.join("")}</div>
+        ${note}
+        <div class="zone-desc">${z.desc[LANG]}</div>
+        <button class="zone-book-btn" data-zbook="${z.id}">${IC.book}${Z.book[LANG]}</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('zones_t')}</h2></div>
+    <div class="zone-venue-tabs">
+      <button data-zv="karaoke" class="${ZONE_VENUE==='karaoke'?'active':''}">${t('karaoke')}</button>
+      <button data-zv="club" class="${ZONE_VENUE==='club'?'active':''}">${t('club')}</button>
+    </div>
+    ${cards}`;
+
+  // навигация разделов
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  // переключение заведения
+  el.querySelectorAll("[data-zv]").forEach(b=>b.onclick=()=>{ZONE_VENUE=b.dataset.zv;renderZones();window.scrollTo(0,0);});
+  // стрелки галереи
+  el.querySelectorAll("[data-zg]").forEach(b=>b.onclick=()=>{
+    const [id,dir] = b.dataset.zg.split(":");
+    zgMove(id, parseInt(dir,10));
+  });
+  // точки галереи
+  el.querySelectorAll("[data-zd]").forEach(d=>d.onclick=()=>{
+    const [id,i] = d.dataset.zd.split(":");
+    zgGo(id, parseInt(i,10));
+  });
+  // кнопка брони → пока ведёт в раздел брони (этап 3)
+  el.querySelectorAll("[data-zbook]").forEach(b=>b.onclick=()=>{ go("book"); });
+}
+
+function zgCount(id){
+  const zones = [...KARAOKE_ZONES, ...CLUB_ZONES];
+  const z = zones.find(x=>x.id===id);
+  return z && z.imgs ? z.imgs.length : 0;
+}
+function zgGo(id, i){
+  const n = zgCount(id); if (n<=1) return;
+  zgState[id] = (i + n) % n;
+  const track = document.getElementById("zgt-"+id);
+  if (track) track.style.transform = `translateX(-${zgState[id]*100}%)`;
+  const c = document.getElementById("zgc-"+id);
+  if (c) c.textContent = `${zgState[id]+1} / ${n}`;
+  document.querySelectorAll(`[data-zd^="${id}:"]`).forEach((d,idx)=>d.classList.toggle("on", idx===zgState[id]));
+}
+function zgMove(id, dir){ zgGo(id, (zgState[id]||0) + dir); }
+
+// ============ НАВИГАЦИЯ ============
+const NAV = [
+  {id:"home", key:"nav_home", ic:"home"},
+  {id:"zones", key:"nav_zones", ic:"zones"},
+  {id:"menu", key:"nav_menu", ic:"menu"},
+  {id:"book", key:"nav_book", ic:"book"},
+  {id:"location", key:"nav_where", ic:"where"},
+];
+let CUR = "home";
+function renderNav(){
+  const nb = document.getElementById("navbar");
+  nb.innerHTML = NAV.map(n=>`<button data-go="${n.id}" class="${CUR===n.id?'active':''}">${IC[n.ic]}<span>${t(n.key)}</span></button>`).join("");
+  nb.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+function go(id){
+  CUR = id;
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  const map = {home:"sec-home",zones:"sec-zones",menu:"sec-menu",book:"sec-book",location:"sec-location",contacts:"sec-contacts"};
+  document.getElementById(map[id]).classList.add("active");
+  renderNav();
+  window.scrollTo(0,0);
+}
+
+// ============ ПЕРЕРИСОВКА ВСЕГО (при смене языка/заведения) ============
+function renderAll(){
+  renderHome();
+  renderMenu();
+  renderLocation();
+  renderContacts();
+  renderZones();
+  renderStub("sec-book", t('book_t'));
+  renderNav();
+}
+
+// язык
+document.getElementById("lang-tabs").querySelectorAll("button").forEach(b=>{
+  b.onclick=()=>{
+    LANG=b.dataset.l;
+    document.getElementById("lang-tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x.dataset.l===LANG));
+    document.documentElement.lang=LANG;
+    renderAll();
+  };
+});
+
+// Telegram init
+try{ const tg=window.Telegram&&window.Telegram.WebApp; if(tg){ tg.ready(); tg.expand(); } }catch(_){}
+
+renderAll();
+
+</script>
+</body>
+</html>
