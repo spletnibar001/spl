@@ -284,6 +284,15 @@ textarea.bk-input{resize:vertical;min-height:48px}
 .bk-submit{width:100%;margin-top:8px;padding:14px;border:none;background:var(--emerald);color:#08130d;
   border-radius:12px;font-size:15px;font-weight:800;font-family:inherit}
 .bk-submit:disabled{opacity:.6}
+.bk-submit.danger{background:#e06464;color:#fff}
+.bk-submit.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+.bk-cancel-own{width:100%;margin-top:10px;padding:13px;border:1px solid rgba(224,100,100,.5);
+  background:transparent;color:#e06464;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.bk-cancel-own:active{background:rgba(224,100,100,.1)}
+.bk-co-textarea{width:100%;margin-top:8px;background:transparent;border:1px solid var(--line);color:var(--text);
+  border-radius:12px;padding:12px;font-size:15px;font-family:inherit;line-height:1.45;resize:vertical;box-sizing:border-box}
+.bk-co-textarea:focus{outline:none;border-color:var(--emerald)}
+.bk-co-msg{color:#e06464;font-size:13px;margin-top:6px;min-height:16px}
 .bk-done{text-align:center;padding:24px 10px}
 .bk-done-ic{width:64px;height:64px;border-radius:50%;background:rgba(31,191,122,.16);color:var(--emerald);
   font-size:34px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
@@ -1108,6 +1117,13 @@ const T = {
   bk_lbl_deposit: {ru:"Депозит", uz:"Depozit", en:"Deposit", kz:"Депозит", kg:"Депозит", tj:"Депозит", cn:"押金"},
   bk_lbl_guests: {ru:"Гостей", uz:"Mehmonlar", en:"Guests", kz:"Қонақтар", kg:"Коноктор", tj:"Меҳмонон", cn:"人数"},
   bk_lbl_reason: {ru:"Причина", uz:"Sabab", en:"Reason", kz:"Себебі", kg:"Себеби", tj:"Сабаб", cn:"原因"},
+  bk_cancel_own: {ru:"Отменить бронь", uz:"Bronni bekor qilish", en:"Cancel booking", kz:"Броньды болдырмау", kg:"Бронду жокко чыгаруу", tj:"Бекор кардани брон", cn:"取消预订"},
+  bk_cancel_title: {ru:"Отмена брони", uz:"Bronni bekor qilish", en:"Cancel booking", kz:"Броньды болдырмау", kg:"Бронду жокко чыгаруу", tj:"Бекор кардани брон", cn:"取消预订"},
+  bk_cancel_q: {ru:"Укажите причину отмены — мы передадим её администратору:", uz:"Bekor qilish sababini yozing — biz uni administratorga yetkazamiz:", en:"Please tell us why you're cancelling — we'll pass it to the manager:", kz:"Болдырмау себебін жазыңыз — оны әкімшіге жеткіземіз:", kg:"Жокко чыгаруу себебин жазыңыз — аны администраторго жеткиребиз:", tj:"Сабаби бекоркуниро нависед — мо онро ба маъмур мерасонем:", cn:"请说明取消原因——我们会转告管理员："},
+  bk_cancel_ph: {ru:"Напр.: поменялись планы", uz:"Masalan: rejalar o'zgardi", en:"E.g. plans changed", kz:"Мысалы: жоспар өзгерді", kg:"Мисалы: пландар өзгөрдү", tj:"Мас.: нақшаҳо тағйир ёфтанд", cn:"例如：计划有变"},
+  bk_cancel_confirm: {ru:"Отменить бронь", uz:"Bronni bekor qilish", en:"Cancel booking", kz:"Броньды болдырмау", kg:"Бронду жокко чыгаруу", tj:"Бекор кардан", cn:"确认取消"},
+  bk_cancel_back: {ru:"Назад", uz:"Orqaga", en:"Back", kz:"Артқа", kg:"Артка", tj:"Бозгашт", cn:"返回"},
+  bk_cancel_done: {ru:"Бронь отменена. Спасибо, что предупредили!", uz:"Bron bekor qilindi. Ogohlantirganingiz uchun rahmat!", en:"Booking cancelled. Thanks for letting us know!", kz:"Бронь болдырылмады. Хабарлағаныңызға рахмет!", kg:"Бронь жокко чыгарылды. Эскерткениңизге рахмат!", tj:"Брон бекор шуд. Ташаккур, ки огоҳ кардед!", cn:"预订已取消。感谢您的告知！"},
   bk_no_deposit: {ru:"уточняется", uz:"aniqlanmoqda", en:"to be confirmed", kz:"нақтыланады", kg:"такталат", tj:"мушаххас мешавад", cn:"待确认"},
   bk_declined_sub: {ru:"К сожалению, мы не можем подтвердить эту бронь. Свяжитесь с нами по телефону или оставьте новую заявку на другую дату.", uz:"Afsuski, bu bronni tasdiqlay olmaymiz. Biz bilan telefon orqali bog'laning yoki boshqa sanaga yangi ariza qoldiring.", en:"Unfortunately we can't confirm this booking. Please call us or submit a new request for another date.", kz:"Өкінішке орай, бұл бронды растай алмаймыз. Бізге телефон арқылы хабарласыңыз немесе басқа күнге жаңа өтінім қалдырыңыз.", kg:"Тилекке каршы, бул бронду ырастай албайбыз. Биз менен телефон аркылуу байланышыңыз же башка күнгө жаңы өтүнмө калтырыңыз.", tj:"Мутаассифона, мо ин бронро тасдиқ карда наметавонем. Бо мо тариқи телефон тамос гиред ё дархости нав барои санаи дигар гузоред.", cn:"很抱歉，我们无法确认此预订。请致电我们或为其他日期提交新申请。"},
   bk_confirmed_sub: {ru:"Ждём вас! Если планы изменятся — позвоните нам заранее.", uz:"Sizni kutamiz! Rejalar o'zgarsa — oldindan qo'ng'iroq qiling.", en:"See you soon! If your plans change, please call us in advance.", kz:"Сізді күтеміз! Жоспар өзгерсе — алдын ала қоңырау шалыңыз.", kg:"Сизди күтөбүз! Пландар өзгөрсө — алдын ала чалыңыз.", tj:"Шуморо интизорем! Агар нақшаҳо тағйир ёбанд — пешакӣ занг занед.", cn:"恭候光临！若计划有变，请提前致电我们。"},
@@ -1538,6 +1554,8 @@ async function renderBook(force){
   if(last && (last.status==="request" || last.status==="booked")){
     const note = last.status==="request" ? `<div class="bk-note">${t('bk_have_active')}</div>` : "";
     body.innerHTML = bkfStatusCard(last) + note;
+    const co=document.getElementById("bk-cancel-own");
+    if(co) co.onclick=()=>bkfCancelOwnPrompt(last.id);
     bkfSubscribe(last.id);   // realtime: мгновенно обновим при подтверждении/отказе
     return;
   }
@@ -1556,6 +1574,44 @@ async function renderBook(force){
 }
 
 // карточка статуса: подтверждена / на рассмотрении / отклонена
+// показать окно ввода причины отмены своей подтверждённой брони
+function bkfCancelOwnPrompt(bookingId){
+  const body = document.getElementById("bk-body");
+  if(!body) return;
+  bkfStopPoll();
+  try{ if(BK_SUB){ SB.removeChannel(BK_SUB); BK_SUB=null; } }catch(_){}
+  BKF_FORM_OPEN = true;   // не даём фоновому обновлению перерисовать экран
+  body.innerHTML = `
+    <div class="bk-note">${t('bk_cancel_q')}</div>
+    <textarea id="bk-co-reason" class="bk-co-textarea" rows="3" placeholder="${t('bk_cancel_ph')}"></textarea>
+    <div id="bk-co-msg" class="bk-co-msg"></div>
+    <button class="bk-submit danger" id="bk-co-ok" style="margin-top:8px">${t('bk_cancel_confirm')}</button>
+    <button class="bk-submit ghost" id="bk-co-back" style="margin-top:8px">${t('bk_cancel_back')}</button>`;
+  document.getElementById("bk-co-back").onclick=()=>{ BKF_FORM_OPEN=false; renderBook(true); };
+  document.getElementById("bk-co-ok").onclick=async function(){
+    const reason = (document.getElementById("bk-co-reason").value||"").trim();
+    if(!reason){ document.getElementById("bk-co-msg").textContent = t('bk_pick_reason')||"Напишите причину"; return; }
+    this.disabled=true; this.textContent="…";
+    try{
+      const upd = {
+        status:"cancelled",
+        cancel_reason: "Отмена гостем: " + reason,
+        cancelled_by_name: "Гость" + (GUEST && GUEST.name ? (" · "+GUEST.name) : ""),
+        cancelled_at: new Date().toISOString()
+      };
+      const { error } = await SB.from("bookings").update(upd).eq("id", bookingId).eq("created_by", Number(GUEST.tg_id));
+      if(error){ document.getElementById("bk-co-msg").textContent = error.message; this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
+    }catch(e){ document.getElementById("bk-co-msg").textContent = String(e.message||e); this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
+    BKF_FORM_OPEN=false;
+    try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
+    body.innerHTML = `<div class="bk-res ok"><div class="bk-res-ic">✓</div>
+      <div class="bk-res-h">${t('bk_cancel_done')}</div>
+      <button class="bk-submit" data-go="home" style="margin-top:18px">${t('bk_done_btn')}</button></div>`;
+    body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+    mybkRefresh();
+  };
+}
+
 function bkfStatusCard(b){
   // подтверждена
   if(b.status==="booked"){
@@ -1594,6 +1650,7 @@ function bkfStatusCard(b){
           <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_deposit')}</span><span class="bk-res-v dep">${dep}</span></div>
         </div>
         ${actions}
+        <button class="bk-cancel-own" id="bk-cancel-own" data-bid="${b.id}">${t('bk_cancel_own')}</button>
       </div>`;
   }
   // отклонена
@@ -1668,6 +1725,8 @@ function bkfApplyStatusUpdate(row){
   if(!body) return;
   if(row.status==="booked"){
     body.innerHTML = bkfStatusCard(row);
+    const co=document.getElementById("bk-cancel-own");
+    if(co) co.onclick=()=>bkfCancelOwnPrompt(row.id);
     try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
     bkfStopPoll();
   }else if(row.status==="cancelled"){
