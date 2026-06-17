@@ -3011,8 +3011,7 @@ function bkMgmtHead(venueKey){
   const fmtNames = arr => arr.map(it=>{
     const nm = (it && it.name!=null) ? it.name : it;
     const on = it && it.checkedIn;
-    const role = it && it.role ? `<span class="mh-role"> · ${it.role}</span>` : "";
-    return `<span class="st-nm${on?' in':''}">${nm}${role}</span>`;
+    return `<span class="st-nm${on?' in':''}">${nm}</span>`;
   }).join(", ");
   const lines = [];
   if(m.mgr && m.mgr.length){
