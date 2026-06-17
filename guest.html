@@ -47,7 +47,7 @@ button{font-family:inherit;cursor:pointer}
 .venue-prompt{text-align:center;font-size:15px;font-weight:700;color:var(--gold);margin:4px 0 12px;letter-spacing:.02em}
 .venue-switch{display:flex;gap:8px;margin-bottom:18px}
 .venue-switch button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--text);
-  border-radius:14px;padding:16px 10px;font-size:15px;font-weight:800;letter-spacing:.04em;position:relative}
+  border-radius:14px;padding:16px 8px;font-size:14px;font-weight:800;letter-spacing:.01em;position:relative;line-height:1.25}
 .venue-switch button.active{border-color:var(--emerald);background:var(--panel2)}
 .venue-switch button .vs-sub{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:3px;letter-spacing:0}
 
@@ -96,9 +96,8 @@ button{font-family:inherit;cursor:pointer}
 .hc-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;font-family:inherit}
 .hc-btn svg{width:18px;height:18px}
 .hc-btn.call{background:var(--panel2);border:1px solid var(--line);color:var(--text);flex:1}
-.hc-tg{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;text-decoration:none;
-  background:rgba(42,140,224,.16);border:1px solid #2a8ce0;color:#5bb0f0;border-radius:12px;padding:13px;font-size:14px;font-weight:700}
-.hc-tg svg{width:20px;height:20px}
+.hc-btn.tg{background:rgba(42,140,224,.16);border:1px solid #2a8ce0;color:#5bb0f0;flex-shrink:0;padding:10px 16px}
+.hc-btn.tg svg{width:20px;height:20px}
 
 /* ЗАГОЛОВОК РАЗДЕЛА */
 .sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -860,7 +859,7 @@ const KARAOKE_ZONES = [
   },
   {
     id: "letka",
-    name: { ru: "Летка (терраса)", uz: "Letka (terrasa)", en: "Letka (terrace)" },
+    name: { ru: "Летка (Летняя чилл-аут зона)", uz: "Letka (Yozgi chill-out zona)", en: "Letka (Summer chill-out zone)" },
     desc: {
       ru: "Летняя терраса под навесом: плетёные кресла, зелень, цветы и свежий воздух. Уютные беседки с экранами.",
       uz: "Soyabon ostidagi yozgi terrasa: to'qilgan kreslolar, ko'kalamzor, gullar va toza havo. Ekranli shinam altanka.",
@@ -956,7 +955,7 @@ const T = {
   tile_menu_sub:{ru:"Бар и кухня", uz:"Bar va oshxona", en:"Bar & kitchen"},
   tile_zones_sub:{ru:"Фото и вместимость", uz:"Foto va sig'im", en:"Photos & capacity"},
   tile_book_sub:{ru:"Выбрать стол", uz:"Stol tanlash", en:"Pick a table"},
-  tile_where_sub:{ru:"Адрес и такси", uz:"Manzil va taksi", en:"Address & taxi"},
+  tile_where_sub:{ru:"Локация и вызов такси", uz:"Lokatsiya va taksi chaqirish", en:"Location & taxi"},
   open_maps: {ru:"Маршрут на карте", uz:"Xaritada yo'nalish", en:"Open in maps"},
   call_taxi: {ru:"Вызвать Яндекс Go", uz:"Yandex Go chaqirish", en:"Order Yandex Go"},
   call_kar:  {ru:"Позвонить (караоке)", uz:"Qo'ng'iroq (karaoke)", en:"Call (karaoke)"},
@@ -1011,7 +1010,8 @@ const T = {
   },
   reviews_btn:{ru:"Отзывы на Яндексе", uz:"Yandex'dagi sharhlar", en:"Reviews on Yandex"},
   reviews_sub:{ru:"5.0 ★ · 386 отзывов", uz:"5.0 ★ · 386 sharh", en:"5.0 ★ · 386 reviews"},
-  venue_prompt:{ru:"Выберите место для брони", uz:"Bron uchun joyni tanlang", en:"Choose a place to book"},
+  venue_prompt:{ru:"Выберите место для брони:", uz:"Bron uchun joyni tanlang:", en:"Choose a place to book:"},
+  venue_kar_long:{ru:"Караоке, Летка, Терраса", uz:"Karaoke, Letka, Terrasa", en:"Karaoke, Letka, Terrace"},
   nav_dress:  {ru:"Фейс-контроль", uz:"Feys-nazorat", en:"Face Control"},
   tile_dress_sub:{ru:"Дресс-код и вход", uz:"Dress-kod va kirish", en:"Dress code & entry"},
   dress_t:    {ru:"Face & Dress Control", uz:"Face & Dress Control", en:"Face & Dress Control"},
@@ -1074,9 +1074,9 @@ const IC = {
 const PHONE_KAR = "+998900638888";
 const PHONE_CLUB = "+998940808088";
 const ADDR_LAT = 41.312011, ADDR_LNG = 69.316505; // точные координаты SPLETNI
-// Telegram для связи: общий аккаунт бара. Клубовский добавим позже (пока null = заглушка).
+// Telegram для связи
 const TG_KAR = "spletni_bar";
-const TG_CLUB = null;   // TODO: заполнить username клуба, когда будет
+const TG_CLUB = "spletnibarts";
 
 // ============ ПОДКЛЮЧЕНИЕ К БАЗЕ / АВТОРИЗАЦИЯ ГОСТЯ ============
 const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
@@ -1127,7 +1127,7 @@ function renderHome(){
     </div>
     <div class="venue-prompt">${t('venue_prompt')}</div>
     <div class="venue-switch" id="venue-switch">
-      <button data-vgo="karaoke">${t('karaoke')}
+      <button data-vgo="karaoke">${t('venue_kar_long')}
         <span class="vs-sub">17:00 – 05:00</span></button>
       <button data-vgo="club">${t('club')}
         <span class="vs-sub">23:00 – 06:00</span></button>
@@ -1156,15 +1156,16 @@ function renderHome(){
         <div class="hc-vname">${t('hc_kar')}</div>
         <div class="hc-actions">
           <a class="hc-btn call" href="tel:${PHONE_KAR}">${IC.phone}<span>${PHONE_KAR.replace('+998','+998 ')}</span></a>
+          <a class="hc-btn tg" href="https://t.me/${TG_KAR}" target="_blank" rel="noopener">${IC.tg}</a>
         </div>
       </div>
       <div class="hc-venue">
         <div class="hc-vname">${t('hc_club')}</div>
         <div class="hc-actions">
           <a class="hc-btn call" href="tel:${PHONE_CLUB}">${IC.phone}<span>${PHONE_CLUB.replace('+998','+998 ')}</span></a>
+          <a class="hc-btn tg" href="https://t.me/${TG_CLUB}" target="_blank" rel="noopener">${IC.tg}</a>
         </div>
       </div>
-      <a class="hc-tg" href="https://t.me/${TG_KAR}" target="_blank" rel="noopener">${IC.tg}<span>${t('hc_tg')}</span></a>
     </div>`;
   // верхние кнопки открывают залы нужного заведения
   el.querySelectorAll("#venue-switch button").forEach(b=>b.onclick=()=>{
