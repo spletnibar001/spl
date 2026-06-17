@@ -2337,25 +2337,19 @@ function xlsxDownload(wb, filename){
   const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
   const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   const url = URL.createObjectURL(blob);
-  // обычное скачивание
+  let clicked = false;
   try{
     const a = document.createElement("a");
     a.href = url; a.download = filename; a.rel = "noopener";
-    document.body.appendChild(a); a.click();
+    document.body.appendChild(a);
+    a.click();
+    clicked = true;
     setTimeout(()=>{ try{ document.body.removeChild(a); }catch(_){} }, 1500);
   }catch(_){}
-  // фолбэк для Telegram WebView: часто прямое скачивание блокируется —
-  // пробуем открыть файл во внешнем браузере, откуда его можно сохранить
-  const tg = window.Telegram && window.Telegram.WebApp;
-  const isTG = tg && tg.platform && tg.platform!=="unknown";
-  if(isTG){
-    try{
-      // даём браузеру мгновение на попытку скачивания, затем открываем ссылку наружу
-      setTimeout(()=>{ try{ tg.openLink(url, {try_instant_view:false}); }catch(_){ window.open(url, "_blank"); } }, 400);
-      showMsg("Файл готов. Если не скачался — откроется во внешнем браузере, сохраните оттуда.", true);
-    }catch(_){ showMsg("Файл готов.", true); }
+  if(clicked){
+    showMsg("Файл «"+filename+"» готов — проверьте папку «Загрузки».", true);
   } else {
-    showMsg("Файл готов — проверьте загрузки.", true);
+    showMsg("Не удалось сохранить файл. Откройте табель в браузере на компьютере и повторите.", true);
   }
   setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 60000);
 }
