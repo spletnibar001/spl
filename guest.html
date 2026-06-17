@@ -90,6 +90,12 @@ button{font-family:inherit;cursor:pointer}
 .hc-addr .hc-ic svg{width:20px;height:20px}
 .hc-addr .hc-lbl{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
 .hc-addr .hc-val{display:block;font-size:13px;line-height:1.4}
+.hc-sites{padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.hc-sites .hc-lbl{display:block;font-size:11px;color:var(--muted);margin-bottom:8px}
+.hc-site-row{display:flex;flex-direction:column;gap:8px}
+.hc-site{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text);
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600}
+.hc-site svg{width:17px;height:17px;color:var(--emerald);flex-shrink:0}
 .hc-venue{margin-bottom:12px}
 .hc-venue .hc-vname{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
 .hc-actions{display:flex;gap:8px}
@@ -1042,6 +1048,7 @@ const T = {
   hc_club:    {ru:"Ночной клуб", uz:"Tungi klub", en:"Nightclub"},
   hc_call:    {ru:"Позвонить", uz:"Qo'ng'iroq", en:"Call"},
   hc_tg:      {ru:"Написать в Telegram", uz:"Telegram'ga yozish", en:"Message on Telegram"},
+  hc_sites:   {ru:"Сайты", uz:"Saytlar", en:"Websites"},
 };
 
 let LANG = "ru";
@@ -1068,6 +1075,7 @@ const IC = {
   star:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>',
   dress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2l3 3 3-3"/><path d="M12 5v3"/><path d="M8 8l-2 4 6 10 6-10-2-4"/><path d="M6 12h12"/></svg>',
   tg:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.9 4.3l-3.3 15.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.1 13.4l-4.9-1.5c-1.1-.3-1.1-1 .2-1.5l19.2-7.4c.9-.3 1.7.2 1.4 1.3z"/></svg>',
+  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z"/></svg>',
 };
 
 // телефоны и адрес
@@ -1152,6 +1160,13 @@ function renderHome(){
         <span class="hc-ic">${IC.where}</span>
         <span><span class="hc-lbl">${t('hc_addr_lbl')}</span><span class="hc-val">${t('addr_val')}</span></span>
       </a>
+      <div class="hc-sites">
+        <span class="hc-lbl">${t('hc_sites')}</span>
+        <div class="hc-site-row">
+          <a class="hc-site" href="https://karaoketashkent.uz" target="_blank" rel="noopener">${IC.globe}<span>karaoketashkent.uz</span></a>
+          <a class="hc-site" href="https://nightclub.uz" target="_blank" rel="noopener">${IC.globe}<span>nightclub.uz</span></a>
+        </div>
+      </div>
       <div class="hc-venue">
         <div class="hc-vname">${t('hc_kar')}</div>
         <div class="hc-actions">
