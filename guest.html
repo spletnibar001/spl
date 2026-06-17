@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -271,6 +272,7 @@ button{font-family:inherit;cursor:pointer}
 .bk-times button{padding:9px 4px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
   border-radius:9px;font-size:13px;font-weight:600;font-family:inherit}
 .bk-times button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-times button.past,.bk-times button:disabled{opacity:.32;text-decoration:line-through;cursor:not-allowed}
 .bk-bizday{font-size:11px;line-height:1.5;color:var(--muted);background:rgba(201,161,74,.10);
   border:1px solid rgba(201,161,74,.3);border-radius:9px;padding:9px 11px;margin-top:9px}
 .bk-input{width:100%;padding:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
@@ -1123,6 +1125,7 @@ const T = {
   bk_tomorrow: {ru:"Завтра", uz:"Ertaga", en:"Tomorrow", kz:"Ертең", kg:"Эртең", tj:"Фардо", cn:"明天"},
   bk_time: {ru:"Время прихода", uz:"Kelish vaqti", en:"Arrival time", kz:"Келу уақыты", kg:"Келүү убактысы", tj:"Вақти омадан", cn:"到店时间"},
   bk_pick_time: {ru:"Выберите время прихода", uz:"Kelish vaqtini tanlang", en:"Pick an arrival time", kz:"Келу уақытын таңдаңыз", kg:"Келүү убактысын тандаңыз", tj:"Вақти омаданро интихоб кунед", cn:"请选择到店时间"},
+  bk_time_passed: {ru:"Это время уже прошло — выберите более позднее", uz:"Bu vaqt o'tib ketdi — kechroq vaqtni tanlang", en:"That time has already passed — pick a later one", kz:"Бұл уақыт өтіп кетті — кейінірек таңдаңыз", kg:"Бул убакыт өтүп кетти — кечирээк тандаңыз", tj:"Ин вақт гузаштааст — дертар интихоб кунед", cn:"该时间已过，请选择更晚的时间"},
   bk_bizday: {ru:"Ночное время (после полуночи до 05:00) относится к выбранной дате — это та же ночь. Например, 02:00 в ночь с пятницы на субботу выбирайте как «пятница».", uz:"Tungi vaqt (yarim tundan keyin 05:00 gacha) tanlangan kunga tegishli — bu o'sha tun. Masalan, juma kechasi 02:00 uchun «juma»ni tanlang.", en:"Late-night hours (after midnight until 05:00) belong to the selected date — it's the same night. E.g. for 02:00 on Friday night, pick \"Friday\".", kz:"Түнгі уақыт (түн ортасынан кейін 05:00-ге дейін) таңдалған күнге жатады — бұл сол түн. Мысалы, жұма түні 02:00 үшін «жұманы» таңдаңыз.", kg:"Түнкү убакыт (түн ортосунан кийин 05:00гө чейин) тандалган күнгө таандык — бул ошол түн. Мисалы, жума түнү 02:00 үчүн «жуманы» тандаңыз.", tj:"Вақти шабона (баъд аз нисфи шаб то 05:00) ба санаи интихобшуда тааллуқ дорад — ин ҳамон шаб аст. Масалан, барои 02:00-и шаби ҷумъа «ҷумъа»-ро интихоб кунед.", cn:"凌晨时段（午夜后至凌晨05:00）算作所选日期——属于同一晚。例如周五夜里02:00，请选择「周五」。"},
   about_text: {ru:"SPLETNI — первый музыкальный мультикомплекс Ташкента: четыре формата отдыха в одном месте. Караоке-рестобар с ВИП-кабинками и, пожалуй, лучшим звуком в городе, ночной клуб с DJ-сетами, уютная лаунж-терраса и летняя чилл-аут зона. Профессиональная акустика, авторские коктейли и кухня — для шумных компаний и спокойных вечеров.", uz:"SPLETNI — Toshkentdagi birinchi musiqiy multikompleks: bitta joyda to'rtta dam olish formati. VIP-kabinali va shahardagi eng yaxshi ovozli karaoke-restobar, DJ-setli tungi klub, shinam laund-terrasa va yozgi chill-out zona. Professional akustika, mualliflik kokteyllari va oshxona — shovqinli kompaniyalar va tinch oqshomlar uchun.", en:"SPLETNI is Tashkent's first music multicomplex — four formats of leisure in one place. A karaoke restobar with VIP rooms and arguably the best sound in the city, a nightclub with DJ sets, a cosy lounge terrace and a summer chill-out zone. Professional acoustics, signature cocktails and kitchen — for lively parties and quiet evenings.", kz:"SPLETNI — Ташкенттегі бірінші музыкалық мультикешен: бір орында демалыстың төрт форматы. ВИП-кабиналары бар әрі қаладағы ең үздік дыбысты караоке-рестобар, DJ-сетті түнгі клуб, жайлы лаунж-терраса және жазғы чилл-аут аймағы.", kg:"SPLETNI — Ташкенттеги биринчи музыкалык мультикомплекс: бир жерде эс алуунун төрт форматы. ВИП-кабиналуу жана шаардагы эң мыкты үндүү караоке-рестобар, DJ-сетти түнкү клуб, жайлуу лаунж-терраса жана жайкы чилл-аут аймагы.", tj:"SPLETNI — маҷмааи якуми мусиқии Тошканд: чор формати фароғат дар як ҷой. Караоке-ресторан бо кабинаҳои ВИП ва беҳтарин садо дар шаҳр, клуби шабона бо DJ, террасаи бароҳат ва минтақаи чилл-аути тобистона.", cn:"SPLETNI 是塔什干首个音乐综合空间：一处汇集四种休闲形式。设有VIP包间、拥有全城顶级音响的卡拉OK餐吧、DJ夜店、舒适休息露台以及夏季悠闲区。"},
   reviews_btn: {ru:"Отзывы на Яндексе", uz:"Yandex'dagi sharhlar", en:"Reviews on Yandex", kz:"Яндекстегі пікірлер", kg:"Яндекстеги пикирлер", tj:"Шарҳҳо дар Yandex", cn:"Yandex 上的评价"},
@@ -1758,9 +1761,12 @@ function bkfDrawForm(){
 
   // интервалы времени с шагом 30 мин. Порядок — по «ночи»: с 18:00 до 04:30
   const slots = bkfTimeSlots();
-  const timeBtns = `<div class="bk-times">` + slots.map(tm=>
-    `<button data-bt="${tm}" class="${BK_STATE.time===tm?'on':''}">${tm}</button>`
-  ).join("") + `</div>`;
+  // если выбранное время уже прошло (для сегодняшней даты) — сбросить
+  if(BK_STATE.time && bkfSlotPassed(BK_STATE.date, BK_STATE.time)) BK_STATE.time=null;
+  const timeBtns = `<div class="bk-times">` + slots.map(tm=>{
+    const passed = bkfSlotPassed(BK_STATE.date, tm);
+    return `<button data-bt="${tm}" ${passed?'disabled class="past"':`class="${BK_STATE.time===tm?'on':''}"`}>${tm}</button>`;
+  }).join("") + `</div>`;
 
   const guestOpts = [1,2,3,4,5,6,8,10,12,15,20].map(n=>
     `<option value="${n}" ${BK_STATE.guests==n?'selected':''}>${n}${n>=20?'+':''}</option>`).join("");
@@ -1795,7 +1801,7 @@ function bkfDrawForm(){
 
   body.querySelectorAll("[data-bv]").forEach(b=>b.onclick=()=>{ BK_STATE.venue=b.dataset.bv; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bd]").forEach(b=>b.onclick=()=>{ BK_STATE.date=b.dataset.bd; bkfSaveInputs(); bkfDrawForm(); });
-  body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
+  body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ if(b.disabled||bkfSlotPassed(BK_STATE.date,b.dataset.bt)) return; BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
   // форматирование телефона с пробелами при вводе: +998 90 063 88 88
   const phEl=document.getElementById("bk-phone");
@@ -1834,6 +1840,19 @@ function bkfTimeSlots(){
   return out;
 }
 function pad2(n){ return String(n).padStart(2,"0"); }
+// прошёл ли слот времени для выбранной бизнес-даты (с запасом 0 мин).
+// учитывает ночные часы: для 00:00-04:59 фактический момент — следующий календарный день.
+function bkfSlotPassed(dateIso, time){
+  if(!dateIso || !time) return false;
+  // момент слота как реальная дата-время
+  const [y,m,dd] = dateIso.split("-").map(Number);
+  const [h,mi] = time.split(":").map(Number);
+  const slot = new Date(y, m-1, dd);
+  if(h < 5) slot.setDate(slot.getDate()+1);   // ночь = следующий календарный день
+  slot.setHours(h, mi, 0, 0);
+  // нельзя бронировать слот, который уже наступил/прошёл
+  return slot.getTime() <= Date.now();
+}
 // время прихода -> ISO timestamptz. Для 00:00-04:59 это следующий календарный день
 // относительно бизнес-даты (ночь выбранной даты).
 function bkfComposeArrive(dateIso, time){
@@ -1858,6 +1877,7 @@ async function bkfSubmit(){
   bkfSaveInputs();
   if(!BK_STATE.zoneId){ bkfMsg(t('bk_pick_zone')); return; }
   if(!BK_STATE.time){ bkfMsg(t('bk_pick_time')); return; }
+  if(bkfSlotPassed(BK_STATE.date, BK_STATE.time)){ bkfMsg(t('bk_time_passed')); BK_STATE.time=null; bkfDrawForm(); return; }
   const phone = (BK_STATE.phone||"").trim();
   const digits = phone.replace(/[^\d]/g,"");
   if(digits.length<9){ bkfMsg(t('bk_need_phone')); return; }
@@ -2099,7 +2119,6 @@ function mybkBadge(b){
   // точку показываем, если статус заявки ещё «не отсмотрен» гостем
   const fresh = (MYBK_SEEN_ID!==b.id) || (MYBK_SEEN_STATUS!==b.status);
   if(b.status==="booked"){ btn.classList.add("live"); if(fresh) btn.classList.add("has-dot","dot-ok"); }
-  else if(b.status==="cancelled"){ if(fresh && !MYBK_DISMISSED.has(b.id)) btn.classList.add("has-dot","dot-no"); }
   else if(b.status==="request"){ btn.classList.add("live"); }
 }
 
@@ -2108,8 +2127,8 @@ function mybkRenderHomeSlot(b){
   const slot=document.getElementById("bkhome-slot");
   if(!slot) return;
   if(!b){ slot.innerHTML=""; return; }
-  // отклонённую заявку, которую гость закрыл крестиком, не показываем
-  if(b.status==="cancelled" && MYBK_DISMISSED.has(b.id)){ slot.innerHTML=""; return; }
+  // отклонённую заявку на главном НЕ показываем (статус виден в разделе «Мои брони»)
+  if(b.status==="cancelled"){ slot.innerHTML=""; return; }
   let cls, ic, label;
   const dateStr = (typeof bkfFmtDate==="function" && b.business_date) ? bkfFmtDate(b.business_date) : "";
   const timeStr = (b.arrive_at && typeof bkfFmtTime==="function") ? bkfFmtTime(b.arrive_at) : "";
