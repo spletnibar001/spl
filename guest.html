@@ -38,24 +38,27 @@ button{font-family:inherit;cursor:pointer}
 #tb-mybk.has-dot .dot{display:block}
 #tb-mybk.dot-ok .dot{background:var(--emerald)}
 #tb-mybk.dot-no .dot{background:#e06464}
-.hb-banner{width:100%;display:flex;align-items:center;gap:11px;text-align:left;
-  border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin:0 0 4px;
-  background:rgba(255,255,255,.03);color:var(--text);cursor:pointer}
+.hb-wrap{display:flex;align-items:stretch;gap:0;margin:0 0 4px;border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
+.hb-wrap.ok{border-color:rgba(35,209,139,.45);background:rgba(35,209,139,.08)}
+.hb-wrap.req{border-color:rgba(232,201,122,.45);background:rgba(232,201,122,.07)}
+.hb-wrap.no{border-color:rgba(224,100,100,.45);background:rgba(224,100,100,.07)}
+.hb-banner{flex:1;min-width:0;display:flex;align-items:center;gap:11px;text-align:left;
+  padding:13px 14px;color:var(--text);cursor:pointer;background:transparent;border:none}
 .hb-banner .hb-ic{width:34px;height:34px;flex-shrink:0;border-radius:9px;display:flex;
   align-items:center;justify-content:center;font-size:17px;font-weight:800}
-.hb-banner.ok{border-color:rgba(35,209,139,.45);background:rgba(35,209,139,.08)}
-.hb-banner.ok .hb-ic{background:rgba(35,209,139,.18);color:var(--emerald)}
-.hb-banner.req{border-color:rgba(232,201,122,.45);background:rgba(232,201,122,.07)}
-.hb-banner.req .hb-ic{background:rgba(232,201,122,.18);color:var(--gold)}
-.hb-banner.no{border-color:rgba(224,100,100,.45);background:rgba(224,100,100,.07)}
-.hb-banner.no .hb-ic{background:rgba(224,100,100,.18);color:#e06464}
+.hb-wrap.ok .hb-ic{background:rgba(35,209,139,.18);color:var(--emerald)}
+.hb-wrap.req .hb-ic{background:rgba(232,201,122,.18);color:var(--gold)}
+.hb-wrap.no .hb-ic{background:rgba(224,100,100,.18);color:#e06464}
 .hb-banner .hb-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .hb-banner .hb-h{font-size:14px;font-weight:700}
 .hb-banner .hb-sub{font-size:12px;color:var(--muted)}
 .hb-banner .hb-arr{font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0}
-.hb-banner.no .hb-ic{cursor:pointer;transition:transform .1s,background .15s}
-.hb-banner.no .hb-ic:active{transform:scale(.9)}
-.hb-banner.no .hb-ic:hover{background:rgba(224,100,100,.32)}
+.hb-x{flex-shrink:0;width:46px;border:none;border-left:1px solid rgba(224,100,100,.25);
+  background:transparent;color:#e06464;font-size:20px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:background .15s}
+.hb-x:hover{background:rgba(224,100,100,.18)}
+.hb-x:active{background:rgba(224,100,100,.3)}
 
 /* КОНТЕНТ */
 #app{max-width:560px;margin:0 auto;padding:0 0 84px}
@@ -2042,28 +2045,31 @@ function mybkRenderHomeSlot(b){
   if(!b){ slot.innerHTML=""; return; }
   // отклонённую заявку, которую гость закрыл крестиком, не показываем
   if(b.status==="cancelled" && MYBK_DISMISSED.has(b.id)){ slot.innerHTML=""; return; }
-  let cls, ic, label, when="";
-  if(typeof bkfFmtDate==="function" && b.business_date){
-    when = bkfFmtDate(b.business_date) + (b.arrive_at && typeof bkfFmtTime==="function" ? (" · "+bkfFmtTime(b.arrive_at)) : "");
-  }
+  let cls, ic, label;
+  const dateStr = (typeof bkfFmtDate==="function" && b.business_date) ? bkfFmtDate(b.business_date) : "";
+  const timeStr = (b.arrive_at && typeof bkfFmtTime==="function") ? bkfFmtTime(b.arrive_at) : "";
+  const when = [dateStr, timeStr].filter(Boolean).join(" · ");
   if(b.status==="booked"){ cls="ok"; ic="✓"; label=t('hb_confirmed'); }
   else if(b.status==="cancelled"){ cls="no"; ic="✕"; label=t('hb_declined'); }
   else { cls="req"; ic="⏳"; label=t('hb_review'); }
   const closable = (b.status==="cancelled");
   slot.innerHTML = `
-    <button class="hb-banner ${cls}" id="hb-go">
-      <span class="hb-ic" id="hb-close" ${closable?`role="button" aria-label="${t('hb_close')}" title="${t('hb_close')}"`:""}>${ic}</span>
-      <span class="hb-txt">
-        <span class="hb-h">${t('hb_title')} · ${label}</span>
-        ${when?`<span class="hb-sub">${when}</span>`:""}
-      </span>
-      <span class="hb-arr">${t('hb_open')} →</span>
-    </button>`;
+    <div class="hb-wrap ${cls}">
+      <div class="hb-banner" id="hb-go" role="button" tabindex="0">
+        <span class="hb-ic">${ic}</span>
+        <span class="hb-txt">
+          <span class="hb-h">${t('hb_title')} · ${label}</span>
+          ${when?`<span class="hb-sub">${when}</span>`:""}
+        </span>
+        <span class="hb-arr">${t('hb_open')} →</span>
+      </div>
+      ${closable?`<button class="hb-x" id="hb-close" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>`:""}
+    </div>`;
   const g=document.getElementById("hb-go");
   if(g) g.onclick=()=>{ mybkMarkSeen(b); go("book"); };
   if(closable){
     const x=document.getElementById("hb-close");
-    if(x) x.onclick=(e)=>{ e.stopPropagation(); mybkDismiss(b.id); slot.innerHTML=""; mybkBadge(b); };
+    if(x) x.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); mybkDismiss(b.id); slot.innerHTML=""; mybkBadge(b); };
   }
 }
 
