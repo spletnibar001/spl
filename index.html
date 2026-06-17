@@ -9,26 +9,37 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-// надёжная загрузка библиотеки XLSX с несколькими зеркалами (на случай блокировки CDN)
+// надёжная загрузка библиотеки XLSX с несколькими зеркалами и таймаутом
 window.__xlsxReady = (function(){
   var cdns = [
     "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
-    "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"
+    "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js",
+    "https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"
   ];
-  function load(i){
+  function loadOne(url){
     return new Promise(function(resolve, reject){
-      if(typeof XLSX !== "undefined"){ resolve(); return; }
-      if(i >= cdns.length){ reject(new Error("Не удалось загрузить библиотеку Excel")); return; }
-      var s = document.createElement("script");
-      s.src = cdns[i];
-      s.onload = function(){ (typeof XLSX!=="undefined") ? resolve() : load(i+1).then(resolve, reject); };
-      s.onerror = function(){ load(i+1).then(resolve, reject); };
+      var done=false;
+      var s=document.createElement("script");
+      var timer=setTimeout(function(){ if(!done){ done=true; s.onload=s.onerror=null; reject(new Error("timeout")); } }, 8000);
+      s.src=url;
+      s.onload=function(){ if(done) return; done=true; clearTimeout(timer); (typeof XLSX!=="undefined")?resolve():reject(new Error("no XLSX")); };
+      s.onerror=function(){ if(done) return; done=true; clearTimeout(timer); reject(new Error("error")); };
       document.head.appendChild(s);
     });
   }
-  // если первый <script> уже подгрузил — сразу готово, иначе пробуем зеркала
-  return (typeof XLSX !== "undefined") ? Promise.resolve() : load(1);
+  function chain(i){
+    if(typeof XLSX!=="undefined") return Promise.resolve();
+    if(i>=cdns.length) return Promise.reject(new Error("Не удалось загрузить библиотеку Excel"));
+    return loadOne(cdns[i]).catch(function(){ return chain(i+1); });
+  }
+  // даём первому <script> шанс (он мог уже загрузиться), иначе перебираем зеркала с нуля
+  return new Promise(function(resolve){
+    setTimeout(function(){
+      if(typeof XLSX!=="undefined"){ resolve(); return; }
+      chain(0).then(resolve, function(){ resolve(); }); // не реджектим — обработчик сам проверит XLSX
+    }, 300);
+  });
 })();
 </script>
 <style>
@@ -2326,10 +2337,27 @@ function xlsxDownload(wb, filename){
   const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
   const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+  // обычное скачивание
+  try{
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.rel = "noopener";
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ try{ document.body.removeChild(a); }catch(_){} }, 1500);
+  }catch(_){}
+  // фолбэк для Telegram WebView: часто прямое скачивание блокируется —
+  // пробуем открыть файл во внешнем браузере, откуда его можно сохранить
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const isTG = tg && tg.platform && tg.platform!=="unknown";
+  if(isTG){
+    try{
+      // даём браузеру мгновение на попытку скачивания, затем открываем ссылку наружу
+      setTimeout(()=>{ try{ tg.openLink(url, {try_instant_view:false}); }catch(_){ window.open(url, "_blank"); } }, 400);
+      showMsg("Файл готов. Если не скачался — откроется во внешнем браузере, сохраните оттуда.", true);
+    }catch(_){ showMsg("Файл готов.", true); }
+  } else {
+    showMsg("Файл готов — проверьте загрузки.", true);
+  }
+  setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 60000);
 }
 async function exportXlsx(){
   showMsg("Готовлю Excel…");
@@ -2581,10 +2609,9 @@ async function startApp(){
     $("p-from").addEventListener("change", render);
     $("p-to").addEventListener("change", render);
     $("btn-export").addEventListener("click", exportXlsx);
-    // «Итоги ЗП» — только админ/кассир и только на десктопе
-    const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth >= 1024;
+    // «Итоги ЗП» — для админа/кассира (на любом устройстве)
     const payBtn = $("btn-export-pay");
-    if(payBtn && CAP.sales && isDesktop){
+    if(payBtn && CAP.sales){
       payBtn.style.display = "";
       payBtn.addEventListener("click", exportPayrollXlsx);
     }
