@@ -304,6 +304,16 @@
 .bk-req-guests{font-size:12px;color:var(--muted);white-space:nowrap}
 .bk-req-name{font-size:14px;font-weight:600;margin-bottom:5px}
 .bk-req-note{font-size:12px;color:var(--muted);line-height:1.4;margin-bottom:10px}
+.bk-req-comment{font-size:14px;line-height:1.5;color:var(--gold);background:rgba(232,201,122,.1);
+  border:1px solid rgba(232,201,122,.4);border-radius:9px;padding:9px 11px;margin:0 0 10px;
+  white-space:pre-wrap;word-break:break-word}
+.bkm-textarea{width:100%;background:transparent;border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:12px;font-size:15px;font-family:inherit;line-height:1.45;resize:vertical;box-sizing:border-box}
+.bkm-textarea:focus{outline:none;border-color:var(--emerald)}
+.rej-quick{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+.rej-quick button{border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.rej-quick button:active{background:var(--panel)}
 .bk-req-actions{display:flex;gap:8px}
 .bk-req-actions .bkm-btn{flex:1}
 /* строка даты */
@@ -3494,7 +3504,10 @@ function bkOpenRequests(){
     html = `<div class="bk-reqs-list">` + list.map(r=>{
       const venue = r.venue_key==="club" ? "Клуб" : "Караоке";
       const tm = r.arrive_at ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
-      const note = (r.note||"").replace(/</g,"&lt;");
+      const noteFull = (r.note||"").replace(/</g,"&lt;");
+      let note = noteFull, gComment = "";
+      const cmm = noteFull.match(/Коммент:\s*([\s\S]*)$/i);
+      if(cmm){ gComment = cmm[1].trim(); note = noteFull.slice(0, cmm.index).replace(/[·•\s]+$/,"").trim(); }
       return `<div class="bk-req" data-rid="${r.id}">
         <div class="bk-req-top">
           <div class="bk-req-when">${venue} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}</div>
@@ -3502,6 +3515,7 @@ function bkOpenRequests(){
         </div>
         <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
         ${note?`<div class="bk-req-note">${note}</div>`:""}
+        ${gComment?`<div class="bk-req-comment">${gComment}</div>`:""}
         <div class="bk-req-actions">
           <button class="bkm-btn primary" onclick="bkConfirmRequest(${r.id})">Подтвердить</button>
           <button class="bkm-btn danger" onclick="bkRejectRequest(${r.id})">Отклонить</button>
@@ -3588,14 +3602,24 @@ function bkRejectRequest(rid){
   document.getElementById("bkm-title").textContent = "Отклонить заявку";
   document.getElementById("bkm-sub").textContent = sub;
   document.getElementById("bkm-body").innerHTML = `
-    ${r?`<div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${r.phone}`:""}</div></div>`:""}
+    ${r?`<div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>`:""}
     <div class="bkm-field"><label>Причина отказа (необязательно — увидит гость)</label>
-      <textarea id="bk-rej-reason" class="bkm-input" rows="3" placeholder="Напр.: на эту дату всё занято / не дозвонились"></textarea></div>
+      <div class="rej-quick" id="bk-rej-quick">
+        <button type="button" data-rej="К сожалению, на эту дату свободных мест нет.">Нет мест</button>
+        <button type="button" data-rej="Не смогли дозвониться для уточнения деталей. Пожалуйста, свяжитесь с нами.">Не дозвонились</button>
+        <button type="button" data-rej="На выбранное время зал уже полностью занят. Предложим другое время — позвоните нам.">Время занято</button>
+        <button type="button" data-rej="К сожалению, в этот день у нас закрытое мероприятие.">Закрытое мероприятие</button>
+      </div>
+      <textarea id="bk-rej-reason" class="bkm-textarea" rows="3" placeholder="Напишите причину или выберите готовый вариант выше"></textarea></div>
     <div class="bkm-msg" id="bk-rej-msg"></div>
     <div class="bkm-actions">
       <button class="bkm-btn danger" id="bk-rej-ok">Отклонить</button>
       <button class="bkm-btn" onclick="bkOpenRequests()">Назад</button>
     </div>`;
+  // автоподстановка причины по клику
+  document.querySelectorAll("#bk-rej-quick [data-rej]").forEach(b=>b.onclick=()=>{
+    document.getElementById("bk-rej-reason").value = b.dataset.rej;
+  });
   document.getElementById("bk-rej-ok").onclick = async function(){
     const reason = (document.getElementById("bk-rej-reason").value||"").trim();
     this.disabled=true; this.textContent="Сохраняем…";
