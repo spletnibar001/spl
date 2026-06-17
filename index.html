@@ -283,6 +283,19 @@
 .vtoggle:active{background:var(--panel)}
 #bk-venue-tabs button,#bk-view-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 #bk-venue-tabs button.active,#bk-view-tabs button.active{background:var(--emerald);color:#0c1410}
+#bk-reqs-btn{border:1px solid var(--gold);background:rgba(217,176,76,.12);color:var(--gold);padding:7px 14px;
+  font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-radius:9px;display:inline-flex;align-items:center;gap:7px}
+.bk-reqs-badge{background:var(--gold);color:#0c1410;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;min-width:18px;text-align:center}
+.bk-reqs-badge.zero{display:none}
+.bk-reqs-list{display:flex;flex-direction:column;gap:10px}
+.bk-req{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:13px}
+.bk-req-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
+.bk-req-when{font-size:13px;font-weight:700;color:var(--gold)}
+.bk-req-guests{font-size:12px;color:var(--muted);white-space:nowrap}
+.bk-req-name{font-size:14px;font-weight:600;margin-bottom:5px}
+.bk-req-note{font-size:12px;color:var(--muted);line-height:1.4;margin-bottom:10px}
+.bk-req-actions{display:flex;gap:8px}
+.bk-req-actions .bkm-btn{flex:1}
 /* строка даты */
 #bk-datebar{display:flex;justify-content:flex-end;margin:0 0 14px}
 #bk-header{display:flex;align-items:stretch;justify-content:space-between;gap:10px;margin:0 0 14px;flex-wrap:nowrap}
@@ -476,6 +489,7 @@
           <button id="bk-view-grid" class="active">Сетка</button>
           <button id="bk-view-schema">Схема</button>
         </div>
+        <button id="bk-reqs-btn" style="display:none">Заявки <span id="bk-reqs-badge" class="bk-reqs-badge">0</span></button>
       </div>
     </div>
     <div class="bk-datecard">
@@ -2628,6 +2642,8 @@ function bkInit(){
   if(calBg) calBg.addEventListener("click", function(e){ if(e.target===calBg) bkCloseCal(); });
   document.getElementById("bk-view-grid").onclick = function(){ BK.view="grid"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-view-schema").onclick = function(){ BK.view="schema"; bkRenderVenueTabs(); bkRender(); };
+  var reqBtn=document.getElementById("bk-reqs-btn");
+  if(reqBtn) reqBtn.onclick = function(){ bkOpenRequests(); };
   BK.date = bkToday();
   // делегированный тап по столу -> открыть модалку брони
   var content = document.getElementById("bk-content");
@@ -2759,7 +2775,7 @@ async function bkLoadAndRender(){
   await bkLoadWaiterPlaces(ds);
   // брони выбранной бизнес-даты (показываем активные + завершённые, без отменённых)
   const b = await sb.from("v_bookings_full").select("*").eq("business_date",ds);
-  let rows = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show");
+  let rows = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show"&&x.status!=="request");
   rows = bkFilterForWaiter(rows);
   BK.data.bookings = rows;
   // все будущие брони (от сегодняшней бизнес-даты) — для общего списка
@@ -2767,9 +2783,23 @@ async function bkLoadAndRender(){
   const up = await sb.from("v_bookings_full").select("*").gte("business_date",today)
     .in("status",["booked","seated"]).order("business_date").order("arrive_at");
   BK.data.upcoming = bkFilterForWaiter(up.data||[]);
+  // ЗАЯВКИ от гостей (status=request) — все, от сегодняшней бизнес-даты, для руководства
+  if(bkCanManageRequests()){
+    const rq = await sb.from("v_bookings_full").select("*").eq("status","request")
+      .gte("business_date", today).order("business_date").order("created_at");
+    BK.data.requests = rq.data||[];
+  } else {
+    BK.data.requests = [];
+  }
   // официанты на смене сегодня по залам (для руководства) — из табеля
   await bkLoadShiftStaff(ds);
   bkRender();
+  bkUpdateReqsButton();
+}
+
+// кто может обрабатывать заявки: управляющие роли + хостес (canEdit), не официант
+function bkCanManageRequests(){
+  return BK.canEdit && BK.bkRole !== "waiter";
 }
 
 // зал(ы) текущего официанта на выбранную дату (из его смены в табеле)
@@ -3216,6 +3246,110 @@ function bkOpenModal(tableId){
 function bkCloseModal(){
   document.getElementById("bk-modal").classList.remove("open");
   bkCurrentTable=null; bkCurrentBooking=null;
+}
+
+// ===== ЗАЯВКИ ОТ ГОСТЕЙ (status=request) =====
+function bkUpdateReqsButton(){
+  const btn=document.getElementById("bk-reqs-btn");
+  if(!btn) return;
+  if(!bkCanManageRequests()){ btn.style.display="none"; return; }
+  const n=(BK.data.requests||[]).length;
+  btn.style.display="";
+  const badge=document.getElementById("bk-reqs-badge");
+  if(badge){ badge.textContent=n; badge.classList.toggle("zero", n===0); }
+}
+
+function bkOpenRequests(){
+  const list = BK.data.requests||[];
+  document.getElementById("bkm-title").textContent = "Заявки с сайта";
+  document.getElementById("bkm-sub").textContent = list.length ? (list.length+" в ожидании") : "нет новых заявок";
+  let html="";
+  if(!list.length){
+    html = `<div class="bkm-msg">Новых заявок нет. Здесь появляются брони, отправленные гостями из приложения.</div>`;
+  } else {
+    html = `<div class="bk-reqs-list">` + list.map(r=>{
+      const venue = r.venue_key==="club" ? "Клуб" : "Караоке";
+      const tm = r.arrive_at ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
+      const note = (r.note||"").replace(/</g,"&lt;");
+      return `<div class="bk-req" data-rid="${r.id}">
+        <div class="bk-req-top">
+          <div class="bk-req-when">${venue} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}</div>
+          <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):""}</div>
+        </div>
+        <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
+        ${note?`<div class="bk-req-note">${note}</div>`:""}
+        <div class="bk-req-actions">
+          <button class="bkm-btn primary" onclick="bkConfirmRequest(${r.id})">Подтвердить</button>
+          <button class="bkm-btn danger" onclick="bkRejectRequest(${r.id})">Отклонить</button>
+        </div>
+      </div>`;
+    }).join("") + `</div>`;
+  }
+  document.getElementById("bkm-body").innerHTML = html;
+  document.getElementById("bk-modal").classList.add("open");
+}
+
+// Подтвердить заявку: выбрать конкретный стол нужного заведения -> станет booked
+async function bkConfirmRequest(rid){
+  const r = (BK.data.requests||[]).find(x=>x.id===rid);
+  if(!r) return;
+  // список столов того же заведения, сгруппированный по зонам
+  const venueKey = r.venue_key;
+  const venue = BK.data.venues.find(v=>v.key===venueKey);
+  const zones = BK.data.zones.filter(z=>z.venue_id===(venue&&venue.id)).sort((a,b)=>(a.sort||0)-(b.sort||0));
+  let opts = "";
+  zones.forEach(z=>{
+    const tbls = BK.data.tables.filter(t=>t.zone_id===z.id);
+    if(!tbls.length) return;
+    opts += `<optgroup label="${z.title}">` + tbls.map(t=>`<option value="${t.id}">${t.name}</option>`).join("") + `</optgroup>`;
+  });
+  const note=(r.note||"").replace(/</g,"&lt;");
+  document.getElementById("bkm-title").textContent = "Подтвердить заявку";
+  document.getElementById("bkm-sub").textContent = (venueKey==="club"?"Клуб":"Караоке")+" · "+bkFmtDate(fromIso(r.business_date));
+  document.getElementById("bkm-body").innerHTML = `
+    <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${r.phone}`:""}</div></div>
+    ${note?`<div class="bkm-field"><label>Заявка</label><div>${note}</div></div>`:""}
+    <div class="bkm-field"><label>Назначить стол</label>
+      <select id="bk-req-table" class="bkm-input">${opts}</select></div>
+    <div class="bkm-field"><label>Депозит (сум, необязательно)</label>
+      <input id="bk-req-dep" class="bkm-input" type="text" inputmode="numeric" placeholder="0"></div>
+    <div class="bkm-msg" id="bk-req-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn primary" id="bk-req-ok">Подтвердить бронь</button>
+      <button class="bkm-btn" onclick="bkOpenRequests()">Назад</button>
+    </div>`;
+  document.getElementById("bk-req-ok").onclick = async function(){
+    const tid = Number(document.getElementById("bk-req-table").value);
+    if(!tid){ document.getElementById("bk-req-msg").textContent="Выберите стол"; return; }
+    const depRaw=(document.getElementById("bk-req-dep").value||"").replace(/[^\d]/g,"");
+    const dep = depRaw?Number(depRaw):0;
+    this.disabled=true; this.textContent="Сохраняем…";
+    // проверка занятости выбранного стола на эту дату
+    const {data:clash} = await sb.from("bookings").select("id,guest_name,status")
+      .eq("table_id",tid).eq("business_date",r.business_date).in("status",["booked","seated"]);
+    if(clash && clash.length){
+      if(!confirm("Этот стол уже занят на выбранную дату. Всё равно подтвердить (вторая бронь)?")){
+        this.disabled=false; this.textContent="Подтвердить бронь"; return;
+      }
+    }
+    const {error} = await sb.from("bookings").update({
+      table_id: tid, status:"booked", deposit_amount: dep,
+      seated_by_name: ME.name   // фиксируем, кто подтвердил (поле seated_by_name используем как «обработал»)
+    }).eq("id", rid);
+    if(error){ document.getElementById("bk-req-msg").textContent=error.message; this.disabled=false; this.textContent="Подтвердить бронь"; return; }
+    bkCloseModal();
+    await bkLoadAndRender();
+  };
+}
+
+async function bkRejectRequest(rid){
+  if(!confirm("Отклонить эту заявку? Она будет отменена.")) return;
+  const {error} = await sb.from("bookings").update({
+    status:"cancelled", cancelled_by_name: ME.name, cancelled_at: new Date().toISOString()
+  }).eq("id", rid);
+  if(error){ showMsg(error.message); return; }
+  await bkLoadAndRender();
+  bkOpenRequests();
 }
 
 // форма новой брони
