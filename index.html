@@ -959,20 +959,23 @@ async function loadAll(){
   }catch(_){ cabinSeatByDate = {}; }
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
-// отметки выплаты ЗП: по карточке за неделю
-const isPaidOut = (id, ws) => payoutRows.some(p=>p.employee_id===id && p.week_start===ws);
-const payoutOf  = (id, ws) => payoutRows.find(p=>p.employee_id===id && p.week_start===ws);
-async function togglePayout(empId){
+// отметки выплаты ЗП: по карточке за неделю и типу (zp | extra)
+const isPaidOut = (id, ws, kind='zp') => payoutRows.some(p=>p.employee_id===id && p.week_start===ws && (p.kind||'zp')===kind);
+const payoutOf  = (id, ws, kind='zp') => payoutRows.find(p=>p.employee_id===id && p.week_start===ws && (p.kind||'zp')===kind);
+async function togglePayout(empId, kind){
   if(!CAP.sales) return;                 // только админ/кассир
+  kind = kind || 'zp';
   const ws = iso(viewStart);
-  const already = isPaidOut(empId, ws);
+  const already = isPaidOut(empId, ws, kind);
   if(already){
-    if(!confirm("Снять отметку о выплате ЗП за эту неделю?")) return;
-    const {error} = await sb.from("payouts").delete().eq("employee_id",empId).eq("week_start",ws);
+    const lbl = kind==='extra' ? "шаги/бонус" : "ЗП";
+    if(!confirm(`Снять отметку о выплате (${lbl}) за эту неделю?`)) return;
+    const {error} = await sb.from("payouts").delete()
+      .eq("employee_id",empId).eq("week_start",ws).eq("kind",kind);
     if(error){ showMsg(error.message); return; }
   }else{
     const {error} = await sb.from("payouts").insert({
-      employee_id: empId, week_start: ws,
+      employee_id: empId, week_start: ws, kind,
       paid_by: (ME.tg_id||ME.telegram_id||null), paid_by_name: ME.name
     });
     if(error){ showMsg(error.message); return; }
@@ -1406,15 +1409,33 @@ function render(){
       if(r.bon) det += ` · <span class="bonal">бонусы +${fmtNum(r.bon)}</span>`;
       if(r.pen) det += ` · <span class="penal">штрафы −${fmtNum(r.pen)}</span>`;
       const wkKey = iso(viewStart);
-      const paidOut = isPaidOut(e.id, wkKey);
-      // отметка «выплачено» — только сдельным (не noPay), кликабельна для админа/кассира
+      // сумма «шаги/бонус» (extra): официанту — шаги с продаж; звукооператору БЗ — бонус за кабинки
+      let extraAmt = 0;
+      if(e.emp_role==="Официант") extraAmt = Math.round((wv.sales||0)*STEPS_PCT);
+      else if(e.emp_role===SOUND_BIG) extraAmt = Math.round(r.extra||0);
+      const paidZp = isPaidOut(e.id, wkKey, 'zp');
+      const paidExtra = isPaidOut(e.id, wkKey, 'extra');
+      // отметка выплаты ЗП — только сдельным (не noPay)
       let payTag = "";
       if(!noPay){
         if(CAP.sales){
-          payTag = `<button class="pay-chip${paidOut?' on':''}" onclick="togglePayout('${e.id}')" title="${paidOut?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidOut?'✓ выплачено':'выплатить'}</button>`;
-        }else if(paidOut){
+          payTag = `<button class="pay-chip${paidZp?' on':''}" onclick="togglePayout('${e.id}','zp')" title="${paidZp?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidZp?'✓ выплачено':'выплатить'}</button>`;
+        }else if(paidZp){
           payTag = `<span class="pay-chip on ro">✓ выплачено</span>`;
         }
+      }
+      // отметка выплаты шаги/бонус — только если сумма > 0
+      let extraTag = "";
+      if(extraAmt>0){
+        if(CAP.sales){
+          extraTag = `<button class="pay-chip${paidExtra?' on':''}" onclick="togglePayout('${e.id}','extra')" title="${paidExtra?'Шаги/бонус выплачены — отменить':'Отметить выплату шагов/бонуса'}">${paidExtra?'✓ выпл.':'выплатить'}</button>`;
+        }else if(paidExtra){
+          extraTag = `<span class="pay-chip on ro">✓ выпл.</span>`;
+        }
+      }
+      // добавим кнопку в ячейку «Шаги»
+      if(extraTag){
+        stepsCell = stepsCell.replace("</td>", extraTag+"</td>");
       }
       const earnTd = noPay
         ? `<td class="earn"><span class="dash">—</span><span class="sh">${det}</span></td>`
@@ -1451,11 +1472,34 @@ function render(){
       g.sum+=rr.sum; g.cnt+=rr.cnt;
     }
     const all = wt.karaoke.sum+wt.club.sum+wt.both.sum;
+    // сводка выплат по ВИДИМОМУ списку: сколько уже выплачено и сколько осталось
+    let paidSum=0, leftSum=0;
+    for(const e of list){
+      if(NO_RATE_ROLES.includes(e.emp_role)) continue;  // фикс. оклад не считаем
+      const rr = earnedInPeriod(e, weekKey, wkTo);
+      let extraAmt = 0;
+      if(e.emp_role==="Официант") extraAmt = Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT);
+      else if(e.emp_role===SOUND_BIG) extraAmt = Math.round(rr.extra||0);
+      const zpBucket = Math.round(rr.sum) - extraAmt;  // основная часть (с учётом штрафов/бонусов)
+      const extraBucket = extraAmt;
+      // ЗП-часть
+      if(isPaidOut(e.id, weekKey, 'zp')) paidSum += zpBucket; else leftSum += zpBucket;
+      // шаги/бонус-часть (если её нет — 0, не влияет)
+      if(extraBucket>0){
+        if(isPaidOut(e.id, weekKey, 'extra')) paidSum += extraBucket; else leftSum += extraBucket;
+      }
+    }
+    const payoutCard = roster.length
+      ? `<div class="wt payout"><div class="t">Выплаты</div>
+          <div class="v" style="color:var(--emerald)">${money(paidSum)}</div>
+          <div class="n">выплачено · осталось <b style="color:${leftSum?'var(--gold)':'var(--muted)'}">${money(leftSum)}</b></div></div>`
+      : "";
     $("week-totals").innerHTML = roster.length?`
       <div class="wt karaoke"><div class="t">Караоке · неделя</div><div class="v">${money(wt.karaoke.sum)}</div><div class="n">${wt.karaoke.cnt} смен</div></div>
       <div class="wt club"><div class="t">Клуб · неделя</div><div class="v">${money(wt.club.sum)}</div><div class="n">${wt.club.cnt} смен</div></div>
       <div class="wt both"><div class="t">Общие · неделя</div><div class="v">${money(wt.both.sum)}</div><div class="n">${wt.both.cnt} смен</div></div>
-      <div class="wt total"><div class="t">Всего за неделю</div><div class="v">${money(all)}</div><div class="n">${wt.karaoke.cnt+wt.club.cnt+wt.both.cnt} смен</div></div>`:"";
+      <div class="wt total"><div class="t">Всего за неделю</div><div class="v">${money(all)}</div><div class="n">${wt.karaoke.cnt+wt.club.cnt+wt.both.cnt} смен</div></div>
+      ${payoutCard}`:"";
     $("grid-foot").innerHTML = list.length?
       `<td style="text-align:left">Итого (${list.length} чел.)<div style="font-size:10px;color:var(--muted);font-weight:400">человек на смене ↓</div></td>` +
       dayCounts.map(c=>`<td style="color:var(--emerald);font-size:14px">${c}</td>`).join("") +
