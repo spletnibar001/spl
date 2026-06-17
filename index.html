@@ -302,7 +302,7 @@
 #bk-header-left{display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-width:0}
 #bk-header .bk-datecard{display:flex;flex-direction:column;justify-content:space-between;align-self:flex-start;flex:0 0 124px;width:124px}
 @media(max-width:380px){#bk-header .bk-datecard{width:112px}}
-.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:10px 8px;text-align:center;width:124px;flex:0 0 124px;overflow:hidden;box-sizing:border-box}
+.bk-datecard{background:var(--panel2);border:1.5px solid var(--emerald);border-radius:14px;padding:10px 8px;text-align:center;width:124px;flex:0 0 124px;box-sizing:border-box}
 .bk-datecard .dc-num{font-size:30px;font-weight:800;line-height:1;color:var(--text)}
 .bk-datecard .dc-pick{position:relative;cursor:pointer;border-radius:8px;padding:2px}
 .bk-datecard .dc-pick:active{background:var(--panel)}
@@ -326,8 +326,8 @@
 .bk-cal-today{margin-top:12px;width:100%;border:1px solid var(--emerald);background:transparent;color:var(--emerald);border-radius:10px;padding:9px;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer}
 .bk-datecard .dc-month{font-size:13px;font-weight:700;color:var(--text);text-transform:lowercase;margin-top:2px}
 .bk-datecard .dc-dow{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bk-datecard .dc-today{display:none;margin-top:5px;font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--emerald);border:1px solid var(--emerald);border-radius:20px;padding:1px 8px}
-.bk-datecard .dc-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:8px;width:100%}
+.bk-datecard .dc-today{display:none;margin-top:4px;font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--emerald);border:1px solid var(--emerald);border-radius:20px;padding:1px 7px}
+.bk-datecard .dc-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:6px;width:100%}
 .bk-datecard .dc-nav .wk{font-size:10px;color:var(--gold);font-weight:700;border:1px solid var(--line);border-radius:20px;padding:2px 6px;white-space:nowrap;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
 .bk-datecard .dc-nav button.nav{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:4px 6px;font-family:inherit;font-weight:700;cursor:pointer;font-size:11px;flex:0 0 auto;line-height:1}
 /* панель зоны */
@@ -2737,6 +2737,7 @@ function bkAlignDateCard(){
     const tabrow=document.getElementById("bk-tabrow");
     if(!badge||!card) return;
     card.style.marginTop="0px";
+    card.style.minHeight="0px";
     card.style.height="auto";
     const badgeTop=badge.getBoundingClientRect().top;
     const cardTop=card.getBoundingClientRect().top;
@@ -2744,12 +2745,12 @@ function bkAlignDateCard(){
     if(lift>0) lift=0;                    // никогда не опускаем ниже исходного
     if(lift<-90) lift=-90;               // защита от слишком большого подъёма (десктоп)
     card.style.marginTop=lift+"px";
-    // низ карточки = низ ряда Караоке/Клуб·Сетка
+    // низ карточки = низ ряда Караоке/Клуб·Сетка (как минимум; контент может быть выше)
     if(tabrow){
       const bottom=tabrow.getBoundingClientRect().bottom;
       const newTop=card.getBoundingClientRect().top;
       const h=bottom-newTop;
-      if(h>40) card.style.height=h+"px";
+      if(h>40) card.style.minHeight=h+"px";
     }
   }catch(_){}
 }
