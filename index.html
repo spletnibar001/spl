@@ -2592,8 +2592,38 @@ function syncPickersToWeek(){
   if(!CAP.money) return;
   $("p-from").value = iso(viewStart); $("p-to").value = iso(addDays(viewStart,6));
 }
+// Настройка зоны видимости менеджера по его заведению (pos из его карточки employees).
+// Роль app_role='manager' одна, но менеджер клуба должен управлять клубом, караоке — караоке.
+async function applyManagerVenueScope(){
+  if(ME.role !== "manager") return;          // касается только менеджеров
+  let pos = null;
+  try{
+    const tg = Number(ME.tg_id || ME.telegram_id || 0);
+    const { data } = await sb.from("employees")
+      .select("pos, emp_role")
+      .eq("telegram_id", tg)
+      .eq("emp_role", "Менеджер")
+      .limit(1);
+    if(data && data.length) pos = data[0].pos;
+  }catch(_){}
+  if(pos === "club"){
+    CAP.label = "Менеджер клуба";
+    CAP.scope = [["Официант","club"],["Хостес","club"],["Бармен","club"],["Охрана","both"]];
+    CAP.pen   = [["*","club"],["*","both"]];   // штрафы: клуб и общие
+  } else {
+    // караоке (по умолчанию) — как было
+    CAP.label = "Менеджер караоке";
+    CAP.scope = [["Официант","karaoke"],["Хостес","karaoke"],["Охрана","both"]];
+    CAP.pen   = [["*","karaoke"],["*","both"]];
+  }
+  // обновим бейдж роли с уточнённым названием
+  const rb = $("role-badge"); if(rb) rb.textContent = CAP.label + " · " + ME.name;
+}
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
+  // менеджер: scope зависит от его заведения (pos). Менеджер клуба → команда клуба,
+  // менеджер караоке → команда караоке. Делаем ДО первой загрузки данных.
+  await applyManagerVenueScope();
   // роль phone: только бронирование, табель скрыт целиком
   if(CAP.bookingOnly){
     document.querySelectorAll(".layout > .card, .layout > #base-wrap, #staff-cabinet")
