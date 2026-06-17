@@ -1446,8 +1446,12 @@ function bkfIsPast(b){
 }
 // список ближайших дат для выбора (сегодня + 13 дней)
 function bkfDates(){
-  const out=[]; const now=new Date();
-  for(let i=0;i<14;i++){ const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i); out.push(d); }
+  const out=[];
+  // отсчёт от бизнес-дня: ночью (до 05:00) «сегодня» — это ещё предыдущий календарный день
+  const n=new Date();
+  const base=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  if(n.getHours()<5) base.setDate(base.getDate()-1);
+  for(let i=0;i<14;i++){ const d=new Date(base.getFullYear(),base.getMonth(),base.getDate()+i); out.push(d); }
   return out;
 }
 function bkfDateLabel(d, idx){
@@ -1778,7 +1782,7 @@ async function bkfShowForm(){
   bkfStopPoll();
   try{ if(BK_SUB){ SB.removeChannel(BK_SUB); BK_SUB=null; } }catch(_){}
   BKF_FORM_OPEN = true;
-  if(!BK_STATE.date) BK_STATE.date = bkfIso(new Date());
+  if(!BK_STATE.date) BK_STATE.date = bkfBizToday();
   if(!BK_STATE.phone){
     try{
       const {data} = await SB.from("bookings").select("phone,created_at")
