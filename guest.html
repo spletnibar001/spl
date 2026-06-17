@@ -63,6 +63,27 @@ button{font-family:inherit;cursor:pointer}
 .tiles.tiles-3 .tile .t-ic{margin:0 auto}
 .tiles.tiles-3 .tile .t-name{font-size:13px;margin-top:6px}
 .tiles.tiles-3 .tile .t-sub{font-size:10px}
+/* карточка статуса брони на главной */
+.bkhome{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--text);
+  border-radius:14px;padding:14px 16px;margin-bottom:14px;border:1px solid var(--line);background:var(--panel);
+  cursor:pointer}
+.bkhome:active{opacity:.85}
+.bkhome.req{border-color:rgba(201,161,74,.55);background:rgba(201,161,74,.10)}
+.bkhome.ok{border-color:rgba(31,191,122,.55);background:rgba(31,191,122,.10)}
+.bkhome.no{border-color:rgba(226,101,92,.55);background:rgba(226,101,92,.10)}
+.bkhome-ic{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-size:20px;font-weight:800}
+.bkhome.req .bkhome-ic{background:rgba(201,161,74,.2);color:var(--gold)}
+.bkhome.ok .bkhome-ic{background:rgba(31,191,122,.2);color:var(--emerald)}
+.bkhome.no .bkhome-ic{background:rgba(226,101,92,.2);color:#e2655c}
+.bkhome-txt{flex:1;min-width:0}
+.bkhome-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.bkhome-st{font-size:16px;font-weight:800;margin-top:2px}
+.bkhome.req .bkhome-st{color:var(--gold)}
+.bkhome.ok .bkhome-st{color:var(--emerald)}
+.bkhome.no .bkhome-st{color:#e2655c}
+.bkhome-sub{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bkhome-arr{color:var(--muted);font-size:20px;flex-shrink:0}
 .dc-intro{font-size:13px;line-height:1.6;color:var(--muted);margin-bottom:16px}
 .dc-list{display:flex;flex-direction:column;gap:10px}
 .dc-row{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);
@@ -1018,7 +1039,7 @@ const T = {
   bk_need_phone: {ru:"Укажите телефон для связи", uz:"Telefon raqamini kiriting", en:"Enter a contact phone", kz:"Байланыс телефонын көрсетіңіз", kg:"Байланыш телефонун көрсөтүңүз", tj:"Телефони тамосро ворид кунед", cn:"请填写联系电话"},
   bk_intro: {ru:"Оставьте заявку — мы свяжемся с вами и подтвердим бронь. Депозит и стол уточним по телефону.", uz:"Ariza qoldiring — biz siz bilan bog'lanib, bronni tasdiqlaymiz. Depozit va stolni telefon orqali aniqlaymiz.", en:"Leave a request — we'll contact you to confirm. Deposit and exact table will be clarified by phone.", kz:"Өтінім қалдырыңыз — біз сізбен хабарласып, бронды растаймыз. Депозит пен үстелді телефон арқылы нақтылаймыз.", kg:"Өтүнмө калтырыңыз — биз сиз менен байланышып, бронду ырастайбыз. Депозит жана столду телефон аркылуу тактайбыз.", tj:"Дархост гузоред — мо бо шумо тамос гирифта, бронро тасдиқ мекунем. Депозит ва мизро тавассути телефон мушаххас мекунем.", cn:"提交申请后，我们会与您联系确认预订。押金和具体餐桌将通过电话沟通。"},
   bk_done_t: {ru:"Заявка отправлена!", uz:"Ariza yuborildi!", en:"Request sent!", kz:"Өтінім жіберілді!", kg:"Өтүнмө жөнөтүлдү!", tj:"Дархост фиристода шуд!", cn:"申请已提交！"},
-  bk_done_sub: {ru:"Мы свяжемся с вами по указанному номеру для подтверждения брони. Спасибо!", uz:"Bronni tasdiqlash uchun ko'rsatilgan raqam orqali bog'lanamiz. Rahmat!", en:"We'll contact you at the provided number to confirm. Thank you!", kz:"Бронды растау үшін көрсетілген нөмірге хабарласамыз. Рахмет!", kg:"Бронду ырастоо үчүн көрсөтүлгөн номерге чалабыз. Рахмат!", tj:"Барои тасдиқи брон ба рақами зикршуда тамос мегирем. Ташаккур!", cn:"我们将拨打您填写的号码确认预订。谢谢！"},
+  bk_done_sub: {ru:"Статус появится здесь, в этом разделе, как только администратор подтвердит бронь — обновлять страницу не нужно. При необходимости мы свяжемся с вами по указанному номеру. Спасибо!", uz:"Administrator bronni tasdiqlashi bilan holat shu yerda, shu bo'limda paydo bo'ladi — sahifani yangilash shart emas. Zarur bo'lsa, ko'rsatilgan raqam orqali bog'lanamiz. Rahmat!", en:"The status will appear right here in this section as soon as the manager confirms — no need to refresh. If necessary, we'll contact you at the number you provided. Thank you!", kz:"Әкімші бронды растағанда мәртебе осы бөлімде пайда болады — бетті жаңартудың қажеті жоқ. Қажет болса, көрсетілген нөмірге хабарласамыз. Рахмет!", kg:"Администратор бронду ырастаары менен статус ушул бөлүмдө пайда болот — бетти жаңылоонун кереги жок. Зарыл болсо, көрсөтүлгөн номерге чалабыз. Рахмет!", tj:"Вазъият ҳамин ҷо, дар ҳамин бахш пайдо мешавад, ҳамин ки маъмур бронро тасдиқ кунад — навсозии саҳифа лозим нест. Дар сурати зарурат ба рақами зикршуда тамос мегирем. Ташаккур!", cn:"管理员确认预订后，状态会直接显示在本栏目，无需刷新页面。如有需要，我们会拨打您填写的号码联系您。谢谢！"},
   bk_done_btn: {ru:"Готово", uz:"Tayyor", en:"Done", kz:"Дайын", kg:"Даяр", tj:"Тайёр", cn:"完成"},
   bk_have_active: {ru:"У вас уже есть активная заявка. Дождитесь, пожалуйста, подтверждения — мы скоро свяжемся.", uz:"Sizda allaqachon faol ariza bor. Iltimos, tasdiqni kuting — tez orada bog'lanamiz.", en:"You already have an active request. Please wait for confirmation — we'll contact you soon.", kz:"Сізде белсенді өтінім бар. Растауды күтіңіз — жақын арада хабарласамыз.", kg:"Сизде активдүү өтүнмө бар. Ырастоону күтүңүз — жакында байланышабыз.", tj:"Шумо аллакай дархости фаъол доред. Лутфан тасдиқро интизор шавед — ба зудӣ тамос мегирем.", cn:"您已有一个进行中的申请，请等待确认，我们会尽快联系。"},
   bk_my_req: {ru:"Ваша заявка", uz:"Sizning arizangiz", en:"Your request", kz:"Сіздің өтінішіңіз", kg:"Сиздин өтүнмөңүз", tj:"Дархости шумо", cn:"您的申请"},
@@ -1036,6 +1057,8 @@ const T = {
   bk_declined_sub: {ru:"К сожалению, мы не можем подтвердить эту бронь. Свяжитесь с нами по телефону или оставьте новую заявку на другую дату.", uz:"Afsuski, bu bronni tasdiqlay olmaymiz. Biz bilan telefon orqali bog'laning yoki boshqa sanaga yangi ariza qoldiring.", en:"Unfortunately we can't confirm this booking. Please call us or submit a new request for another date.", kz:"Өкінішке орай, бұл бронды растай алмаймыз. Бізге телефон арқылы хабарласыңыз немесе басқа күнге жаңа өтінім қалдырыңыз.", kg:"Тилекке каршы, бул бронду ырастай албайбыз. Биз менен телефон аркылуу байланышыңыз же башка күнгө жаңы өтүнмө калтырыңыз.", tj:"Мутаассифона, мо ин бронро тасдиқ карда наметавонем. Бо мо тариқи телефон тамос гиред ё дархости нав барои санаи дигар гузоред.", cn:"很抱歉，我们无法确认此预订。请致电我们或为其他日期提交新申请。"},
   bk_confirmed_sub: {ru:"Ждём вас! Если планы изменятся — позвоните нам заранее.", uz:"Sizni kutamiz! Rejalar o'zgarsa — oldindan qo'ng'iroq qiling.", en:"See you soon! If your plans change, please call us in advance.", kz:"Сізді күтеміз! Жоспар өзгерсе — алдын ала қоңырау шалыңыз.", kg:"Сизди күтөбүз! Пландар өзгөрсө — алдын ала чалыңыз.", tj:"Шуморо интизорем! Агар нақшаҳо тағйир ёбанд — пешакӣ занг занед.", cn:"恭候光临！若计划有变，请提前致电我们。"},
   bk_new_req: {ru:"Оставить новую заявку", uz:"Yangi ariza qoldirish", en:"Submit a new request", kz:"Жаңа өтінім қалдыру", kg:"Жаңы өтүнмө калтыруу", tj:"Дархости нав гузоштан", cn:"提交新申请"},
+  bk_card_title: {ru:"Ваша бронь", uz:"Broningiz", en:"Your booking", kz:"Сіздің броныңыз", kg:"Сиздин броньуңуз", tj:"Брони шумо", cn:"您的预订"},
+  bk_card_open: {ru:"Открыть", uz:"Ochish", en:"Open", kz:"Ашу", kg:"Ачуу", tj:"Кушодан", cn:"打开"},
   bk_auth_wait: {ru:"Открываю бронирование…", uz:"Bron ochilmoqda…", en:"Opening booking…", kz:"Брондау ашылуда…", kg:"Брондоо ачылууда…", tj:"Бронкунӣ кушода мешавад…", cn:"正在打开预订…"},
   bk_auth_err: {ru:"Бронирование доступно только при открытии через Telegram-бота.", uz:"Bron faqat Telegram-bot orqali ochilganda ishlaydi.", en:"Booking works only when opened via the Telegram bot.", kz:"Брондау тек Telegram-бот арқылы ашылғанда жұмыс істейді.", kg:"Брондоо Telegram-бот аркылуу ачылганда гана иштейт.", tj:"Бронкунӣ танҳо ҳангоми кушодан тавассути Telegram-бот кор мекунад.", cn:"预订仅在通过 Telegram 机器人打开时可用。"},
   bk_today: {ru:"Сегодня", uz:"Bugun", en:"Today", kz:"Бүгін", kg:"Бүгүн", tj:"Имрӯз", cn:"今天"},
@@ -1152,6 +1175,7 @@ function renderHome(){
         <div class="tag">${t('tagline')}</div>
       </div>
     </div>
+    <div id="bkhome-slot"></div>
     <div class="venue-prompt">${t('venue_prompt')}</div>
     <div class="venue-switch" id="venue-switch">
       <button data-vgo="karaoke">${t('venue_kar_long')}
@@ -1206,6 +1230,69 @@ function renderHome(){
     VENUE=b.dataset.vgo; ZONE_VENUE=b.dataset.vgo; go("zones");
   });
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  bkfHomeCard();   // подгрузить статус последней брони (если есть)
+}
+
+// ===== карточка статуса брони на главном экране =====
+let BKHOME_SUB = null;
+async function bkfHomeCard(){
+  const slot = document.getElementById("bkhome-slot");
+  if(!slot) return;
+  // нужен авторизованный гость и клиент Supabase
+  const ok = await guestAuth();
+  if(!ok || !SB){ slot.innerHTML=""; return; }
+  await bkfLoadRef();
+  let last=null;
+  try{
+    const {data} = await SB.from("bookings")
+      .select("id,status,business_date,arrive_at,table_id,deposit_amount,cancel_reason")
+      .eq("created_by", Number(GUEST.tg_id))
+      .in("status",["request","booked","cancelled"])
+      .order("id",{ascending:false}).limit(1);
+    if(data && data.length) last=data[0];
+  }catch(_){}
+  bkfHomeRender(last);
+  if(last){
+    // realtime: карточка на главной обновляется сама
+    try{
+      if(BKHOME_SUB){ SB.removeChannel(BKHOME_SUB); BKHOME_SUB=null; }
+      BKHOME_SUB = SB.channel("home-bk-"+last.id)
+        .on("postgres_changes",
+          { event:"UPDATE", schema:"public", table:"bookings", filter:"id=eq."+last.id },
+          (payload)=>{ bkfHomeRender(payload.new||last); })
+        .subscribe();
+    }catch(_){}
+  }
+}
+
+function bkfHomeRender(b){
+  const slot = document.getElementById("bkhome-slot");
+  if(!slot) return;
+  if(!b){ slot.innerHTML=""; return; }
+  let cls, ic, st, sub;
+  if(b.status==="booked"){
+    cls="ok"; ic="✓"; st=t('bk_st_booked').replace(" ✓","");
+    const place=bkfPlaceLabel(b.table_id);
+    const when=bkfFmtDate(b.business_date)+(b.arrive_at?(" · "+bkfFmtTime(b.arrive_at)):"");
+    sub=[place,when].filter(Boolean).join(" · ");
+  }else if(b.status==="cancelled"){
+    cls="no"; ic="✕"; st=t('bk_st_cancelled');
+    sub=(b.cancel_reason||"").trim() || bkfFmtDate(b.business_date);
+  }else{
+    cls="req"; ic="⏳"; st=t('bk_st_request');
+    sub=bkfFmtDate(b.business_date);
+  }
+  slot.innerHTML = `
+    <button class="bkhome ${cls}" data-go="book">
+      <div class="bkhome-ic">${ic}</div>
+      <div class="bkhome-txt">
+        <div class="bkhome-h">${t('bk_card_title')}</div>
+        <div class="bkhome-st">${st}</div>
+        <div class="bkhome-sub">${(sub||"").replace(/</g,"&lt;")}</div>
+      </div>
+      <div class="bkhome-arr">›</div>
+    </button>`;
+  slot.querySelector("[data-go]").onclick=()=>go("book");
 }
 
 // ============ РЕНДЕР МЕНЮ ============
@@ -1423,7 +1510,8 @@ async function renderBook(force){
 
   // активные (request/booked) — показываем статус и блокируем форму
   if(last && (last.status==="request" || last.status==="booked")){
-    body.innerHTML = bkfStatusCard(last) + `<div class="bk-note">${t('bk_have_active')}</div>`;
+    const note = last.status==="request" ? `<div class="bk-note">${t('bk_have_active')}</div>` : "";
+    body.innerHTML = bkfStatusCard(last) + note;
     bkfSubscribe(last.id);   // realtime: мгновенно обновим при подтверждении/отказе
     return;
   }
@@ -1505,7 +1593,7 @@ function bkfSubscribe(bookingId){
           if(!body) return;
           // если гость на разделе брони — перерисуем результат
           if(row.status==="booked"){
-            body.innerHTML = bkfStatusCard(row) + `<div class="bk-note">${t('bk_confirmed_sub')}</div>`;
+            body.innerHTML = bkfStatusCard(row);
             try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
           }else if(row.status==="cancelled"){
             body.innerHTML = bkfStatusCard(row) +
