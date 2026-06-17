@@ -1698,26 +1698,57 @@ function bkfSubscribe(bookingId){
     BK_SUB = SB.channel("guest-bk-"+bookingId)
       .on("postgres_changes",
         { event:"UPDATE", schema:"public", table:"bookings", filter:"id=eq."+bookingId },
-        (payload)=>{
-          const row = payload.new || {};
-          MYBK_LAST = row; mybkBadge(row); mybkRenderHomeSlot(row);
-          const body = document.getElementById("bk-body");
-          if(!body) return;
-          // если гость на разделе брони — перерисуем результат
-          if(row.status==="booked"){
-            body.innerHTML = bkfStatusCard(row);
-            try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
-          }else if(row.status==="cancelled"){
-            body.innerHTML = bkfStatusCard(row) +
-              `<button class="bk-submit" id="bk-newreq" style="margin-top:4px">${t('bk_new_req')}</button>`;
-            const nb=document.getElementById("bk-newreq");
-            if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=row.id; bkfShowForm(); };
-            try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("warning"); }catch(_){}
-          }
-        })
+        (payload)=>{ bkfApplyStatusUpdate(payload.new || {}); })
       .subscribe();
   }catch(_){}
+  // ПОДСТРАХОВКА: опрос статуса раз в 12 сек (на случай если realtime не настроен/уснул)
+  bkfStartPoll(bookingId);
 }
+
+// единая обработка пришедшего статуса (из realtime или из опроса)
+let BK_LAST_SEEN_STATUS = null;
+function bkfApplyStatusUpdate(row){
+  if(!row || !row.id) return;
+  // реагируем только на реальную смену статуса
+  if(row.status===BK_LAST_SEEN_STATUS) { /* всё равно обновим карточку ниже */ }
+  BK_LAST_SEEN_STATUS = row.status;
+  MYBK_LAST = row; mybkBadge(row); mybkRenderHomeSlot(row);
+  const body = document.getElementById("bk-body");
+  if(!body) return;
+  if(row.status==="booked"){
+    body.innerHTML = bkfStatusCard(row);
+    try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
+    bkfStopPoll();
+  }else if(row.status==="cancelled"){
+    body.innerHTML = bkfStatusCard(row) +
+      `<button class="bk-submit" id="bk-newreq" style="margin-top:4px">${t('bk_new_req')}</button>`;
+    const nb=document.getElementById("bk-newreq");
+    if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=row.id; bkfShowForm(); };
+    try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("warning"); }catch(_){}
+    bkfStopPoll();
+  }
+}
+
+// опрос статуса заявки
+let BK_POLL_TIMER = null;
+function bkfStartPoll(bookingId){
+  bkfStopPoll();
+  BK_POLL_TIMER = setInterval(async ()=>{
+    // если гость ушёл из раздела брони — нет смысла опрашивать
+    const sec = document.getElementById("sec-book");
+    if(!sec || !sec.classList.contains("active")){ return; }
+    try{
+      const { data } = await SB.from("bookings")
+        .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
+        .eq("id", bookingId).limit(1);
+      if(data && data.length){
+        const row = data[0];
+        if(row.status==="booked" || row.status==="cancelled"){ bkfApplyStatusUpdate(row); }
+      }
+    }catch(_){}
+  }, 12000);
+}
+function bkfStopPoll(){ if(BK_POLL_TIMER){ clearInterval(BK_POLL_TIMER); BK_POLL_TIMER=null; } }
 
 // показать форму заявки (с автоподстановкой телефона)
 async function bkfShowForm(){
