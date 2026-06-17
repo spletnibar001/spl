@@ -1972,9 +1972,27 @@ function scToggle(which){
 async function staffCheckin(ds, empId){
   const id = empId || (employees[0] && employees[0].id); if(!id) return;
   if(!confirm("Отметить, что вы на смене сегодня?")) return;
-  const {error} = await sb.from("checkins").insert({employee_id: id, work_date: ds});
-  if(error){ alert("Не удалось отметиться: "+error.message); return; }
-  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  let res;
+  try{
+    res = await sb.from("checkins").insert({employee_id: id, work_date: ds});
+  }catch(netErr){
+    alert("Проблема с сетью. Отметка могла не сохраниться — проверьте соединение и обновите приложение.");
+    return;
+  }
+  const error = res && res.error;
+  if(error){
+    // повторная отметка: запись уже есть — это не ошибка, просто сообщаем и обновляем экран
+    const code = error.code || "";
+    const dup = code==="23505" || /duplicate key|unique constraint/i.test(error.message||"");
+    if(dup){
+      alert("Вы уже отметились на сегодня ✓");
+    } else {
+      alert("Не удалось отметиться: "+error.message);
+      return;
+    }
+  } else {
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  }
   if(CAP.staff){ await loadStaff(); renderStaffCabinet(); }
   else { await renderMyCabinetForManager(); }   // руководитель в режиме «Моя смена»
 }
