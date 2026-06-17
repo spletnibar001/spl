@@ -1496,6 +1496,7 @@ async function renderBook(force){
     <div class="info-card" id="bk-body"><div class="bk-loading">${t('bk_auth_wait')}</div></div>`;
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
   if(!force) return;   // только оболочка (при общем renderAll)
+  BKF_FORM_OPEN = false;   // заново открыли раздел — статус снова можно показывать
 
   // авторизация гостя (один раз)
   const ok = await guestAuth();
@@ -1645,6 +1646,8 @@ function bkfSubscribe(bookingId){
 let BK_LAST_SEEN_STATUS = null;
 function bkfApplyStatusUpdate(row){
   if(!row || !row.id) return;
+  // если гость открыл форму новой заявки — не перерисовываем её обратно на старый статус
+  if(BKF_FORM_OPEN){ return; }
   // реагируем только на реальную смену статуса
   if(row.status===BK_LAST_SEEN_STATUS) { /* всё равно обновим карточку ниже */ }
   BK_LAST_SEEN_STATUS = row.status;
@@ -1667,6 +1670,7 @@ function bkfApplyStatusUpdate(row){
 
 // опрос статуса заявки
 let BK_POLL_TIMER = null;
+let BKF_FORM_OPEN = false;   // открыта ли форма новой заявки (блокирует перерисовку статусом)
 function bkfStartPoll(bookingId){
   bkfStopPoll();
   BK_POLL_TIMER = setInterval(async ()=>{
@@ -1690,6 +1694,11 @@ function bkfStopPoll(){ if(BK_POLL_TIMER){ clearInterval(BK_POLL_TIMER); BK_POLL
 async function bkfShowForm(){
   const body = document.getElementById("bk-body");
   if(!body) return;
+  // ВАЖНО: гость открывает форму новой заявки — прекращаем наблюдение за старой,
+  // иначе polling/realtime перерисуют форму обратно на карточку старого статуса
+  bkfStopPoll();
+  try{ if(BK_SUB){ SB.removeChannel(BK_SUB); BK_SUB=null; } }catch(_){}
+  BKF_FORM_OPEN = true;
   if(!BK_STATE.date) BK_STATE.date = bkfIso(new Date());
   if(!BK_STATE.phone){
     try{
@@ -1887,6 +1896,8 @@ async function bkfSubmit(){
     const { data:ins, error } = await SB.from("bookings").insert(row).select("id").single();
     if(error){ bkfMsg(error.message); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
+    BKF_FORM_OPEN = false;   // заявка отправлена — форма закрыта, можно следить за новой
+    BK_LAST_SEEN_STATUS = "request";
     // подписка на изменения новой заявки — гость сразу увидит подтверждение/отказ
     if(ins && ins.id) bkfSubscribe(ins.id);
 
@@ -2208,6 +2219,7 @@ function go(id){
   renderNav();
   window.scrollTo(0,0);
   if(id==="book"){ renderBook(true); if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); }   // полная загрузка раздела бронирования
+  if(id==="home") mybkRefresh();       // обновить баннер статуса брони на главной
   if(id==="zones") renderZones();     // перерисовать под выбранное заведение (ZONE_VENUE)
 }
 
