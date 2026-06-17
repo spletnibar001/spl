@@ -321,6 +321,8 @@ window.__xlsxReady = (function(){
 .bk-reqs-badge.zero{display:none}
 .bk-reqs-list{display:flex;flex-direction:column;gap:10px}
 .bk-req{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:13px}
+.bk-req.cancel{border-color:rgba(224,100,100,.45);background:rgba(224,100,100,.06)}
+.bk-cancels-head{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#e06464;margin:14px 0 8px}
 .bk-req-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px}
 .bk-req-when{font-size:13px;font-weight:700;color:var(--gold)}
 .bk-req-guests{font-size:12px;color:var(--muted);white-space:nowrap}
@@ -512,7 +514,6 @@ window.__xlsxReady = (function(){
 
 <!-- ЭКРАН ВХОДА -->
 <div id="auth-screen">
-  <h1 style="letter-spacing:.2em;font-weight:800">ТАБЕЛЬ</h1>
   <div class="spinner" id="auth-spinner"></div>
   <div id="auth-status" style="color:var(--muted)">Проверка доступа…</div>
 </div>
@@ -2958,8 +2959,13 @@ async function bkLoadAndRender(){
     const rq = await sb.from("v_bookings_full").select("*").eq("status","request")
       .gte("business_date", today).order("business_date").order("created_at");
     BK.data.requests = rq.data||[];
+    const gc = await sb.from("v_bookings_full").select("*").eq("status","cancelled")
+      .gte("business_date", today).ilike("cancel_reason","Отмена гостем%")
+      .order("cancelled_at",{ascending:false});
+    BK.data.guestCancels = gc.data||[];
   } else {
     BK.data.requests = [];
+    BK.data.guestCancels = [];
   }
   // официанты на смене сегодня по залам (для руководства) — из табеля
   await bkLoadShiftStaff(ds);
@@ -3465,12 +3471,17 @@ function bkCloseModal(){
 // ===== ЗАЯВКИ ОТ ГОСТЕЙ (status=request) =====
 // перезагрузить только список заявок (без перерисовки всей сетки)
 async function bkReloadRequests(){
-  if(!bkCanManageRequests()){ BK.data.requests=[]; bkUpdateReqsButton(); return; }
+  if(!bkCanManageRequests()){ BK.data.requests=[]; BK.data.guestCancels=[]; bkUpdateReqsButton(); return; }
   try{
     const today = bkIso(bkToday());
     const rq = await sb.from("v_bookings_full").select("*").eq("status","request")
       .gte("business_date", today).order("business_date").order("created_at");
     BK.data.requests = rq.data||[];
+    // отмены гостей: отменённые брони на сегодня/будущее, где причина начинается с «Отмена гостем»
+    const gc = await sb.from("v_bookings_full").select("*").eq("status","cancelled")
+      .gte("business_date", today).ilike("cancel_reason","Отмена гостем%")
+      .order("cancelled_at",{ascending:false});
+    BK.data.guestCancels = gc.data||[];
   }catch(_){}
   bkUpdateReqsButton();
 }
@@ -3495,7 +3506,7 @@ function bkUpdateReqsButton(){
   const btn=document.getElementById("bk-reqs-btn");
   if(!btn) return;
   if(!bkCanManageRequests()){ btn.style.display="none"; return; }
-  const n=(BK.data.requests||[]).length;
+  const n=(BK.data.requests||[]).length + (BK.data.guestCancels||[]).length;
   btn.style.display="";
   const badge=document.getElementById("bk-reqs-badge");
   if(badge){ badge.textContent=n; badge.classList.toggle("zero", n===0); }
@@ -3503,13 +3514,18 @@ function bkUpdateReqsButton(){
 
 function bkOpenRequests(){
   const list = BK.data.requests||[];
+  const cancels = BK.data.guestCancels||[];
   document.getElementById("bkm-title").textContent = "Заявки с сайта";
-  document.getElementById("bkm-sub").textContent = list.length ? (list.length+" в ожидании") : "нет новых заявок";
+  const subParts = [];
+  if(list.length) subParts.push(list.length+" в ожидании");
+  if(cancels.length) subParts.push(cancels.length+" отмен гостей");
+  document.getElementById("bkm-sub").textContent = subParts.length ? subParts.join(" · ") : "нет новых заявок";
   let html="";
-  if(!list.length){
+  if(!list.length && !cancels.length){
     html = `<div class="bkm-msg">Новых заявок нет. Здесь появляются брони, отправленные гостями из приложения.</div>`;
   } else {
-    html = `<div class="bk-reqs-list">` + list.map(r=>{
+    if(list.length){
+      html += `<div class="bk-reqs-list">` + list.map(r=>{
       const venue = r.venue_key==="club" ? "Клуб" : "Караоке";
       const tm = r.arrive_at ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
       const noteFull = (r.note||"").replace(/</g,"&lt;");
@@ -3530,10 +3546,45 @@ function bkOpenRequests(){
         </div>
       </div>`;
     }).join("") + `</div>`;
+    }
+    if(cancels.length){
+      html += `<div class="bk-cancels-head">Отмены гостей</div>`;
+      html += `<div class="bk-reqs-list">` + cancels.map(r=>{
+        const venue = r.venue_key==="club" ? "Клуб" : "Караоке";
+        const tm = r.arrive_at ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
+        const place = r.table_name ? r.table_name : "";
+        const reason = (r.cancel_reason||"").replace(/^Отмена гостем:\s*/i,"").replace(/</g,"&lt;").trim();
+        const when = r.cancelled_at ? new Date(r.cancelled_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+        return `<div class="bk-req cancel" data-rid="${r.id}">
+          <div class="bk-req-top">
+            <div class="bk-req-when">✕ ${venue} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}${place?(" · "+place):""}</div>
+            <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):""}</div>
+          </div>
+          <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
+          ${reason?`<div class="bk-req-comment">${reason}</div>`:""}
+          ${when?`<div class="bk-req-note">Отменено: ${when}</div>`:""}
+          <div class="bk-req-actions">
+            <button class="bkm-btn" onclick="bkDismissGuestCancel(${r.id})">Понятно, скрыть</button>
+          </div>
+        </div>`;
+      }).join("") + `</div>`;
+    }
   }
   document.getElementById("bkm-body").innerHTML = html;
   document.getElementById("bk-modal").classList.add("open");
 }
+// скрыть отмену гостя из списка (помечаем как просмотренную — меняем префикс причины)
+async function bkDismissGuestCancel(rid){
+  try{
+    const r = (BK.data.guestCancels||[]).find(x=>x.id===rid);
+    const reason = r ? (r.cancel_reason||"") : "";
+    const newReason = reason.replace(/^Отмена гостем:/i, "Отмена гостя (просмотрено):");
+    await sb.from("bookings").update({ cancel_reason: newReason }).eq("id", rid);
+  }catch(_){}
+  await bkReloadRequests();
+  bkOpenRequests();
+}
+window.bkDismissGuestCancel = bkDismissGuestCancel;
 
 // Подтвердить заявку: выбрать конкретный стол нужного заведения -> станет booked
 async function bkConfirmRequest(rid){
