@@ -2117,6 +2117,7 @@ function mybkRenderHomeSlot(b){
   if(b.status==="booked"){ cls="ok"; ic="✓"; label=t('hb_confirmed'); }
   else if(b.status==="cancelled"){ cls="no"; ic="✕"; label=t('hb_declined'); }
   else { cls="req"; ic="⏳"; label=t('hb_review'); }
+  const closable = (b.status!=="request");   // «на рассмотрении» закрыть нельзя — висит до решения
   slot.innerHTML = `
     <div class="hb-wrap ${cls}">
       <div class="hb-banner" id="hb-go" role="button" tabindex="0">
@@ -2126,12 +2127,14 @@ function mybkRenderHomeSlot(b){
           ${when?`<span class="hb-sub">${when}</span>`:""}
         </span>
       </div>
-      <button class="hb-close" id="hb-close" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>
+      ${closable?`<button class="hb-close" id="hb-close" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>`:""}
     </div>`;
   const g=document.getElementById("hb-go");
   if(g) g.onclick=()=>{ mybkMarkSeen(b); go("book"); };
-  const x=document.getElementById("hb-close");
-  if(x) x.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); mybkDismiss(mybkKey(b)); slot.innerHTML=""; mybkBadge(b); };
+  if(closable){
+    const x=document.getElementById("hb-close");
+    if(x) x.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); mybkDismiss(mybkKey(b)); slot.innerHTML=""; mybkBadge(b); };
+  }
 }
 // ключ скрытия = id + статус: новое событие (другой статус) снова покажет баннер
 function mybkKey(b){ return String(b.id)+":"+String(b.status); }
