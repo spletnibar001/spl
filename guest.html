@@ -215,6 +215,12 @@ button{font-family:inherit;cursor:pointer}
 .bk-zones button{padding:9px 14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
   border-radius:9px;font-size:13px;font-weight:600;font-family:inherit}
 .bk-zones button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-times{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.bk-times button{padding:9px 4px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:9px;font-size:13px;font-weight:600;font-family:inherit}
+.bk-times button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-bizday{font-size:11px;line-height:1.5;color:var(--muted);background:rgba(201,161,74,.10);
+  border:1px solid rgba(201,161,74,.3);border-radius:9px;padding:9px 11px;margin-top:9px}
 .bk-input{width:100%;padding:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
   border-radius:10px;font-size:15px;font-family:inherit}
 textarea.bk-input{resize:vertical;min-height:48px}
@@ -1009,6 +1015,11 @@ const T = {
                en:"Booking works only when opened via the Telegram bot."},
   bk_today:   {ru:"Сегодня", uz:"Bugun", en:"Today"},
   bk_tomorrow:{ru:"Завтра", uz:"Ertaga", en:"Tomorrow"},
+  bk_time:    {ru:"Время прихода", uz:"Kelish vaqti", en:"Arrival time"},
+  bk_pick_time:{ru:"Выберите время прихода", uz:"Kelish vaqtini tanlang", en:"Pick an arrival time"},
+  bk_bizday:  {ru:"Ночное время (после полуночи до 05:00) относится к выбранной дате — это та же ночь. Например, 02:00 в ночь с пятницы на субботу выбирайте как «пятница».",
+               uz:"Tungi vaqt (yarim tundan keyin 05:00 gacha) tanlangan kunga tegishli — bu o'sha tun. Masalan, juma kechasi 02:00 uchun «juma»ni tanlang.",
+               en:"Late-night hours (after midnight until 05:00) belong to the selected date — it's the same night. E.g. for 02:00 on Friday night, pick \"Friday\"."},
   about_text: {
     ru:"SPLETNI — первый музыкальный мультикомплекс Ташкента: четыре формата отдыха в одном месте. Караоке-рестобар с ВИП-кабинками и, пожалуй, лучшим звуком в городе, ночной клуб с DJ-сетами, уютная лаунж-терраса и летняя чилл-аут зона. Профессиональная акустика, авторские коктейли и кухня — для шумных компаний и спокойных вечеров.",
     uz:"SPLETNI — Toshkentdagi birinchi musiqiy multikompleks: bitta joyda to'rtta dam olish formati. VIP-kabinali va shahardagi eng yaxshi ovozli karaoke-restobar, DJ-setli tungi klub, shinam laund-terrasa va yozgi chill-out zona. Professional akustika, mualliflik kokteyllari va oshxona — shovqinli kompaniyalar va tinch oqshomlar uchun.",
@@ -1356,7 +1367,7 @@ async function renderBook(force){
   const body = document.getElementById("bk-body");
   if(!body) return;
   if(!ok){
-    body.innerHTML = `<div class="bk-loading">${t('bk_auth_err')}${BK_AUTH_ERR?`<br><br><span style="color:var(--hot);font-size:12px">${BK_AUTH_ERR}</span>`:""}</div>`;
+    body.innerHTML = `<div class="bk-loading">${t('bk_auth_err')}</div>`;
     return;
   }
   await bkfLoadRef();
@@ -1387,6 +1398,16 @@ async function renderBook(force){
 
   // форма заявки
   if(!BK_STATE.date) BK_STATE.date = bkfIso(new Date());
+  // автоподстановка телефона: берём из последней заявки этого гостя (он видит только свои)
+  if(!BK_STATE.phone){
+    try{
+      const {data} = await SB.from("bookings").select("phone,created_at")
+        .eq("created_by", Number(GUEST.tg_id))
+        .not("phone","is",null)
+        .order("created_at",{ascending:false}).limit(1);
+      if(data && data.length && data[0].phone) BK_STATE.phone = data[0].phone;
+    }catch(_){}
+  }
   bkfDrawForm();
 }
 
@@ -1413,6 +1434,12 @@ function bkfDrawForm(){
     `<button data-bz="${z.id}" class="${BK_STATE.zoneId===z.id?'on':''}">${z.title}</button>`
   ).join("") + `</div>`;
 
+  // интервалы времени с шагом 30 мин. Порядок — по «ночи»: с 18:00 до 04:30
+  const slots = bkfTimeSlots();
+  const timeBtns = `<div class="bk-times">` + slots.map(tm=>
+    `<button data-bt="${tm}" class="${BK_STATE.time===tm?'on':''}">${tm}</button>`
+  ).join("") + `</div>`;
+
   const guestOpts = [1,2,3,4,5,6,8,10,12,15,20].map(n=>
     `<option value="${n}" ${BK_STATE.guests==n?'selected':''}>${n}${n>=20?'+':''}</option>`).join("");
 
@@ -1424,6 +1451,10 @@ function bkfDrawForm(){
 
     <label class="bk-lbl">${t('bk_date')}</label>
     ${dateBtns}
+
+    <label class="bk-lbl">${t('bk_time')}</label>
+    ${timeBtns}
+    <div class="bk-bizday">${t('bk_bizday')}</div>
 
     <label class="bk-lbl">${t('bk_zone')}</label>
     ${zoneBtns}
@@ -1442,8 +1473,28 @@ function bkfDrawForm(){
 
   body.querySelectorAll("[data-bv]").forEach(b=>b.onclick=()=>{ BK_STATE.venue=b.dataset.bv; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bd]").forEach(b=>b.onclick=()=>{ BK_STATE.date=b.dataset.bd; bkfSaveInputs(); bkfDrawForm(); });
+  body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
   document.getElementById("bk-submit").onclick = bkfSubmit;
+}
+
+// интервалы времени 30 мин: 18:00 → 23:30, затем 00:00 → 04:30 (ночь)
+function bkfTimeSlots(){
+  const out=[];
+  for(let h=18; h<=23; h++){ out.push(pad2(h)+":00"); out.push(pad2(h)+":30"); }
+  for(let h=0; h<=4; h++){ out.push(pad2(h)+":00"); out.push(pad2(h)+":30"); }
+  return out;
+}
+function pad2(n){ return String(n).padStart(2,"0"); }
+// время прихода -> ISO timestamptz. Для 00:00-04:59 это следующий календарный день
+// относительно бизнес-даты (ночь выбранной даты).
+function bkfComposeArrive(dateIso, time){
+  const [y,m,dd] = dateIso.split("-").map(Number);
+  const [h,mi] = time.split(":").map(Number);
+  const d = new Date(y, m-1, dd);
+  if(h < 5) d.setDate(d.getDate()+1);   // ночные часы = следующий календарный день
+  d.setHours(h, mi, 0, 0);
+  return d.toISOString();
 }
 
 // сохранить введённые поля (чтобы не терялись при перерисовке)
@@ -1458,6 +1509,7 @@ function bkfMsg(text){ const m=document.getElementById("bk-msg"); if(m) m.textCo
 async function bkfSubmit(){
   bkfSaveInputs();
   if(!BK_STATE.zoneId){ bkfMsg(t('bk_pick_zone')); return; }
+  if(!BK_STATE.time){ bkfMsg(t('bk_pick_time')); return; }
   const phone = (BK_STATE.phone||"").trim();
   const digits = phone.replace(/[^\d]/g,"");
   if(digits.length<9){ bkfMsg(t('bk_need_phone')); return; }
@@ -1473,9 +1525,12 @@ async function bkfSubmit(){
     if(!tbl){ bkfMsg("Зона недоступна, выберите другую"); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
     const guests = BK_STATE.guests?Number(BK_STATE.guests):null;
+    // время прихода -> timestamptz; ночные часы (00:00-04:59) = следующий календарный день
+    const arriveAt = bkfComposeArrive(BK_STATE.date, BK_STATE.time);
     const noteParts = [
       "🌐 Заявка с сайта",
       "Зона: "+zone.title,
+      "Время: "+BK_STATE.time,
       guests?("Гостей: "+guests):null,
       BK_STATE.comment?("Коммент: "+BK_STATE.comment.trim()):null
     ].filter(Boolean);
@@ -1483,6 +1538,7 @@ async function bkfSubmit(){
     const row = {
       table_id: tbl.id,
       business_date: BK_STATE.date,
+      arrive_at: arriveAt,
       status: "request",
       guest_name: GUEST.name,
       guests_count: guests,
