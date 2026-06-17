@@ -7,8 +7,30 @@
 <title>Табель и зарплата</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>if(typeof XLSX==="undefined"){document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');}</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// надёжная загрузка библиотеки XLSX с несколькими зеркалами (на случай блокировки CDN)
+window.__xlsxReady = (function(){
+  var cdns = [
+    "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+    "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"
+  ];
+  function load(i){
+    return new Promise(function(resolve, reject){
+      if(typeof XLSX !== "undefined"){ resolve(); return; }
+      if(i >= cdns.length){ reject(new Error("Не удалось загрузить библиотеку Excel")); return; }
+      var s = document.createElement("script");
+      s.src = cdns[i];
+      s.onload = function(){ (typeof XLSX!=="undefined") ? resolve() : load(i+1).then(resolve, reject); };
+      s.onerror = function(){ load(i+1).then(resolve, reject); };
+      document.head.appendChild(s);
+    });
+  }
+  // если первый <script> уже подгрузил — сразу готово, иначе пробуем зеркала
+  return (typeof XLSX !== "undefined") ? Promise.resolve() : load(1);
+})();
+</script>
 <style>
   :root{
     --bg:#14161a; --panel:#1c1f25; --panel2:#22262e; --line:#2e333d;
@@ -646,24 +668,6 @@
         </span>
         <button id="btn-approve" class="btn-approve">Утвердить</button>
       </div>
-    </div>
-  </div>
-
-  <div class="card full-only">
-    <div class="hint" style="margin-top:0">
-      <b style="color:var(--text)">Обозначения.</b> Квадратик дня меняется по нажатию:
-      <span class="cell" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — не запланирован →
-      <span class="cell on" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — работает →
-      <span class="cell abs" style="vertical-align:middle;width:15px;height:15px;cursor:default"></span> — неявка (был в графике, не пришёл; день не оплачивается) → снова пусто.
-      <span class="pen-only">Красный уголок <span class="cellwrap" style="vertical-align:middle"><span class="cell on" style="width:15px;height:15px;cursor:default"></span><span class="pen-mark"></span></span> — у сотрудника есть штраф в этот день (подробности — по наведению или в окне ⚠).</span>
-      Метка 🔒 — неделя утверждена: состав и план заморожены, но отметку неявки ставить можно.
-      Кнопки в строке: <span class="pen-only">⚠ штрафы, </span>✎ редактировать, ✕ убрать из этой недели (в базе сотрудник останется).
-      Зелёные цифры под квадратиками — сколько человек на смене в каждый день.
-      У официантов и барменов караоке клик по дню открывает выбор зала
-      (Большой зал · Малый зал · Летка · Кабинки) — буква зала видна на квадратике.
-      Лимиты караоке: Летка и Малый зал — до 2, Кабинки — 1, Большой зал — до 4; Малый зал — только пятница и суббота.
-      Официантов клуба — максимум 4 в день. Сводка по залам и клубу — под графиком.
-      <span class="money-only">«Продажа» вводится официантам за неделю (шаги = 1%), Звукооператору — количество раз с кабинками (бонус 100 000/раз, максимум 10 за неделю). «Заработано» = смены × ставка − штрафы (+ шаги/бонусы); у должностей с фикс. окладом — прочерк.</span>
     </div>
   </div>
 
@@ -2326,8 +2330,10 @@ function xlsxDownload(wb, filename){
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
 }
-function exportXlsx(){
-  if(typeof XLSX==="undefined"){ showMsg("Библиотека Excel не загрузилась"); return; }
+async function exportXlsx(){
+  showMsg("Готовлю Excel…");
+  try{ if(window.__xlsxReady) await window.__xlsxReady; }catch(_){}
+  if(typeof XLSX==="undefined"){ showMsg("Не удалось загрузить библиотеку Excel — проверьте интернет"); return; }
   try{
   const weekKey = iso(viewStart);
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
@@ -2375,8 +2381,10 @@ function exportXlsx(){
 
 // ===== Выгрузка ИТОГИ ПО ЗП за неделю (только админ/кассир, десктоп) =====
 // Колонки: Место · Должность · Имя · ЗП · Штраф(−) · Бонус · Шаги · Итого · Дни · Примечания(штрафы)
-function exportPayrollXlsx(){
-  if(typeof XLSX==="undefined"){ showMsg("Библиотека Excel не загрузилась"); return; }
+async function exportPayrollXlsx(){
+  showMsg("Готовлю Excel…");
+  try{ if(window.__xlsxReady) await window.__xlsxReady; }catch(_){}
+  if(typeof XLSX==="undefined"){ showMsg("Не удалось загрузить библиотеку Excel — проверьте интернет"); return; }
   try{
   const weekKey = iso(viewStart);
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
