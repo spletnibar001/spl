@@ -245,6 +245,15 @@ window.__xlsxReady = (function(){
   #staff-cabinet .sc-hello b{color:var(--text);font-size:18px;display:block;margin-top:2px;font-weight:700}
   #staff-cabinet .sc-pill{display:inline-block;margin-top:6px;font-size:11px;color:var(--muted);
     background:var(--panel2);border:1px solid var(--line);padding:3px 10px;border-radius:20px}
+  #staff-cabinet .sc-weeknav{display:flex;align-items:center;gap:10px;margin-top:10px}
+  #staff-cabinet .sc-wk-btn{width:40px;height:40px;flex:0 0 auto;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);border-radius:10px;font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+  #staff-cabinet .sc-wk-btn:active{background:var(--panel)}
+  #staff-cabinet .sc-wk-btn:disabled{opacity:.35;cursor:default}
+  #staff-cabinet .sc-wk-label{flex:1;text-align:center;line-height:1.25}
+  #staff-cabinet .sc-wk-roles{display:block;font-size:11px;color:var(--muted)}
+  #staff-cabinet .sc-wk-range{display:block;font-size:14px;font-weight:700;color:var(--text)}
   #staff-cabinet .sc-earn{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;user-select:none}
   #staff-cabinet .sc-earn .cap{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
   #staff-cabinet .sc-earn .cap .chev{color:#5a6270;font-size:12px;transition:transform .2s}
@@ -1989,9 +1998,22 @@ function renderStaffCabinet(cardsArg){
     ? `${grandCnt} смен · выплата 2 раза в месяц${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}`
     : `${grandCnt} смен${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}`;
 
+  // навигация по неделям в личном кабинете: назад без лимита, вперёд максимум 1 неделя
+  const curWeek = payWeekStart(businessNow());
+  const maxWeek = addDays(curWeek, 7);                 // максимум — одна будущая неделя
+  const canNext = iso(viewStart) < iso(maxWeek);       // дальше maxWeek нельзя
+  const isCurrent = iso(viewStart) === iso(curWeek);
+
   box.innerHTML = `
     <div class="sc-hello">Смена и заработок<b>${name}</b></div>
-    <span class="sc-pill">${rolesLine} · неделя ${fmtD(viewStart)} — ${fmtD(addDays(viewStart,6))}</span>
+    <div class="sc-weeknav">
+      <button class="sc-wk-btn" id="sc-wk-prev" aria-label="Предыдущая неделя">◀</button>
+      <div class="sc-wk-label">
+        <span class="sc-wk-roles">${rolesLine}</span>
+        <span class="sc-wk-range">${fmtD(viewStart)} — ${fmtD(addDays(viewStart,6))}${isCurrent?" · текущая":""}</span>
+      </div>
+      <button class="sc-wk-btn" id="sc-wk-next" aria-label="Следующая неделя" ${canNext?"":"disabled"}>▶</button>
+    </div>
 
     <div class="sc-earn open" id="sc-c-earn" onclick="scToggle('earn')">
       <div class="cap">${multi?"Заработано за неделю (все роли)":"Заработано за неделю"} <span class="chev">▾</span></div>
@@ -2015,6 +2037,19 @@ function renderStaffCabinet(cardsArg){
 
     <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
   `;
+  // навигация по неделям
+  const prevBtn = $("sc-wk-prev"), nextBtn = $("sc-wk-next");
+  if(prevBtn) prevBtn.addEventListener("click", async ()=>{
+    viewStart = addDays(viewStart, -7);
+    if(CAP.staff){ await loadStaff(); renderStaffCabinet(); } else { await renderMyCabinetForManager(); }
+  });
+  if(nextBtn) nextBtn.addEventListener("click", async ()=>{
+    const curWeek = payWeekStart(businessNow());
+    const maxWeek = addDays(curWeek, 7);
+    if(iso(viewStart) >= iso(maxWeek)) return;   // не дальше одной будущей недели
+    viewStart = addDays(viewStart, 7);
+    if(CAP.staff){ await loadStaff(); renderStaffCabinet(); } else { await renderMyCabinetForManager(); }
+  });
 }
 function scToggle(which){
   ["earn","bonus","pen"].forEach(k=>{
@@ -2334,7 +2369,7 @@ function renderBase(){
 /* ================= экспорт (только money-роли) ================= */
 // надёжное скачивание .xlsx: Blob + временная ссылка (работает во всех десктоп-браузерах)
 function xlsxDownload(wb, filename){
-  // base64 + data: URL — работает в Telegram Web, где blob: открывается пустой вкладкой
+  // base64 + data: URL
   const b64 = XLSX.write(wb, {bookType:"xlsx", type:"base64"});
   const dataUrl = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + b64;
   let ok = false;
