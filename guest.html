@@ -303,7 +303,11 @@ textarea.bk-input{resize:vertical;min-height:48px}
 .bk-mine-row{font-size:14px;line-height:1.5}
 .bk-mine-status{font-size:15px;font-weight:800;margin-top:10px}
 /* карточки результата брони */
-.bk-res{border-radius:14px;padding:20px 16px;margin-bottom:14px;border:1px solid var(--line)}
+.bk-res{border-radius:14px;padding:20px 16px;margin-bottom:14px;border:1px solid var(--line);position:relative}
+.bk-res-close{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);font-size:15px;
+  font-weight:700;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2}
+.bk-res-close:active{background:rgba(255,255,255,.15)}
 .bk-res.ok{background:rgba(31,191,122,.10);border-color:rgba(31,191,122,.4)}
 .bk-res.no{background:rgba(226,101,92,.10);border-color:rgba(226,101,92,.4)}
 .bk-res-ic{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -1561,11 +1565,15 @@ async function renderBook(force){
   }
 
   // последняя заявка отклонена — показываем причину и даём подать новую
-  if(last && last.status==="cancelled"){
+  // (если гость уже закрыл это сообщение крестиком — сразу форма)
+  if(last && last.status==="cancelled" && !MYBK_DISMISSED.has(mybkKey(last))){
     body.innerHTML = bkfStatusCard(last) +
       `<button class="bk-submit" id="bk-newreq" style="margin-top:4px">${t('bk_new_req')}</button>`;
     const nb=document.getElementById("bk-newreq");
     if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=last.id; bkfShowForm(); };
+    // крестик — гость закрывает сообщение об отказе, больше оно не появляется
+    const rc=document.getElementById("bk-res-close");
+    if(rc) rc.onclick=()=>{ mybkDismiss(mybkKey(last)); bkfShowForm(); };
     bkfSubscribe(last.id);
     return;
   }
@@ -1675,7 +1683,7 @@ function bkfStatusCard(b){
         </div>`;
     return `
       <div class="bk-res no">
-        <div class="bk-res-ic">✕</div>
+        <button class="bk-res-close" id="bk-res-close" data-bid="${b.id}" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>
         <div class="bk-res-h">${t('bk_declined_h')}</div>
         <div class="bk-res-sub">${t('bk_declined_sub')}</div>
         <div class="bk-res-grid">
@@ -2202,13 +2210,13 @@ function mybkRenderHomeSlot(b){
   const timeStr = (b.arrive_at && typeof bkfFmtTime==="function") ? bkfFmtTime(b.arrive_at) : "";
   const when = [dateStr, timeStr].filter(Boolean).join(" · ");
   if(b.status==="booked"){ cls="ok"; ic="✓"; label=t('hb_confirmed'); }
-  else if(b.status==="cancelled"){ cls="no"; ic="✕"; label=t('hb_declined'); }
+  else if(b.status==="cancelled"){ cls="no"; ic=""; label=t('hb_declined'); }
   else { cls="req"; ic="⏳"; label=t('hb_review'); }
   const closable = (b.status!=="request");   // «на рассмотрении» закрыть нельзя — висит до решения
   slot.innerHTML = `
     <div class="hb-wrap ${cls}">
       <div class="hb-banner" id="hb-go" role="button" tabindex="0">
-        <span class="hb-ic">${ic}</span>
+        ${ic?`<span class="hb-ic">${ic}</span>`:""}
         <span class="hb-txt">
           <span class="hb-h">${t('hb_title')} · ${label}</span>
           ${when?`<span class="hb-sub">${when}</span>`:""}
