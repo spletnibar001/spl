@@ -44,6 +44,7 @@ button{font-family:inherit;cursor:pointer}
 .hero .hero-mark .name{font-size:26px;font-weight:800;letter-spacing:.2em}
 .hero .hero-mark .tag{font-size:11px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:2px}
 
+.venue-prompt{text-align:center;font-size:15px;font-weight:700;color:var(--gold);margin:4px 0 12px;letter-spacing:.02em}
 .venue-switch{display:flex;gap:8px;margin-bottom:18px}
 .venue-switch button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--text);
   border-radius:14px;padding:16px 10px;font-size:15px;font-weight:800;letter-spacing:.04em;position:relative}
@@ -57,6 +58,47 @@ button{font-family:inherit;cursor:pointer}
 .tile .t-ic{width:24px;height:24px;color:var(--emerald)}
 .tile .t-name{font-size:15px;font-weight:700}
 .tile .t-sub{font-size:11px;color:var(--muted)}
+.tiles.tiles-3{grid-template-columns:1fr 1fr 1fr}
+.tiles.tiles-3 .tile{padding:14px 10px;text-align:center}
+.tiles.tiles-3 .tile .t-ic{margin:0 auto}
+.tiles.tiles-3 .tile .t-name{font-size:13px;margin-top:6px}
+.tiles.tiles-3 .tile .t-sub{font-size:10px}
+.dc-intro{font-size:13px;line-height:1.6;color:var(--muted);margin-bottom:16px}
+.dc-list{display:flex;flex-direction:column;gap:10px}
+.dc-row{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);
+  background:var(--panel);border-radius:12px;font-size:13px;line-height:1.4}
+.dc-row .dc-ic{flex-shrink:0;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;
+  justify-content:center;font-weight:800;font-size:13px;border:1px solid}
+.dc-row.dc-ok .dc-ic{color:var(--emerald);border-color:var(--emerald);background:rgba(31,191,122,.12)}
+.dc-row.dc-no .dc-ic{color:var(--hot);border-color:var(--hot);background:rgba(226,101,92,.12)}
+.about-card{margin-top:16px;padding:15px 16px;border:1px solid var(--line);background:var(--panel);
+  border-radius:14px;font-size:13px;line-height:1.6;color:var(--text)}
+.reviews-btn{display:flex;align-items:center;gap:12px;margin-top:12px;padding:14px 16px;
+  border:1px solid var(--gold);background:linear-gradient(135deg,rgba(201,161,74,.16),rgba(201,161,74,.06));
+  border-radius:14px;text-decoration:none;color:var(--text)}
+.reviews-btn:active{background:rgba(201,161,74,.22)}
+.reviews-btn .rv-star{width:24px;height:24px;color:var(--gold);flex-shrink:0;display:flex}
+.reviews-btn .rv-star svg{width:24px;height:24px}
+.reviews-btn .rv-txt{flex:1;display:flex;flex-direction:column;gap:2px}
+.reviews-btn .rv-main{font-size:15px;font-weight:700}
+.reviews-btn .rv-sub{font-size:12px;color:var(--gold);font-weight:600}
+.reviews-btn .rv-arr{color:var(--gold);font-size:18px;font-weight:700}
+.hc-card{margin-top:12px;padding:16px;border:1px solid var(--line);background:var(--panel);border-radius:14px}
+.hc-card .hc-h{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:12px}
+.hc-addr{display:flex;align-items:flex-start;gap:10px;text-decoration:none;color:var(--text);padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.hc-addr .hc-ic{width:20px;height:20px;color:var(--emerald);flex-shrink:0;margin-top:2px}
+.hc-addr .hc-ic svg{width:20px;height:20px}
+.hc-addr .hc-lbl{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+.hc-addr .hc-val{display:block;font-size:13px;line-height:1.4}
+.hc-venue{margin-bottom:12px}
+.hc-venue .hc-vname{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.hc-actions{display:flex;gap:8px}
+.hc-btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;font-family:inherit}
+.hc-btn svg{width:18px;height:18px}
+.hc-btn.call{background:var(--panel2);border:1px solid var(--line);color:var(--text);flex:1}
+.hc-tg{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;text-decoration:none;
+  background:rgba(42,140,224,.16);border:1px solid #2a8ce0;color:#5bb0f0;border-radius:12px;padding:13px;font-size:14px;font-weight:700}
+.hc-tg svg{width:20px;height:20px}
 
 /* ЗАГОЛОВОК РАЗДЕЛА */
 .sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -85,6 +127,9 @@ button{font-family:inherit;cursor:pointer}
 .mi .mi-p{font-size:13px;color:var(--muted);font-weight:700;white-space:nowrap}
 .mi .mi-p.dash{color:var(--line)}
 .menu-note{text-align:center;color:var(--muted);font-size:12px;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
+.menu-service{text-align:center;margin:0 0 16px;padding:10px 14px;border-radius:10px;
+  background:rgba(31,191,122,.14);border:1px solid var(--emerald);color:var(--emerald);
+  font-size:16px;font-weight:800;letter-spacing:.02em}
 .menu-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;font-size:11px;color:var(--muted)}
 .menu-legend .lg{display:inline-flex;align-items:center;gap:4px}
 
@@ -210,6 +255,7 @@ textarea.bk-input{resize:vertical;min-height:48px}
   <div class="section" id="sec-menu"></div>
   <!-- БРОНИРОВАНИЕ -->
   <div class="section" id="sec-book"></div>
+  <div class="section" id="sec-dress"></div>
   <!-- КАК ДОБРАТЬСЯ -->
   <div class="section" id="sec-location"></div>
   <!-- КОНТАКТЫ -->
@@ -958,6 +1004,44 @@ const T = {
                en:"Booking works only when opened via the Telegram bot."},
   bk_today:   {ru:"Сегодня", uz:"Bugun", en:"Today"},
   bk_tomorrow:{ru:"Завтра", uz:"Ertaga", en:"Tomorrow"},
+  about_text: {
+    ru:"SPLETNI — первый музыкальный мультикомплекс Ташкента: четыре формата отдыха в одном месте. Караоке-рестобар с ВИП-кабинками и, пожалуй, лучшим звуком в городе, ночной клуб с DJ-сетами, уютная лаунж-терраса и летняя чилл-аут зона. Профессиональная акустика, авторские коктейли и кухня — для шумных компаний и спокойных вечеров.",
+    uz:"SPLETNI — Toshkentdagi birinchi musiqiy multikompleks: bitta joyda to'rtta dam olish formati. VIP-kabinali va shahardagi eng yaxshi ovozli karaoke-restobar, DJ-setli tungi klub, shinam laund-terrasa va yozgi chill-out zona. Professional akustika, mualliflik kokteyllari va oshxona — shovqinli kompaniyalar va tinch oqshomlar uchun.",
+    en:"SPLETNI is Tashkent's first music multicomplex — four formats of leisure in one place. A karaoke restobar with VIP rooms and arguably the best sound in the city, a nightclub with DJ sets, a cosy lounge terrace and a summer chill-out zone. Professional acoustics, signature cocktails and kitchen — for lively parties and quiet evenings."
+  },
+  reviews_btn:{ru:"Отзывы на Яндексе", uz:"Yandex'dagi sharhlar", en:"Reviews on Yandex"},
+  reviews_sub:{ru:"5.0 ★ · 386 отзывов", uz:"5.0 ★ · 386 sharh", en:"5.0 ★ · 386 reviews"},
+  venue_prompt:{ru:"Выберите место для брони", uz:"Bron uchun joyni tanlang", en:"Choose a place to book"},
+  nav_dress:  {ru:"Фейс-контроль", uz:"Feys-nazorat", en:"Face Control"},
+  tile_dress_sub:{ru:"Дресс-код и вход", uz:"Dress-kod va kirish", en:"Dress code & entry"},
+  dress_t:    {ru:"Face & Dress Control", uz:"Face & Dress Control", en:"Face & Dress Control"},
+  dress_intro:{ru:"Мы создаём особую атмосферу для наших гостей. Соблюдение дресс-кода — часть этой атмосферы. Уважаем ваш стиль и просим уважать наш формат.",
+               uz:"Biz mehmonlarimiz uchun alohida muhit yaratamiz. Dress-kodga rioya qilish — shu muhitning bir qismi. Sizning uslubingizni hurmat qilamiz va formatimizni hurmat qilishingizni so'raymiz.",
+               en:"We create a special atmosphere for our guests. The dress code is part of it. We respect your style and ask you to respect our format."},
+  dress_ok:   {ru:["Деловой стиль и smart casual — всегда приветствуются",
+                   "Вечерние образы, коктейльные платья — отлично",
+                   "При брони стола — гарантированный вход для вашей компании"],
+               uz:["Biznes uslub va smart casual — doim qabul qilinadi",
+                   "Kechki liboslar, kokteyl ko'ylaklar — a'lo",
+                   "Stol bron qilinganda — kompaniyangiz uchun kafolatlangan kirish"],
+               en:["Business style and smart casual — always welcome",
+                   "Evening looks, cocktail dresses — perfect",
+                   "With a table booking — guaranteed entry for your group"]},
+  dress_no:   {ru:["Спортивная одежда, тапочки, шлёпанцы — не допускаются",
+                   "Военная форма и камуфляж — не допускаются",
+                   "Лица в состоянии сильного опьянения — не допускаются"],
+               uz:["Sport kiyim, shippak, tapochka — ruxsat etilmaydi",
+                   "Harbiy forma va kamuflyaj — ruxsat etilmaydi",
+                   "Kuchli mast holatdagi shaxslar — kiritilmaydi"],
+               en:["Sportswear, slippers, flip-flops — not allowed",
+                   "Military uniform and camouflage — not allowed",
+                   "Heavily intoxicated guests — not allowed"]},
+  hc_title:   {ru:"Контакты", uz:"Kontaktlar", en:"Contacts"},
+  hc_addr_lbl:{ru:"Адрес", uz:"Manzil", en:"Address"},
+  hc_kar:     {ru:"Караоке / Терраса", uz:"Karaoke / Terrasa", en:"Karaoke / Terrace"},
+  hc_club:    {ru:"Ночной клуб", uz:"Tungi klub", en:"Nightclub"},
+  hc_call:    {ru:"Позвонить", uz:"Qo'ng'iroq", en:"Call"},
+  hc_tg:      {ru:"Написать в Telegram", uz:"Telegram'ga yozish", en:"Message on Telegram"},
 };
 
 let LANG = "ru";
@@ -981,12 +1065,18 @@ const IC = {
   where:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.4-7-11A7 7 0 0 1 19 10c0 4.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
   taxi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="19.5" r="1.5"/><circle cx="16.5" cy="19.5" r="1.5"/></svg>',
   phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.5 2.6a2 2 0 0 1-.5 1.8L8 9.4a16 16 0 0 0 6 6l1.3-1.1a2 2 0 0 1 1.8-.5l2.6.5a2 2 0 0 1 1.7 2z"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>',
+  dress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2l3 3 3-3"/><path d="M12 5v3"/><path d="M8 8l-2 4 6 10 6-10-2-4"/><path d="M6 12h12"/></svg>',
+  tg:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.9 4.3l-3.3 15.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.1 13.4l-4.9-1.5c-1.1-.3-1.1-1 .2-1.5l19.2-7.4c.9-.3 1.7.2 1.4 1.3z"/></svg>',
 };
 
 // телефоны и адрес
 const PHONE_KAR = "+998900638888";
 const PHONE_CLUB = "+998940808088";
 const ADDR_LAT = 41.312011, ADDR_LNG = 69.316505; // точные координаты SPLETNI
+// Telegram для связи: общий аккаунт бара. Клубовский добавим позже (пока null = заглушка).
+const TG_KAR = "spletni_bar";
+const TG_CLUB = null;   // TODO: заполнить username клуба, когда будет
 
 // ============ ПОДКЛЮЧЕНИЕ К БАЗЕ / АВТОРИЗАЦИЯ ГОСТЯ ============
 const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
@@ -1035,23 +1125,51 @@ function renderHome(){
         <div class="tag">${t('tagline')}</div>
       </div>
     </div>
+    <div class="venue-prompt">${t('venue_prompt')}</div>
     <div class="venue-switch" id="venue-switch">
-      <button data-v="karaoke" class="${VENUE==='karaoke'?'active':''}">${t('karaoke')}
+      <button data-vgo="karaoke">${t('karaoke')}
         <span class="vs-sub">17:00 – 05:00</span></button>
-      <button data-v="club" class="${VENUE==='club'?'active':''}">${t('club')}
+      <button data-vgo="club">${t('club')}
         <span class="vs-sub">23:00 – 06:00</span></button>
     </div>
-    <div class="tiles">
-      <button class="tile" data-go="zones"><div class="t-ic">${IC.zones}</div>
-        <div class="t-name">${t('nav_zones')}</div><div class="t-sub">${t('tile_zones_sub')}</div></button>
+    <div class="tiles tiles-3">
       <button class="tile" data-go="menu"><div class="t-ic">${IC.menu}</div>
         <div class="t-name">${t('nav_menu')}</div><div class="t-sub">${t('tile_menu_sub')}</div></button>
-      <button class="tile" data-go="book"><div class="t-ic">${IC.book}</div>
-        <div class="t-name">${t('nav_book')}</div><div class="t-sub">${t('tile_book_sub')}</div></button>
+      <button class="tile" data-go="dress"><div class="t-ic">${IC.dress}</div>
+        <div class="t-name">${t('nav_dress')}</div><div class="t-sub">${t('tile_dress_sub')}</div></button>
       <button class="tile" data-go="location"><div class="t-ic">${IC.where}</div>
         <div class="t-name">${t('nav_where')}</div><div class="t-sub">${t('tile_where_sub')}</div></button>
+    </div>
+    <div class="about-card">${t('about_text')}</div>
+    <a class="reviews-btn" href="https://yandex.uz/maps/org/spletni/236818073533/reviews/" target="_blank" rel="noopener">
+      <span class="rv-star">${IC.star}</span>
+      <span class="rv-txt"><span class="rv-main">${t('reviews_btn')}</span><span class="rv-sub">${t('reviews_sub')}</span></span>
+      <span class="rv-arr">→</span>
+    </a>
+    <div class="hc-card">
+      <div class="hc-h">${t('hc_title')}</div>
+      <a class="hc-addr" href="https://yandex.uz/maps/?rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=auto" target="_blank" rel="noopener">
+        <span class="hc-ic">${IC.where}</span>
+        <span><span class="hc-lbl">${t('hc_addr_lbl')}</span><span class="hc-val">${t('addr_val')}</span></span>
+      </a>
+      <div class="hc-venue">
+        <div class="hc-vname">${t('hc_kar')}</div>
+        <div class="hc-actions">
+          <a class="hc-btn call" href="tel:${PHONE_KAR}">${IC.phone}<span>${PHONE_KAR.replace('+998','+998 ')}</span></a>
+        </div>
+      </div>
+      <div class="hc-venue">
+        <div class="hc-vname">${t('hc_club')}</div>
+        <div class="hc-actions">
+          <a class="hc-btn call" href="tel:${PHONE_CLUB}">${IC.phone}<span>${PHONE_CLUB.replace('+998','+998 ')}</span></a>
+        </div>
+      </div>
+      <a class="hc-tg" href="https://t.me/${TG_KAR}" target="_blank" rel="noopener">${IC.tg}<span>${t('hc_tg')}</span></a>
     </div>`;
-  el.querySelectorAll("#venue-switch button").forEach(b=>b.onclick=()=>{VENUE=b.dataset.v;renderAll();});
+  // верхние кнопки открывают залы нужного заведения
+  el.querySelectorAll("#venue-switch button").forEach(b=>b.onclick=()=>{
+    VENUE=b.dataset.vgo; ZONE_VENUE=b.dataset.vgo; go("zones");
+  });
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
 
@@ -1078,13 +1196,14 @@ function renderMenu(){
     }).join("");
     return `<div class="cat"><div class="cat-title" style="color:${col}"><span class="cat-bar" style="background:${col}"></span>${sec.cat[LANG]}</div>${rows}</div>`;
   }).join("");
-  const note = MENU_TAB==="bar" ? `<div class="menu-note">${BAR_MENU_NOTE[LANG]}</div>` : "";
+  const note = "";  // нижняя серая надпись больше не нужна — есть яркая под вкладками
   el.innerHTML = `
     <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('menu_t')}</h2></div>
     <div class="menu-tabs">
       <button data-mt="bar" class="${MENU_TAB==='bar'?'active':''}">${t('tab_bar')}</button>
       <button data-mt="kitchen" class="${MENU_TAB==='kitchen'?'active':''}">${t('tab_kitchen')}</button>
     </div>
+    <div class="menu-service">${BAR_MENU_NOTE[LANG]}</div>
     ${legend}${cats}${note}`;
   el.querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>{MENU_TAB=b.dataset.mt;renderMenu();window.scrollTo(0,0);});
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
@@ -1118,6 +1237,20 @@ function renderLocation(){
         <a class="btn" href="tel:${PHONE_CLUB}">${IC.phone}${t('call_club')}</a>
       </div>
     </div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+// ============ FACE & DRESS CONTROL ============
+function renderDress(){
+  const el = document.getElementById("sec-dress");
+  const ok = (T.dress_ok[LANG]||T.dress_ok.ru).map(s=>
+    `<div class="dc-row dc-ok"><span class="dc-ic">✓</span><span>${s}</span></div>`).join("");
+  const no = (T.dress_no[LANG]||T.dress_no.ru).map(s=>
+    `<div class="dc-row dc-no"><span class="dc-ic">✕</span><span>${s}</span></div>`).join("");
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('dress_t')}</h2></div>
+    <div class="dc-intro">${t('dress_intro')}</div>
+    <div class="dc-list">${ok}${no}</div>`;
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
 
@@ -1410,17 +1543,11 @@ function renderZones(){
   }).join("");
 
   el.innerHTML = `
-    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('zones_t')}</h2></div>
-    <div class="zone-venue-tabs">
-      <button data-zv="karaoke" class="${ZONE_VENUE==='karaoke'?'active':''}">${t('karaoke')}</button>
-      <button data-zv="club" class="${ZONE_VENUE==='club'?'active':''}">${t('club')}</button>
-    </div>
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${ZONE_VENUE==='karaoke'?t('karaoke'):t('club')} · ${t('zones_t')}</h2></div>
     ${cards}`;
 
   // навигация разделов
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
-  // переключение заведения
-  el.querySelectorAll("[data-zv]").forEach(b=>b.onclick=()=>{ZONE_VENUE=b.dataset.zv;renderZones();window.scrollTo(0,0);});
   // стрелки галереи
   el.querySelectorAll("[data-zg]").forEach(b=>b.onclick=()=>{
     const [id,dir] = b.dataset.zg.split(":");
@@ -1456,7 +1583,7 @@ const NAV = [
   {id:"home", key:"nav_home", ic:"home"},
   {id:"zones", key:"nav_zones", ic:"zones"},
   {id:"menu", key:"nav_menu", ic:"menu"},
-  {id:"book", key:"nav_book", ic:"book"},
+  {id:"dress", key:"nav_dress", ic:"dress"},
   {id:"location", key:"nav_where", ic:"where"},
 ];
 let CUR = "home";
@@ -1468,7 +1595,7 @@ function renderNav(){
 function go(id){
   CUR = id;
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-  const map = {home:"sec-home",zones:"sec-zones",menu:"sec-menu",book:"sec-book",location:"sec-location",contacts:"sec-contacts"};
+  const map = {home:"sec-home",zones:"sec-zones",menu:"sec-menu",book:"sec-book",dress:"sec-dress",location:"sec-location",contacts:"sec-contacts"};
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
@@ -1483,6 +1610,7 @@ function renderAll(){
   renderContacts();
   renderZones();
   renderBook();
+  renderDress();
   renderNav();
 }
 
