@@ -1357,7 +1357,7 @@ function renderMenu(){
 function renderLocation(){
   const el = document.getElementById("sec-location");
   const ymapsUrl = `https://yandex.uz/maps/?rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=auto`;
-  const yandexGo = `https://3.redirect.appmetrica.yandex.com/route?end-lat=${ADDR_LAT}&end-lon=${ADDR_LNG}&ref=spletni`;
+  const yandexGo = `https://yandex.uz/maps/?mode=routes&rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=taxi&z=16`;
   el.innerHTML = `
     <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('where_t')}</h2></div>
     <div class="info-card">
@@ -1635,7 +1635,7 @@ function bkfStatusCard(b){
     const tg = isClub ? TG_CLUB : TG_KAR;
     const callTxt = isClub ? t('call_club') : t('call_kar');
     const ymapsUrl = `https://yandex.uz/maps/?rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=auto`;
-    const yandexGo = `https://3.redirect.appmetrica.yandex.com/route?end-lat=${ADDR_LAT}&end-lon=${ADDR_LNG}&ref=spletni`;
+    const yandexGo = `https://yandex.uz/maps/?mode=routes&rtext=~${ADDR_LAT},${ADDR_LNG}&rtt=taxi&z=16`;
     const actions = `
         <div class="bk-acts">
           <div class="bk-act-row">
