@@ -335,6 +335,8 @@
 .bk-zone-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:800;margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .bk-zone-lbl .staff{color:var(--text);font-weight:600;letter-spacing:0;text-transform:none;font-size:13px;display:block;margin-top:3px}
 .bk-zone-lbl .staff .staff-line{line-height:1.5}
+.bk-zone-lbl .staff .st-nm{color:var(--text)}
+.bk-zone-lbl .staff .st-nm.in{color:var(--emerald);font-weight:700}
 .bk-zone-lbl .sub{color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none;font-size:10px}
 /* стол (общий) */
 .bk-t{border:2px solid #3a4150;background:#14161a;border-radius:9px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.12s;padding:5px;position:relative}
@@ -2831,24 +2833,28 @@ function bkFilterForWaiter(list){
 
 // кто сегодня на смене в каждом зале караоке + в клубе (имена для шапок зон)
 async function bkLoadShiftStaff(ds){
-  // для каждой зоны: {bar:[], waiter:[]}
+  // для каждой зоны: {bar:[], waiter:[]} — элементы вида {name, checkedIn}
   BK.data.shiftStaff = {
     big:{bar:[],waiter:[]}, small:{bar:[],waiter:[]}, letka:{bar:[],waiter:[]},
     cabin:{bar:[],waiter:[]}, club:{bar:[],waiter:[]}
   };
   if(!BK.seeAll.includes(ME.role)) return; // имена показываем только руководству
   try{
-    const sh = await sb.from("shifts").select("employee_id,place,work_date").eq("work_date",ds);
+    const sh = await sb.from("shifts").select("employee_id,place,work_date,status").eq("work_date",ds);
     const emp = await sb.from("employees").select("id,name,pos,emp_role");
+    const chk = await sb.from("checkins").select("employee_id,work_date").eq("work_date",ds);
     const byId = {}; (emp.data||[]).forEach(e=>byId[e.id]=e);
+    const checkedSet = new Set((chk.data||[]).map(c=>c.employee_id));
     const isBar = r => r==="Бармен" || r==="Старший бармен";
     const isWaiter = r => r==="Официант";
     (sh.data||[]).forEach(s=>{
+      if(s.status===2) return;                 // неявка — не показываем
       const e=byId[s.employee_id]; if(!e) return;
       const slot = isBar(e.emp_role) ? "bar" : (isWaiter(e.emp_role) ? "waiter" : null);
       if(!slot) return;
-      if(e.pos==="club"){ BK.data.shiftStaff.club[slot].push(e.name); }
-      else if(s.place && BK.data.shiftStaff[s.place]) BK.data.shiftStaff[s.place][slot].push(e.name);
+      const item = { name:e.name, checkedIn: checkedSet.has(e.id) };
+      if(e.pos==="club"){ BK.data.shiftStaff.club[slot].push(item); }
+      else if(s.place && BK.data.shiftStaff[s.place]) BK.data.shiftStaff[s.place][slot].push(item);
     });
   }catch(_){}
 }
@@ -2916,13 +2922,18 @@ function bkDepLabel(t, weekend){
 function bkStaffHead(placeKey){
   const s = BK.data.shiftStaff[placeKey] || {bar:[],waiter:[]};
   const lines = [];
+  const fmtNames = arr => arr.map(it=>{
+    const nm = (it && it.name!=null) ? it.name : it;   // совместимость, если вдруг строка
+    const on = it && it.checkedIn;
+    return `<span class="st-nm${on?' in':''}">${nm}</span>`;
+  }).join(", ");
   if(s.bar && s.bar.length){
     const lbl = s.bar.length>1 ? "Бармены на смене" : "Бармен на смене";
-    lines.push(`<div class="staff-line">${lbl}: ${s.bar.join(", ")}</div>`);
+    lines.push(`<div class="staff-line">${lbl}: ${fmtNames(s.bar)}</div>`);
   }
   if(s.waiter && s.waiter.length){
     const lbl = s.waiter.length>1 ? "Официанты на смене" : "Официант на смене";
-    lines.push(`<div class="staff-line">${lbl}: ${s.waiter.join(", ")}</div>`);
+    lines.push(`<div class="staff-line">${lbl}: ${fmtNames(s.waiter)}</div>`);
   }
   return lines.length ? `<span class="staff">${lines.join("")}</span>` : "";
 }
