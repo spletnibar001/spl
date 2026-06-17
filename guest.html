@@ -57,10 +57,10 @@ button{font-family:inherit;cursor:pointer}
 .hb-banner .hb-h{font-size:14px;font-weight:700}
 .hb-banner .hb-sub{font-size:12px;color:var(--muted)}
 .hb-banner .hb-arr{font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0}
-.hb-x{flex-shrink:0;width:46px;border:none;border-left:1px solid rgba(224,100,100,.25);
-  background:transparent;color:#e06464;font-size:20px;font-weight:800;cursor:pointer;
+.hb-x{flex-shrink:0;width:52px;border:none;border-left:1px solid rgba(224,100,100,.4);
+  background:rgba(224,100,100,.16);color:#ff7b7b;font-size:24px;font-weight:800;cursor:pointer;
   display:flex;align-items:center;justify-content:center;transition:background .15s}
-.hb-x:hover{background:rgba(224,100,100,.18)}
+.hb-x:hover{background:rgba(224,100,100,.28)}
 .hb-x:active{background:rgba(224,100,100,.3)}
 
 /* КОНТЕНТ */
@@ -2014,21 +2014,32 @@ const MYBK_CS_KEY = "dismissed_declined";   // ключ в Telegram CloudStorage
 
 // загрузить список скрытых заявок из Telegram CloudStorage (между сессиями)
 function mybkLoadDismissed(cb){
+  // 1) localStorage — синхронно, надёжно в Telegram WebView
+  try{
+    const v = window.localStorage && localStorage.getItem(MYBK_CS_KEY);
+    if(v){ JSON.parse(v).forEach(id=>MYBK_DISMISSED.add(Number(id))); }
+  }catch(_){}
+  // 2) CloudStorage — для синхронизации между устройствами (если доступен)
   try{
     const cs = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage;
-    if(!cs || !cs.getItem){ if(cb) cb(); return; }
-    cs.getItem(MYBK_CS_KEY, (err,val)=>{
-      if(!err && val){ try{ JSON.parse(val).forEach(id=>MYBK_DISMISSED.add(Number(id))); }catch(_){} }
-      if(cb) cb();
-    });
-  }catch(_){ if(cb) cb(); }
+    if(cs && cs.getItem){
+      cs.getItem(MYBK_CS_KEY, (err,val)=>{
+        if(!err && val){ try{ JSON.parse(val).forEach(id=>MYBK_DISMISSED.add(Number(id))); }catch(_){} }
+        if(cb) cb();
+      });
+      return;
+    }
+  }catch(_){}
+  if(cb) cb();
 }
-// скрыть заявку и сохранить
+// скрыть заявку и сохранить во всех доступных хранилищах
 function mybkDismiss(id){
   MYBK_DISMISSED.add(Number(id));
+  const payload = JSON.stringify([...MYBK_DISMISSED]);
+  try{ if(window.localStorage) localStorage.setItem(MYBK_CS_KEY, payload); }catch(_){}
   try{
     const cs = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage;
-    if(cs && cs.setItem) cs.setItem(MYBK_CS_KEY, JSON.stringify([...MYBK_DISMISSED]));
+    if(cs && cs.setItem) cs.setItem(MYBK_CS_KEY, payload);
   }catch(_){}
 }
 
@@ -2091,7 +2102,7 @@ function mybkRenderHomeSlot(b){
           <span class="hb-h">${t('hb_title')} · ${label}</span>
           ${when?`<span class="hb-sub">${when}</span>`:""}
         </span>
-        <span class="hb-arr">${t('hb_open')} →</span>
+        ${closable?"":`<span class="hb-arr">${t('hb_open')} →</span>`}
       </div>
       ${closable?`<button class="hb-x" id="hb-close" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>`:""}
     </div>`;
