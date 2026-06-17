@@ -2645,7 +2645,13 @@ function bkInit(){
   document.getElementById("bk-view-grid").onclick = function(){ BK.view="grid"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-view-schema").onclick = function(){ BK.view="schema"; bkRenderVenueTabs(); bkRender(); };
   var reqBtn=document.getElementById("bk-reqs-btn");
-  if(reqBtn) reqBtn.onclick = function(){ bkOpenRequests(); };
+  if(reqBtn) reqBtn.onclick = async function(){ await bkReloadRequests(); bkOpenRequests(); };
+  // глобальная привязка закрытия модалки (работает для любого содержимого: брони, заявки)
+  var modalX=document.getElementById("bkm-close");
+  if(modalX) modalX.onclick = bkCloseModal;
+  var modalBg=document.getElementById("bk-modal");
+  if(modalBg) modalBg.addEventListener("click", function(e){ if(e.target===modalBg) bkCloseModal(); });
+  bkStartReqPolling();
   BK.date = bkToday();
   // делегированный тап по столу -> открыть модалку брони
   var content = document.getElementById("bk-content");
@@ -2912,6 +2918,8 @@ function bkBookingFor(tableId){
 // был ли стол занят сегодня и уже освобождён (finished) — для пометки «были гости»
 function bkWasOccupied(tableId){
   if(bkBookingFor(tableId)) return false; // сейчас активна — не показываем пометку
+  // метка «были гости» — только в пределах ТЕКУЩЕГО бизнес-дня; на прошлых датах не показываем
+  if(bkIso(BK.date) !== bkIso(bkToday())) return false;
   return BK.data.bookings.some(b=>b.table_id===tableId && b.status==="finished");
 }
 function bkTableCls(b){ return b? (b.status==="seated"?"seated":(b.status==="booked"?"booked":"")) : ""; }
@@ -3260,6 +3268,34 @@ function bkCloseModal(){
 }
 
 // ===== ЗАЯВКИ ОТ ГОСТЕЙ (status=request) =====
+// перезагрузить только список заявок (без перерисовки всей сетки)
+async function bkReloadRequests(){
+  if(!bkCanManageRequests()){ BK.data.requests=[]; bkUpdateReqsButton(); return; }
+  try{
+    const today = bkIso(bkToday());
+    const rq = await sb.from("v_bookings_full").select("*").eq("status","request")
+      .gte("business_date", today).order("business_date").order("created_at");
+    BK.data.requests = rq.data||[];
+  }catch(_){}
+  bkUpdateReqsButton();
+}
+
+// автообновление заявок каждые 30 сек, пока открыт раздел броней
+let bkReqTimer = null;
+function bkStartReqPolling(){
+  if(bkReqTimer) return;
+  bkReqTimer = setInterval(async ()=>{
+    if(BK.mode!=="booking" || !bkCanManageRequests()) return;
+    const before = (BK.data.requests||[]).length;
+    await bkReloadRequests();
+    const after = (BK.data.requests||[]).length;
+    // если открыто окно заявок — обновим его содержимое
+    const modalOpen = document.getElementById("bk-modal").classList.contains("open");
+    const isReqModal = (document.getElementById("bkm-title")||{}).textContent==="Заявки с сайта";
+    if(modalOpen && isReqModal && before!==after) bkOpenRequests();
+  }, 30000);
+}
+
 function bkUpdateReqsButton(){
   const btn=document.getElementById("bk-reqs-btn");
   if(!btn) return;
