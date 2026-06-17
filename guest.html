@@ -29,6 +29,30 @@ button{font-family:inherit;cursor:pointer}
 .lang-tabs{display:flex;gap:3px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .lang-tabs button{border:none;background:transparent;color:var(--muted);padding:5px 9px;font-size:12px;font-weight:700}
 .lang-tabs button.active{background:var(--emerald);color:#08130d}
+#tb-mybk{position:relative;flex-shrink:0;border:1px solid var(--line);background:transparent;color:var(--text);
+  width:34px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0}
+#tb-mybk svg{width:19px;height:19px}
+#tb-mybk.live{border-color:var(--emerald);color:var(--emerald)}
+#tb-mybk .dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
+  background:var(--gold);border:2px solid #0d0f12;display:none}
+#tb-mybk.has-dot .dot{display:block}
+#tb-mybk.dot-ok .dot{background:var(--emerald)}
+#tb-mybk.dot-no .dot{background:#e06464}
+.hb-banner{width:100%;display:flex;align-items:center;gap:11px;text-align:left;
+  border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin:0 0 4px;
+  background:rgba(255,255,255,.03);color:var(--text);cursor:pointer}
+.hb-banner .hb-ic{width:34px;height:34px;flex-shrink:0;border-radius:9px;display:flex;
+  align-items:center;justify-content:center;font-size:17px;font-weight:800}
+.hb-banner.ok{border-color:rgba(35,209,139,.45);background:rgba(35,209,139,.08)}
+.hb-banner.ok .hb-ic{background:rgba(35,209,139,.18);color:var(--emerald)}
+.hb-banner.req{border-color:rgba(232,201,122,.45);background:rgba(232,201,122,.07)}
+.hb-banner.req .hb-ic{background:rgba(232,201,122,.18);color:var(--gold)}
+.hb-banner.no{border-color:rgba(224,100,100,.45);background:rgba(224,100,100,.07)}
+.hb-banner.no .hb-ic{background:rgba(224,100,100,.18);color:#e06464}
+.hb-banner .hb-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hb-banner .hb-h{font-size:14px;font-weight:700}
+.hb-banner .hb-sub{font-size:12px;color:var(--muted)}
+.hb-banner .hb-arr{font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0}
 
 /* КОНТЕНТ */
 #app{max-width:560px;margin:0 auto;padding:0 0 84px}
@@ -304,6 +328,10 @@ textarea.bk-input{resize:vertical;min-height:48px}
     </svg>
     <b>SPLETNI</b>
   </div>
+  <button id="tb-mybk" aria-label="Мои брони" title="Мои брони">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>
+    <span class="dot"></span>
+  </button>
   <div class="lang-tabs" id="lang-tabs">
     <button data-l="uz">UZ</button>
     <button data-l="ru" class="active">RU</button>
@@ -1069,6 +1097,12 @@ const T = {
   bk_declined_sub: {ru:"К сожалению, мы не можем подтвердить эту бронь. Свяжитесь с нами по телефону или оставьте новую заявку на другую дату.", uz:"Afsuski, bu bronni tasdiqlay olmaymiz. Biz bilan telefon orqali bog'laning yoki boshqa sanaga yangi ariza qoldiring.", en:"Unfortunately we can't confirm this booking. Please call us or submit a new request for another date.", kz:"Өкінішке орай, бұл бронды растай алмаймыз. Бізге телефон арқылы хабарласыңыз немесе басқа күнге жаңа өтінім қалдырыңыз.", kg:"Тилекке каршы, бул бронду ырастай албайбыз. Биз менен телефон аркылуу байланышыңыз же башка күнгө жаңы өтүнмө калтырыңыз.", tj:"Мутаассифона, мо ин бронро тасдиқ карда наметавонем. Бо мо тариқи телефон тамос гиред ё дархости нав барои санаи дигар гузоред.", cn:"很抱歉，我们无法确认此预订。请致电我们或为其他日期提交新申请。"},
   bk_confirmed_sub: {ru:"Ждём вас! Если планы изменятся — позвоните нам заранее.", uz:"Sizni kutamiz! Rejalar o'zgarsa — oldindan qo'ng'iroq qiling.", en:"See you soon! If your plans change, please call us in advance.", kz:"Сізді күтеміз! Жоспар өзгерсе — алдын ала қоңырау шалыңыз.", kg:"Сизди күтөбүз! Пландар өзгөрсө — алдын ала чалыңыз.", tj:"Шуморо интизорем! Агар нақшаҳо тағйир ёбанд — пешакӣ занг занед.", cn:"恭候光临！若计划有变，请提前致电我们。"},
   bk_new_req: {ru:"Оставить новую заявку", uz:"Yangi ariza qoldirish", en:"Submit a new request", kz:"Жаңа өтінім қалдыру", kg:"Жаңы өтүнмө калтыруу", tj:"Дархости нав гузоштан", cn:"提交新申请"},
+  hb_title: {ru:"Моя бронь", uz:"Mening bronim", en:"My booking", kz:"Менің бронім", kg:"Менин бронум", tj:"Брони ман", cn:"我的预订"},
+  hb_confirmed: {ru:"Подтверждена", uz:"Tasdiqlandi", en:"Confirmed", kz:"Расталды", kg:"Ырасталды", tj:"Тасдиқ шуд", cn:"已确认"},
+  hb_review: {ru:"На рассмотрении", uz:"Ko'rib chiqilmoqda", en:"Under review", kz:"Қаралуда", kg:"Каралууда", tj:"Дар баррасӣ", cn:"审核中"},
+  hb_declined: {ru:"Отклонена", uz:"Rad etildi", en:"Declined", kz:"Қабылданбады", kg:"Четке кагылды", tj:"Рад шуд", cn:"已拒绝"},
+  hb_open: {ru:"Открыть", uz:"Ochish", en:"Open", kz:"Ашу", kg:"Ачуу", tj:"Кушодан", cn:"打开"},
+  hb_none: {ru:"У вас пока нет заявок на бронь", uz:"Sizda hali bron arizalari yo'q", en:"You have no booking requests yet", kz:"Сізде әзірге брон өтінімдері жоқ", kg:"Сизде азырынча бронь өтүнмөлөрү жок", tj:"Шумо ҳоло дархости брон надоред", cn:"您还没有预订申请"},
   bk_card_title: {ru:"Ваша бронь", uz:"Broningiz", en:"Your booking", kz:"Сіздің броныңыз", kg:"Сиздин броньуңуз", tj:"Брони шумо", cn:"您的预订"},
   bk_card_open: {ru:"Открыть", uz:"Ochish", en:"Open", kz:"Ашу", kg:"Ачуу", tj:"Кушодан", cn:"打开"},
   bk_auth_wait: {ru:"Открываю бронирование…", uz:"Bron ochilmoqda…", en:"Opening booking…", kz:"Брондау ашылуда…", kg:"Брондоо ачылууда…", tj:"Бронкунӣ кушода мешавад…", cn:"正在打开预订…"},
@@ -1637,6 +1671,7 @@ function bkfSubscribe(bookingId){
         { event:"UPDATE", schema:"public", table:"bookings", filter:"id=eq."+bookingId },
         (payload)=>{
           const row = payload.new || {};
+          MYBK_LAST = row; mybkBadge(row); mybkRenderHomeSlot(row);
           const body = document.getElementById("bk-body");
           if(!body) return;
           // если гость на разделе брони — перерисуем результат
@@ -1919,6 +1954,106 @@ function zgGo(id, i){
 }
 function zgMove(id, dir){ zgGo(id, (zgState[id]||0) + dir); }
 
+// ============ МОИ БРОНИ: баннер на главной + бейдж в шапке ============
+let MYBK_LAST = null;        // последняя заявка гостя (любой статус)
+let MYBK_SEEN_ID = null;     // id заявки, статус которой гость уже «видел» (для бейджа)
+let MYBK_SEEN_STATUS = null;
+
+// подтянуть последнюю заявку гостя и обновить баннер + бейдж
+async function mybkRefresh(){
+  const ok = await guestAuth();
+  if(!ok){ mybkRenderHomeSlot(null); mybkBadge(null); return; }
+  let last=null;
+  try{
+    const {data} = await SB.from("bookings")
+      .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
+      .eq("created_by", Number(GUEST.tg_id))
+      .in("status",["request","booked","cancelled"])
+      .order("id",{ascending:false}).limit(1);
+    if(data && data.length) last = data[0];
+  }catch(_){}
+  // прошедшую бронь не показываем
+  if(last && typeof bkfIsPast==="function" && bkfIsPast(last)) last=null;
+  MYBK_LAST = last;
+  mybkRenderHomeSlot(last);
+  mybkBadge(last);
+  mybkSubscribeHome(last);
+}
+
+// бейдж-точка на иконке в шапке
+function mybkBadge(b){
+  const btn=document.getElementById("tb-mybk");
+  if(!btn) return;
+  btn.classList.remove("has-dot","dot-ok","dot-no","live");
+  if(!b) return;
+  // точку показываем, если статус заявки ещё «не отсмотрен» гостем
+  const fresh = (MYBK_SEEN_ID!==b.id) || (MYBK_SEEN_STATUS!==b.status);
+  if(b.status==="booked"){ btn.classList.add("live"); if(fresh) btn.classList.add("has-dot","dot-ok"); }
+  else if(b.status==="cancelled"){ if(fresh) btn.classList.add("has-dot","dot-no"); }
+  else if(b.status==="request"){ btn.classList.add("live"); }
+}
+
+// баннер на главном экране (в слот #bkhome-slot)
+function mybkRenderHomeSlot(b){
+  const slot=document.getElementById("bkhome-slot");
+  if(!slot) return;
+  if(!b){ slot.innerHTML=""; return; }
+  let cls, ic, label, when="";
+  if(typeof bkfFmtDate==="function" && b.business_date){
+    when = bkfFmtDate(b.business_date) + (b.arrive_at && typeof bkfFmtTime==="function" ? (" · "+bkfFmtTime(b.arrive_at)) : "");
+  }
+  if(b.status==="booked"){ cls="ok"; ic="✓"; label=t('hb_confirmed'); }
+  else if(b.status==="cancelled"){ cls="no"; ic="✕"; label=t('hb_declined'); }
+  else { cls="req"; ic="⏳"; label=t('hb_review'); }
+  slot.innerHTML = `
+    <button class="hb-banner ${cls}" id="hb-go">
+      <span class="hb-ic">${ic}</span>
+      <span class="hb-txt">
+        <span class="hb-h">${t('hb_title')} · ${label}</span>
+        ${when?`<span class="hb-sub">${when}</span>`:""}
+      </span>
+      <span class="hb-arr">${t('hb_open')} →</span>
+    </button>`;
+  const g=document.getElementById("hb-go");
+  if(g) g.onclick=()=>{ mybkMarkSeen(b); go("book"); };
+}
+
+// realtime на главной: статус сменился, пока гость не в разделе брони
+let MYBK_SUB=null;
+function mybkSubscribeHome(b){
+  try{
+    if(MYBK_SUB){ SB.removeChannel(MYBK_SUB); MYBK_SUB=null; }
+    if(!b) return;
+    MYBK_SUB = SB.channel("guest-home-"+b.id)
+      .on("postgres_changes",
+        { event:"UPDATE", schema:"public", table:"bookings", filter:"id=eq."+b.id },
+        (payload)=>{
+          const row=payload.new||{};
+          MYBK_LAST=row;
+          mybkRenderHomeSlot(row);
+          mybkBadge(row);
+          try{
+            if(row.status==="booked") window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+            else if(row.status==="cancelled") window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("warning");
+          }catch(_){}
+        })
+      .subscribe();
+  }catch(_){}
+}
+
+// гость «увидел» статус — гасим бейдж
+function mybkMarkSeen(b){
+  if(!b) return;
+  MYBK_SEEN_ID=b.id; MYBK_SEEN_STATUS=b.status;
+  mybkBadge(b);
+}
+
+// клик по иконке в шапке → раздел брони
+(function(){
+  const btn=document.getElementById("tb-mybk");
+  if(btn) btn.onclick=()=>{ if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); go("book"); };
+})();
+
 // ============ НАВИГАЦИЯ ============
 const NAV = [
   {id:"home", key:"nav_home", ic:"home"},
@@ -1940,7 +2075,7 @@ function go(id){
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
-  if(id==="book") renderBook(true);   // полная загрузка раздела бронирования
+  if(id==="book"){ renderBook(true); if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); }   // полная загрузка раздела бронирования
   if(id==="zones") renderZones();     // перерисовать под выбранное заведение (ZONE_VENUE)
 }
 
@@ -1954,6 +2089,7 @@ function renderAll(){
   renderBook();
   renderDress();
   renderNav();
+  mybkRefresh();
 }
 
 // язык
