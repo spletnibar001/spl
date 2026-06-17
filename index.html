@@ -338,6 +338,12 @@
 .bk-zone-lbl .staff .staff-line{line-height:1.5}
 .bk-zone-lbl .staff .st-nm{color:var(--text)}
 .bk-zone-lbl .staff .st-nm.in{color:var(--emerald);font-weight:700}
+.bk-mgmt-head{background:rgba(232,201,122,.08);border:1px solid rgba(232,201,122,.35);
+  border-radius:12px;padding:10px 13px;margin:0 0 12px;font-size:13px;line-height:1.5}
+.bk-mgmt-head .staff-line{color:var(--text)}
+.bk-mgmt-head .st-nm{color:var(--text);font-weight:600}
+.bk-mgmt-head .st-nm.in{color:var(--emerald);font-weight:700}
+.bk-mgmt-head .mh-role{color:var(--muted);font-weight:400;font-size:12px}
 .bk-zone-lbl .sub{color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none;font-size:10px}
 /* стол (общий) */
 .bk-t{border:2px solid #3a4150;background:#14161a;border-radius:9px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.12s;padding:5px;position:relative}
@@ -2884,6 +2890,8 @@ async function bkLoadShiftStaff(ds){
     big:{bar:[],waiter:[]}, small:{bar:[],waiter:[]}, letka:{bar:[],waiter:[]},
     cabin:{bar:[],waiter:[]}, club:{bar:[],waiter:[]}
   };
+  // менеджмент/хостес на смене, раздельно по заведению: {mgr:[], host:[]}
+  BK.data.shiftMgmt = { karaoke:{mgr:[],host:[]}, club:{mgr:[],host:[]} };
   if(!BK.seeAll.includes(ME.role)) return; // имена показываем только руководству
   try{
     const sh = await sb.from("shifts").select("employee_id,place,work_date,status").eq("work_date",ds);
@@ -2893,12 +2901,23 @@ async function bkLoadShiftStaff(ds){
     const checkedSet = new Set((chk.data||[]).map(c=>c.employee_id));
     const isBar = r => r==="Бармен" || r==="Старший бармен";
     const isWaiter = r => r==="Официант";
+    const isMgr = r => r==="Менеджер" || r==="Бар-менеджер" || r==="Гостевой менеджер";
+    const isHost = r => r==="Хостес";
     (sh.data||[]).forEach(s=>{
       if(s.status===2) return;                 // неявка — не показываем
       const e=byId[s.employee_id]; if(!e) return;
+      const item = { name:e.name, role:e.emp_role, checkedIn: checkedSet.has(e.id) };
+      // менеджмент / хостес — по заведению (pos: club -> клуб; both -> оба; иначе караоке)
+      if(isMgr(e.emp_role) || isHost(e.emp_role)){
+        const slot = isHost(e.emp_role) ? "host" : "mgr";
+        if(e.pos==="club"){ BK.data.shiftMgmt.club[slot].push(item); }
+        else if(e.pos==="both"){ BK.data.shiftMgmt.karaoke[slot].push(item); BK.data.shiftMgmt.club[slot].push(item); }
+        else { BK.data.shiftMgmt.karaoke[slot].push(item); }
+        return;
+      }
+      // бармены / официанты — по зоне
       const slot = isBar(e.emp_role) ? "bar" : (isWaiter(e.emp_role) ? "waiter" : null);
       if(!slot) return;
-      const item = { name:e.name, checkedIn: checkedSet.has(e.id) };
       if(e.pos==="club"){ BK.data.shiftStaff.club[slot].push(item); }
       else if(s.place && BK.data.shiftStaff[s.place]) BK.data.shiftStaff[s.place][slot].push(item);
     });
@@ -2985,6 +3004,27 @@ function bkStaffHead(placeKey){
   }
   return lines.length ? `<span class="staff">${lines.join("")}</span>` : "";
 }
+// сводка менеджмента/хостес на смене для всего заведения (караоке/клуб)
+function bkMgmtHead(venueKey){
+  const m = (BK.data.shiftMgmt && BK.data.shiftMgmt[venueKey]) || {mgr:[],host:[]};
+  if((!m.mgr || !m.mgr.length) && (!m.host || !m.host.length)) return "";
+  const fmtNames = arr => arr.map(it=>{
+    const nm = (it && it.name!=null) ? it.name : it;
+    const on = it && it.checkedIn;
+    const role = it && it.role ? `<span class="mh-role"> · ${it.role}</span>` : "";
+    return `<span class="st-nm${on?' in':''}">${nm}${role}</span>`;
+  }).join(", ");
+  const lines = [];
+  if(m.mgr && m.mgr.length){
+    const lbl = m.mgr.length>1 ? "Менеджеры на смене" : "Менеджер на смене";
+    lines.push(`<div class="staff-line">${lbl}: ${fmtNames(m.mgr)}</div>`);
+  }
+  if(m.host && m.host.length){
+    const lbl = m.host.length>1 ? "Хостес на смене" : "Хостес на смене";
+    lines.push(`<div class="staff-line">${lbl}: ${fmtNames(m.host)}</div>`);
+  }
+  return `<div class="bk-mgmt-head">${lines.join("")}</div>`;
+}
 
 function bkTableCell(t, weekend){
   const b=bkBookingFor(t.id);
@@ -3008,7 +3048,7 @@ function bkRenderKaraoke(){
   const weekend=bkIsWeekend(BK.date);
   const zones=bkZonesOf("karaoke");
   const Z = k => zones.find(x=>x.zone.key===k);
-  let html="";
+  let html=bkMgmtHead("karaoke");
   // Большой зал — сетка, столы по порядку номера
   const big=Z("big");
   if(big){
@@ -3047,7 +3087,7 @@ function bkRenderClub(){
   // порядок зон клуба для отображения
   const order=["vip","podium","cocktail","divany","cab_right","cab_left"];
   const Z = k => zones.find(x=>x.zone.key===k);
-  let html="";
+  let html=bkMgmtHead("club");
   const depNote = weekend ? "депозиты пт/сб · до 03:00" : "будни — депозита нет";
   order.forEach((key,idx)=>{
     const z=Z(key); if(!z||!z.tables.length) return;
@@ -3117,7 +3157,7 @@ function bkSchemaKaraoke(){
   const sm  = bkZonesOf("karaoke").find(z=>z.zone.key==="small");
   const lt  = bkZonesOf("karaoke").find(z=>z.zone.key==="letka");
 
-  let html = `<div class="bk-scheme-wrap"><div class="bk-scheme">
+  let html = bkMgmtHead("karaoke") + `<div class="bk-scheme-wrap"><div class="bk-scheme">
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Большой зал ${bkStaffHead("big")}</span><span class="sub">депозиты ${weekend?"пт/сб":"будни"}</span></div>${big}</div>
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Кабинки ${bkStaffHead("cabin")}</span></div>
       <div class="bk-kab">${cab?cab.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
@@ -3178,7 +3218,7 @@ function bkSchemaClub(){
   f += bkSchemaCell("cl_div_12","left:378px;top:676px;width:48px;height:62px",{label:"12"});
   f += `</div>`;
 
-  let html = `<div class="bk-scheme-wrap"><div class="bk-scheme">
+  let html = bkMgmtHead("club") + `<div class="bk-scheme-wrap"><div class="bk-scheme">
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Зал клуба ${bkStaffHead("club")}</span><span class="sub">депозиты ${weekend?"пт/сб · до 03:00":"будни — нет"}</span></div>${f}</div>
   </div></div>`;
   html += bkLegend() + bkBookingList("Клуб") + bkUpcomingList();
