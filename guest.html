@@ -1616,6 +1616,7 @@ function go(id){
   renderNav();
   window.scrollTo(0,0);
   if(id==="book") renderBook(true);   // полная загрузка раздела бронирования
+  if(id==="zones") renderZones();     // перерисовать под выбранное заведение (ZONE_VENUE)
 }
 
 // ============ ПЕРЕРИСОВКА ВСЕГО (при смене языка/заведения) ============
