@@ -1490,9 +1490,9 @@ function render(){
       }
     }
     const payoutCard = roster.length
-      ? `<div class="wt payout"><div class="t">Выплаты</div>
+      ? `<div class="wt payout"><div class="t">Выплачено за неделю</div>
           <div class="v" style="color:var(--emerald)">${money(paidSum)}</div>
-          <div class="n">выплачено · осталось <b style="color:${leftSum?'var(--gold)':'var(--muted)'}">${money(leftSum)}</b></div></div>`
+          <div class="n"><b style="color:${leftSum?'var(--gold)':'var(--muted)'}">${money(leftSum)}</b> · остаток за неделю</div></div>`
       : "";
     $("week-totals").innerHTML = roster.length?`
       <div class="wt karaoke"><div class="t">Караоке · неделя</div><div class="v">${money(wt.karaoke.sum)}</div><div class="n">${wt.karaoke.cnt} смен</div></div>
