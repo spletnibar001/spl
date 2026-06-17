@@ -434,6 +434,9 @@
 .bkm-field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:5px}
 .bkm-field input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:11px 12px;font-size:15px;font-family:inherit}
 .bkm-row{display:flex;gap:10px}.bkm-row .bkm-field{flex:1}
+.bkm-comment{background:rgba(232,201,122,.1);border:1px solid rgba(232,201,122,.45);
+  border-radius:9px;padding:10px 12px;font-size:15px;line-height:1.45;color:var(--text);
+  white-space:pre-wrap;word-break:break-word}
 .bkm-guestinfo{font-size:12px;font-weight:700;margin-top:5px;min-height:16px}
 .bkm-guestinfo.known{color:var(--blue,#4ea6e2)}.bkm-guestinfo.new{color:var(--muted)}
 .bkm-dep{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:12px}
@@ -3429,12 +3432,20 @@ async function bkConfirmRequest(rid){
     if(!tbls.length) return;
     opts += `<optgroup label="${z.title}">` + tbls.map(t=>`<option value="${t.id}">${t.name}</option>`).join("") + `</optgroup>`;
   });
-  const note=(r.note||"").replace(/</g,"&lt;");
+  const noteRaw=(r.note||"").replace(/</g,"&lt;");
+  // выделяем комментарий гостя из note (часть после "Коммент:")
+  let noteMeta=noteRaw, guestComment="";
+  const cm = noteRaw.match(/Коммент:\s*([\s\S]*)$/i);
+  if(cm){
+    guestComment = cm[1].trim();
+    noteMeta = noteRaw.slice(0, cm.index).replace(/[·•\s]+$/,"").trim();
+  }
   document.getElementById("bkm-title").textContent = "Подтвердить заявку";
   document.getElementById("bkm-sub").textContent = (venueKey==="club"?"Клуб":"Караоке")+" · "+bkFmtDate(fromIso(r.business_date));
   document.getElementById("bkm-body").innerHTML = `
     <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>
-    ${note?`<div class="bkm-field"><label>Заявка</label><div>${note}</div></div>`:""}
+    ${noteMeta?`<div class="bkm-field"><label>Заявка</label><div>${noteMeta}</div></div>`:""}
+    ${guestComment?`<div class="bkm-field"><label>Комментарий гостя</label><div class="bkm-comment">${guestComment}</div></div>`:""}
     <div class="bkm-field"><label>Назначить стол</label>
       <select id="bk-req-table" class="bkm-input">${opts}</select></div>
     <div class="bkm-field"><label>Депозит (сум, необязательно)</label>
