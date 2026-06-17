@@ -177,8 +177,17 @@
   .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;max-width:560px;width:100%;position:relative}
   .modal-x{position:absolute;top:12px;right:12px;width:36px;height:36px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:9px;font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1}
   .modal-x:active{background:var(--panel)}
-  .modal h3{font-size:15px;margin-bottom:4px}
-  .modal .sub{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .modal h3{font-size:15px;margin-bottom:4px}  .modal .sub{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .chk-list{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto}
+  .chk-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
+  .chk-row .chk-nm{flex:1;min-width:0}
+  .chk-row .chk-nm b{font-size:14px;display:block}
+  .chk-row .chk-nm span{font-size:11px;color:var(--muted)}
+  .chk-row.done{border-color:var(--emerald);background:rgba(46,204,113,.08)}
+  .chk-row input[type=time]{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit;width:96px}
+  .chk-row .chk-btn{border:1px solid var(--emerald);background:var(--emerald);color:#0c1410;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .chk-row .chk-btn.re{background:transparent;color:var(--emerald)}
+  .chk-row .chk-tag{font-size:12px;color:var(--emerald);font-weight:700;white-space:nowrap}
   .pen-list{margin-top:12px;border-top:1px solid var(--line)}
   .pen-row{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap}
   .pen-row .d{font-weight:700;white-space:nowrap}
@@ -656,6 +665,7 @@
       </span>
       <button class="btn-mini money-only" id="btn-export">⬇ Excel</button>
       <button class="btn-mini money-only" id="btn-export-pay" style="display:none">⬇ Итоги ЗП</button>
+      <button class="btn-mini" id="btn-checkin" style="display:none">✓ Отметить приход</button>
     </h2>
     <div class="grid-wrap">
       <table id="grid">
@@ -741,6 +751,16 @@
       <span class="msg" id="pen-msg" style="margin:0 0 0 6px"></span>
     </div>
     <div class="pen-list" id="pen-list"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="chk-modal">
+  <div class="modal">
+    <button class="modal-x" id="chk-close">✕</button>
+    <h3 style="padding-right:44px">Отметить приход</h3>
+    <div class="sub" id="chk-sub"></div>
+    <div class="chk-list" id="chk-list"></div>
+    <span class="msg" id="chk-msg"></span>
   </div>
 </div>
 
@@ -2008,6 +2028,72 @@ async function staffCheckin(ds, empId){
 window.scToggle = scToggle;
 window.staffCheckin = staffCheckin;
 
+/* ===== Ручная отметка прихода (для dir/upr) ===== */
+// собрать timestamptz из бизнес-даты и времени ЧЧ:ММ (ночь 00:00-04:59 = след. календарный день)
+function chkComposeTs(ds, hhmm){
+  const [y,m,dd] = ds.split("-").map(Number);
+  const [h,mi] = hhmm.split(":").map(Number);
+  const d = new Date(y, m-1, dd);
+  if(h < 5) d.setDate(d.getDate()+1);
+  d.setHours(h, mi, 0, 0);
+  return d.toISOString();
+}
+function openCheckinModal(){
+  const ds = iso(businessNow());   // сегодняшний бизнес-день
+  $("chk-sub").textContent = "Сегодня · " + fmtFull(businessNow()) + " · отметьте, кто на смене";
+  $("chk-msg").textContent = "";
+  renderCheckinList(ds);
+  $("chk-modal").classList.add("open");
+}
+function renderCheckinList(ds){
+  const weekKey = iso(viewStart);
+  // сотрудники со сменой сегодня (status!=2), охрана не отмечается
+  const list = shiftRows
+    .filter(s=>s.work_date===ds && s.status!==2)
+    .map(s=>byId(s.employee_id))
+    .filter(e=>e && !e.archived && e.emp_role!=="Охрана")
+    // без дублей карточек
+    .filter((e,i,arr)=>arr.findIndex(x=>x.id===e.id)===i)
+    .sort((a,b)=>a.name.localeCompare(b.name,"ru"));
+  const now = new Date();
+  const nowHHMM = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  if(!list.length){ $("chk-list").innerHTML = `<div class="sub">На сегодня нет сотрудников со сменой в графике.</div>`; return; }
+  $("chk-list").innerHTML = list.map(e=>{
+    const ci = checkinRows.find(c=>c.employee_id===e.id && c.work_date===ds);
+    const done = !!ci;
+    const tm = done ? new Date(ci.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
+    return `<div class="chk-row ${done?'done':''}">
+      <div class="chk-nm"><b>${e.name}</b><span>${e.emp_role}${e.pos==="club"?" · клуб":(e.pos==="karaoke"?" · караоке":"")}</span></div>
+      ${done?`<span class="chk-tag">✓ ${tm}</span>`:""}
+      <input type="time" id="chk-t-${e.id}" value="${nowHHMM}">
+      <button class="chk-btn ${done?'re':''}" onclick="doManualCheckin('${e.id}','${ds}')">${done?'Изменить':'Отметить'}</button>
+    </div>`;
+  }).join("");
+}
+async function doManualCheckin(empId, ds){
+  const id = (typeof empId==="string" && /^\d+$/.test(empId)) ? Number(empId) : empId;
+  const tEl = $("chk-t-"+empId);
+  const hhmm = tEl ? tEl.value : "";
+  if(!hhmm){ $("chk-msg").textContent = "Укажите время"; return; }
+  const checkedAt = chkComposeTs(ds, hhmm);
+  $("chk-msg").textContent = "Сохраняем…";
+  let res;
+  try{
+    // upsert по (employee_id, work_date): если уже есть — обновим время
+    res = await sb.from("checkins").upsert(
+      { employee_id: id, work_date: ds, checked_at: checkedAt },
+      { onConflict: "employee_id,work_date" }
+    );
+  }catch(netErr){ $("chk-msg").textContent = "Проблема с сетью, попробуйте ещё раз"; return; }
+  if(res && res.error){ $("chk-msg").textContent = "Ошибка: " + res.error.message; return; }
+  $("chk-msg").textContent = "";
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  await refresh();
+  renderCheckinList(ds);   // обновить список в модалке
+}
+function closeCheckinModal(){ $("chk-modal").classList.remove("open"); }
+window.doManualCheckin = doManualCheckin;
+
 /* компактный / полный режим отображения */
 function applyViewMode(){
   document.body.classList.toggle("compact", compactView);
@@ -2487,6 +2573,14 @@ async function startApp(){
   $("btn-curweek").addEventListener("click", async ()=>{
     viewStart = payWeekStart(businessNow()); setCurrentPayWeek(); await refresh();
   });
+  // ручная отметка прихода — для директора и управляющего
+  const chkBtn = $("btn-checkin");
+  if(chkBtn && (ME.role==="dir" || ME.role==="upr")){
+    chkBtn.style.display = "";
+    chkBtn.addEventListener("click", openCheckinModal);
+    $("chk-close").addEventListener("click", closeCheckinModal);
+    $("chk-modal").addEventListener("click", e=>{ if(e.target===$("chk-modal")) closeCheckinModal(); });
+  }
   $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
   $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
   $("btn-approve").addEventListener("click", async ()=>{
