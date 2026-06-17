@@ -3389,14 +3389,34 @@ async function bkConfirmRequest(rid){
   };
 }
 
-async function bkRejectRequest(rid){
-  if(!confirm("Отклонить эту заявку? Она будет отменена.")) return;
-  const {error} = await sb.from("bookings").update({
-    status:"cancelled", cancelled_by_name: ME.name, cancelled_at: new Date().toISOString()
-  }).eq("id", rid);
-  if(error){ showMsg(error.message); return; }
-  await bkLoadAndRender();
-  bkOpenRequests();
+// Отклонить заявку: показываем поле причины (необязательно), затем отмена
+function bkRejectRequest(rid){
+  const r = (BK.data.requests||[]).find(x=>x.id===rid);
+  const venue = r ? (r.venue_key==="club"?"Клуб":"Караоке") : "";
+  const sub = r ? (venue+" · "+bkFmtDate(fromIso(r.business_date))) : "";
+  document.getElementById("bkm-title").textContent = "Отклонить заявку";
+  document.getElementById("bkm-sub").textContent = sub;
+  document.getElementById("bkm-body").innerHTML = `
+    ${r?`<div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${r.phone}`:""}</div></div>`:""}
+    <div class="bkm-field"><label>Причина отказа (необязательно — увидит гость)</label>
+      <textarea id="bk-rej-reason" class="bkm-input" rows="3" placeholder="Напр.: на эту дату всё занято / не дозвонились"></textarea></div>
+    <div class="bkm-msg" id="bk-rej-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn danger" id="bk-rej-ok">Отклонить</button>
+      <button class="bkm-btn" onclick="bkOpenRequests()">Назад</button>
+    </div>`;
+  document.getElementById("bk-rej-ok").onclick = async function(){
+    const reason = (document.getElementById("bk-rej-reason").value||"").trim();
+    this.disabled=true; this.textContent="Сохраняем…";
+    const upd = {
+      status:"cancelled", cancelled_by_name: ME.name, cancelled_at: new Date().toISOString()
+    };
+    if(reason) upd.cancel_reason = reason;
+    const {error} = await sb.from("bookings").update(upd).eq("id", rid);
+    if(error){ document.getElementById("bk-rej-msg").textContent=error.message; this.disabled=false; this.textContent="Отклонить"; return; }
+    await bkLoadAndRender();
+    bkOpenRequests();
+  };
 }
 
 // форма новой брони
