@@ -1291,71 +1291,7 @@ function renderHome(){
     VENUE=b.dataset.vgo; ZONE_VENUE=b.dataset.vgo; go("zones");
   });
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
-  bkfHomeCard();   // подгрузить статус последней брони (если есть)
-}
-
-// ===== карточка статуса брони на главном экране =====
-let BKHOME_SUB = null;
-async function bkfHomeCard(){
-  const slot = document.getElementById("bkhome-slot");
-  if(!slot) return;
-  // нужен авторизованный гость и клиент Supabase
-  const ok = await guestAuth();
-  if(!ok || !SB){ slot.innerHTML=""; return; }
-  await bkfLoadRef();
-  let last=null;
-  try{
-    const {data} = await SB.from("bookings")
-      .select("id,status,business_date,arrive_at,table_id,deposit_amount,cancel_reason")
-      .eq("created_by", Number(GUEST.tg_id))
-      .in("status",["request","booked","cancelled"])
-      .order("id",{ascending:false}).limit(1);
-    if(data && data.length) last=data[0];
-  }catch(_){}
-  // прошедшую бронь на главной не показываем
-  if(last && bkfIsPast(last)) last=null;
-  bkfHomeRender(last);
-  if(last){
-    // realtime: карточка на главной обновляется сама
-    try{
-      if(BKHOME_SUB){ SB.removeChannel(BKHOME_SUB); BKHOME_SUB=null; }
-      BKHOME_SUB = SB.channel("home-bk-"+last.id)
-        .on("postgres_changes",
-          { event:"UPDATE", schema:"public", table:"bookings", filter:"id=eq."+last.id },
-          (payload)=>{ bkfHomeRender(payload.new||last); })
-        .subscribe();
-    }catch(_){}
-  }
-}
-
-function bkfHomeRender(b){
-  const slot = document.getElementById("bkhome-slot");
-  if(!slot) return;
-  if(!b){ slot.innerHTML=""; return; }
-  let cls, ic, st, sub;
-  if(b.status==="booked"){
-    cls="ok"; ic="✓"; st=t('bk_st_booked').replace(" ✓","");
-    const place=bkfPlaceLabel(b.table_id);
-    const when=bkfFmtDate(b.business_date)+(b.arrive_at?(" · "+bkfFmtTime(b.arrive_at)):"");
-    sub=[place,when].filter(Boolean).join(" · ");
-  }else if(b.status==="cancelled"){
-    cls="no"; ic="✕"; st=t('bk_st_cancelled');
-    sub=(b.cancel_reason||"").trim() || bkfFmtDate(b.business_date);
-  }else{
-    cls="req"; ic="⏳"; st=t('bk_st_request');
-    sub=bkfFmtDate(b.business_date);
-  }
-  slot.innerHTML = `
-    <button class="bkhome ${cls}" data-go="book">
-      <div class="bkhome-ic">${ic}</div>
-      <div class="bkhome-txt">
-        <div class="bkhome-h">${t('bk_card_title')}</div>
-        <div class="bkhome-st">${st}</div>
-        <div class="bkhome-sub">${(sub||"").replace(/</g,"&lt;")}</div>
-      </div>
-      <div class="bkhome-arr">›</div>
-    </button>`;
-  slot.querySelector("[data-go]").onclick=()=>go("book");
+  // баннер статуса брони рисует mybkRefresh() (новая система с крестиком) — старый вызов убран
 }
 
 // ============ РЕНДЕР МЕНЮ ============
