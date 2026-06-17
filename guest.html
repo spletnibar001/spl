@@ -1798,6 +1798,12 @@ function bkfDrawForm(){
   let zones = bkfZonesFor(BK_STATE.venue);
   // в бронь нельзя выбирать «Закрытую кабинку» — убираем её из списка
   zones = zones.filter(z=>!/закры/i.test(String(z.title||"")));
+  // для клуба — фиксированный порядок: Подиум, Красные диваны, Коктейльные, ВИП, Кабинка
+  if(BK_STATE.venue==="club"){
+    const order = ["подиум","красн","коктейль","вип","кабин"];
+    const rank = t => { const s=String(t||"").toLowerCase(); const i=order.findIndex(k=>s.includes(k)); return i<0?99:i; };
+    zones = [...zones].sort((a,b)=>rank(a.title)-rank(b.title));
+  }
   // если выбранная зона не из текущего заведения (или отфильтрована) — сбросить
   if(BK_STATE.zoneId && !zones.find(z=>z.id===BK_STATE.zoneId)) BK_STATE.zoneId=null;
 
@@ -2068,13 +2074,25 @@ function renderZones(){
     const card = allCards.find(z=>String(z.id)===String(cardId));
     // заведение — то, что выбрано на витрине
     if(card){ BK_STATE.venue = ZONE_VENUE; }
-    // сопоставляем карточную зону с зоной из базы по названию (ru)
+    // сопоставляем карточную зону с зоной из базы
     try{
       await bkfLoadRef();
       if(card && BK_REF && BK_REF.zones){
         const cname = (card.name && card.name.ru ? card.name.ru : "").trim().toLowerCase();
         const dbZones = bkfZonesFor(BK_STATE.venue);
-        const match = dbZones.find(z=>String(z.title||"").trim().toLowerCase()===cname);
+        const norm = s => String(s||"").trim().toLowerCase();
+        // 1) точное совпадение по названию
+        let match = dbZones.find(z=>norm(z.title)===cname);
+        // 2) по ключевому слову (карточки детальные: «Кабинка №1», «Летка (…)», и т.д.)
+        if(!match){
+          const cid = String(cardId);
+          let kw = null;
+          if(/^cab|^vip/.test(cid) || /кабин/.test(cname)) kw = "кабин";
+          else if(cid==="letka" || /летк/.test(cname)) kw = "летк";
+          else if(cid==="big" || /больш/.test(cname)) kw = "больш";
+          else if(cid==="small" || /мал/.test(cname)) kw = "мал";
+          if(kw) match = dbZones.find(z=>norm(z.title).includes(kw));
+        }
         if(match) BK_STATE.zoneId = match.id;
       }
     }catch(_){}
