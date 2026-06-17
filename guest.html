@@ -2070,19 +2070,19 @@ function mybkLoadDismissed(cb){
   // 0) sessionStorage — переживает перерисовки в рамках открытия
   try{
     const sv = window.sessionStorage && sessionStorage.getItem(MYBK_CS_KEY);
-    if(sv){ JSON.parse(sv).forEach(id=>MYBK_DISMISSED.add(Number(id))); }
+    if(sv){ JSON.parse(sv).forEach(k=>MYBK_DISMISSED.add(String(k))); }
   }catch(_){}
   // 1) localStorage — синхронно, надёжно в Telegram WebView
   try{
     const v = window.localStorage && localStorage.getItem(MYBK_CS_KEY);
-    if(v){ JSON.parse(v).forEach(id=>MYBK_DISMISSED.add(Number(id))); }
+    if(v){ JSON.parse(v).forEach(k=>MYBK_DISMISSED.add(String(k))); }
   }catch(_){}
   // 2) CloudStorage — для синхронизации между устройствами (если доступен)
   try{
     const cs = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage;
     if(cs && cs.getItem){
       cs.getItem(MYBK_CS_KEY, (err,val)=>{
-        if(!err && val){ try{ JSON.parse(val).forEach(id=>MYBK_DISMISSED.add(Number(id))); }catch(_){} }
+        if(!err && val){ try{ JSON.parse(val).forEach(k=>MYBK_DISMISSED.add(String(k))); }catch(_){} }
         if(cb) cb();
       });
       return;
@@ -2090,9 +2090,9 @@ function mybkLoadDismissed(cb){
   }catch(_){}
   if(cb) cb();
 }
-// скрыть заявку и сохранить во всех доступных хранилищах
-function mybkDismiss(id){
-  MYBK_DISMISSED.add(Number(id));
+// скрыть заявку (ключ id:status) и сохранить во всех доступных хранилищах
+function mybkDismiss(key){
+  MYBK_DISMISSED.add(String(key));
   const payload = JSON.stringify([...MYBK_DISMISSED]);
   try{ if(window.sessionStorage) sessionStorage.setItem(MYBK_CS_KEY, payload); }catch(_){}
   try{ if(window.localStorage) localStorage.setItem(MYBK_CS_KEY, payload); }catch(_){}
@@ -2147,9 +2147,11 @@ function mybkBadge(b){
   if(!btn) return;
   btn.classList.remove("has-dot","dot-ok","dot-no","live");
   if(!b) return;
-  // точку показываем, если статус заявки ещё «не отсмотрен» гостем
+  // точку показываем, если статус заявки ещё «не отсмотрен» гостем и не закрыт крестиком
   const fresh = (MYBK_SEEN_ID!==b.id) || (MYBK_SEEN_STATUS!==b.status);
-  if(b.status==="booked"){ btn.classList.add("live"); if(fresh) btn.classList.add("has-dot","dot-ok"); }
+  const dismissed = MYBK_DISMISSED.has(mybkKey(b));
+  if(b.status==="booked"){ btn.classList.add("live"); if(fresh && !dismissed) btn.classList.add("has-dot","dot-ok"); }
+  else if(b.status==="cancelled"){ if(fresh && !dismissed) btn.classList.add("has-dot","dot-no"); }
   else if(b.status==="request"){ btn.classList.add("live"); }
 }
 
@@ -2158,8 +2160,9 @@ function mybkRenderHomeSlot(b){
   const slot=document.getElementById("bkhome-slot");
   if(!slot) return;
   if(!b){ slot.innerHTML=""; return; }
-  // отклонённую заявку на главном НЕ показываем (статус виден в разделе «Мои брони»)
-  if(b.status==="cancelled"){ slot.innerHTML=""; return; }
+  // если этот статус заявки гость уже закрыл крестиком — не показываем,
+  // пока не произойдёт новое событие (смена статуса или новая заявка)
+  if(MYBK_DISMISSED.has(mybkKey(b))){ slot.innerHTML=""; return; }
   let cls, ic, label;
   const dateStr = (typeof bkfFmtDate==="function" && b.business_date) ? bkfFmtDate(b.business_date) : "";
   const timeStr = (b.arrive_at && typeof bkfFmtTime==="function") ? bkfFmtTime(b.arrive_at) : "";
@@ -2167,7 +2170,6 @@ function mybkRenderHomeSlot(b){
   if(b.status==="booked"){ cls="ok"; ic="✓"; label=t('hb_confirmed'); }
   else if(b.status==="cancelled"){ cls="no"; ic="✕"; label=t('hb_declined'); }
   else { cls="req"; ic="⏳"; label=t('hb_review'); }
-  const closable = (b.status==="cancelled");
   slot.innerHTML = `
     <div class="hb-wrap ${cls}">
       <div class="hb-banner" id="hb-go" role="button" tabindex="0">
@@ -2177,44 +2179,63 @@ function mybkRenderHomeSlot(b){
           ${when?`<span class="hb-sub">${when}</span>`:""}
         </span>
       </div>
-      ${closable?`<button class="hb-close" id="hb-close" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>`:""}
+      <button class="hb-close" id="hb-close" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>
     </div>`;
   const g=document.getElementById("hb-go");
   if(g) g.onclick=()=>{ mybkMarkSeen(b); go("book"); };
-  if(closable){
-    const x=document.getElementById("hb-close");
-    if(x) x.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); mybkDismiss(b.id); slot.innerHTML=""; mybkBadge(b); };
-    // отклонённый баннер ведёт себя как уведомление: сам исчезает через 8 сек
-    if(MYBK_TOAST_TIMER){ clearTimeout(MYBK_TOAST_TIMER); }
-    MYBK_TOAST_TIMER = setTimeout(()=>{
-      const w = slot.querySelector(".hb-wrap.no");
-      if(w){ mybkDismiss(b.id); slot.innerHTML=""; mybkBadge(b); }
-    }, 8000);
-  }
+  const x=document.getElementById("hb-close");
+  if(x) x.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); mybkDismiss(mybkKey(b)); slot.innerHTML=""; mybkBadge(b); };
 }
+// ключ скрытия = id + статус: новое событие (другой статус) снова покажет баннер
+function mybkKey(b){ return String(b.id)+":"+String(b.status); }
 
 // realtime на главной: статус сменился, пока гость не в разделе брони
 let MYBK_SUB=null;
 function mybkSubscribeHome(b){
   try{
     if(MYBK_SUB){ SB.removeChannel(MYBK_SUB); MYBK_SUB=null; }
+    mybkStopPoll();
     if(!b) return;
     MYBK_SUB = SB.channel("guest-home-"+b.id)
       .on("postgres_changes",
         { event:"UPDATE", schema:"public", table:"bookings", filter:"id=eq."+b.id },
-        (payload)=>{
-          const row=payload.new||{};
-          MYBK_LAST=row;
-          mybkRenderHomeSlot(row);
-          mybkBadge(row);
-          try{
-            if(row.status==="booked") window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
-            else if(row.status==="cancelled") window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("warning");
-          }catch(_){}
-        })
+        (payload)=>{ mybkHomeApply(payload.new||{}); })
       .subscribe();
+    // ПОДСТРАХОВКА опросом, пока заявка ещё на рассмотрении
+    if(b.status==="request") mybkStartPoll(b.id);
   }catch(_){}
 }
+
+// обработка обновления статуса на главном
+function mybkHomeApply(row){
+  if(!row || !row.id) return;
+  MYBK_LAST=row;
+  mybkRenderHomeSlot(row);
+  mybkBadge(row);
+  try{
+    if(row.status==="booked") window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+    else if(row.status==="cancelled") window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("warning");
+  }catch(_){}
+  if(row.status!=="request") mybkStopPoll();
+}
+
+// опрос статуса для главного экрана
+let MYBK_POLL_TIMER=null;
+function mybkStartPoll(bookingId){
+  mybkStopPoll();
+  MYBK_POLL_TIMER = setInterval(async ()=>{
+    try{
+      const { data } = await SB.from("bookings")
+        .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
+        .eq("id", bookingId).limit(1);
+      if(data && data.length){
+        const row=data[0];
+        if(row.status!=="request") mybkHomeApply(row);
+      }
+    }catch(_){}
+  }, 12000);
+}
+function mybkStopPoll(){ if(MYBK_POLL_TIMER){ clearInterval(MYBK_POLL_TIMER); MYBK_POLL_TIMER=null; } }
 
 // гость «увидел» статус — гасим бейдж
 function mybkMarkSeen(b){
