@@ -110,6 +110,10 @@
   td.steps .lbl{display:block;font-size:9px;color:var(--muted);font-weight:400}
   td.earn{text-align:right;font-weight:700;white-space:nowrap;font-size:13px}
   td.earn .sh{display:block;font-size:10px;color:var(--muted);font-weight:400}
+  .pay-chip{display:block;margin:3px 0 0 auto;border:1px solid var(--line);background:var(--panel2);
+    color:var(--muted);border-radius:7px;padding:3px 9px;font-size:10px;font-weight:700;font-family:inherit;cursor:pointer}
+  .pay-chip.on{background:rgba(31,191,122,.16);color:var(--emerald);border-color:var(--emerald)}
+  .pay-chip.ro{cursor:default}
   td.actions{white-space:nowrap}
   td.actions button{padding:3px 7px;font-size:12px;margin-left:3px}
   td.actions .del:hover{border-color:var(--red);color:var(--red)}
@@ -625,6 +629,7 @@
         <button data-v="full">Полный режим</button>
       </span>
       <button class="btn-mini money-only" id="btn-export">⬇ Excel</button>
+      <button class="btn-mini money-only" id="btn-export-pay" style="display:none">⬇ Итоги ЗП</button>
     </h2>
     <div class="grid-wrap">
       <table id="grid">
@@ -843,7 +848,7 @@ let sb = null, ME = null, CAP = null;
 // только этот Telegram ID может создавать/изменять/удалять карточки сотрудников
 const OWNER_TG = 3392227;
 function isOwner(){ return Number(ME && (ME.tg_id || ME.telegram_id)) === OWNER_TG; }
-let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [], bonRows = [], checkinRows = [];
+let employees = [], rates = [], rosterRows = [], shiftRows = [], wvRows = [], approvals = [], penRows = [], bonRows = [], checkinRows = [], payoutRows = [];
 let cabinSeatByDate = {}; // {дата: число посадок в кабинки караоке (без №7)}
 // бонус звукооператора за одну смену: только БЗ, только будни (не пт/сб),
 // 1 посадка в кабинку = 100 000, 2 и больше = 200 000
@@ -935,6 +940,7 @@ async function loadAll(){
   const seeBon = CAP.money || CAP.bonus;
   if(seeBon) q.push(sb.from("bonuses").select("*"));
   q.push(sb.from("checkins").select("*"));  // отметки прихода (RLS отдаёт по зоне)
+  if(CAP.money) q.push(sb.from("payouts").select("*"));  // отметки выплаты ЗП
   const res = await Promise.all(q);
   for(const r of res) if(r.error) { showMsg(r.error.message); }
   [employees, rosterRows, shiftRows, approvals] = res.slice(0,4).map(r=>r.data||[]);
@@ -942,7 +948,8 @@ async function loadAll(){
   if(CAP.money){ rates = res[i].data||[]; wvRows = res[i+1].data||[]; i += 2; }
   if(CAP.pen){ penRows = res[i].data||[]; i++; }
   if(seeBon){ bonRows = res[i].data||[]; i++; }
-  checkinRows = res[i].data||[];
+  checkinRows = res[i].data||[]; i++;
+  if(CAP.money){ payoutRows = res[i].data||[]; i++; }
   // посадки в кабинки караоке по дням (для автобонуса звукооператора)
   try{
     const wkFrom = iso(viewStart), wkTo = iso(addDays(viewStart,6));
@@ -952,6 +959,26 @@ async function loadAll(){
   }catch(_){ cabinSeatByDate = {}; }
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
+// отметки выплаты ЗП: по карточке за неделю
+const isPaidOut = (id, ws) => payoutRows.some(p=>p.employee_id===id && p.week_start===ws);
+const payoutOf  = (id, ws) => payoutRows.find(p=>p.employee_id===id && p.week_start===ws);
+async function togglePayout(empId){
+  if(!CAP.sales) return;                 // только админ/кассир
+  const ws = iso(viewStart);
+  const already = isPaidOut(empId, ws);
+  if(already){
+    if(!confirm("Снять отметку о выплате ЗП за эту неделю?")) return;
+    const {error} = await sb.from("payouts").delete().eq("employee_id",empId).eq("week_start",ws);
+    if(error){ showMsg(error.message); return; }
+  }else{
+    const {error} = await sb.from("payouts").insert({
+      employee_id: empId, week_start: ws,
+      paid_by: (ME.tg_id||ME.telegram_id||null), paid_by_name: ME.name
+    });
+    if(error){ showMsg(error.message); return; }
+  }
+  await loadAll(); render();
+}
 const rosterOf = ws => rosterRows.filter(r=>r.week_start===ws).map(r=>r.employee_id);
 const shiftOf = (id,ds) => shiftRows.find(s=>s.employee_id===id && s.work_date===ds);
 const hasShift = (id,ds) => { const r = shiftOf(id,ds); return !!r && r.status !== 2; }; // работал
@@ -1378,9 +1405,20 @@ function render(){
       if(r.absent) det += ` · <span class="penal">неявки: ${r.absent}</span>`;
       if(r.bon) det += ` · <span class="bonal">бонусы +${fmtNum(r.bon)}</span>`;
       if(r.pen) det += ` · <span class="penal">штрафы −${fmtNum(r.pen)}</span>`;
+      const wkKey = iso(viewStart);
+      const paidOut = isPaidOut(e.id, wkKey);
+      // отметка «выплачено» — только сдельным (не noPay), кликабельна для админа/кассира
+      let payTag = "";
+      if(!noPay){
+        if(CAP.sales){
+          payTag = `<button class="pay-chip${paidOut?' on':''}" onclick="togglePayout('${e.id}')" title="${paidOut?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidOut?'✓ выплачено':'выплатить'}</button>`;
+        }else if(paidOut){
+          payTag = `<span class="pay-chip on ro">✓ выплачено</span>`;
+        }
+      }
       const earnTd = noPay
         ? `<td class="earn"><span class="dash">—</span><span class="sh">${det}</span></td>`
-        : `<td class="earn">${money(r.sum)}<span class="sh">${det}</span></td>`;
+        : `<td class="earn">${money(r.sum)}${payTag}<span class="sh">${det}</span></td>`;
       const bonCnt = bonusesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
       const penCnt = penaltiesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
       const bonTd = `<td class="bon-col">${r.bon?`+${fmtNum(r.bon)}`:'<span class="dash">—</span>'}${r.bon?`<span class="sh">${bonCnt} ${bonCnt===1?"бонус":"бонуса"}</span>`:""}</td>`;
@@ -2136,6 +2174,94 @@ function exportXlsx(){
   XLSX.writeFile(wb, `график_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
 }
 
+// ===== Выгрузка ИТОГИ ПО ЗП за неделю (только админ/кассир, десктоп) =====
+// Колонки: Место · Должность · Имя · ЗП · Штраф(−) · Бонус · Шаги · Итого · Дни · Примечания(штрафы)
+function exportPayrollXlsx(){
+  if(typeof XLSX==="undefined"){ showMsg("Библиотека Excel не загрузилась"); return; }
+  const weekKey = iso(viewStart);
+  const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
+  const fromS = weekKey, toS = iso(days[6]);
+
+  const placeOfVenue = pos => pos==="karaoke" ? "Караоке" : pos==="club" ? "Клуб" : "Общие";
+  const daysText = empId => days.map(d=>{
+      const sh=shiftOf(empId, iso(d));
+      if(!sh || sh.status===2) return null;          // нет смены / неявка — пропускаем
+      const code = sh.place && PLACES[sh.place] ? PLACES[sh.place].short : null;
+      return d.getDate() + (code?("-"+code):"");
+    }).filter(Boolean).join("/");
+  const penText = empId => penaltiesIn(empId, fromS, toS)
+    .sort((a,b)=>a.pen_date<b.pen_date?-1:1)
+    .map(p=>`−${fmtNum(p.amount)}: ${p.note||"штраф"} (${p.created_by||"?"}, ${fmtD(fromIso(p.pen_date))})`)
+    .join("; ");
+
+  const isPiece = e => !NO_RATE_ROLES.includes(e.emp_role);
+  const roster = rosterOf(weekKey).map(byId).filter(Boolean)
+    .filter(e=>posFilter==="all"||e.pos===posFilter);
+  const piece = roster.filter(isPiece);
+  const fixedWithPB = roster.filter(e=>!isPiece(e)).filter(e=>{
+    const r=earnedInPeriod(e,fromS,toS); return (r.pen||0)>0 || (r.bon||0)>0;
+  });
+  const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
+  const srt = (a,b)=>POS_ORDER.indexOf(a.pos)-POS_ORDER.indexOf(b.pos)
+      || roleIdx(a.emp_role)-roleIdx(b.emp_role) || a.name.localeCompare(b.name,"ru");
+  piece.sort(srt); fixedWithPB.sort(srt);
+
+  const header = ["Место","Должность","Имя","Сумма ЗП","Штраф","Бонус","Шаги","Итого","Дни","Примечания (штрафы)"];
+  const aoa = [
+    [`ИТОГИ ПО ЗП · неделя ${fmtFull(days[0])} — ${fmtFull(days[6])}`+(isApproved(weekKey)?" · УТВЕРЖДЕНО":"")],
+    [],
+    header
+  ];
+  const headerRowIdx = 2;
+  const penCells = [];
+
+  const pushRow = (e)=>{
+    const r = earnedInPeriod(e, fromS, toS);
+    const wv = wvOf(e.id, weekKey);
+    const steps = e.emp_role==="Официант" ? Math.round((wv.sales||0)*STEPS_PCT) : 0;
+    const noPay = NO_RATE_ROLES.includes(e.emp_role);
+    const baseZP = noPay ? 0 : Math.round(r.sum - (r.bon||0) + (r.pen||0) - steps);
+    const pen = Math.round(r.pen||0);
+    const bon = Math.round(r.bon||0);
+    const itogo = noPay ? (bon - pen) : Math.round(r.sum);
+    aoa.push([
+      placeOfVenue(e.pos), e.emp_role, e.name,
+      noPay ? "—" : baseZP,
+      pen ? -pen : 0,
+      bon || 0,
+      steps || 0,
+      itogo,
+      daysText(e.id),
+      penText(e.id)
+    ]);
+    if(pen){ penCells.push(aoa.length-1); }
+  };
+
+  if(piece.length){ piece.forEach(pushRow); }
+  if(fixedWithPB.length){
+    aoa.push([]);
+    aoa.push(["Фиксированный оклад — только штрафы/бонусы:"]);
+    fixedWithPB.forEach(pushRow);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[{wch:9},{wch:16},{wch:18},{wch:12},{wch:11},{wch:11},{wch:10},{wch:13},{wch:26},{wch:46}];
+  penCells.forEach(rowIdx=>{
+    const addr = XLSX.utils.encode_cell({r:rowIdx, c:4});
+    if(ws[addr]){ ws[addr].s = { font:{ color:{ rgb:"FFC00000" }, bold:true } }; }
+  });
+  const moneyCols = [3,4,5,6,7];
+  for(let R=headerRowIdx+1; R<aoa.length; R++){
+    moneyCols.forEach(c=>{
+      const addr=XLSX.utils.encode_cell({r:R,c});
+      if(ws[addr] && typeof ws[addr].v==="number"){ ws[addr].z = "#,##0"; }
+    });
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ЗП");
+  XLSX.writeFile(wb, `зп_итоги_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
+}
+
 /* ================= рассылка (только админ) ================= */
 async function initNotify(){
   $("card-notify").style.display = "";
@@ -2242,6 +2368,13 @@ async function startApp(){
     $("p-from").addEventListener("change", render);
     $("p-to").addEventListener("change", render);
     $("btn-export").addEventListener("click", exportXlsx);
+    // «Итоги ЗП» — только админ/кассир и только на десктопе
+    const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && window.innerWidth >= 1024;
+    const payBtn = $("btn-export-pay");
+    if(payBtn && CAP.sales && isDesktop){
+      payBtn.style.display = "";
+      payBtn.addEventListener("click", exportPayrollXlsx);
+    }
   }
   $("btn-curweek").addEventListener("click", async ()=>{
     viewStart = payWeekStart(businessNow()); setCurrentPayWeek(); await refresh();
