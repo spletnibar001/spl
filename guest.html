@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -5,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>SPLETNI</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#0d0f12; --panel:#15181d; --panel2:#1c2025; --line:#2a2f37;
@@ -146,6 +148,39 @@ button{font-family:inherit;cursor:pointer}
   display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600}
 #navbar button.active{color:var(--emerald)}
 #navbar button svg{width:21px;height:21px}
+
+/* БРОНИРОВАНИЕ */
+.bk-loading{padding:30px 10px;text-align:center;color:var(--muted);font-size:14px;line-height:1.5}
+.bk-note{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:16px}
+.bk-lbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:16px 0 8px}
+.bk-seg{display:flex;gap:8px}
+.bk-seg button{flex:1;padding:11px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:10px;font-size:14px;font-weight:700;font-family:inherit}
+.bk-seg button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-dates{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.bk-dates button{flex:0 0 auto;padding:9px 13px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--text);border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap}
+.bk-dates button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-zones{display:flex;flex-wrap:wrap;gap:8px}
+.bk-zones button{padding:9px 14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:9px;font-size:13px;font-weight:600;font-family:inherit}
+.bk-zones button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-input{width:100%;padding:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:10px;font-size:15px;font-family:inherit}
+textarea.bk-input{resize:vertical;min-height:48px}
+.bk-msg{color:var(--hot);font-size:13px;min-height:18px;margin-top:10px}
+.bk-submit{width:100%;margin-top:8px;padding:14px;border:none;background:var(--emerald);color:#08130d;
+  border-radius:12px;font-size:15px;font-weight:800;font-family:inherit}
+.bk-submit:disabled{opacity:.6}
+.bk-done{text-align:center;padding:24px 10px}
+.bk-done-ic{width:64px;height:64px;border-radius:50%;background:rgba(31,191,122,.16);color:var(--emerald);
+  font-size:34px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.bk-done-t{font-size:19px;font-weight:800;margin-bottom:8px}
+.bk-done-sub{font-size:14px;color:var(--muted);line-height:1.5}
+.bk-mine{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.bk-mine-h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:8px}
+.bk-mine-row{font-size:14px;line-height:1.5}
+.bk-mine-status{font-size:15px;font-weight:800;margin-top:10px}
 </style>
 </head>
 <body>
@@ -892,6 +927,37 @@ const T = {
   soon_sub:  {ru:"Скоро здесь появятся фото залов и онлайн-бронирование столов.",
               uz:"Tez orada bu yerda zallar fotosi va onlayn bron paydo bo'ladi.",
               en:"Photos of the halls and online table booking will appear here soon."},
+  bk_venue:   {ru:"Заведение", uz:"Muassasa", en:"Venue"},
+  bk_date:    {ru:"Дата", uz:"Sana", en:"Date"},
+  bk_zone:    {ru:"Зона / зал", uz:"Zona / zal", en:"Zone / hall"},
+  bk_guests:  {ru:"Сколько гостей", uz:"Mehmonlar soni", en:"Guests"},
+  bk_phone:   {ru:"Телефон для связи", uz:"Bog'lanish uchun telefon", en:"Contact phone"},
+  bk_comment: {ru:"Комментарий (необязательно)", uz:"Izoh (ixtiyoriy)", en:"Comment (optional)"},
+  bk_comment_ph:{ru:"Повод, пожелания по столу…", uz:"Sabab, stol bo'yicha istaklar…", en:"Occasion, table wishes…"},
+  bk_submit:  {ru:"Отправить заявку", uz:"Ariza yuborish", en:"Send request"},
+  bk_sending: {ru:"Отправляем…", uz:"Yuborilmoqda…", en:"Sending…"},
+  bk_pick_zone:{ru:"Выберите зону", uz:"Zonani tanlang", en:"Pick a zone"},
+  bk_need_phone:{ru:"Укажите телефон для связи", uz:"Telefon raqamini kiriting", en:"Enter a contact phone"},
+  bk_intro:   {ru:"Оставьте заявку — мы свяжемся с вами и подтвердим бронь. Депозит и стол уточним по телефону.",
+               uz:"Ariza qoldiring — biz siz bilan bog'lanib, bronni tasdiqlaymiz. Depozit va stolni telefon orqali aniqlaymiz.",
+               en:"Leave a request — we'll contact you to confirm. Deposit and exact table will be clarified by phone."},
+  bk_done_t:  {ru:"Заявка отправлена!", uz:"Ariza yuborildi!", en:"Request sent!"},
+  bk_done_sub:{ru:"Мы свяжемся с вами по указанному номеру для подтверждения брони. Спасибо!",
+               uz:"Bronni tasdiqlash uchun ko'rsatilgan raqam orqali bog'lanamiz. Rahmat!",
+               en:"We'll contact you at the provided number to confirm. Thank you!"},
+  bk_done_btn:{ru:"Готово", uz:"Tayyor", en:"Done"},
+  bk_have_active:{ru:"У вас уже есть активная заявка. Дождитесь, пожалуйста, подтверждения — мы скоро свяжемся.",
+                  uz:"Sizda allaqachon faol ariza bor. Iltimos, tasdiqni kuting — tez orada bog'lanamiz.",
+                  en:"You already have an active request. Please wait for confirmation — we'll contact you soon."},
+  bk_my_req:  {ru:"Ваша заявка", uz:"Sizning arizangiz", en:"Your request"},
+  bk_st_request:{ru:"на рассмотрении", uz:"ko'rib chiqilmoqda", en:"under review"},
+  bk_st_booked:{ru:"подтверждена ✓", uz:"tasdiqlandi ✓", en:"confirmed ✓"},
+  bk_auth_wait:{ru:"Открываю бронирование…", uz:"Bron ochilmoqda…", en:"Opening booking…"},
+  bk_auth_err:{ru:"Бронирование доступно только при открытии через Telegram-бота.",
+               uz:"Bron faqat Telegram-bot orqali ochilganda ishlaydi.",
+               en:"Booking works only when opened via the Telegram bot."},
+  bk_today:   {ru:"Сегодня", uz:"Bugun", en:"Today"},
+  bk_tomorrow:{ru:"Завтра", uz:"Ertaga", en:"Tomorrow"},
 };
 
 let LANG = "ru";
@@ -921,6 +987,40 @@ const IC = {
 const PHONE_KAR = "+998900638888";
 const PHONE_CLUB = "+998940808088";
 const ADDR_LAT = 41.312011, ADDR_LNG = 69.316505; // точные координаты SPLETNI
+
+// ============ ПОДКЛЮЧЕНИЕ К БАЗЕ / АВТОРИЗАЦИЯ ГОСТЯ ============
+const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const GUEST_AUTH_URL = SB_URL + "/functions/v1/guest-auth";
+
+let SB = null;           // клиент supabase (создаётся после авторизации)
+let GUEST = null;        // { tg_id, name } — данные гостя из Telegram
+let BK_REF = null;       // справочники: { venues, zones }
+let BK_STATE = { venue:"karaoke", date:null, zoneId:null, guests:null };
+let BK_AUTH_TRIED = false;
+
+// авторизация гостя через Edge Function guest-auth (проверка подписи Telegram)
+async function guestAuth(){
+  if(GUEST) return true;
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const initData = tg && tg.initData;
+  if(!initData){ return false; }   // открыто не из Telegram
+  try{
+    const r = await fetch(GUEST_AUTH_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+SB_ANON, "apikey":SB_ANON },
+      body: JSON.stringify({ initData })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.token){ return false; }
+    GUEST = { tg_id: d.tg_id, name: d.name };
+    SB = window.supabase.createClient(SB_URL, SB_ANON, {
+      global:{ headers:{ Authorization: "Bearer "+d.token } },
+      auth:{ persistSession:false }
+    });
+    return true;
+  }catch(e){ return false; }
+}
 
 // ============ РЕНДЕР ГЛАВНОЙ ============
 function renderHome(){
@@ -1053,6 +1153,213 @@ function renderStub(secId, title){
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
 
+// ============ БРОНИРОВАНИЕ (заявка) ============
+// форматирование даты YYYY-MM-DD
+function bkfIso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+// список ближайших дат для выбора (сегодня + 13 дней)
+function bkfDates(){
+  const out=[]; const now=new Date();
+  for(let i=0;i<14;i++){ const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i); out.push(d); }
+  return out;
+}
+function bkfDateLabel(d, idx){
+  if(idx===0) return t('bk_today');
+  if(idx===1) return t('bk_tomorrow');
+  const wd=({ru:["вс","пн","вт","ср","чт","пт","сб"],uz:["yak","dush","sesh","chor","pay","jum","shan"],en:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]})[LANG][d.getDay()];
+  return wd+" "+String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0");
+}
+
+// загрузка справочников (заведения + зоны + столы) из базы
+async function bkfLoadRef(){
+  if(BK_REF) return BK_REF;
+  const [v,z,tb] = await Promise.all([
+    SB.from("venues").select("*").order("id"),
+    SB.from("zones").select("*").order("sort"),
+    SB.from("tables").select("*").order("id"),
+  ]);
+  BK_REF = { venues:v.data||[], zones:z.data||[], tables:tb.data||[] };
+  return BK_REF;
+}
+
+// зоны выбранного заведения
+function bkfZonesFor(venueKey){
+  if(!BK_REF) return [];
+  const venue = BK_REF.venues.find(x=>x.key===venueKey);
+  if(!venue) return [];
+  return BK_REF.zones.filter(z=>z.venue_id===venue.id);
+}
+
+async function renderBook(force){
+  const el = document.getElementById("sec-book");
+  // лёгкая отрисовка оболочки; тяжёлая загрузка — только когда гость реально открыл раздел
+  el.innerHTML = `<div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('book_t')}</h2></div>
+    <div class="info-card" id="bk-body"><div class="bk-loading">${t('bk_auth_wait')}</div></div>`;
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  if(!force) return;   // только оболочка (при общем renderAll)
+
+  // авторизация гостя (один раз)
+  const ok = await guestAuth();
+  const body = document.getElementById("bk-body");
+  if(!body) return;
+  if(!ok){
+    body.innerHTML = `<div class="bk-loading">${t('bk_auth_err')}</div>`;
+    return;
+  }
+  await bkfLoadRef();
+
+  // есть ли уже активная заявка от этого гостя?
+  let active=null;
+  try{
+    const {data} = await SB.from("bookings").select("id,status,business_date,note,guest_name")
+      .eq("created_by", Number(GUEST.tg_id))
+      .in("status",["request","booked"])
+      .order("id",{ascending:false}).limit(1);
+    if(data && data.length) active = data[0];
+  }catch(_){}
+
+  if(active){
+    const stTxt = active.status==="booked" ? t('bk_st_booked') : t('bk_st_request');
+    const stCol = active.status==="booked" ? "var(--emerald)" : "var(--gold)";
+    body.innerHTML = `
+      <div class="bk-mine">
+        <div class="bk-mine-h">${t('bk_my_req')}</div>
+        <div class="bk-mine-row"><span>${active.note||""}</span></div>
+        <div class="bk-mine-row" style="color:var(--muted)">${active.business_date||""}</div>
+        <div class="bk-mine-status" style="color:${stCol}">${stTxt}</div>
+      </div>
+      <div class="bk-note">${t('bk_have_active')}</div>`;
+    return;
+  }
+
+  // форма заявки
+  if(!BK_STATE.date) BK_STATE.date = bkfIso(new Date());
+  bkfDrawForm();
+}
+
+function bkfDrawForm(){
+  const body = document.getElementById("bk-body");
+  if(!body) return;
+  const dates = bkfDates();
+  const zones = bkfZonesFor(BK_STATE.venue);
+  // если выбранная зона не из текущего заведения — сбросить
+  if(BK_STATE.zoneId && !zones.find(z=>z.id===BK_STATE.zoneId)) BK_STATE.zoneId=null;
+
+  const venueBtns = `
+    <div class="bk-seg">
+      <button data-bv="karaoke" class="${BK_STATE.venue==='karaoke'?'on':''}">${t('karaoke')}</button>
+      <button data-bv="club" class="${BK_STATE.venue==='club'?'on':''}">${t('club')}</button>
+    </div>`;
+
+  const dateBtns = `<div class="bk-dates">` + dates.map((d,i)=>{
+    const iso=bkfIso(d);
+    return `<button data-bd="${iso}" class="${BK_STATE.date===iso?'on':''}">${bkfDateLabel(d,i)}</button>`;
+  }).join("") + `</div>`;
+
+  const zoneBtns = `<div class="bk-zones">` + zones.map(z=>
+    `<button data-bz="${z.id}" class="${BK_STATE.zoneId===z.id?'on':''}">${z.title}</button>`
+  ).join("") + `</div>`;
+
+  const guestOpts = [1,2,3,4,5,6,8,10,12,15,20].map(n=>
+    `<option value="${n}" ${BK_STATE.guests==n?'selected':''}>${n}${n>=20?'+':''}</option>`).join("");
+
+  body.innerHTML = `
+    <div class="bk-note">${t('bk_intro')}</div>
+
+    <label class="bk-lbl">${t('bk_venue')}</label>
+    ${venueBtns}
+
+    <label class="bk-lbl">${t('bk_date')}</label>
+    ${dateBtns}
+
+    <label class="bk-lbl">${t('bk_zone')}</label>
+    ${zoneBtns}
+
+    <label class="bk-lbl">${t('bk_guests')}</label>
+    <select id="bk-guests" class="bk-input"><option value="">—</option>${guestOpts}</select>
+
+    <label class="bk-lbl">${t('bk_phone')}</label>
+    <input id="bk-phone" class="bk-input" type="tel" inputmode="tel" placeholder="+998 __ ___ __ __" value="${BK_STATE.phone||''}">
+
+    <label class="bk-lbl">${t('bk_comment')}</label>
+    <textarea id="bk-comment" class="bk-input" rows="2" placeholder="${t('bk_comment_ph')}">${BK_STATE.comment||''}</textarea>
+
+    <div class="bk-msg" id="bk-msg"></div>
+    <button class="bk-submit" id="bk-submit">${t('bk_submit')}</button>`;
+
+  body.querySelectorAll("[data-bv]").forEach(b=>b.onclick=()=>{ BK_STATE.venue=b.dataset.bv; bkfSaveInputs(); bkfDrawForm(); });
+  body.querySelectorAll("[data-bd]").forEach(b=>b.onclick=()=>{ BK_STATE.date=b.dataset.bd; bkfSaveInputs(); bkfDrawForm(); });
+  body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
+  document.getElementById("bk-submit").onclick = bkfSubmit;
+}
+
+// сохранить введённые поля (чтобы не терялись при перерисовке)
+function bkfSaveInputs(){
+  const g=document.getElementById("bk-guests"); if(g) BK_STATE.guests=g.value||null;
+  const p=document.getElementById("bk-phone"); if(p) BK_STATE.phone=p.value;
+  const c=document.getElementById("bk-comment"); if(c) BK_STATE.comment=c.value;
+}
+
+function bkfMsg(text){ const m=document.getElementById("bk-msg"); if(m) m.textContent=text||""; }
+
+async function bkfSubmit(){
+  bkfSaveInputs();
+  if(!BK_STATE.zoneId){ bkfMsg(t('bk_pick_zone')); return; }
+  const phone = (BK_STATE.phone||"").trim();
+  const digits = phone.replace(/[^\d]/g,"");
+  if(digits.length<9){ bkfMsg(t('bk_need_phone')); return; }
+
+  const btn=document.getElementById("bk-submit");
+  btn.disabled=true; btn.textContent=t('bk_sending');
+
+  try{
+    const zone = BK_REF.zones.find(z=>z.id===BK_STATE.zoneId);
+    const venue = BK_REF.venues.find(v=>v.id===zone.venue_id);
+    // представительный стол выбранной зоны (персонал переназначит при подтверждении)
+    const tbl = BK_REF.tables.find(x=>x.zone_id===zone.id);
+    if(!tbl){ bkfMsg("Зона недоступна, выберите другую"); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
+
+    const guests = BK_STATE.guests?Number(BK_STATE.guests):null;
+    const noteParts = [
+      "🌐 Заявка с сайта",
+      "Зона: "+zone.title,
+      guests?("Гостей: "+guests):null,
+      BK_STATE.comment?("Коммент: "+BK_STATE.comment.trim()):null
+    ].filter(Boolean);
+
+    const row = {
+      table_id: tbl.id,
+      business_date: BK_STATE.date,
+      status: "request",
+      guest_name: GUEST.name,
+      guests_count: guests,
+      phone: phone,
+      note: noteParts.join(" · "),
+      deposit_amount: 0,
+      is_paid: false,
+      created_by: Number(GUEST.tg_id),
+      created_by_name: GUEST.name
+    };
+    const { error } = await SB.from("bookings").insert(row);
+    if(error){ bkfMsg(error.message); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
+
+    // экран «заявка отправлена»
+    const body=document.getElementById("bk-body");
+    body.innerHTML = `
+      <div class="bk-done">
+        <div class="bk-done-ic">✓</div>
+        <div class="bk-done-t">${t('bk_done_t')}</div>
+        <div class="bk-done-sub">${t('bk_done_sub')}</div>
+        <button class="bk-submit" data-go="home" style="margin-top:18px">${t('bk_done_btn')}</button>
+      </div>`;
+    body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+    try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
+    // сбросить форму
+    BK_STATE.zoneId=null; BK_STATE.comment=""; 
+  }catch(e){
+    bkfMsg(String(e.message||e)); btn.disabled=false; btn.textContent=t('bk_submit');
+  }
+}
+
 // ============ ВИТРИНА ЗАЛОВ ============
 let ZONE_VENUE = "karaoke";          // какой набор зон показываем
 const zgState = {};                  // индекс текущего слайда галереи по zoneId
@@ -1165,6 +1472,7 @@ function go(id){
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
+  if(id==="book") renderBook(true);   // полная загрузка раздела бронирования
 }
 
 // ============ ПЕРЕРИСОВКА ВСЕГО (при смене языка/заведения) ============
@@ -1174,7 +1482,7 @@ function renderAll(){
   renderLocation();
   renderContacts();
   renderZones();
-  renderStub("sec-book", t('book_t'));
+  renderBook();
   renderNav();
 }
 
