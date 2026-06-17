@@ -1195,6 +1195,7 @@ let SB = null;           // клиент supabase (создаётся после
 let GUEST = null;        // { tg_id, name } — данные гостя из Telegram
 let BK_REF = null;       // справочники: { venues, zones }
 let BK_STATE = { venue:"karaoke", date:null, zoneId:null, guests:null };
+let BK_GOTO_FORM = false;   // true = гость нажал «Забронировать» в карточке зоны → сразу форма
 let BK_AUTH_TRIED = false;
 let BK_AUTH_ERR = "";
 
@@ -1524,6 +1525,15 @@ async function renderBook(force){
   // прошедшую бронь (её ночь уже закончилась) не показываем — сразу форма
   if(last && bkfIsPast(last)) last = null;
 
+  // гость пришёл из карточки зоны с явным намерением бронировать — открываем форму,
+  // не показывая экран отклонённой заявки (но активную бронь всё равно уважаем)
+  const gotoForm = BK_GOTO_FORM;
+  BK_GOTO_FORM = false;
+  if(gotoForm && !(last && (last.status==="request" || last.status==="booked"))){
+    bkfShowForm();
+    return;
+  }
+
   // активные (request/booked) — показываем статус и блокируем форму
   if(last && (last.status==="request" || last.status==="booked")){
     const note = last.status==="request" ? `<div class="bk-note">${t('bk_have_active')}</div>` : "";
@@ -1718,8 +1728,10 @@ function bkfDrawForm(){
   const body = document.getElementById("bk-body");
   if(!body) return;
   const dates = bkfDates();
-  const zones = bkfZonesFor(BK_STATE.venue);
-  // если выбранная зона не из текущего заведения — сбросить
+  let zones = bkfZonesFor(BK_STATE.venue);
+  // в бронь нельзя выбирать «Закрытую кабинку» — убираем её из списка
+  zones = zones.filter(z=>!/закры/i.test(String(z.title||"")));
+  // если выбранная зона не из текущего заведения (или отфильтрована) — сбросить
   if(BK_STATE.zoneId && !zones.find(z=>z.id===BK_STATE.zoneId)) BK_STATE.zoneId=null;
 
   const venueName = BK_STATE.venue==='club' ? t('club') : t('karaoke');
@@ -1983,7 +1995,25 @@ function renderZones(){
     zgGo(id, parseInt(i,10));
   });
   // кнопка брони → пока ведёт в раздел брони (этап 3)
-  el.querySelectorAll("[data-zbook]").forEach(b=>b.onclick=()=>{ go("book"); });
+  el.querySelectorAll("[data-zbook]").forEach(b=>b.onclick=async()=>{
+    const cardId = b.dataset.zbook;
+    const allCards = [...KARAOKE_ZONES, ...CLUB_ZONES];
+    const card = allCards.find(z=>String(z.id)===String(cardId));
+    // заведение — то, что выбрано на витрине
+    if(card){ BK_STATE.venue = ZONE_VENUE; }
+    // сопоставляем карточную зону с зоной из базы по названию (ru)
+    try{
+      await bkfLoadRef();
+      if(card && BK_REF && BK_REF.zones){
+        const cname = (card.name && card.name.ru ? card.name.ru : "").trim().toLowerCase();
+        const dbZones = bkfZonesFor(BK_STATE.venue);
+        const match = dbZones.find(z=>String(z.title||"").trim().toLowerCase()===cname);
+        if(match) BK_STATE.zoneId = match.id;
+      }
+    }catch(_){}
+    BK_GOTO_FORM = true;   // гость явно идёт бронировать конкретную зону — открываем форму сразу
+    go("book");
+  });
 }
 
 function zgCount(id){
