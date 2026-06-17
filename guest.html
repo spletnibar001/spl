@@ -260,6 +260,8 @@ button{font-family:inherit;cursor:pointer}
 .bk-seg button{flex:1;padding:11px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
   border-radius:10px;font-size:14px;font-weight:700;font-family:inherit}
 .bk-seg button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-venue-fixed{padding:11px 14px;border:1px solid var(--emerald);background:rgba(35,209,139,.12);
+  color:var(--emerald);border-radius:10px;font-weight:700;text-align:center}
 .bk-dates{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
 .bk-dates button{flex:0 0 auto;padding:9px 13px;border:1px solid var(--line);background:var(--panel2);
   color:var(--text);border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap}
@@ -1720,11 +1722,8 @@ function bkfDrawForm(){
   // если выбранная зона не из текущего заведения — сбросить
   if(BK_STATE.zoneId && !zones.find(z=>z.id===BK_STATE.zoneId)) BK_STATE.zoneId=null;
 
-  const venueBtns = `
-    <div class="bk-seg">
-      <button data-bv="karaoke" class="${BK_STATE.venue==='karaoke'?'on':''}">${t('karaoke')}</button>
-      <button data-bv="club" class="${BK_STATE.venue==='club'?'on':''}">${t('club')}</button>
-    </div>`;
+  const venueName = BK_STATE.venue==='club' ? t('club') : t('karaoke');
+  const venueBtns = `<div class="bk-venue-fixed">${venueName}</div>`;
 
   const dateBtns = `<div class="bk-dates">` + dates.map((d,i)=>{
     const iso=bkfIso(d);
@@ -1775,7 +1774,6 @@ function bkfDrawForm(){
     <div class="bk-msg" id="bk-msg"></div>
     <button class="bk-submit" id="bk-submit">${t('bk_submit')}</button>`;
 
-  body.querySelectorAll("[data-bv]").forEach(b=>b.onclick=()=>{ BK_STATE.venue=b.dataset.bv; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bd]").forEach(b=>b.onclick=()=>{ BK_STATE.date=b.dataset.bd; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ if(b.disabled||bkfSlotPassed(BK_STATE.date,b.dataset.bt)) return; BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
@@ -2221,7 +2219,7 @@ function go(id){
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
-  if(id==="book"){ renderBook(true); if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); }   // полная загрузка раздела бронирования
+  if(id==="book"){ if(typeof ZONE_VENUE!=="undefined" && ZONE_VENUE){ BK_STATE.venue=ZONE_VENUE; } renderBook(true); if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); }   // бронь — под выбранное заведение
   if(id==="home") mybkRefresh();       // обновить баннер статуса брони на главной
   if(id==="zones") renderZones();     // перерисовать под выбранное заведение (ZONE_VENUE)
 }
