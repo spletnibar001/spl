@@ -196,6 +196,10 @@ button{font-family:inherit;cursor:pointer}
 .info-card h3{margin:0 0 8px;font-size:15px;font-weight:700}
 .info-card p{margin:0 0 4px;color:var(--muted);font-size:14px}
 .btn-row{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.ct-row{display:flex;gap:8px;margin-top:8px}
+.ct-row .btn{flex:1}
+.ct-row .ct-tg{flex:0 0 auto;width:54px;padding:0;display:flex;align-items:center;justify-content:center;color:#2aabee}
+.ct-row .ct-tg svg{width:22px;height:22px}
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);
   background:var(--panel2);color:var(--text);border-radius:11px;padding:13px;font-size:14px;font-weight:700;
   text-decoration:none}
@@ -1412,9 +1416,13 @@ function renderContacts(){
     </div>
     <div class="info-card">
       <h3>${t('hours_t')}</h3>
-      <div class="btn-row">
+      <div class="ct-row">
         <a class="btn" href="tel:${PHONE_KAR}">${IC.phone}${t('call_kar')}</a>
+        <a class="btn ct-tg" href="https://t.me/${TG_KAR}" target="_blank" rel="noopener" aria-label="Telegram ${t('karaoke')}">${IC.tg}</a>
+      </div>
+      <div class="ct-row">
         <a class="btn" href="tel:${PHONE_CLUB}">${IC.phone}${t('call_club')}</a>
+        <a class="btn ct-tg" href="https://t.me/${TG_CLUB}" target="_blank" rel="noopener" aria-label="Telegram ${t('club')}">${IC.tg}</a>
       </div>
     </div>`;
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
