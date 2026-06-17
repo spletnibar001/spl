@@ -2573,9 +2573,10 @@ async function startApp(){
   $("btn-curweek").addEventListener("click", async ()=>{
     viewStart = payWeekStart(businessNow()); setCurrentPayWeek(); await refresh();
   });
-  // ручная отметка прихода — для директора и управляющего
+  // ручная отметка прихода персонала — только администратор, директор, управляющий
   const chkBtn = $("btn-checkin");
-  if(chkBtn && (ME.role==="dir" || ME.role==="upr")){
+  const CHK_ROLES = ["admin","dir","upr"];
+  if(chkBtn && CHK_ROLES.includes(ME.role)){
     chkBtn.style.display = "";
     chkBtn.addEventListener("click", openCheckinModal);
     $("chk-close").addEventListener("click", closeCheckinModal);
