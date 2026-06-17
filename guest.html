@@ -1568,15 +1568,15 @@ async function renderBook(force){
   }
   await bkfLoadRef();
 
-  // последняя заявка этого гостя (включая отклонённые — чтобы показать результат)
+  // самая релевантная заявка этого гостя (booked > request > cancelled)
   let last=null;
   try{
     const {data} = await SB.from("bookings")
       .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
       .eq("created_by", Number(GUEST.tg_id))
       .in("status",["request","booked","cancelled"])
-      .order("id",{ascending:false}).limit(1);
-    if(data && data.length) last = data[0];
+      .order("id",{ascending:false}).limit(20);
+    last = mybkPickRelevant(data||[]);
   }catch(_){}
 
   // прошедшую бронь (её ночь уже закончилась) не показываем — сразу форма
@@ -1609,7 +1609,7 @@ function bkfStatusCard(b){
   if(b.status==="booked"){
     const place = bkfPlaceLabel(b.table_id);
     const when = bkfFmtDate(b.business_date) + (b.arrive_at?(" · "+bkfFmtTime(b.arrive_at)):"");
-    const dep = (Number(b.deposit_amount)>0) ? bkfMoney(b.deposit_amount) : t('bk_no_deposit');
+    const dep = (Number(b.deposit_amount)>0) ? bkfMoney(b.deposit_amount) : "—";
     const guests = b.guests_count ? `
         <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_guests')}</span><span class="bk-res-v">${b.guests_count}</span></div>` : "";
     // заведение брони -> контакты караоке или клуба
@@ -2061,8 +2061,8 @@ async function mybkRefresh(){
       .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
       .eq("created_by", Number(GUEST.tg_id))
       .in("status",["request","booked","cancelled"])
-      .order("id",{ascending:false}).limit(1);
-    if(data && data.length) last = data[0];
+      .order("id",{ascending:false}).limit(20);
+    last = mybkPickRelevant(data||[]);
   }catch(_){}
   // прошедшую бронь не показываем
   if(last && typeof bkfIsPast==="function" && bkfIsPast(last)) last=null;
@@ -2072,6 +2072,22 @@ async function mybkRefresh(){
     mybkBadge(last);
   });
   mybkSubscribeHome(last);
+}
+
+// выбрать самую релевантную заявку из списка: booked > request > cancelled.
+// внутри статуса — самую свежую (по id). Прошедшие отбрасываются.
+function mybkPickRelevant(rows){
+  if(!rows || !rows.length) return null;
+  const alive = rows.filter(r=>!(typeof bkfIsPast==="function" && bkfIsPast(r)));
+  const pool = alive.length ? alive : rows;
+  const rank = s => s==="booked"?0 : (s==="request"?1 : 2);
+  let best=null;
+  for(const r of pool){
+    if(!best){ best=r; continue; }
+    const rb=rank(best.status), rr=rank(r.status);
+    if(rr<rb || (rr===rb && Number(r.id)>Number(best.id))) best=r;
+  }
+  return best;
 }
 
 // бейдж-точка на иконке в шапке
