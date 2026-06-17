@@ -1096,28 +1096,33 @@ let GUEST = null;        // { tg_id, name } — данные гостя из Tel
 let BK_REF = null;       // справочники: { venues, zones }
 let BK_STATE = { venue:"karaoke", date:null, zoneId:null, guests:null };
 let BK_AUTH_TRIED = false;
+let BK_AUTH_ERR = "";
 
 // авторизация гостя через Edge Function guest-auth (проверка подписи Telegram)
 async function guestAuth(){
   if(GUEST) return true;
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg && tg.initData;
-  if(!initData){ return false; }   // открыто не из Telegram
+  if(!window.supabase){ BK_AUTH_ERR = "Библиотека Supabase не загрузилась (проверьте интернет/CDN)"; return false; }
+  if(!initData){ BK_AUTH_ERR = "Нет данных Telegram (initData пуст). Откройте через кнопку бота, не по прямой ссылке."; return false; }
   try{
     const r = await fetch(GUEST_AUTH_URL, {
       method:"POST",
       headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+SB_ANON, "apikey":SB_ANON },
       body: JSON.stringify({ initData })
     });
-    const d = await r.json();
-    if(!r.ok || !d.token){ return false; }
+    let d=null; try{ d = await r.json(); }catch(_){ d=null; }
+    if(!r.ok || !d || !d.token){
+      BK_AUTH_ERR = "Сервер авторизации: " + (d && d.error ? d.error : ("код "+r.status));
+      return false;
+    }
     GUEST = { tg_id: d.tg_id, name: d.name };
     SB = window.supabase.createClient(SB_URL, SB_ANON, {
       global:{ headers:{ Authorization: "Bearer "+d.token } },
       auth:{ persistSession:false }
     });
     return true;
-  }catch(e){ return false; }
+  }catch(e){ BK_AUTH_ERR = "Сеть/запрос: " + String(e.message||e); return false; }
 }
 
 // ============ РЕНДЕР ГЛАВНОЙ ============
@@ -1351,7 +1356,7 @@ async function renderBook(force){
   const body = document.getElementById("bk-body");
   if(!body) return;
   if(!ok){
-    body.innerHTML = `<div class="bk-loading">${t('bk_auth_err')}</div>`;
+    body.innerHTML = `<div class="bk-loading">${t('bk_auth_err')}${BK_AUTH_ERR?`<br><br><span style="color:var(--hot);font-size:12px">${BK_AUTH_ERR}</span>`:""}</div>`;
     return;
   }
   await bkfLoadRef();
