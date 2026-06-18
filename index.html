@@ -293,6 +293,8 @@ window.__xlsxReady = (function(){
   #staff-cabinet .sc-row .l .s{font-size:11px;color:var(--muted);margin-top:2px}
   #staff-cabinet .sc-row .r{font-weight:700;white-space:nowrap}
   #staff-cabinet .sc-row .r.g{color:var(--emerald)} #staff-cabinet .sc-row .r.gd{color:var(--gold)} #staff-cabinet .sc-row .r.rd{color:var(--red)}
+  #staff-cabinet .sc-row.pending .l .d{color:var(--muted);font-weight:600}
+  #staff-cabinet .sc-row .r.pend{color:var(--muted);font-weight:600;opacity:.6}
   #staff-cabinet .sc-row.tot{background:var(--panel2);font-weight:800}
   #staff-cabinet .sc-sec{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:20px 0 10px;font-weight:700}
   #staff-cabinet .sc-rolecard{margin-top:14px;padding-top:4px}
@@ -1080,6 +1082,8 @@ async function loadAll(){
   }catch(_){ cabinSeatByDate = {}; }
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
+// снимать неявку (возвращать день как отработанный) могут только эти роли
+const canClearAbsence = () => ['admin','upr','dir'].includes(ME.role);
 // отметки выплаты ЗП: по карточке за неделю и типу (zp | extra)
 const isPaidOut = (id, ws, kind='zp') => payoutRows.some(p=>p.employee_id===id && p.week_start===ws && (p.kind||'zp')===kind);
 const payoutOf  = (id, ws, kind='zp') => payoutRows.find(p=>p.employee_id===id && p.week_start===ws && (p.kind||'zp')===kind);
@@ -1676,6 +1680,7 @@ function render(){
           if(!confirm("Отметить НЕЯВКУ? День не будет оплачен, отметка останется в графике.")) return;
           op = sb.from("shifts").update({status:2}).eq("employee_id",id).eq("work_date",ds);
         }else if(sh && sh.status === 2){
+          if(!canClearAbsence()){ showMsg("Снять неявку может только администратор, управляющий или директор."); return; }
           if(!confirm("Снять отметку неявки и вернуть день как отработанный?")) return;
           op = sb.from("shifts").update({status:1}).eq("employee_id",id).eq("work_date",ds);
         }else{
@@ -1993,6 +1998,7 @@ function renderStaffCabinet(cardsArg){
   const fromS = iso(viewStart), toS = iso(addDays(viewStart,6));
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
   const todayS = iso(businessNow());  // «сегодня» с учётом смены до 05:00
+  const paidThru = paidThroughDate();  // по эту дату оклад уже начислен (смена дня — после 17:00)
   const multi = myCards.length > 1;
 
   // общий итог по всем карточкам
@@ -2014,7 +2020,13 @@ function renderStaffCabinet(cardsArg){
       const ds = iso(d), sh = shiftOf(me.id, ds);
       if(sh && sh.status!==2){
         const zal = sh.place && PLACES[sh.place] ? " · "+PLACES[sh.place].label : "";
-        earnRows += `<div class="sc-row"><div class="l"><div class="d">${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}${zal}</div><div class="s">смена</div></div><div class="r g">${noPay?"—":fmtNum(rateForDate(me.id,ds))}</div></div>`;
+        const future = ds > paidThru;  // смена ещё впереди (или сегодня до 17:00)
+        const amt = noPay ? "—" : fmtNum(rateForDate(me.id,ds));
+        if(future){
+          earnRows += `<div class="sc-row pending"><div class="l"><div class="d">${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}${zal}</div><div class="s">ещё не отработано</div></div><div class="r pend">${amt}</div></div>`;
+        }else{
+          earnRows += `<div class="sc-row"><div class="l"><div class="d">${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}${zal}</div><div class="s">смена</div></div><div class="r g">${amt}</div></div>`;
+        }
       }
     }
     if(me.emp_role==="Официант"){
@@ -2024,7 +2036,10 @@ function renderStaffCabinet(cardsArg){
     }
     if(r.bon) earnRows += `<div class="sc-row"><div class="l"><div class="d">Бонусы</div><div class="s">начислено</div></div><div class="r gd">+${fmtNum(r.bon)}</div></div>`;
     if(r.pen) earnRows += `<div class="sc-row"><div class="l"><div class="d">Штрафы</div><div class="s">вычет</div></div><div class="r rd">−${fmtNum(r.pen)}</div></div>`;
-    earnRows += `<div class="sc-row tot"><div class="l"><div class="d">Итого по роли</div></div><div class="r g">${fmtNum(r.sum)}</div></div>`;
+    const cntNote = (!noPay && r.cntPlan>r.cnt)
+      ? `отработано ${r.cnt} из ${r.cntPlan} смен · план ${fmtNum(r.basePlan + r.extra + r.bon - r.pen)}`
+      : "";
+    earnRows += `<div class="sc-row tot"><div class="l"><div class="d">Итого${noPay?"":" — заработано"}</div>${cntNote?`<div class="s">${cntNote}</div>`:""}</div><div class="r g">${fmtNum(r.sum)}</div></div>`;
 
     // график по дням
     let dayRows = "";
@@ -2036,7 +2051,9 @@ function renderStaffCabinet(cardsArg){
       else if(sh){
         cls="work"; status="Работаю";
         const isToday = ds===todayS;
+        const future = ds > paidThru;  // ещё не отработано (будущий день или сегодня до 17:00)
         if(isToday) status += " · сегодня";
+        else if(future) status += " · ещё не отработано";
         const zalBadge = sh.place && PLACES[sh.place]
           ? `<span class="sc-badge" style="background:var(--panel2);color:var(--muted)">${PLACES[sh.place].label}</span>` : "";
         if(chk){
