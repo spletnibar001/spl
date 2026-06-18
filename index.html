@@ -84,7 +84,7 @@ window.__xlsxReady = (function(){
   .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
   .seg button{border:none;border-radius:0;background:transparent;padding:7px 11px}
   .seg button.active{background:var(--emerald);color:#0c1410;font-weight:700}
-  .grid-wrap{overflow:auto;-webkit-overflow-scrolling:touch;max-height:78vh}
+  .grid-wrap{overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch}
   /* у sticky-ячеек в таблицах с border-collapse:collapse браузеры теряют фон —
      поэтому таблице графика задаём separate (визуально не отличается) */
   .grid-wrap table{border-collapse:separate;border-spacing:0}
@@ -97,7 +97,7 @@ window.__xlsxReady = (function(){
     position:sticky;left:0;background:var(--panel);z-index:4;
     box-shadow:2px 0 0 var(--line)}
   .grid-wrap thead th:first-child{z-index:7}
-  .grid-wrap tfoot td{position:sticky;bottom:0;background:var(--panel);z-index:6;
+  .grid-wrap tfoot td{background:var(--panel);
     box-shadow:0 -2px 0 var(--line)}
   .grid-wrap tfoot td:first-child{z-index:7}
   /* плашки групп: их градиент прозрачен, поэтому первая (липкая) ячейка
@@ -196,16 +196,23 @@ window.__xlsxReady = (function(){
   .cellwrap{position:relative;display:inline-block}
   .cellwrap .pen-mark{position:absolute;top:-3px;right:-3px;width:0;height:0;
     border-left:9px solid transparent;border-top:9px solid var(--red);border-radius:2px;pointer-events:none}
-  td.actions .pen-btn{color:var(--red)}
-  td.actions .bon-btn{color:var(--gold)}
-  td.bon-col{text-align:right;color:var(--gold);font-weight:700;white-space:nowrap}
-  td.pen-col{text-align:right;color:var(--red);font-weight:700;white-space:nowrap}
-  td.bon-col .sh,td.pen-col .sh{display:block;font-size:10px;color:var(--muted);font-weight:400;margin-top:2px}
+  td.actions .penbon-btn{color:var(--gold);font-weight:800}
+  td.actions .penbon-btn:hover{border-color:var(--gold)}
+  td.penbon-col{text-align:right;font-weight:700;white-space:nowrap}
+  td.penbon-col .pb-pen{display:block;color:var(--red)}
+  td.penbon-col .pb-bon{display:block;color:var(--emerald)}
+  .penbon-menu{position:absolute;z-index:60;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:3px;min-width:120px}
+  .penbon-menu button{display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--text);
+    padding:8px 12px;border-radius:7px;font-size:13px;font-family:inherit;cursor:pointer;text-align:left}
+  .penbon-menu button:hover{background:var(--panel2)}
+  .penbon-menu .pb-pen{color:var(--red);font-weight:800}
+  .penbon-menu .pb-bon{color:var(--emerald);font-weight:800}
   .bonal{color:var(--gold)}
   .cellwrap .chk-mark{position:absolute;top:-4px;left:-4px;width:14px;height:14px;border-radius:50%;
     background:#fff;color:var(--emerald);font-size:9px;font-weight:900;line-height:14px;text-align:center;
     border:1.5px solid var(--panel);pointer-events:none}
-  td.actions .pen-btn:hover{border-color:var(--red)}
+  td.actions .penbon-btn:active{transform:scale(.96)}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
     align-items:flex-start;justify-content:center;z-index:50;padding:30px 10px;overflow:auto}
   .modal-bg.open{display:flex}
@@ -223,6 +230,13 @@ window.__xlsxReady = (function(){
   .chk-row .chk-btn{border:1px solid var(--emerald);background:var(--emerald);color:#0c1410;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
   .chk-row .chk-btn.re{background:transparent;color:var(--emerald)}
   .chk-row .chk-tag{font-size:12px;color:var(--emerald);font-weight:700;white-space:nowrap}
+  .rm-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer}
+  .rm-row:hover{border-color:var(--red)}
+  .rm-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--red);cursor:pointer;flex:0 0 auto}
+  .rm-row .chk-nm{flex:1;min-width:0}
+  .rm-row .chk-nm b{font-size:14px;display:block}
+  .rm-row .chk-nm span{font-size:11px;color:var(--muted)}
+  .rm-row:has(input:checked){border-color:var(--red);background:rgba(231,101,90,.1)}
   .pen-list{margin-top:12px;border-top:1px solid var(--line)}
   .pen-row{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap}
   .pen-row .d{font-weight:700;white-space:nowrap}
@@ -703,6 +717,7 @@ window.__xlsxReady = (function(){
       <button class="btn-mini money-only" id="btn-export">⬇ Excel</button>
       <button class="btn-mini money-only" id="btn-export-pay" style="display:none">⬇ Итоги ЗП</button>
       <button class="btn-mini" id="btn-checkin" style="display:none">✓ Отметить приход</button>
+      <button class="btn-mini" id="btn-remove" style="display:none">✕ Убрать из графика</button>
     </h2>
     <div class="grid-wrap">
       <table id="grid">
@@ -798,6 +813,17 @@ window.__xlsxReady = (function(){
     <div class="sub" id="chk-sub"></div>
     <div class="chk-list" id="chk-list"></div>
     <span class="msg" id="chk-msg"></span>
+  </div>
+</div>
+
+<div class="modal-bg" id="rm-modal">
+  <div class="modal">
+    <button class="modal-x" id="rm-close">✕</button>
+    <h3 style="padding-right:44px">Убрать из графика</h3>
+    <div class="sub" id="rm-sub">Отметьте сотрудников, которых нужно убрать из недели</div>
+    <div class="chk-list" id="rm-list"></div>
+    <button class="btn-primary" id="rm-apply" style="margin-top:12px;width:100%;display:none">Убрать отмеченных</button>
+    <span class="msg" id="rm-msg"></span>
   </div>
 </div>
 
@@ -1275,6 +1301,11 @@ async function addOrSaveEmployee(){
   }
 
   const roster = rosterOf(weekKey);
+  // добавлять в график (любого) может только владелец базы
+  if(!isOwner()){
+    showMsg("Добавлять сотрудников в график может только администратор базы.");
+    return;
+  }
   // существующим считается сотрудник с тем же именем, ДОЛЖНОСТЬЮ и ПОЗИЦИЕЙ —
   // тёзки на разных должностях или позициях добавляются как разные люди
   const existing = employees.find(x => !x.archived
@@ -1402,11 +1433,11 @@ function render(){
 
   const todayS = iso(businessNow());  // «сегодня» с учётом смены до 05:00
   const M = CAP.money && !compactView;
-  const COLS = M ? 15 : 9;
+  const COLS = M ? 14 : 9;
   $("grid-head").innerHTML =
     `<th style="text-align:left">Сотрудник</th>` +
     days.map(d=>`<th class="${iso(d)===todayS?'today':''}">${DOW[(d.getDay()-3+7)%7]}<span class="d">${fmtD(d)}</span></th>`).join("") +
-    (M?`<th>Продажа / Кабинки</th><th>Шаги</th><th style="text-align:right">Штрафы</th><th style="text-align:right">Бонусы</th><th style="text-align:right">Смена</th><th style="text-align:right">Итого</th>`:"") +
+    (M?`<th>Продажа</th><th>Шаги</th><th style="text-align:right">Штраф / Бонус</th><th style="text-align:right">Смена</th><th style="text-align:right">Итого</th>`:"") +
     `<th></th>`;
 
   const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
@@ -1532,15 +1563,17 @@ function render(){
       const shiftTd = noPay
         ? `<td class="earn"><span class="dash">—</span><span class="sh">${det}</span></td>`
         : `<td class="earn">${money(r.base)}${payTag}<span class="sh">${det}</span>${planNote}</td>`;
-      const bonCnt = bonusesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
-      const penCnt = penaltiesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
-      const bonTd = `<td class="bon-col">${r.bon?`+${fmtNum(r.bon)}`:'<span class="dash">—</span>'}${r.bon?`<span class="sh">${bonCnt} ${bonCnt===1?"бонус":"бонуса"}</span>`:""}</td>`;
-      const penTd = `<td class="pen-col">${r.pen?`−${fmtNum(r.pen)}`:'<span class="dash">—</span>'}${r.pen?`<span class="sh">${penCnt} ${penCnt===1?"штраф":"штрафа"}</span>`:""}</td>`;
+      // ШТРАФЫ / БОНУСЫ — одна колонка: штраф красным −, бонус зелёным +
+      let pbInner = "";
+      if(r.pen) pbInner += `<span class="pb-pen">−${fmtNum(r.pen)}</span>`;
+      if(r.bon) pbInner += `<span class="pb-bon">+${fmtNum(r.bon)}</span>`;
+      if(!pbInner) pbInner = '<span class="dash">—</span>';
+      const penbonTd = `<td class="penbon-col">${pbInner}</td>`;
       // ИТОГО — всё вместе: оклад + шаги/кабинки + бонусы − штрафы
       const totalTd = noPay
         ? `<td class="total-col"><span class="dash">—</span></td>`
         : `<td class="total-col">${money(r.sum)}</td>`;
-      moneyCells = saleCell + stepsCell + penTd + bonTd + shiftTd + totalTd;
+      moneyCells = saleCell + stepsCell + penbonTd + shiftTd + totalTd;
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
         <div class="meta">${e.emp_role} · ${rateNote}${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
         + cells + moneyCells;
@@ -1548,12 +1581,13 @@ function render(){
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
         <div class="meta">${e.emp_role}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>` + cells;
     }
-    const penBtn = penMatch(e) ? `<button class="pen-btn" onclick="openPenalty('${e.id}')" title="Штрафы">⚠</button>` : "";
-    const bonBtn = bonusMatch(e) ? `<button class="bon-btn" onclick="openBonus('${e.id}')" title="Бонусы">★</button>` : "";
+    const canPen = penMatch(e), canBon = bonusMatch(e);
+    const pbBtn = (canPen || canBon)
+      ? `<button class="penbon-btn" onclick="openPenBon('${e.id}',event)" title="Штрафы / Бонусы">±</button>`
+      : "";
     const editBtn = isOwner() ? `<button onclick="startEdit('${e.id}')" title="Редактировать">✎</button>` : "";
-    tr.innerHTML += `<td class="actions">${bonBtn}${penBtn}
-      ${editBtn}
-      <button class="del" onclick="removeFromWeek('${e.id}')" title="Убрать из недели">✕</button></td>`;
+    tr.innerHTML += `<td class="actions">${pbBtn}
+      ${editBtn}</td>`;
     body.appendChild(tr);
   }
   $("grid-empty").style.display = list.length?"none":"";
@@ -1564,11 +1598,13 @@ function render(){
     for(const id of roster){
       const e=byId(id); if(!e) continue;
       const rr = earnedInPeriod(e, weekKey, wkTo);
+      // полная неделя: оклад по плану + шаги/кабинки + бонусы − штрафы
+      const fullSum = rr.noPay ? 0 : (rr.basePlan + rr.extra + rr.bon - rr.pen);
       const g = wt[e.pos]||(wt[e.pos]={sum:0,cnt:0});
-      g.sum+=rr.sum; g.cnt+=rr.cnt;
+      g.sum+=fullSum; g.cnt+=rr.cntPlan;
     }
     const all = wt.karaoke.sum+wt.club.sum+wt.both.sum;
-    // сводка выплат по ВИДИМОМУ списку: сколько уже выплачено и сколько осталось
+    // сводка выплат по ВИДИМОМУ списку: сколько уже выплачено и сколько осталось (по полной неделе)
     let paidSum=0, leftSum=0;
     for(const e of list){
       if(NO_RATE_ROLES.includes(e.emp_role)) continue;  // фикс. оклад не считаем
@@ -1576,7 +1612,8 @@ function render(){
       let extraAmt = 0;
       if(e.emp_role==="Официант") extraAmt = Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT);
       else if(e.emp_role===SOUND_BIG) extraAmt = Math.round(rr.extra||0);
-      const zpBucket = Math.round(rr.sum) - extraAmt;  // основная часть (с учётом штрафов/бонусов)
+      // основная часть по плану недели (оклад план + бонусы − штрафы)
+      const zpBucket = Math.round(rr.basePlan + rr.bon - rr.pen);
       const extraBucket = extraAmt;
       // ЗП-часть
       if(isPaidOut(e.id, weekKey, 'zp')) paidSum += zpBucket; else leftSum += zpBucket;
@@ -1601,8 +1638,7 @@ function render(){
       dayCounts.map(c=>`<td style="color:var(--emerald);font-size:14px">${c}</td>`).join("") +
       `<td></td>
        <td class="steps">${money(totalExtra)}</td>
-       <td class="pen-col">${totalPen?`−${fmtNum(totalPen)}`:'<span class="dash">—</span>'}</td>
-       <td class="bon-col">${totalBon?`+${fmtNum(totalBon)}`:'<span class="dash">—</span>'}</td>
+       <td class="penbon-col">${(totalPen||totalBon)?`${totalPen?`<span class="pb-pen">−${fmtNum(totalPen)}</span>`:""}${totalBon?`<span class="pb-bon">+${fmtNum(totalBon)}</span>`:""}`:'<span class="dash">—</span>'}</td>
        <td class="earn">${money(totalBase)}<span class="sh">${totalShifts} смен</span></td>
        <td class="total-col">${money(totalSum)}</td>
        <td></td>`:"";
@@ -1685,6 +1721,32 @@ function render(){
 }
 
 /* ================= штрафы ================= */
+function openPenBon(id, ev){
+  const e = byId(id); if(!e) return;
+  const canPen = penMatch(e), canBon = bonusMatch(e);
+  if(canPen && !canBon){ openPenalty(id); return; }
+  if(canBon && !canPen){ openBonus(id); return; }
+  if(!canPen && !canBon) return;
+  // доступны оба — мини-меню выбора у кнопки
+  closePenBonMenu();
+  const m = document.createElement("div");
+  m.className = "penbon-menu";
+  m.id = "penbon-menu";
+  m.innerHTML =
+    `<button onclick="closePenBonMenu();openPenalty('${id}')"><span class="pb-pen">−</span> Штраф</button>`+
+    `<button onclick="closePenBonMenu();openBonus('${id}')"><span class="pb-bon">+</span> Бонус</button>`;
+  document.body.appendChild(m);
+  const btn = ev && ev.currentTarget ? ev.currentTarget : null;
+  if(btn){
+    const r = btn.getBoundingClientRect();
+    m.style.top = (r.bottom + window.scrollY + 4) + "px";
+    m.style.left = (r.right + window.scrollX - m.offsetWidth) + "px";
+  }
+  if(ev) ev.stopPropagation();
+  setTimeout(()=>document.addEventListener("click", closePenBonMenu, {once:true}), 0);
+}
+function closePenBonMenu(){ const m=$("penbon-menu"); if(m) m.remove(); }
+
 function openPenalty(id){
   const e = byId(id); if(!e || !penMatch(e)) return;
   penEmpId = id;
@@ -2171,6 +2233,66 @@ async function doManualCheckin(empId, ds){
 function closeCheckinModal(){ $("chk-modal").classList.remove("open"); }
 window.doManualCheckin = doManualCheckin;
 
+/* ===== Убрать из графика (массово, через модалку со списком) ===== */
+function openRemoveModal(){
+  if(!isOwner()){ showMsg("Убирать из графика может только администратор базы."); return; }
+  const weekKey = iso(viewStart);
+  if(isApproved(weekKey)){ showMsg("График утверждён — состав менять нельзя."); return; }
+  $("rm-sub").textContent = "Неделя " + fmtD(viewStart) + " — " + fmtD(addDays(viewStart,6)) + " · отметьте, кого убрать";
+  $("rm-msg").textContent = "";
+  renderRemoveList();
+  $("rm-modal").classList.add("open");
+}
+function renderRemoveList(){
+  const weekKey = iso(viewStart);
+  const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
+  const list = rosterOf(weekKey).map(byId).filter(Boolean)
+    .filter((e,i,arr)=>arr.findIndex(x=>x.id===e.id)===i)
+    .sort((a,b)=>POS_ORDER.indexOf(a.pos)-POS_ORDER.indexOf(b.pos)
+      || roleIdx(a.emp_role)-roleIdx(b.emp_role) || a.name.localeCompare(b.name,"ru"));
+  if(!list.length){ $("rm-list").innerHTML = `<div class="sub">В графике этой недели нет сотрудников.</div>`; $("rm-apply").style.display="none"; return; }
+  $("rm-list").innerHTML = list.map(e=>{
+    const posTag = e.pos==="club"?" · клуб":(e.pos==="karaoke"?" · караоке":"");
+    return `<label class="rm-row">
+      <input type="checkbox" class="rm-chk" value="${e.id}" onchange="updateRemoveApply()">
+      <div class="chk-nm"><b>${e.name}</b><span>${e.emp_role}${posTag}</span></div>
+    </label>`;
+  }).join("");
+  $("rm-apply").style.display="none";
+}
+function updateRemoveApply(){
+  const n = document.querySelectorAll("#rm-list .rm-chk:checked").length;
+  const btn = $("rm-apply");
+  btn.style.display = n ? "" : "none";
+  btn.textContent = n===1 ? "Убрать 1 сотрудника" : `Убрать отмеченных (${n})`;
+}
+async function applyRemoveSelected(){
+  if(!isOwner()){ $("rm-msg").textContent = "Убирать из графика может только администратор базы."; return; }
+  const weekKey = iso(viewStart);
+  if(isApproved(weekKey)){ $("rm-msg").textContent = "График утверждён — состав менять нельзя."; return; }
+  const ids = Array.from(document.querySelectorAll("#rm-list .rm-chk:checked")).map(c=>{
+    const v=c.value; return /^\d+$/.test(v)?Number(v):v;
+  });
+  if(!ids.length) return;
+  const names = ids.map(id=>{const e=byId(id);return e?e.name:id;}).join(", ");
+  if(!confirm(`Убрать из графика этой недели: ${names}?`)) return;
+  $("rm-msg").textContent = "Убираем…";
+  const days = Array.from({length:7},(_,i)=>iso(addDays(viewStart,i)));
+  try{
+    await sb.from("shifts").delete().in("employee_id",ids).in("work_date",days);
+    if(CAP.money) await sb.from("weekly_values").delete().in("employee_id",ids).eq("week_start",weekKey);
+    const {error} = await sb.from("rosters").delete().in("employee_id",ids).eq("week_start",weekKey);
+    if(error){ $("rm-msg").textContent = "Ошибка: " + error.message; return; }
+  }catch(netErr){ $("rm-msg").textContent = "Проблема с сетью, попробуйте ещё раз"; return; }
+  ids.forEach(id=>{ if(editId===id) cancelEdit(); });
+  $("rm-msg").textContent = "";
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  closeRemoveModal();
+  await refresh();
+}
+function closeRemoveModal(){ $("rm-modal").classList.remove("open"); }
+window.updateRemoveApply = updateRemoveApply;
+
 /* компактный / полный режим отображения */
 function applyViewMode(){
   document.body.classList.toggle("compact", compactView);
@@ -2182,6 +2304,9 @@ function applyViewMode(){
   // денежные блоки прячем в компактном (у кого они вообще есть)
   const moneyHidden = compactView || !CAP.money;
   document.querySelectorAll(".money-only").forEach(el=>el.style.display = moneyHidden ? "none" : "");
+  // кнопка «Убрать из графика» — только владелец и только в полном режиме
+  const rmBtn = $("btn-remove");
+  if(rmBtn) rmBtn.style.display = (isOwner() && !compactView) ? "" : "none";
   const tg = $("view-toggle");
   if(tg) tg.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b.dataset.v===(compactView?"compact":"full")));
 }
@@ -2653,11 +2778,10 @@ async function startApp(){
   if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
   if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
-  // создавать НОВЫЕ карточки может только владелец (OWNER_TG).
-  // Форму оставляем всем (через неё добавляют уже существующих в график недели),
-  // но заголовок и плейсхолдер меняем, а создание новых блокируется в addOrSaveEmployee.
+  // добавлять в график (существующих и новых) может только владелец базы.
+  // Не-владельцам форму скрываем целиком.
   if(!isOwner()){
-    const fn=$("f-name"); if(fn) fn.placeholder="Выберите из списка";
+    const addCard=$("card-add"); if(addCard) addCard.style.display="none";
   }
   // умолчание режима: денежные роли — полный, остальные — только график
   compactView = !CAP.money;
@@ -2703,6 +2827,14 @@ async function startApp(){
     $("chk-close").addEventListener("click", closeCheckinModal);
     $("chk-modal").addEventListener("click", e=>{ if(e.target===$("chk-modal")) closeCheckinModal(); });
   }
+  // убрать из графика — только владелец базы (видимость управляется в applyViewMode)
+  const rmBtn = $("btn-remove");
+  if(rmBtn && isOwner()){
+    rmBtn.addEventListener("click", openRemoveModal);
+    $("rm-close").addEventListener("click", closeRemoveModal);
+    $("rm-apply").addEventListener("click", applyRemoveSelected);
+    $("rm-modal").addEventListener("click", e=>{ if(e.target===$("rm-modal")) closeRemoveModal(); });
+  }
   $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
   $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
   $("btn-approve").addEventListener("click", async ()=>{
@@ -2745,6 +2877,8 @@ window.archiveEmployee = archiveEmployee;
 window.openBonus = openBonus;
 window.delBonus = delBonus;
 window.openPenalty = openPenalty;
+window.openPenBon = openPenBon;
+window.closePenBonMenu = closePenBonMenu;
 window.delPenalty = delPenalty;
 window.pickPlace = pickPlace;
 window.closePlace = closePlace;
