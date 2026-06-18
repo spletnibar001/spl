@@ -144,6 +144,8 @@ window.__xlsxReady = (function(){
   td.steps .lbl{display:block;font-size:9px;color:var(--muted);font-weight:400}
   td.earn{text-align:right;font-weight:700;white-space:nowrap;font-size:13px}
   td.earn .sh{display:block;font-size:10px;color:var(--muted);font-weight:400}
+  td.earn .plan-note{display:block;font-size:9px;color:#5a6270;font-weight:400;margin-top:1px}
+  td.total-col{text-align:right;font-weight:800;white-space:nowrap;font-size:14px;color:var(--emerald)}
   .pay-chip{display:block;margin:3px 0 0 auto;border:1px solid var(--line);background:var(--panel2);
     color:var(--muted);border-radius:7px;padding:3px 9px;font-size:10px;font-weight:700;font-family:inherit;cursor:pointer}
   .pay-chip.on{background:rgba(31,191,122,.16);color:var(--emerald);border-color:var(--emerald)}
@@ -1084,12 +1086,17 @@ function rateForDate(empId, dateS){
 }
 function earnedInPeriod(emp, fromS, toS){
   const noPay = NO_RATE_ROLES.includes(emp.emp_role);
-  let cnt=0, base=0, absent=0;
+  const todayS = iso(businessNow());  // текущий бизнес-день (смена до 05:00 = предыдущий день)
+  let cnt=0, base=0, absent=0, cntPlan=0, basePlan=0;
   for(const s of shiftRows){
     if(s.employee_id!==emp.id) continue;
     if(s.work_date>=fromS && s.work_date<=toS){
       if(s.status === 2){ absent++; }
-      else { cnt++; if(!noPay) base+=rateForDate(emp.id,s.work_date); }
+      else {
+        const rate = noPay ? 0 : rateForDate(emp.id,s.work_date);
+        cntPlan++; basePlan += rate;                 // весь план недели
+        if(s.work_date<=todayS){ cnt++; base += rate; } // только уже отработанные (по бизнес-дню)
+      }
     }
   }
   let extra=0, extraLbl="";
@@ -1109,7 +1116,7 @@ function earnedInPeriod(emp, fromS, toS){
   }
   const pen = CAP.pen ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
   const bon = (CAP.money||CAP.bonus) ? bonusesIn(emp.id, fromS, toS).reduce((t,b)=>t+b.amount,0) : 0;
-  return {cnt, base, extra, extraLbl, noPay, absent, pen, bon, sum: noPay ? 0 : base+extra+bon-pen};
+  return {cnt, base, cntPlan, basePlan, extra, extraLbl, noPay, absent, pen, bon, sum: noPay ? 0 : base+extra+bon-pen};
 }
 
 /* автографик сотруднику на отображаемую неделю */
@@ -1395,11 +1402,11 @@ function render(){
 
   const todayS = iso(businessNow());  // «сегодня» с учётом смены до 05:00
   const M = CAP.money && !compactView;
-  const COLS = M ? 14 : 9;
+  const COLS = M ? 15 : 9;
   $("grid-head").innerHTML =
     `<th style="text-align:left">Сотрудник</th>` +
     days.map(d=>`<th class="${iso(d)===todayS?'today':''}">${DOW[(d.getDay()-3+7)%7]}<span class="d">${fmtD(d)}</span></th>`).join("") +
-    (M?`<th>Продажа / Кабинки</th><th>Шаги</th><th style="text-align:right">Заработано</th><th style="text-align:right">Штрафы</th><th style="text-align:right">Бонусы</th>`:"") +
+    (M?`<th>Продажа / Кабинки</th><th>Шаги</th><th style="text-align:right">Штрафы</th><th style="text-align:right">Бонусы</th><th style="text-align:right">Смена</th><th style="text-align:right">Итого</th>`:"") +
     `<th></th>`;
 
   const roleIdx = r=>{const i=DISPLAY_ORDER.indexOf(r);return i===-1?999:i;};
@@ -1412,7 +1419,7 @@ function render(){
       || a.name.localeCompare(b.name,"ru"));
 
   const body = $("grid-body"); body.innerHTML = "";
-  let totalSum=0, totalShifts=0, totalExtra=0, totalBon=0, totalPen=0, lastPos=null, lastRole=null;
+  let totalSum=0, totalShifts=0, totalExtra=0, totalBon=0, totalPen=0, totalBase=0, lastPos=null, lastRole=null;
   const dayCounts = [0,0,0,0,0,0,0]; // человек на смене по дням
 
   for(const e of list){
@@ -1428,7 +1435,7 @@ function render(){
     }
     const tr=document.createElement("tr");
     const r = M&&fromS&&toS ? earnedInPeriod(e,fromS,toS) : {cnt:0,extra:0,extraLbl:"",sum:0};
-    totalSum+=r.sum; totalShifts+=r.cnt; totalExtra+=r.extra; totalBon+=(r.bon||0); totalPen+=(r.pen||0);
+    totalSum+=r.sum; totalShifts+=r.cnt; totalExtra+=r.extra; totalBon+=(r.bon||0); totalPen+=(r.pen||0); totalBase+=(r.base||0);
 
     let cells="";
     for(let di=0; di<days.length; di++){
@@ -1485,7 +1492,8 @@ function render(){
       const noPay = NO_RATE_ROLES.includes(e.emp_role);
       const monNote = !noPay && en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
       const rateNote = noPay ? "фикс. оклад · 2 р/мес" : `<b>${money(en.rate)}</b>/смена`;
-      let det = r.extraLbl && !noPay ? `${r.cnt} смен · ${r.extraLbl}` : `${r.cnt} смен`;
+      const cntTxt = (!noPay && r.cntPlan>r.cnt) ? `${r.cnt} из ${r.cntPlan} смен` : `${r.cnt} смен`;
+      let det = r.extraLbl && !noPay ? `${cntTxt} · ${r.extraLbl}` : cntTxt;
       if(r.absent) det += ` · <span class="penal">неявки: ${r.absent}</span>`;
       if(r.bon) det += ` · <span class="bonal">бонусы +${fmtNum(r.bon)}</span>`;
       if(r.pen) det += ` · <span class="penal">штрафы −${fmtNum(r.pen)}</span>`;
@@ -1518,14 +1526,21 @@ function render(){
       if(extraTag){
         stepsCell = stepsCell.replace("</td>", extraTag+"</td>");
       }
-      const earnTd = noPay
+      // СМЕНА — оклад за УЖЕ отработанные смены (по бизнес-дню), без шагов/бонусов/штрафов
+      const planNote = (!noPay && r.basePlan>r.base)
+        ? `<span class="plan-note" title="План за всю неделю">план ${money(r.basePlan)}</span>` : "";
+      const shiftTd = noPay
         ? `<td class="earn"><span class="dash">—</span><span class="sh">${det}</span></td>`
-        : `<td class="earn">${money(r.sum)}${payTag}<span class="sh">${det}</span></td>`;
+        : `<td class="earn">${money(r.base)}${payTag}<span class="sh">${det}</span>${planNote}</td>`;
       const bonCnt = bonusesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
       const penCnt = penaltiesIn(e.id, iso(viewStart), iso(addDays(viewStart,6))).length;
       const bonTd = `<td class="bon-col">${r.bon?`+${fmtNum(r.bon)}`:'<span class="dash">—</span>'}${r.bon?`<span class="sh">${bonCnt} ${bonCnt===1?"бонус":"бонуса"}</span>`:""}</td>`;
       const penTd = `<td class="pen-col">${r.pen?`−${fmtNum(r.pen)}`:'<span class="dash">—</span>'}${r.pen?`<span class="sh">${penCnt} ${penCnt===1?"штраф":"штрафа"}</span>`:""}</td>`;
-      moneyCells = saleCell + stepsCell + earnTd + penTd + bonTd;
+      // ИТОГО — всё вместе: оклад + шаги/кабинки + бонусы − штрафы
+      const totalTd = noPay
+        ? `<td class="total-col"><span class="dash">—</span></td>`
+        : `<td class="total-col">${money(r.sum)}</td>`;
+      moneyCells = saleCell + stepsCell + penTd + bonTd + shiftTd + totalTd;
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
         <div class="meta">${e.emp_role} · ${rateNote}${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
         + cells + moneyCells;
@@ -1586,9 +1601,10 @@ function render(){
       dayCounts.map(c=>`<td style="color:var(--emerald);font-size:14px">${c}</td>`).join("") +
       `<td></td>
        <td class="steps">${money(totalExtra)}</td>
-       <td class="earn">${money(totalSum)}<span class="sh">${totalShifts} смен</span></td>
        <td class="pen-col">${totalPen?`−${fmtNum(totalPen)}`:'<span class="dash">—</span>'}</td>
        <td class="bon-col">${totalBon?`+${fmtNum(totalBon)}`:'<span class="dash">—</span>'}</td>
+       <td class="earn">${money(totalBase)}<span class="sh">${totalShifts} смен</span></td>
+       <td class="total-col">${money(totalSum)}</td>
        <td></td>`:"";
   }else{
     $("grid-foot").innerHTML = list.length?
@@ -2405,7 +2421,7 @@ async function exportXlsx(){
     [`Период расчёта: ${fmtFull(fromIso(fromS))} — ${fmtFull(fromIso(toS))}`],[],
     ["Сотрудник","Должность","Ставка, сум",
      ...days.map(d=>DOW[(d.getDay()-3+7)%7]+" "+fmtD(d)),
-     "Смен","Продажа / Кабинки","Шаги","Заработано","Штрафы","Бонусы"]];
+     "Смен","Продажа / Кабинки","Шаги","Штрафы","Бонусы","Смена","Итого"]];
   let lastPos=null,lastRole=null,tSum=0,tCnt=0,tEx=0,tBon=0,tPen=0;
   for(const e of list){
     if(e.pos!==lastPos){aoa.push([POS_NAME[e.pos].toUpperCase()]);lastPos=e.pos;lastRole=null;}
@@ -2420,13 +2436,14 @@ async function exportXlsx(){
       ...days.map(d=>{const sh=shiftOf(e.id,iso(d));
         if(!sh) return ""; if(sh.status===2) return "Н";
         return sh.place && PLACES[sh.place] ? PLACES[sh.place].short : "✓";}),
-      r.cnt, saleTxt, r.extra?Math.round(r.extra):"", Math.round(r.sum),
-      r.pen?Math.round(r.pen):"", r.bon?Math.round(r.bon):""]);
+      r.cnt, saleTxt, r.extra?Math.round(r.extra):"",
+      r.pen?Math.round(r.pen):"", r.bon?Math.round(r.bon):"",
+      r.noPay?"":Math.round(r.base), r.noPay?"":Math.round(r.sum)]);
     tBon+=(r.bon||0); tPen+=(r.pen||0);
   }
-  aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tSum),Math.round(tPen),Math.round(tBon)]);
+  aoa.push([],[`ИТОГО (${list.length} чел.)`,"","","","","","","","","",tCnt,"",Math.round(tEx),Math.round(tPen),Math.round(tBon),Math.round(tSum-tEx-tBon+tPen),Math.round(tSum)]);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"]=[{wch:24},{wch:18},{wch:20},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:6},{wch:18},{wch:12},{wch:14},{wch:12},{wch:12}];
+  ws["!cols"]=[{wch:24},{wch:18},{wch:20},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:6},{wch:18},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "График");
   xlsxDownload(wb, `график_${fmtD(days[0]).replace(".","-")}_${fmtD(days[6]).replace(".","-")}.xlsx`);
