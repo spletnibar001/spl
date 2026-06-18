@@ -76,8 +76,10 @@ button{font-family:inherit;cursor:pointer}
 .hero .hero-mark .name{font-size:26px;font-weight:800;letter-spacing:.2em}
 .hero .hero-mark .tag{font-size:11px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:2px}
 
-.venue-prompt{text-align:center;font-size:15px;font-weight:700;color:var(--gold);margin:4px 0 12px;letter-spacing:.02em}
-.venue-switch{display:flex;gap:8px;margin-bottom:18px}
+.venue-box{border:1px solid rgba(201,161,74,.45);border-radius:18px;padding:14px 14px 4px;
+  margin-bottom:18px;background:rgba(201,161,74,.06);box-shadow:0 0 0 1px rgba(201,161,74,.08) inset}
+.venue-prompt{text-align:center;font-size:15px;font-weight:700;color:var(--gold);margin:2px 0 12px;letter-spacing:.02em}
+.venue-switch{display:flex;gap:8px;margin-bottom:10px}
 .venue-switch button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--text);
   border-radius:14px;padding:16px 8px;font-size:14px;font-weight:800;letter-spacing:.01em;position:relative;line-height:1.25}
 .venue-switch button.active{border-color:var(--emerald);background:var(--panel2)}
@@ -1092,7 +1094,7 @@ const T = {
   call_club: {ru:"Позвонить (клуб)", uz:"Qo'ng'iroq (klub)", en:"Call (club)", kz:"Қоңырау (клуб)", kg:"Чалуу (клуб)", tj:"Занг (клуб)", cn:"致电（夜店）"},
   hours_t: {ru:"Часы работы", uz:"Ish vaqti", en:"Opening hours", kz:"Жұмыс уақыты", kg:"Иш убактысы", tj:"Соатҳои корӣ", cn:"营业时间"},
   addr_t: {ru:"Адрес", uz:"Manzil", en:"Address", kz:"Мекенжай", kg:"Дарек", tj:"Суроға", cn:"地址"},
-  addr_val: {ru:"г. Ташкент, Яшнабадский р-н, ул. Sultronali Mashhady, 62", uz:"Toshkent sh., Yashnobod tumani, Sultronali Mashhadiy ko'chasi, 62", en:"Tashkent, Yashnabad district, Sultronali Mashhady st. 62", kz:"Ташкент қ., Яшнабад ауданы, Sultronali Mashhady к-сі, 62", kg:"Ташкент ш., Яшнабад району, Sultronali Mashhady көч., 62", tj:"ш. Тошкент, ноҳияи Яшнобод, кӯчаи Sultronali Mashhady, 62", cn:"塔什干市，亚什纳巴德区，Sultronali Mashhady 街 62 号"},
+  addr_val: {ru:"г. Ташкент, Яшнабадский р-н, ул. Султанали Машхади, 62", uz:"Toshkent sh., Yashnobod tumani, Sultonali Mashhadiy ko'chasi, 62", en:"Tashkent, Yashnabad district, Sultonali Mashhady st. 62", kz:"Ташкент қ., Яшнабад ауданы, Султанали Машхади к-сі, 62", kg:"Ташкент ш., Яшнабад району, Султанали Машхади көч., 62", tj:"ш. Тошкент, ноҳияи Яшнобод, кӯчаи Султонали Машҳадӣ, 62", cn:"塔什干市，亚什纳巴德区，Sultonali Mashhady 街 62 号"},
   daily: {ru:"Ежедневно", uz:"Har kuni", en:"Daily", kz:"Күн сайын", kg:"Күн сайын", tj:"Ҳар рӯз", cn:"每天"},
   weekdays: {ru:"Будни", uz:"Ish kunlari", en:"Weekdays", kz:"Жұмыс күндері", kg:"Иш күндөрү", tj:"Рӯзҳои корӣ", cn:"工作日"},
   weekend: {ru:"Пт–Сб", uz:"Juma–Shanba", en:"Fri–Sat", kz:"Жм–Сб", kg:"Жм–Иш", tj:"Ҷм–Шн", cn:"周五–周六"},
@@ -1155,7 +1157,7 @@ const T = {
   bk_bizday: {ru:"Ночное время (после полуночи до 05:00) относится к выбранной дате — это та же ночь. Например, 02:00 в ночь с пятницы на субботу выбирайте как «пятница».", uz:"Tungi vaqt (yarim tundan keyin 05:00 gacha) tanlangan kunga tegishli — bu o'sha tun. Masalan, juma kechasi 02:00 uchun «juma»ni tanlang.", en:"Late-night hours (after midnight until 05:00) belong to the selected date — it's the same night. E.g. for 02:00 on Friday night, pick \"Friday\".", kz:"Түнгі уақыт (түн ортасынан кейін 05:00-ге дейін) таңдалған күнге жатады — бұл сол түн. Мысалы, жұма түні 02:00 үшін «жұманы» таңдаңыз.", kg:"Түнкү убакыт (түн ортосунан кийин 05:00гө чейин) тандалган күнгө таандык — бул ошол түн. Мисалы, жума түнү 02:00 үчүн «жуманы» тандаңыз.", tj:"Вақти шабона (баъд аз нисфи шаб то 05:00) ба санаи интихобшуда тааллуқ дорад — ин ҳамон шаб аст. Масалан, барои 02:00-и шаби ҷумъа «ҷумъа»-ро интихоб кунед.", cn:"凌晨时段（午夜后至凌晨05:00）算作所选日期——属于同一晚。例如周五夜里02:00，请选择「周五」。"},
   about_text: {ru:"SPLETNI — первый музыкальный мультикомплекс Ташкента: четыре формата отдыха в одном месте. Караоке-рестобар с ВИП-кабинками и, пожалуй, лучшим звуком в городе, ночной клуб с DJ-сетами, уютная лаунж-терраса и летняя чилл-аут зона. Профессиональная акустика, авторские коктейли и кухня — для шумных компаний и спокойных вечеров.", uz:"SPLETNI — Toshkentdagi birinchi musiqiy multikompleks: bitta joyda to'rtta dam olish formati. VIP-kabinali va shahardagi eng yaxshi ovozli karaoke-restobar, DJ-setli tungi klub, shinam laund-terrasa va yozgi chill-out zona. Professional akustika, mualliflik kokteyllari va oshxona — shovqinli kompaniyalar va tinch oqshomlar uchun.", en:"SPLETNI is Tashkent's first music multicomplex — four formats of leisure in one place. A karaoke restobar with VIP rooms and arguably the best sound in the city, a nightclub with DJ sets, a cosy lounge terrace and a summer chill-out zone. Professional acoustics, signature cocktails and kitchen — for lively parties and quiet evenings.", kz:"SPLETNI — Ташкенттегі бірінші музыкалық мультикешен: бір орында демалыстың төрт форматы. ВИП-кабиналары бар әрі қаладағы ең үздік дыбысты караоке-рестобар, DJ-сетті түнгі клуб, жайлы лаунж-терраса және жазғы чилл-аут аймағы.", kg:"SPLETNI — Ташкенттеги биринчи музыкалык мультикомплекс: бир жерде эс алуунун төрт форматы. ВИП-кабиналуу жана шаардагы эң мыкты үндүү караоке-рестобар, DJ-сетти түнкү клуб, жайлуу лаунж-терраса жана жайкы чилл-аут аймагы.", tj:"SPLETNI — маҷмааи якуми мусиқии Тошканд: чор формати фароғат дар як ҷой. Караоке-ресторан бо кабинаҳои ВИП ва беҳтарин садо дар шаҳр, клуби шабона бо DJ, террасаи бароҳат ва минтақаи чилл-аути тобистона.", cn:"SPLETNI 是塔什干首个音乐综合空间：一处汇集四种休闲形式。设有VIP包间、拥有全城顶级音响的卡拉OK餐吧、DJ夜店、舒适休息露台以及夏季悠闲区。"},
   reviews_btn: {ru:"Отзывы на Яндексе", uz:"Yandex'dagi sharhlar", en:"Reviews on Yandex", kz:"Яндекстегі пікірлер", kg:"Яндекстеги пикирлер", tj:"Шарҳҳо дар Yandex", cn:"Yandex 上的评价"},
-  reviews_sub: {ru:"5.0 ★ · 386 отзывов", uz:"5.0 ★ · 386 sharh", en:"5.0 ★ · 386 reviews", kz:"5.0 ★ · 386 пікір", kg:"5.0 ★ · 386 пикир", tj:"5.0 ★ · 386 шарҳ", cn:"5.0 ★ · 386 条评价"},
+  reviews_sub: {ru:"5.0 ★ · читать отзывы", uz:"5.0 ★ · sharhlarni o'qish", en:"5.0 ★ · read reviews", kz:"5.0 ★ · пікірлерді оқу", kg:"5.0 ★ · пикирлерди окуу", tj:"5.0 ★ · хондани шарҳҳо", cn:"5.0 ★ · 查看评价"},
   venue_prompt: {ru:"Выберите место для брони:", uz:"Bron uchun joyni tanlang:", en:"Choose a place to book:", kz:"Брондау үшін орынды таңдаңыз:", kg:"Брондоо үчүн жайды тандаңыз:", tj:"Барои брон ҷойро интихоб кунед:", cn:"请选择预订场所："},
   venue_kar_long: {ru:"Караоке, Летка, Терраса", uz:"Karaoke, Letka, Terrasa", en:"Karaoke, Letka, Terrace", kz:"Караоке, Летка, Терраса", kg:"Караоке, Летка, Терраса", tj:"Караоке, Летка, Терраса", cn:"卡拉OK、Letka、露台"},
   nav_dress: {ru:"Фейс-контроль", uz:"Feys-nazorat", en:"Face Control", kz:"Фейс-контроль", kg:"Фейс-контроль", tj:"Фейс-контрол", cn:"着装规范"},
@@ -1264,12 +1266,14 @@ function renderHome(){
       </div>
     </div>
     <div id="bkhome-slot"></div>
-    <div class="venue-prompt">${t('venue_prompt')}</div>
-    <div class="venue-switch" id="venue-switch">
-      <button data-vgo="karaoke">${t('venue_kar_long')}
-        <span class="vs-sub">17:00 – 05:00</span></button>
-      <button data-vgo="club">${t('club')}
-        <span class="vs-sub">23:00 – 06:00</span></button>
+    <div class="venue-box">
+      <div class="venue-prompt">${t('venue_prompt')}</div>
+      <div class="venue-switch" id="venue-switch">
+        <button data-vgo="karaoke">${t('venue_kar_long')}
+          <span class="vs-sub">17:00 – 05:00</span></button>
+        <button data-vgo="club">${t('club')}
+          <span class="vs-sub">23:00 – 06:00</span></button>
+      </div>
     </div>
     <div class="tiles tiles-3">
       <button class="tile" data-go="menu"><div class="t-ic">${IC.menu}</div>
@@ -1280,7 +1284,7 @@ function renderHome(){
         <div class="t-name">${t('nav_where')}</div><div class="t-sub">${t('tile_where_sub')}</div></button>
     </div>
     <div class="about-card">${t('about_text')}</div>
-    <a class="reviews-btn" href="https://yandex.uz/maps/org/spletni/236818073533/reviews/" target="_blank" rel="noopener">
+    <a class="reviews-btn" href="https://yandex.uz/maps/org/spletni/150856598254/reviews/" target="_blank" rel="noopener">
       <span class="rv-star">${IC.star}</span>
       <span class="rv-txt"><span class="rv-main">${t('reviews_btn')}</span><span class="rv-sub">${t('reviews_sub')}</span></span>
       <span class="rv-arr">→</span>
