@@ -987,6 +987,18 @@ function businessNow(){
   if(n.getHours() < 5){ const x = new Date(n); x.setDate(x.getDate()-1); return x; }
   return n;
 }
+const VENUE_OPEN_HOUR = 17;  // заведение открывается в 17:00 — до этого смена текущего дня не оплачена
+// последняя бизнес-дата, за которую оклад УЖЕ начислен (смена считается отработанной)
+function paidThroughDate(){
+  const n = new Date();
+  const h = n.getHours();
+  // ночь 00:00–04:59 — идёт смена ПРЕДЫДУЩЕГО бизнес-дня, она уже отработана (заведение открылось вчера в 17:00)
+  if(h < 5){ const x = new Date(n); x.setDate(x.getDate()-1); return iso(x); }
+  // утро/день 05:00–16:59 — сегодняшняя смена ещё не началась → оплачено по вчерашний день
+  if(h < VENUE_OPEN_HOUR){ const x = new Date(n); x.setDate(x.getDate()-1); return iso(x); }
+  // вечер 17:00+ — сегодняшняя смена уже идёт, считается отработанной
+  return iso(n);
+}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
 function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function fromIso(s){const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);}
@@ -1112,7 +1124,7 @@ function rateForDate(empId, dateS){
 }
 function earnedInPeriod(emp, fromS, toS){
   const noPay = NO_RATE_ROLES.includes(emp.emp_role);
-  const todayS = iso(businessNow());  // текущий бизнес-день (смена до 05:00 = предыдущий день)
+  const paidThru = paidThroughDate();  // оклад начислен по эту дату; смена текущего дня — только после 17:00
   let cnt=0, base=0, absent=0, cntPlan=0, basePlan=0;
   for(const s of shiftRows){
     if(s.employee_id!==emp.id) continue;
@@ -1121,7 +1133,7 @@ function earnedInPeriod(emp, fromS, toS){
       else {
         const rate = noPay ? 0 : rateForDate(emp.id,s.work_date);
         cntPlan++; basePlan += rate;                 // весь план недели
-        if(s.work_date<=todayS){ cnt++; base += rate; } // только уже отработанные (по бизнес-дню)
+        if(s.work_date<=paidThru){ cnt++; base += rate; } // только уже отработанные (смена дня — после 17:00)
       }
     }
   }
