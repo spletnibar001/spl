@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1016,6 +1015,40 @@ const $ = id => document.getElementById(id);
 const byId = id => employees.find(e=>e.id===id);
 
 /* ================= авторизация через Telegram ================= */
+async function fetchToken(){
+  const tg = window.Telegram?.WebApp;
+  if(!tg || !tg.initData) throw new Error("Откройте приложение через Telegram");
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/tg-auth`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
+             "Authorization":"Bearer "+SUPABASE_ANON_KEY},
+    body:JSON.stringify({initData: tg.initData})
+  });
+  const data = await r.json();
+  if(!r.ok) throw new Error(data.error || "Ошибка входа");
+  return data;
+}
+// пересоздать клиент Supabase со свежим токеном
+function rebuildClient(){
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
+    {global:{headers:{Authorization:"Bearer "+ME.token}}});
+}
+// тихо обновить токен (initData у Telegram всегда под рукой) — вызывается по таймеру и при возврате в приложение
+let lastTokenAt = Date.now();
+async function refreshToken(){
+  try{
+    const data = await fetchToken();
+    ME.token = data.token;
+    lastTokenAt = Date.now();
+    rebuildClient();
+    return true;
+  }catch(_){ return false; }
+}
+// гарантировать свежий токен перед важной записью (если прошло > 9 минут — обновить)
+async function ensureToken(){
+  if(Date.now() - lastTokenAt > 9*60*1000) await refreshToken();
+}
+
 async function authorize(){
   const tg = window.Telegram?.WebApp;
   if(!tg || !tg.initData){
@@ -1025,19 +1058,14 @@ async function authorize(){
   }
   tg.ready(); tg.expand();
   try{
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/tg-auth`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
-               "Authorization":"Bearer "+SUPABASE_ANON_KEY},
-      body:JSON.stringify({initData: tg.initData})
-    });
-    const data = await r.json();
-    if(!r.ok){ throw new Error(data.error || "Ошибка входа"); }
-    ME = data; CAP = CAPS[ME.role];
-    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
-      {global:{headers:{Authorization:"Bearer "+ME.token}}});
+    ME = await fetchToken(); CAP = CAPS[ME.role];
+    lastTokenAt = Date.now();
+    rebuildClient();
     $("auth-screen").style.display="none";
     $("app").style.display="block";
+    // токен живёт 12 ч — обновляем заранее каждые 10 минут и при возврате в приложение
+    setInterval(refreshToken, 10*60*1000);
+    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) refreshToken(); });
     startApp();
   }catch(e){
     $("auth-spinner").style.display="none";
@@ -1803,16 +1831,7 @@ async function addPenalty(){
 }
 async function delPenalty(pid){
   const pn = penRows.find(x=>x.id===pid); if(!pn) return;
-  // защита: руководитель не может снять штраф, выписанный ЕМУ другим человеком
-  const tg = Number(ME.tg_id || ME.telegram_id || 0);
-  const targetEmp = byId(pn.employee_id);
-  const isOnMe = targetEmp && tg && Number(targetEmp.telegram_id) === tg;
-  const byMe = pn.created_by && ME.name && pn.created_by === ME.name;
-  const privileged = CAP.unapprove; // админ/управляющий — полный доступ
-  if(isOnMe && !byMe && !privileged){
-    penMsg("Этот штраф выписан вам другим сотрудником — снять его можете не вы. Обратитесь к администратору или управляющему.");
-    return;
-  }
+  if(!isOwner()){ penMsg("Удалять штрафы может только администратор базы."); return; }
   if(!confirm(`Удалить штраф −${fmtNum(pn.amount)} (${pn.note})?`)) return;
   const {error} = await sb.from("penalties").delete().eq("id", pid);
   if(error){ penMsg(error.message); return; }
@@ -1828,10 +1847,10 @@ function renderPenList(){
         const targetEmp = byId(pn.employee_id);
         const isOnMe = targetEmp && tg && Number(targetEmp.telegram_id) === tg;
         const byMe = pn.created_by && ME.name && pn.created_by === ME.name;
-        const canDelete = privileged || !isOnMe || byMe;
+        const canDelete = isOwner();
         const delBtn = canDelete
           ? `<button class="pen-del-btn" onclick="delPenalty('${pn.id}')">Удалить штраф</button>`
-          : `<span class="by" style="color:var(--muted);font-style:italic">снять может только администратор</span>`;
+          : `<span class="by" style="color:var(--muted);font-style:italic">снять может только администратор базы</span>`;
         return `<div class="pen-row">
           <span class="d">${fmtD(fromIso(pn.pen_date))}</span>
           <span class="a">−${fmtNum(pn.amount)}</span>
@@ -4253,6 +4272,7 @@ async function bkActionCreate(){
     // время прихода -> timestamptz на бизнес-дату (с учётом ночных часов)
     const arriveAt = bkComposeArrive(bizDate, time);
     const dep = bkReadDep(); // берём из редактируемого поля (авторасчёт + ручная правка)
+    await ensureToken();
     const {data:newB, error} = await sb.from("bookings").insert({
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
@@ -4311,6 +4331,7 @@ async function bkActionWalkin(){
     }
     const dep = bkReadDep();
     const nowIso = new Date().toISOString();
+    await ensureToken();
     const {data:newB, error} = await sb.from("bookings").insert({
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:nowIso, guests_count:guests, phone:phoneNorm, guest_name:name||null,
