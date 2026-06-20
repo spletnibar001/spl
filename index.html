@@ -1066,13 +1066,16 @@ async function ensureToken(){
 }
 
 // режим планшета: токен приходит от tablet.html (вход по PIN, без Telegram)
-const TABLET_MODE = location.hash.indexOf("tablet") >= 0;
+function hasTabletToken(){
+  try{ return !!JSON.parse((sessionStorage.getItem("spl_tablet_me")||localStorage.getItem("spl_tablet_me"))||"null")?.token; }catch(_){ return false; }
+}
+const TABLET_MODE = location.hash.indexOf("tablet") >= 0 || (!window.Telegram?.WebApp?.initData && hasTabletToken());
 
 async function authorize(){
   // --- вход с планшета по PIN (tablet.html положил токен) ---
   if(TABLET_MODE){
     let saved = null;
-    try{ saved = JSON.parse(sessionStorage.getItem("spl_tablet_me")||"null"); }catch(_){}
+    try{ saved = JSON.parse((sessionStorage.getItem("spl_tablet_me")||localStorage.getItem("spl_tablet_me"))||"null"); }catch(_){}
     if(!saved || !saved.token){
       // нет токена — вернуть на страницу входа планшета
       location.replace("tablet.html");
