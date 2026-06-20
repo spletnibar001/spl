@@ -1,1 +1,76 @@
-
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SPLETNI · вход (планшет)</title>
+<style>
+  :root{ --bg:#0d0f12; --panel:#15181d; --panel2:#1c2025; --line:#2a2f37;
+    --text:#eef1f4; --muted:#9aa3ad; --emerald:#1fbf7a; --gold:#c9a14a; --red:#e2655a; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:20px;
+    padding:30px 26px;width:100%;max-width:380px}
+  h1{font-size:22px;margin:0 0 4px;text-align:center;letter-spacing:.04em}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px}
+  label{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.05em;margin:14px 0 6px}
+  input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:12px;padding:15px 14px;font-size:17px;font-family:inherit;outline:none}
+  input:focus{border-color:var(--emerald)}
+  button{width:100%;margin-top:22px;background:var(--emerald);color:#06281b;border:none;
+    border-radius:12px;padding:16px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer}
+  button:disabled{opacity:.6}
+  .msg{min-height:20px;font-size:13px;font-weight:700;text-align:center;margin-top:14px;color:var(--red)}
+  .brand{text-align:center;color:var(--gold);font-weight:800;letter-spacing:.12em;font-size:13px;margin-bottom:18px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">SPLETNI</div>
+    <h1>Вход для планшета</h1>
+    <div class="sub">Экран бронирования и обзвон</div>
+    <label for="login">Логин</label>
+    <input id="login" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="host">
+    <label for="pin">PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••••••">
+    <button id="go">Войти</button>
+    <div class="msg" id="msg"></div>
+  </div>
+<script>
+  const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+  const $ = id => document.getElementById(id);
+  try{
+    const saved = JSON.parse(sessionStorage.getItem("spl_tablet_me")||"null");
+    if(saved && saved.token){ location.replace("index.html#tablet"); }
+  }catch(_){}
+  async function login(){
+    const login = ($("login").value||"").trim().toLowerCase();
+    const pin = ($("pin").value||"").trim();
+    if(!login || !pin){ $("msg").textContent="Введите логин и PIN"; return; }
+    $("go").disabled = true; $("msg").style.color="var(--muted)"; $("msg").textContent="Проверяем…";
+    try{
+      const r = await fetch(SUPABASE_URL + "/functions/v1/tablet-auth-ts", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
+                 "Authorization":"Bearer "+SUPABASE_ANON_KEY},
+        body:JSON.stringify({login, pin})
+      });
+      const data = await r.json();
+      if(!r.ok){ throw new Error(data.error||"Ошибка входа"); }
+      sessionStorage.setItem("spl_tablet_me", JSON.stringify(data));
+      location.replace("index.html#tablet");
+    }catch(e){
+      $("go").disabled = false;
+      $("msg").style.color="var(--red)";
+      $("msg").textContent = e.message || "Ошибка входа";
+    }
+  }
+  $("go").addEventListener("click", login);
+  $("pin").addEventListener("keydown", e=>{ if(e.key==="Enter") login(); });
+</script>
+</body>
+</html>
