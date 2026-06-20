@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -32,21 +33,30 @@
     <div class="brand">SPLETNI</div>
     <h1>Вход для планшета</h1>
     <div class="sub">Экран бронирования и обзвон</div>
+
     <label for="login">Логин</label>
     <input id="login" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="host">
+
     <label for="pin">PIN</label>
     <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••••••">
+
     <button id="go">Войти</button>
     <div class="msg" id="msg"></div>
   </div>
+
 <script>
-  const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+  // те же реквизиты проекта, что в index.html
+  const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";          // ← подставь свой URL
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";                         // ← подставь свой anon key
+
   const $ = id => document.getElementById(id);
+
+  // если уже есть свежий токен — сразу в приложение
   try{
-    const saved = JSON.parse(sessionStorage.getItem("spl_tablet_me")||"null");
+    const saved = JSON.parse((sessionStorage.getItem("spl_tablet_me")||localStorage.getItem("spl_tablet_me"))||"null");
     if(saved && saved.token){ location.replace("index.html#tablet"); }
   }catch(_){}
+
   async function login(){
     const login = ($("login").value||"").trim().toLowerCase();
     const pin = ($("pin").value||"").trim();
@@ -61,7 +71,9 @@
       });
       const data = await r.json();
       if(!r.ok){ throw new Error(data.error||"Ошибка входа"); }
+      // сохраняем токен и переходим в приложение в планшетном режиме
       sessionStorage.setItem("spl_tablet_me", JSON.stringify(data));
+      try{ localStorage.setItem("spl_tablet_me", JSON.stringify(data)); }catch(_){}
       location.replace("index.html#tablet");
     }catch(e){
       $("go").disabled = false;
@@ -69,6 +81,7 @@
       $("msg").textContent = e.message || "Ошибка входа";
     }
   }
+
   $("go").addEventListener("click", login);
   $("pin").addEventListener("keydown", e=>{ if(e.key==="Enter") login(); });
 </script>
