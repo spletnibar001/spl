@@ -1051,6 +1051,7 @@ function rebuildClient(){
 // тихо обновить токен (initData у Telegram всегда под рукой) — вызывается по таймеру и при возврате в приложение
 let lastTokenAt = Date.now();
 async function refreshToken(){
+  if(TABLET_MODE) return false; // на планшете токен обновляется только повторным вводом PIN
   try{
     const data = await fetchToken();
     ME.token = data.token;
@@ -1064,7 +1065,28 @@ async function ensureToken(){
   if(Date.now() - lastTokenAt > 9*60*1000) await refreshToken();
 }
 
+// режим планшета: токен приходит от tablet.html (вход по PIN, без Telegram)
+const TABLET_MODE = location.hash.indexOf("tablet") >= 0;
+
 async function authorize(){
+  // --- вход с планшета по PIN (tablet.html положил токен) ---
+  if(TABLET_MODE){
+    let saved = null;
+    try{ saved = JSON.parse(sessionStorage.getItem("spl_tablet_me")||"null"); }catch(_){}
+    if(!saved || !saved.token){
+      // нет токена — вернуть на страницу входа планшета
+      location.replace("tablet.html");
+      return;
+    }
+    ME = saved; CAP = CAPS[ME.role];
+    lastTokenAt = Date.now();
+    rebuildClient();
+    $("auth-screen").style.display="none";
+    $("app").style.display="block";
+    startApp();
+    return;
+  }
+
   const tg = window.Telegram?.WebApp;
   if(!tg){
     $("auth-spinner").style.display="none";
