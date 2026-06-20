@@ -3118,7 +3118,34 @@ function bkInit(){
   var content = document.getElementById("bk-content");
   if(content && !content.dataset.bkTap){
     content.dataset.bkTap = "1";
+
+    // --- долгий тап по занятому столу -> форма редактирования брони ---
+    var lpTimer = null, lpFired = false, lpTid = null;
+    function lpStart(e){
+      var cell = e.target.closest(".bk-t[data-tid]");
+      if(!cell) return;
+      var tid = parseInt(cell.dataset.tid);
+      // долгий тап имеет смысл только для занятого стола (есть активная бронь)
+      if(!bkBookingFor(tid)) return;
+      lpTid = tid; lpFired = false;
+      lpTimer = setTimeout(function(){
+        lpFired = true;
+        if(navigator.vibrate) navigator.vibrate(30);
+        window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.("medium");
+        bkOpenModal(lpTid, true); // true = режим редактирования
+      }, 600);
+    }
+    function lpCancel(){ if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; } }
+    content.addEventListener("touchstart", lpStart, {passive:true});
+    content.addEventListener("touchend", lpCancel);
+    content.addEventListener("touchmove", lpCancel, {passive:true});
+    content.addEventListener("mousedown", lpStart);
+    content.addEventListener("mouseup", lpCancel);
+    content.addEventListener("mouseleave", lpCancel);
+
     content.addEventListener("click", function(e){
+      // если только что сработал долгий тап — не открываем обычный просмотр
+      if(lpFired){ lpFired = false; e.preventDefault(); e.stopPropagation(); return; }
       // тап по строке/дате в общем списке будущих броней -> перейти на эту дату
       var up = e.target.closest("[data-d]");
       if(up && up.dataset.d){
@@ -3750,16 +3777,18 @@ let bkCurrentTable = null;   // стол, по которому открыта �
 let bkCurrentBooking = null; // существующая бронь (если есть)
 let bkGuestMode = "known";   // known | new (для новой брони)
 
-function bkOpenModal(tableId){
+function bkOpenModal(tableId, editMode){
   const t = BK.data.tables.find(x=>x.id===tableId);
   if(!t) return;
   bkCurrentTable = t;
   bkCurrentBooking = bkBookingFor(tableId) || null;
   const z = BK.data.zones.find(z=>z.id===t.zone_id);
-  document.getElementById("bkm-title").textContent = (bkCurrentBooking?"Бронь · ":"Новая бронь · ") + t.name;
+  // режим правки только если есть бронь и есть право
+  const doEdit = !!(editMode && bkCurrentBooking && BK.canEdit);
+  document.getElementById("bkm-title").textContent = (doEdit?"Изменить бронь · ":(bkCurrentBooking?"Бронь · ":"Новая бронь · ")) + t.name;
   document.getElementById("bkm-sub").textContent = (z?z.title:"") + " · " + bkFmtDate(BK.date);
-  document.getElementById("bkm-body").innerHTML = bkCurrentBooking ? bkModalExisting() : bkModalNew();
-  bkWireModalForm();
+  document.getElementById("bkm-body").innerHTML = doEdit ? bkModalEdit() : (bkCurrentBooking ? bkModalExisting() : bkModalNew());
+  bkWireModalForm(doEdit);
   document.getElementById("bk-modal").classList.add("open");
 }
 function bkCloseModal(){
@@ -4023,6 +4052,36 @@ function bkModalNew(){
     <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">«Посадить сейчас» — гости уже за столом. Имя и телефон можно не указывать; достаточно числа гостей и депозита.</div>`;
 }
 
+// форма РЕДАКТИРОВАНИЯ существующей брони (долгий тап)
+function bkModalEdit(){
+  const b = bkCurrentBooking;
+  const dep = b.deposit_amount||0;
+  const dval = b.business_date || bkIso(BK.date);
+  const tval = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "22:00";
+  const name = (b.display_name||b.guest_name||"").replace(/"/g,"&quot;");
+  const phone = b.display_phone||b.phone||"";
+  return `
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Дата брони</label>
+        <input id="bkm-date" type="date" value="${dval}"></div>
+      <div class="bkm-field"><label>Время прихода</label>
+        <input id="bkm-time" type="time" value="${tval}"></div>
+    </div>
+    <div class="bkm-field"><label>Телефон гостя</label>
+      <input id="bkm-phone" type="text" inputmode="numeric" value="${phone}" placeholder="+998 94 063 88 88" autocomplete="off"></div>
+    <div class="bkm-field"><label>Имя гостя</label>
+      <input id="bkm-name" type="text" value="${name}" placeholder="Имя" autocomplete="off"></div>
+    <div class="bkm-field"><label>Гостей</label>
+      <input id="bkm-guests" type="number" inputmode="numeric" min="1" value="${b.guests_count||""}"></div>
+    <div class="bkm-field"><label>Депозит, сум</label>
+      <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
+    <div class="bkm-msg" id="bkm-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn primary" id="bkm-saveedit">Сохранить изменения</button>
+      <button class="bkm-btn" id="bkm-editback">Назад</button>
+    </div>`;
+}
+
 // карточка существующей брони
 function bkModalExisting(){
   const b = bkCurrentBooking;
@@ -4034,12 +4093,14 @@ function bkModalExisting(){
   const showPay = !isKar;
   let log = "";
   if(b.created_by_name) log += `Создал: ${b.created_by_name}${b.created_at?" · "+bkFmtDT(b.created_at):""}<br>`;
+  if(b.edited_by_name)  log += `Изменил: ${b.edited_by_name}${b.edited_at?" · "+bkFmtDT(b.edited_at):""}<br>`;
   if(b.seated_by_name)  log += `Посадил: ${b.seated_by_name}${b.seated_at?" · "+bkFmtDT(b.seated_at):""}<br>`;
   if(b.paid_by_name)    log += `Оплату отметил: ${b.paid_by_name}${b.paid_at?" · "+bkFmtDT(b.paid_at):""}<br>`;
   if(b.finished_by_name)log += `Гости ушли: ${b.finished_by_name}${b.finished_at?" · "+bkFmtDT(b.finished_at):""}<br>`;
   const canEdit = BK.canEdit;
   let actions = "";
   if(canEdit){
+    actions += `<button class="bkm-btn secondary" id="bkm-edit">✎ Изменить данные</button>`;
     if(!seated){
       actions += `<button class="bkm-btn primary" id="bkm-seat">Гости сели</button>`;
       if(showPay && !b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
@@ -4078,12 +4139,28 @@ function bkFmtDT(ts){
 }
 
 // навешиваем обработчики на форму модалки
-function bkWireModalForm(){
+function bkWireModalForm(editMode){
   document.getElementById("bkm-close").onclick = bkCloseModal;
+
+  // режим РЕДАКТИРОВАНИЯ существующей брони
+  if(editMode && bkCurrentBooking){
+    const saveE=document.getElementById("bkm-saveedit");
+    const backE=document.getElementById("bkm-editback");
+    if(saveE) saveE.onclick = ()=>bkActionSaveEdit();
+    if(backE) backE.onclick = ()=>bkOpenModal(bkCurrentTable.id); // вернуться в просмотр
+    const depE=document.getElementById("bkm-dep");
+    if(depE) depE.oninput=function(){ const d=this.value.replace(/[^\d]/g,""); this.value=d?fmtNum(d):""; };
+    const phoneE=document.getElementById("bkm-phone");
+    if(phoneE) phoneE.onblur=()=>{ const f=bkFmtPhone(phoneE.value); if(f) phoneE.value=f; };
+    return;
+  }
+
   if(bkCurrentBooking){
     const seat=document.getElementById("bkm-seat"), pay=document.getElementById("bkm-pay"), can=document.getElementById("bkm-cancel");
     const savedep=document.getElementById("bkm-savedep");
     const fin=document.getElementById("bkm-finish");
+    const editBtn=document.getElementById("bkm-edit");
+    if(editBtn) editBtn.onclick = ()=>bkOpenModal(bkCurrentTable.id, true); // открыть форму правки
     if(seat) seat.onclick = ()=>bkActionSeat();
     if(pay)  pay.onclick  = ()=>bkActionPay();
     if(can)  can.onclick  = ()=>bkActionCancel();
@@ -4370,6 +4447,41 @@ function bkComposeArrive(bizDate, time){
   if(h<5) d.setDate(d.getDate()+1); // ночные часы = следующий календарный день
   d.setHours(h,m,0,0);
   return d.toISOString();
+}
+
+async function bkActionSaveEdit(){
+  const b=bkCurrentBooking; if(!b) return;
+  if(!BK.canEdit){ bkMsg("Нет прав на изменение брони."); return; }
+  const name=(document.getElementById("bkm-name").value||"").trim();
+  const phoneRaw=(document.getElementById("bkm-phone").value||"").trim();
+  const guests=parseInt(document.getElementById("bkm-guests").value||"0",10)||null;
+  const dep=bkReadDep();
+  const dateEl=document.getElementById("bkm-date");
+  const timeEl=document.getElementById("bkm-time");
+  const bizDate = dateEl && dateEl.value ? fromIso(dateEl.value) : fromIso(b.business_date||bkIso(BK.date));
+  const arriveAt = (timeEl && timeEl.value) ? bkComposeArrive(bizDate, timeEl.value) : b.arrive_at;
+  const phoneNorm = phoneRaw ? bkNormPhone(phoneRaw) : null;
+
+  const upd = {
+    guest_name: name || null,
+    phone: phoneNorm,
+    guests_count: guests,
+    arrive_at: arriveAt,
+    business_date: bkIso(bizDate),
+    deposit_amount: dep,
+    edited_by: (ME.tg_id||ME.telegram_id||null),
+    edited_by_name: ME.name,
+    edited_at: new Date().toISOString()
+  };
+  bkMsg("Сохраняем…", true);
+  await ensureToken();
+  const {error}=await sb.from("bookings").update(upd).eq("id", b.id);
+  if(error){ bkMsg(error.message); return; }
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+  await bkRefreshBookings();
+  // вернёмся в просмотр обновлённой брони
+  bkCurrentBooking = bkBookingFor(b.table_id) || bkCurrentBooking;
+  bkOpenModal(b.table_id);
 }
 
 async function bkActionSaveDep(){
