@@ -51,6 +51,16 @@
 
   const $ = id => document.getElementById(id);
 
+  // device-ключ: уникальный для этого устройства, генерится один раз и хранится локально
+  function getDeviceId(){
+    let d = localStorage.getItem("spl_tablet_device");
+    if(!d){
+      d = (crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)));
+      localStorage.setItem("spl_tablet_device", d);
+    }
+    return d;
+  }
+
   // если уже есть свежий токен — сразу в приложение
   try{
     const saved = JSON.parse((sessionStorage.getItem("spl_tablet_me")||localStorage.getItem("spl_tablet_me"))||"null");
@@ -67,7 +77,7 @@
         method:"POST",
         headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
                  "Authorization":"Bearer "+SUPABASE_ANON_KEY},
-        body:JSON.stringify({login, pin})
+        body:JSON.stringify({login, pin, device: getDeviceId()})
       });
       const data = await r.json();
       if(!r.ok){ throw new Error(data.error||"Ошибка входа"); }
