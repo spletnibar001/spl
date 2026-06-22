@@ -345,6 +345,11 @@ window.__xlsxReady = (function(){
 #booking-root{display:none}
 #booking-root.active{max-width:560px}
 #bk-content{max-width:560px}
+/* планшет: используем всю ширину экрана */
+body.tablet-mode .layout{max-width:100%}
+body.tablet-mode #booking-root.active{max-width:100%}
+body.tablet-mode #bk-content{max-width:100%}
+body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 #booking-root.active{display:block}
 /* подвкладки Караоке/Клуб */
 #bk-venue-tabs,#bk-view-tabs{display:flex;gap:5px;margin:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content;align-items:stretch}
@@ -1084,6 +1089,7 @@ async function authorize(){
     ME = saved; CAP = CAPS[ME.role];
     lastTokenAt = Date.now();
     rebuildClient();
+    document.body.classList.add("tablet-mode");
     $("auth-screen").style.display="none";
     $("app").style.display="block";
     startApp();
@@ -4098,6 +4104,8 @@ function bkModalEdit(){
       <input id="bkm-name" type="text" value="${name}" placeholder="Имя" autocomplete="off"></div>
     <div class="bkm-field"><label>Гостей</label>
       <input id="bkm-guests" type="number" inputmode="numeric" min="1" value="${b.guests_count||""}"></div>
+    <div class="bkm-field"><label>Стол</label>
+      <select id="bkm-table">${bkTableOptions(b)}</select></div>
     <div class="bkm-field"><label>Депозит, сум</label>
       <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
     <div class="bkm-msg" id="bkm-msg"></div>
@@ -4105,6 +4113,21 @@ function bkModalEdit(){
       <button class="bkm-btn primary" id="bkm-saveedit">Сохранить изменения</button>
       <button class="bkm-btn" id="bkm-editback">Назад</button>
     </div>`;
+}
+
+// список столов для выпадашки (та же зона); занятые помечаются
+function bkTableOptions(b){
+  const curTable = BK.data.tables.find(x=>x.id===b.table_id);
+  const zoneId = curTable ? curTable.zone_id : null;
+  const tables = BK.data.tables
+    .filter(x=>x.zone_id===zoneId)
+    .sort((a,c)=>(a.sort_order||0)-(c.sort_order||0) || String(a.name).localeCompare(String(c.name),"ru",{numeric:true}));
+  return tables.map(x=>{
+    const occ = bkBookingFor(x.id);
+    const busy = occ && occ.id!==b.id ? " — занят" : "";
+    const sel = x.id===b.table_id ? " selected" : "";
+    return `<option value="${x.id}"${sel}>${x.name}${busy}</option>`;
+  }).join("");
 }
 
 // карточка существующей брони
@@ -4483,9 +4506,26 @@ async function bkActionSaveEdit(){
   const dep=bkReadDep();
   const dateEl=document.getElementById("bkm-date");
   const timeEl=document.getElementById("bkm-time");
+  const tableEl=document.getElementById("bkm-table");
   const bizDate = dateEl && dateEl.value ? fromIso(dateEl.value) : fromIso(b.business_date||bkIso(BK.date));
   const arriveAt = (timeEl && timeEl.value) ? bkComposeArrive(bizDate, timeEl.value) : b.arrive_at;
   const phoneNorm = phoneRaw ? bkNormPhone(phoneRaw) : null;
+
+  // выбранный стол
+  const newTableId = tableEl ? parseInt(tableEl.value) : b.table_id;
+  let swapBooking = null;       // бронь, с которой меняемся местами
+  if(newTableId && newTableId !== b.table_id){
+    const occ = bkBookingFor(newTableId);
+    if(occ && occ.id !== b.id){
+      // целевой стол занят — предложить пересадку (своп)
+      const tNew = BK.data.tables.find(x=>x.id===newTableId);
+      const whoOcc = occ.display_name || occ.guest_name || "гости";
+      if(!confirm(`Стол ${tNew?tNew.name:""} уже занят (${whoOcc}). Поменять брони местами (пересадить гостей)?`)){
+        return; // отказались — ничего не меняем
+      }
+      swapBooking = occ;
+    }
+  }
 
   const upd = {
     guest_name: name || null,
@@ -4494,19 +4534,44 @@ async function bkActionSaveEdit(){
     arrive_at: arriveAt,
     business_date: bkIso(bizDate),
     deposit_amount: dep,
+    table_id: newTableId,
     edited_by: (ME.tg_id||ME.telegram_id||null),
     edited_by_name: ME.name,
     edited_at: new Date().toISOString()
   };
   bkMsg("Сохраняем…", true);
   await ensureToken();
-  const {error}=await sb.from("bookings").update(upd).eq("id", b.id);
-  if(error){ bkMsg(error.message); return; }
+
+  if(swapBooking){
+    // СВОП: вторую бронь переносим на старый стол этой брони.
+    // чтобы не нарушить возможный уникальный индекс (стол+дата), делаем через временную «парковку».
+    const PARK = -1; // временный нейтральный table_id
+    const oldTableId = b.table_id;
+    let e1 = (await sb.from("bookings").update({ table_id: PARK }).eq("id", swapBooking.id)).error;
+    if(e1){ bkMsg("Ошибка пересадки: "+e1.message); return; }
+    let e2 = (await sb.from("bookings").update(upd).eq("id", b.id)).error; // наша бронь -> новый стол
+    if(e2){
+      await sb.from("bookings").update({ table_id: newTableId }).eq("id", swapBooking.id); // откат
+      bkMsg("Ошибка пересадки: "+e2.message); return;
+    }
+    // вторую бронь -> на старый стол нашей брони, отметим, кто пересадил
+    let e3 = (await sb.from("bookings").update({
+      table_id: oldTableId,
+      edited_by: (ME.tg_id||ME.telegram_id||null),
+      edited_by_name: ME.name,
+      edited_at: new Date().toISOString()
+    }).eq("id", swapBooking.id)).error;
+    if(e3){ bkMsg("Ошибка пересадки: "+e3.message); return; }
+  } else {
+    const {error}=await sb.from("bookings").update(upd).eq("id", b.id);
+    if(error){ bkMsg(error.message); return; }
+  }
+
   window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
   await bkRefreshBookings();
-  // вернёмся в просмотр обновлённой брони
-  bkCurrentBooking = bkBookingFor(b.table_id) || bkCurrentBooking;
-  bkOpenModal(b.table_id);
+  // вернёмся в просмотр брони уже на новом столе
+  bkCurrentBooking = bkBookingFor(newTableId) || bkCurrentBooking;
+  bkOpenModal(newTableId);
 }
 
 async function bkActionSaveDep(){
