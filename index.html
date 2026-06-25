@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1135,7 +1134,8 @@ async function loadAll(){
     q.push(sb.from("emp_rates").select("*"));
     q.push(sb.from("weekly_values").select("*"));
   }
-  if(CAP.pen) q.push(sb.from("penalties").select("*"));
+  const seePen = CAP.money || CAP.pen;
+  if(seePen) q.push(sb.from("penalties").select("*"));
   const seeBon = CAP.money || CAP.bonus;
   if(seeBon) q.push(sb.from("bonuses").select("*"));
   q.push(sb.from("checkins").select("*"));  // отметки прихода (RLS отдаёт по зоне)
@@ -1145,7 +1145,7 @@ async function loadAll(){
   [employees, rosterRows, shiftRows, approvals] = res.slice(0,4).map(r=>r.data||[]);
   let i = 4;
   if(CAP.money){ rates = res[i].data||[]; wvRows = res[i+1].data||[]; i += 2; }
-  if(CAP.pen){ penRows = res[i].data||[]; i++; }
+  if(seePen){ penRows = res[i].data||[]; i++; }
   if(seeBon){ bonRows = res[i].data||[]; i++; }
   checkinRows = res[i].data||[]; i++;
   if(CAP.money){ payoutRows = res[i].data||[]; i++; }
@@ -1232,7 +1232,7 @@ function earnedInPeriod(emp, fromS, toS){
       extraLbl = "кабинки "+money(extra);
     }
   }
-  const pen = CAP.pen ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
+  const pen = (CAP.money||CAP.pen) ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
   const bon = (CAP.money||CAP.bonus) ? bonusesIn(emp.id, fromS, toS).reduce((t,b)=>t+b.amount,0) : 0;
   return {cnt, base, cntPlan, basePlan, extra, extraLbl, noPay, absent, pen, bon, sum: noPay ? 0 : base+extra+bon-pen};
 }
