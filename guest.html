@@ -1138,6 +1138,7 @@ const T = {
   bk_cancel_confirm: {ru:"Отменить бронь", uz:"Bronni bekor qilish", en:"Cancel booking", kz:"Броньды болдырмау", kg:"Бронду жокко чыгаруу", tj:"Бекор кардан", cn:"确认取消"},
   bk_cancel_back: {ru:"Назад", uz:"Orqaga", en:"Back", kz:"Артқа", kg:"Артка", tj:"Бозгашт", cn:"返回"},
   bk_cancel_done: {ru:"Бронь отменена. Спасибо, что предупредили!", uz:"Bron bekor qilindi. Ogohlantirganingiz uchun rahmat!", en:"Booking cancelled. Thanks for letting us know!", kz:"Бронь болдырылмады. Хабарлағаныңызға рахмет!", kg:"Бронь жокко чыгарылды. Эскерткениңизге рахмат!", tj:"Брон бекор шуд. Ташаккур, ки огоҳ кардед!", cn:"预订已取消。感谢您的告知！"},
+  bk_cancel_fail: {ru:"Не удалось отменить — позвоните нам, пожалуйста", uz:"Bekor qilib bo'lmadi — iltimos, bizga qo'ng'iroq qiling", en:"Couldn't cancel — please call us", kz:"Болдырмау мүмкін болмады — бізге қоңырау шалыңыз", kg:"Жокко чыгаруу мүмкүн болгон жок — бизге чалыңыз", tj:"Бекор кардан нашуд — лутфан ба мо занг занед", cn:"取消失败——请致电我们"},
   bk_no_deposit: {ru:"уточняется", uz:"aniqlanmoqda", en:"to be confirmed", kz:"нақтыланады", kg:"такталат", tj:"мушаххас мешавад", cn:"待确认"},
   bk_declined_sub: {ru:"К сожалению, мы не можем подтвердить эту бронь. Свяжитесь с нами по телефону или оставьте новую заявку на другую дату.", uz:"Afsuski, bu bronni tasdiqlay olmaymiz. Biz bilan telefon orqali bog'laning yoki boshqa sanaga yangi ariza qoldiring.", en:"Unfortunately we can't confirm this booking. Please call us or submit a new request for another date.", kz:"Өкінішке орай, бұл бронды растай алмаймыз. Бізге телефон арқылы хабарласыңыз немесе басқа күнге жаңа өтінім қалдырыңыз.", kg:"Тилекке каршы, бул бронду ырастай албайбыз. Биз менен телефон аркылуу байланышыңыз же башка күнгө жаңы өтүнмө калтырыңыз.", tj:"Мутаассифона, мо ин бронро тасдиқ карда наметавонем. Бо мо тариқи телефон тамос гиред ё дархости нав барои санаи дигар гузоред.", cn:"很抱歉，我们无法确认此预订。请致电我们或为其他日期提交新申请。"},
   bk_confirmed_sub: {ru:"Ждём вас! Если планы изменятся — позвоните нам заранее.", uz:"Sizni kutamiz! Rejalar o'zgarsa — oldindan qo'ng'iroq qiling.", en:"See you soon! If your plans change, please call us in advance.", kz:"Сізді күтеміз! Жоспар өзгерсе — алдын ала қоңырау шалыңыз.", kg:"Сизди күтөбүз! Пландар өзгөрсө — алдын ала чалыңыз.", tj:"Шуморо интизорем! Агар нақшаҳо тағйир ёбанд — пешакӣ занг занед.", cn:"恭候光临！若计划有变，请提前致电我们。"},
@@ -1634,8 +1635,12 @@ function bkfCancelOwnPrompt(bookingId, st){
         cancelled_by_name: "Гость" + (GUEST && GUEST.name ? (" · "+GUEST.name) : ""),
         cancelled_at: new Date().toISOString()
       };
-      const { error } = await SB.from("bookings").update(upd).eq("id", bookingId).eq("created_by", Number(GUEST.tg_id));
+      const { data:updRows, error } = await SB.from("bookings").update(upd).eq("id", bookingId).eq("created_by", Number(GUEST.tg_id)).select("id");
       if(error){ document.getElementById("bk-co-msg").textContent = error.message; this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
+      if(!updRows || !updRows.length){
+        document.getElementById("bk-co-msg").textContent = t('bk_cancel_fail');
+        this.disabled=false; this.textContent=t('bk_cancel_confirm'); return;
+      }
     }catch(e){ document.getElementById("bk-co-msg").textContent = String(e.message||e); this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
     // уведомление в Telegram-группу об отмене (не критично — не блокируем гостя)
     try{
@@ -1643,7 +1648,7 @@ function bkfCancelOwnPrompt(bookingId, st){
         method:"POST",
         headers:{"Content-Type":"application/json","apikey":SB_ANON,
                  "Authorization":"Bearer "+SB_ANON},
-        body:JSON.stringify({booking_id:bookingId, event: st==="booked" ? "guest_cancel_booking" : "guest_cancel_request"})
+        body:JSON.stringify({booking_id:bookingId, event: st==="booked" ? "guest_cancel_booking" : "guest_cancel_request", reason: reason})
       }).catch(()=>{});
     }catch(_){}
     BKF_FORM_OPEN=false;
