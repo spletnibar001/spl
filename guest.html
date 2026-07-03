@@ -1990,9 +1990,6 @@ async function bkfSubmit(){
     const arriveAt = bkfComposeArrive(BK_STATE.date, BK_STATE.time);
     const noteParts = [
       "🌐 Заявка с сайта",
-      "Зона: "+zone.title,
-      "Время: "+BK_STATE.time,
-      guests?("Гостей: "+guests):null,
       BK_STATE.comment?("Коммент: "+BK_STATE.comment.trim()):null
     ].filter(Boolean);
 
