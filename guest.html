@@ -1616,8 +1616,11 @@ function bkfCancelOwnPrompt(bookingId){
     <div class="bk-note">${t('bk_cancel_q')}</div>
     <textarea id="bk-co-reason" class="bk-co-textarea" rows="3" placeholder="${t('bk_cancel_ph')}"></textarea>
     <div id="bk-co-msg" class="bk-co-msg"></div>
-    <button class="bk-submit danger" id="bk-co-ok" style="margin-top:8px">${t('bk_cancel_confirm')}</button>
+    <button class="bk-submit danger" id="bk-co-ok" style="margin-top:8px" disabled>${t('bk_cancel_confirm')}</button>
     <button class="bk-submit ghost" id="bk-co-back" style="margin-top:8px">${t('bk_cancel_back')}</button>`;
+  const coTa = document.getElementById("bk-co-reason");
+  const coOk = document.getElementById("bk-co-ok");
+  coTa.addEventListener("input", ()=>{ coOk.disabled = !coTa.value.trim(); });
   document.getElementById("bk-co-back").onclick=()=>{ BKF_FORM_OPEN=false; renderBook(true); };
   document.getElementById("bk-co-ok").onclick=async function(){
     const reason = (document.getElementById("bk-co-reason").value||"").trim();
