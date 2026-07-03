@@ -1131,6 +1131,7 @@ const T = {
   bk_lbl_guests: {ru:"Гостей", uz:"Mehmonlar", en:"Guests", kz:"Қонақтар", kg:"Коноктор", tj:"Меҳмонон", cn:"人数"},
   bk_lbl_reason: {ru:"Причина", uz:"Sabab", en:"Reason", kz:"Себебі", kg:"Себеби", tj:"Сабаб", cn:"原因"},
   bk_cancel_own: {ru:"Отменить бронь", uz:"Bronni bekor qilish", en:"Cancel booking", kz:"Броньды болдырмау", kg:"Бронду жокко чыгаруу", tj:"Бекор кардани брон", cn:"取消预订"},
+  bk_cancel_req: {ru:"Отменить заявку", uz:"Arizani bekor qilish", en:"Cancel request", kz:"Өтінішті болдырмау", kg:"Өтүнмөнү жокко чыгаруу", tj:"Бекор кардани дархост", cn:"取消申请"},
   bk_cancel_title: {ru:"Отмена брони", uz:"Bronni bekor qilish", en:"Cancel booking", kz:"Броньды болдырмау", kg:"Бронду жокко чыгаруу", tj:"Бекор кардани брон", cn:"取消预订"},
   bk_cancel_q: {ru:"Укажите причину отмены — мы передадим её администратору:", uz:"Bekor qilish sababini yozing — biz uni administratorga yetkazamiz:", en:"Please tell us why you're cancelling — we'll pass it to the manager:", kz:"Болдырмау себебін жазыңыз — оны әкімшіге жеткіземіз:", kg:"Жокко чыгаруу себебин жазыңыз — аны администраторго жеткиребиз:", tj:"Сабаби бекоркуниро нависед — мо онро ба маъмур мерасонем:", cn:"请说明取消原因——我们会转告管理员："},
   bk_cancel_ph: {ru:"Напр.: поменялись планы", uz:"Masalan: rejalar o'zgardi", en:"E.g. plans changed", kz:"Мысалы: жоспар өзгерді", kg:"Мисалы: пландар өзгөрдү", tj:"Мас.: нақшаҳо тағйир ёфтанд", cn:"例如：计划有变"},
@@ -1720,12 +1721,22 @@ function bkfStatusCard(b){
       </div>`;
   }
   // на рассмотрении (request)
+  const {zone: rqZone, venue: rqVenue} = bkfResolveTable(b.table_id);
+  const rqPlace = [rqVenue ? (rqVenue.key==="club" ? t('club') : t('karaoke')) : "", rqZone ? (rqZone.title||"") : ""].filter(Boolean).join(" · ");
+  const rqWhen = bkfFmtDate(b.business_date) + (b.arrive_at ? (" · ~" + bkfFmtTime(b.arrive_at)) : "");
+  const rqCm = String(b.note||"").match(/Коммент:\s*([\s\S]*)$/i);
+  const rqComment = rqCm ? rqCm[1].trim().replace(/</g,"&lt;") : "";
   return `
     <div class="bk-mine">
       <div class="bk-mine-h">${t('bk_my_req')}</div>
-      <div class="bk-mine-row"><span>${(b.note||"").replace(/</g,"&lt;")}</span></div>
-      <div class="bk-mine-row" style="color:var(--muted)">${bkfFmtDate(b.business_date)}</div>
-      <div class="bk-mine-status" style="color:var(--gold)">${t('bk_st_request')}</div>
+      <div class="bk-res-grid" style="margin-top:4px">
+        ${rqPlace?`<div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_place')}</span><span class="bk-res-v">${rqPlace}</span></div>`:""}
+        <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_when')}</span><span class="bk-res-v">${rqWhen}</span></div>
+        ${b.guests_count?`<div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_guests')}</span><span class="bk-res-v">${b.guests_count}</span></div>`:""}
+        ${rqComment?`<div class="bk-res-item"><span class="bk-res-k">💬</span><span class="bk-res-v" style="font-weight:400">${rqComment}</span></div>`:""}
+      </div>
+      <div class="bk-mine-status" style="color:var(--gold)">⏳ ${t('bk_st_request')}</div>
+      <button class="bk-cancel-own" id="bk-cancel-own" data-bid="${b.id}">${t('bk_cancel_req')}</button>
     </div>`;
 }
 
