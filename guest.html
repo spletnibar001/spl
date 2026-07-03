@@ -2000,17 +2000,17 @@ async function bkfSubmit(){
     const { data:ins, error } = await SB.from("bookings").insert(row).select("id").single();
     if(error){ bkfMsg(error.message); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
-    // уведомление в Telegram-группу о новой заявке (не критично — тихо игнорируем сбой)
+    // уведомление в Telegram-группу о новой заявке (не критично — не блокируем гостя)
     if(ins && ins.id){
-      try{
-        await fetch(`${SB_URL}/functions/v1/smooth-processor`,{
-          method:"POST",
-          keepalive:true,
-          headers:{"Content-Type":"application/json","apikey":SB_ANON,
-                   "Authorization":"Bearer "+SB_ANON},
-          body:JSON.stringify({booking_id:ins.id, event:"new"})
-        });
-      }catch(_){}
+      fetch(`${SB_URL}/functions/v1/smooth-processor`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json","apikey":SB_ANON,
+                 "Authorization":"Bearer "+SB_ANON},
+        body:JSON.stringify({booking_id:ins.id, event:"new"})
+      })
+      .then(r=>r.json())
+      .then(d=>{ console.log("notify:", d); })
+      .catch(e=>{ console.log("notify error:", e); });
     }
 
     BKF_FORM_OPEN = false;   // заявка отправлена — форма закрыта, можно следить за новой
