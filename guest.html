@@ -1595,10 +1595,10 @@ async function renderBook(force){
     body.innerHTML = bkfStatusCard(last) +
       `<button class="bk-submit" id="bk-newreq" style="margin-top:4px">${t('bk_new_req')}</button>`;
     const nb=document.getElementById("bk-newreq");
-    if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=last.id; bkfShowForm(); };
+    if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=last.id; bkfPresetVenueFrom(last); bkfShowForm(); };
     // крестик — гость закрывает сообщение об отказе, больше оно не появляется
     const rc=document.getElementById("bk-res-close");
-    if(rc) rc.onclick=()=>{ mybkDismiss(mybkKey(last)); bkfShowForm(); };
+    if(rc) rc.onclick=()=>{ mybkDismiss(mybkKey(last)); bkfPresetVenueFrom(last); bkfShowForm(); };
     bkfSubscribe(last.id);
     return;
   }
@@ -1792,7 +1792,7 @@ function bkfApplyStatusUpdate(row){
     body.innerHTML = bkfStatusCard(row) +
       `<button class="bk-submit" id="bk-newreq" style="margin-top:4px">${t('bk_new_req')}</button>`;
     const nb=document.getElementById("bk-newreq");
-    if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=row.id; bkfShowForm(); };
+    if(nb) nb.onclick=()=>{ BK_LAST_CANCELLED_SEEN=row.id; bkfPresetVenueFrom(row); bkfShowForm(); };
     try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("warning"); }catch(_){}
     bkfStopPoll();
   }
@@ -1821,6 +1821,17 @@ function bkfStartPoll(bookingId){
 function bkfStopPoll(){ if(BK_POLL_TIMER){ clearInterval(BK_POLL_TIMER); BK_POLL_TIMER=null; } }
 
 // показать форму заявки (с автоподстановкой телефона)
+// подставить заведение (клуб/караоке) из существующей брони перед открытием формы
+function bkfPresetVenueFrom(b){
+  try{
+    const {venue} = bkfResolveTable(b.table_id);
+    if(venue && venue.key && venue.key !== BK_STATE.venue){
+      BK_STATE.venue = venue.key;
+      BK_STATE.zoneId = null;   // зоны другого заведения — сброс выбора
+      ZONE_VENUE = venue.key;   // галереи залов тоже под это заведение
+    }
+  }catch(_){}
+}
 async function bkfShowForm(){
   const body = document.getElementById("bk-body");
   if(!body) return;
