@@ -1583,7 +1583,7 @@ async function renderBook(force){
     const note = last.status==="request" ? `<div class="bk-note">${t('bk_have_active')}</div>` : "";
     body.innerHTML = bkfStatusCard(last) + note;
     const co=document.getElementById("bk-cancel-own");
-    if(co) co.onclick=()=>bkfCancelOwnPrompt(last.id);
+    if(co) co.onclick=()=>bkfCancelOwnPrompt(last.id, last.status);
     bkfSubscribe(last.id);   // realtime: мгновенно обновим при подтверждении/отказе
     return;
   }
@@ -1607,7 +1607,7 @@ async function renderBook(force){
 
 // карточка статуса: подтверждена / на рассмотрении / отклонена
 // показать окно ввода причины отмены своей подтверждённой брони
-function bkfCancelOwnPrompt(bookingId){
+function bkfCancelOwnPrompt(bookingId, st){
   const body = document.getElementById("bk-body");
   if(!body) return;
   bkfStopPoll();
@@ -1637,6 +1637,15 @@ function bkfCancelOwnPrompt(bookingId){
       const { error } = await SB.from("bookings").update(upd).eq("id", bookingId).eq("created_by", Number(GUEST.tg_id));
       if(error){ document.getElementById("bk-co-msg").textContent = error.message; this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
     }catch(e){ document.getElementById("bk-co-msg").textContent = String(e.message||e); this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
+    // уведомление в Telegram-группу об отмене (не критично — не блокируем гостя)
+    try{
+      fetch(`${SB_URL}/functions/v1/smooth-processor`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json","apikey":SB_ANON,
+                 "Authorization":"Bearer "+SB_ANON},
+        body:JSON.stringify({booking_id:bookingId, event: st==="booked" ? "guest_cancel_booking" : "guest_cancel_request"})
+      }).catch(()=>{});
+    }catch(_){}
     BKF_FORM_OPEN=false;
     try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
     body.innerHTML = `<div class="bk-res ok"><div class="bk-res-ic">✓</div>
@@ -1771,7 +1780,7 @@ function bkfApplyStatusUpdate(row){
   if(row.status==="booked"){
     body.innerHTML = bkfStatusCard(row);
     const co=document.getElementById("bk-cancel-own");
-    if(co) co.onclick=()=>bkfCancelOwnPrompt(row.id);
+    if(co) co.onclick=()=>bkfCancelOwnPrompt(row.id, "booked");
     try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success"); }catch(_){}
     bkfStopPoll();
   }else if(row.status==="cancelled"){
