@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -4435,7 +4436,7 @@ function bkMsg(t,ok){ const m=document.getElementById("bkm-msg"); if(m){ m.textC
 // уведомление в Telegram-группу (keepalive — чтобы запрос не оборвался при закрытии модалки)
 async function bkNotify(bookingId, event){
   try{
-    await fetch(`${SUPABASE_URL}/functions/v1/notify-booking`,{
+    await fetch(`${SUPABASE_URL}/functions/v1/smooth-processor`,{
       method:"POST",
       keepalive:true,
       headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
