@@ -1840,8 +1840,10 @@ function bkfDrawForm(){
     `<button data-bz="${z.id}" class="${BK_STATE.zoneId===z.id?'on':''}">${z.title}</button>`
   ).join("") + `</div>`;
 
-  // интервалы времени с шагом 30 мин. Порядок — по «ночи»: с 18:00 до 04:30
-  const slots = bkfTimeSlots();
+  // интервалы времени с шагом 30 мин: караоке с 18:00, клуб с 22:00/23:00 по дню недели
+  const slots = bkfTimeSlots(BK_STATE.venue, BK_STATE.date);
+  // если ранее выбранное время не входит в актуальные слоты (сменили заведение/день) — сбросить
+  if(BK_STATE.time && !slots.includes(BK_STATE.time)) BK_STATE.time=null;
   // если выбранное время уже прошло (для сегодняшней даты) — сбросить
   if(BK_STATE.time && bkfSlotPassed(BK_STATE.date, BK_STATE.time)) BK_STATE.time=null;
   const timeBtns = `<div class="bk-times">` + slots.map(tm=>{
@@ -1912,10 +1914,19 @@ function bkfFmtPhoneInput(raw){
   return (plus?"+":"") + d.replace(/(\d{1,3})(?=(\d{3})+$)/g,"$1 ").trim();
 }
 
-// интервалы времени 30 мин: 18:00 → 23:30, затем 00:00 → 04:30 (ночь)
-function bkfTimeSlots(){
+// интервалы времени 30 мин с учётом заведения и дня недели.
+// Караоke: с 18:00. Клуб: вс-чт с 23:00, пт-сб с 22:00. Ночь до 04:30 включительно.
+function bkfTimeSlots(venue, dateIso){
+  let startH = 18; // караоке по умолчанию
+  if(venue === "club"){
+    // день недели выбранной бизнес-даты
+    let wd = 6; // запас
+    if(dateIso){ const [y,m,dd]=dateIso.split("-").map(Number); wd = new Date(y,m-1,dd).getDay(); }
+    // пятница(5) и суббота(6) — с 22:00, остальные — с 23:00
+    startH = (wd===5 || wd===6) ? 22 : 23;
+  }
   const out=[];
-  for(let h=18; h<=23; h++){ out.push(pad2(h)+":00"); out.push(pad2(h)+":30"); }
+  for(let h=startH; h<=23; h++){ out.push(pad2(h)+":00"); out.push(pad2(h)+":30"); }
   for(let h=0; h<=4; h++){ out.push(pad2(h)+":00"); out.push(pad2(h)+":30"); }
   return out;
 }
@@ -2000,19 +2011,14 @@ async function bkfSubmit(){
     const { data:ins, error } = await SB.from("bookings").insert(row).select("id").single();
     if(error){ bkfMsg(error.message); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
-    // уведомление в Telegram-группу о новой заявке (ДИАГНОСТИКА: показываем результат на экране)
+    // уведомление в Telegram-группу о новой заявке (не критично — не блокируем гостя)
     if(ins && ins.id){
       fetch(`${SB_URL}/functions/v1/smooth-processor`,{
         method:"POST",
         headers:{"Content-Type":"application/json","apikey":SB_ANON,
                  "Authorization":"Bearer "+SB_ANON},
-        body:JSON.stringify({booking_id:ins.id, event:"new"})
-      })
-      .then(r=>r.json())
-      .then(d=>{ alert("Уведомление отправлено. Ответ: "+JSON.stringify(d)); })
-      .catch(e=>{ alert("ОШИБКА уведомления: "+String(e.message||e)); });
-    }else{
-      alert("ins пустой — заявка без id, уведомление не вызвано");
+        body:JSON.stringify({booking_id:ins.id, event:"request"})
+      }).catch(()=>{});
     }
 
     BKF_FORM_OPEN = false;   // заявка отправлена — форма закрыта, можно следить за новой
