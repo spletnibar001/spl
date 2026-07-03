@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -3966,7 +3967,7 @@ function bkOpenRequests(){
       if(cmm){ gComment = cmm[1].trim(); note = noteFull.slice(0, cmm.index).replace(/[·•\s]+$/,"").trim(); }
       return `<div class="bk-req" data-rid="${r.id}">
         <div class="bk-req-top">
-          <div class="bk-req-when">${venue} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}</div>
+          <div class="bk-req-when">${venue}${r.zone_title?(" · "+r.zone_title):""} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}</div>
           <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):""}</div>
         </div>
         <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
