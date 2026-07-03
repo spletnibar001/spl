@@ -2000,7 +2000,7 @@ async function bkfSubmit(){
     const { data:ins, error } = await SB.from("bookings").insert(row).select("id").single();
     if(error){ bkfMsg(error.message); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
-    // уведомление в Telegram-группу о новой заявке (не критично — не блокируем гостя)
+    // уведомление в Telegram-группу о новой заявке (ДИАГНОСТИКА: показываем результат на экране)
     if(ins && ins.id){
       fetch(`${SB_URL}/functions/v1/smooth-processor`,{
         method:"POST",
@@ -2009,8 +2009,10 @@ async function bkfSubmit(){
         body:JSON.stringify({booking_id:ins.id, event:"new"})
       })
       .then(r=>r.json())
-      .then(d=>{ console.log("notify:", d); })
-      .catch(e=>{ console.log("notify error:", e); });
+      .then(d=>{ alert("Уведомление отправлено. Ответ: "+JSON.stringify(d)); })
+      .catch(e=>{ alert("ОШИБКА уведомления: "+String(e.message||e)); });
+    }else{
+      alert("ins пустой — заявка без id, уведомление не вызвано");
     }
 
     BKF_FORM_OPEN = false;   // заявка отправлена — форма закрыта, можно следить за новой
