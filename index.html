@@ -4081,6 +4081,7 @@ async function bkConfirmRequest(rid){
       seated_by_name: ME.name   // фиксируем, кто подтвердил (поле seated_by_name используем как «обработал»)
     }).eq("id", rid);
     if(error){ document.getElementById("bk-req-msg").textContent=error.message; this.disabled=false; this.textContent="Подтвердить бронь"; return; }
+    bkNotify(rid, "request_confirmed");
     bkCloseModal();
     await bkLoadAndRender();
   };
@@ -4121,6 +4122,7 @@ function bkRejectRequest(rid){
     if(reason) upd.cancel_reason = reason;
     const {error} = await sb.from("bookings").update(upd).eq("id", rid);
     if(error){ document.getElementById("bk-rej-msg").textContent=error.message; this.disabled=false; this.textContent="Отклонить"; return; }
+    bkNotify(rid, "request_rejected", {reason: reason});
     await bkLoadAndRender();
     bkOpenRequests();
   };
@@ -4435,14 +4437,14 @@ function bkMsg(t,ok){ const m=document.getElementById("bkm-msg"); if(m){ m.textC
 
 // СОЗДАНИЕ брони
 // уведомление в Telegram-группу (keepalive — чтобы запрос не оборвался при закрытии модалки)
-async function bkNotify(bookingId, event){
+async function bkNotify(bookingId, event, extra){
   try{
     await fetch(`${SUPABASE_URL}/functions/v1/smooth-processor`,{
       method:"POST",
       keepalive:true,
       headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
                "Authorization":"Bearer "+SUPABASE_ANON_KEY},
-      body:JSON.stringify({booking_id:bookingId, event})
+      body:JSON.stringify(Object.assign({booking_id:bookingId, event}, extra||{}))
     });
   }catch(_){ /* тихо игнорируем — уведомление не критично для брони */ }
 }
