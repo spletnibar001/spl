@@ -3587,7 +3587,7 @@ function bkTableCell(t, weekend){
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const depTxt = b.deposit_amount>0 ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
-    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
+    inner += `<div class="g">${b.guest_name||b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
   }else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   }else{
@@ -3674,7 +3674,7 @@ function bkSchemaCell(code, style, opts){
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const depTxt = b.deposit_amount>0 ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
-    inner += `<div class="g">${b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
+    inner += `<div class="g">${b.guest_name||b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
   } else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   } else if(opts.showDep!==false){
@@ -3799,7 +3799,7 @@ function bkUpcomingList(){
     const tm=b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"";
     rows += `<div class="bk-up-row" data-d="${b.business_date}">
       <span class="u-tbl">${b.table_name}<span class="u-zone">${b.zone_title||""}</span></span>
-      <span class="u-name">${b.display_name||"—"}</span>
+      <span class="u-name">${b.guest_name||b.display_name||"—"}</span>
       <span class="u-time">${seated?"сели":("~"+tm)}</span></div>`;
   });
   return `<div class="bk-blist"><div class="bk-bl-head">Все брони вперёд <span>${list.length}</span></div>
@@ -3844,7 +3844,7 @@ function bkBookingList(title){
       : "";
     return `<div class="bk-brow ${finished?"b-finished":(seated?"b-seated":"b-booked")}">
       <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-zone">${b.zone_title||""}</div><div class="t-time">${when}</div></div>
-      <div class="bk-bmain"><div class="bl-name">${b.display_name||"—"} ${vc}</div>
+      <div class="bk-bmain"><div class="bl-name">${b.guest_name||b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         ${author}
         <div class="bk-bpay">${dep} ${pay}</div></div>
@@ -4165,7 +4165,7 @@ function bkModalEdit(){
   const dep = b.deposit_amount||0;
   const dval = b.business_date || bkIso(BK.date);
   const tval = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "22:00";
-  const name = (b.display_name||b.guest_name||"").replace(/"/g,"&quot;");
+  const name = (b.guest_name||b.display_name||"").replace(/"/g,"&quot;");
   const phone = b.display_phone||b.phone||"";
   return `
     <div class="bkm-row">
@@ -4246,7 +4246,7 @@ function bkModalExisting(){
     : `<div class="bkm-dep"><span class="lbl">Депозит ${b.is_paid?"· оплачен":""}</span><span class="val" style="${b.is_paid?'color:var(--emerald)':''}">${dep>0?bkFmtMoney(dep):"—"}</span></div>`;
   return `
     <div class="bkm-field"><label>Гость</label>
-      <div style="font-size:16px;font-weight:700">${b.display_name||"—"} <span style="font-size:12px;color:var(--blue,#4ea6e2);font-weight:400">${vc}</span></div>
+      <div style="font-size:16px;font-weight:700">${b.guest_name||b.display_name||"—"} <span style="font-size:12px;color:var(--blue,#4ea6e2);font-weight:400">${vc}</span></div>
       <div style="font-size:13px;color:var(--muted);margin-top:3px">${b.display_phone?bkFmtPhone(b.display_phone):"телефон не указан"}</div></div>
     <div class="bkm-row">
       <div class="bkm-field"><label>Время</label><div style="font-size:15px;font-weight:700;padding-top:4px">${b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"—"}</div></div>
@@ -4595,7 +4595,7 @@ async function bkActionSaveEdit(){
     if(occ && occ.id !== b.id){
       // целевой стол занят — предложить пересадку (своп)
       const tNew = BK.data.tables.find(x=>x.id===newTableId);
-      const whoOcc = occ.display_name || occ.guest_name || "гости";
+      const whoOcc = occ.guest_name || occ.display_name || "гости";
       if(!confirm(`Стол ${tNew?tNew.name:""} уже занят (${whoOcc}). Поменять брони местами (пересадить гостей)?`)){
         return; // отказались — ничего не меняем
       }
