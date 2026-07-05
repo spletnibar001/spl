@@ -362,6 +362,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .vtoggle:active{background:var(--panel)}
 #bk-venue-tabs button,#bk-view-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 #bk-venue-tabs button.active,#bk-view-tabs button.active{background:var(--emerald);color:#0c1410}
+#bk-src-btn{border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:7px 14px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer}
 #bk-reqs-btn{border:1px solid var(--gold);background:rgba(217,176,76,.12);color:var(--gold);padding:7px 14px;
   font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-radius:9px;display:inline-flex;align-items:center;gap:7px}
 .bk-reqs-badge{background:var(--gold);color:#0c1410;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;min-width:18px;text-align:center}
@@ -594,6 +595,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
           <button id="bk-view-schema">Схема</button>
         </div>
         <button id="bk-reqs-btn" style="display:none">Заявки <span id="bk-reqs-badge" class="bk-reqs-badge">0</span></button>
+        <button id="bk-src-btn" style="display:none">📊 Источники</button>
       </div>
     </div>
     <div class="bk-datecard">
@@ -3215,6 +3217,11 @@ function bkInit(){
   document.getElementById("bk-view-schema").onclick = function(){ BK.view="schema"; bkRenderVenueTabs(); bkRender(); };
   var reqBtn=document.getElementById("bk-reqs-btn");
   if(reqBtn) reqBtn.onclick = async function(){ await bkReloadRequests(); bkOpenRequests(); };
+  var srcBtn=document.getElementById("bk-src-btn");
+  if(srcBtn){
+    if(["admin","upr","dir"].includes(ME.role)) srcBtn.style.display="";
+    srcBtn.onclick = ()=>bkOpenSrcStats();
+  }
   // глобальная привязка закрытия модалки (работает для любого содержимого: брони, заявки)
   var modalX=document.getElementById("bkm-close");
   if(modalX) modalX.onclick = bkCloseModal;
@@ -3947,6 +3954,88 @@ function bkUpdateReqsButton(){
   if(badge){ badge.textContent=n; badge.classList.toggle("zero", n===0); }
 }
 
+// ===== СТАТИСТИКА «ОТКУДА УЗНАЛИ О НАС» (админ) =====
+let BK_SRC_ROWS = null, BK_SRC_PERIOD = "this";
+async function bkOpenSrcStats(){
+  document.getElementById("bkm-title").textContent = "Откуда узнали о нас";
+  document.getElementById("bkm-sub").textContent = "загрузка…";
+  document.getElementById("bkm-body").innerHTML = "";
+  document.getElementById("bk-modal").classList.add("open");
+  bkCurrentTable = null; bkCurrentBooking = null;
+  await ensureToken();
+  const {data, error} = await sb.from("bookings")
+    .select("heard_from,guests_count,business_date,table_id")
+    .not("heard_from","is",null);
+  if(error){ document.getElementById("bkm-sub").textContent = error.message; return; }
+  BK_SRC_ROWS = data||[];
+  bkRenderSrcStats();
+}
+function bkSrcVenueKey(tableId){
+  const t = (BK.data.tables||[]).find(x=>x.id===tableId);
+  const z = t ? (BK.data.zones||[]).find(x=>x.id===t.zone_id) : null;
+  const v = z ? (BK.data.venues||[]).find(x=>x.id===z.venue_id) : null;
+  return v ? v.key : null;
+}
+function bkSrcRange(period){
+  const now = bkToday();
+  const y = now.getFullYear(), m = now.getMonth();
+  const p2 = n=>String(n).padStart(2,"0");
+  if(period==="this") return [`${y}-${p2(m+1)}-01`, null];
+  if(period==="last"){
+    const d = new Date(y, m-1, 1);
+    return [`${d.getFullYear()}-${p2(d.getMonth()+1)}-01`, `${y}-${p2(m+1)}-01`];
+  }
+  return [null, null];
+}
+function bkRenderSrcStats(){
+  const [from,to] = bkSrcRange(BK_SRC_PERIOD);
+  const rows = (BK_SRC_ROWS||[]).filter(r=>{
+    if(from && r.business_date < from) return false;
+    if(to && r.business_date >= to) return false;
+    return true;
+  });
+  const agg = {}; let totB=0, totG=0;
+  rows.forEach(r=>{
+    const src = r.heard_from || "—";
+    const vk = bkSrcVenueKey(r.table_id);
+    if(!agg[src]) agg[src] = {kb:0,kg:0,cb:0,cg:0};
+    const g = Number(r.guests_count||0);
+    if(vk==="club"){ agg[src].cb++; agg[src].cg+=g; } else { agg[src].kb++; agg[src].kg+=g; }
+    totB++; totG+=g;
+  });
+  const list = Object.entries(agg).sort((a,b)=>(b[1].kb+b[1].cb)-(a[1].kb+a[1].cb));
+  const perBtn = (key,label)=>`<button type="button" data-p="${key}" class="${BK_SRC_PERIOD===key?'on':''}">${label}</button>`;
+  const cell = 'padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px';
+  let html = `<div class="bkm-src" id="bk-src-period" style="margin-bottom:12px">
+    ${perBtn("this","Этот месяц")}${perBtn("last","Прошлый месяц")}${perBtn("all","Всё время")}</div>`;
+  if(!list.length){
+    html += `<div class="bkm-msg">Пока нет данных за период. Источник отмечается в карточке брони при посадке гостей.</div>`;
+  } else {
+    html += `<table style="width:100%;border-collapse:collapse">
+      <tr>
+        <th style="${cell};text-align:left;color:var(--muted);font-weight:700">Источник</th>
+        <th style="${cell};text-align:right;color:var(--muted);font-weight:700">Караоке</th>
+        <th style="${cell};text-align:right;color:var(--muted);font-weight:700">Клуб</th>
+        <th style="${cell};text-align:right;color:var(--muted);font-weight:700">Всего</th>
+      </tr>`;
+    list.forEach(([src,a])=>{
+      html += `<tr>
+        <td style="${cell};font-weight:700">${src}</td>
+        <td style="${cell};text-align:right">${a.kb||"—"}${a.kg?`<span style="color:var(--muted);font-size:11px"> · ${a.kg} чел</span>`:""}</td>
+        <td style="${cell};text-align:right">${a.cb||"—"}${a.cg?`<span style="color:var(--muted);font-size:11px"> · ${a.cg} чел</span>`:""}</td>
+        <td style="${cell};text-align:right;font-weight:700">${a.kb+a.cb}</td>
+      </tr>`;
+    });
+    html += `</table>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)">Всего отмечено: ${totB} броней · ${totG} гостей. Числа — количество броней с отмеченным источником; «чел» — суммарно гостей.</div>`;
+  }
+  document.getElementById("bkm-sub").textContent = BK_SRC_PERIOD==="all" ? "за всё время" : (BK_SRC_PERIOD==="this" ? "текущий месяц" : "прошлый месяц");
+  document.getElementById("bkm-body").innerHTML = html;
+  const pw = document.getElementById("bk-src-period");
+  if(pw) pw.querySelectorAll("button").forEach(btn=>{
+    btn.onclick = ()=>{ BK_SRC_PERIOD = btn.dataset.p; bkRenderSrcStats(); };
+  });
+}
 function bkOpenRequests(){
   const list = BK.data.requests||[];
   const cancels = BK.data.guestCancels||[];
