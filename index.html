@@ -527,6 +527,9 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .bkm-comment{background:rgba(232,201,122,.1);border:1px solid rgba(232,201,122,.45);
   border-radius:9px;padding:10px 12px;font-size:15px;line-height:1.45;color:var(--text);
   white-space:pre-wrap;word-break:break-word}
+.bkm-src{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.bkm-src button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+.bkm-src button.on{background:var(--emerald);border-color:var(--emerald);color:#08130d;font-weight:700}
 .bkm-guestinfo{font-size:12px;font-weight:700;margin-top:5px;min-height:16px}
 .bkm-guestinfo.known{color:var(--blue,#4ea6e2)}.bkm-guestinfo.new{color:var(--muted)}
 .bkm-dep{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:12px}
@@ -4150,6 +4153,8 @@ function bkModalNew(){
       <input id="bkm-guests" type="number" inputmode="numeric" min="1" placeholder="${t.capacity||""}"></div>
     <div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· считается автоматически, можно изменить</span></label>
       <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
+    <div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
+      <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>
     <div class="bkm-msg" id="bkm-msg"></div>
     <div class="bkm-actions">
       <button class="bkm-btn primary" id="bkm-save">Создать бронь</button>
@@ -4252,6 +4257,8 @@ function bkModalExisting(){
       <div class="bkm-field"><label>Гостей</label><div style="font-size:15px;font-weight:700;padding-top:4px">${b.guests_count||"—"}</div></div>
     </div>
     ${depBlock}
+    ${canEdit?`<div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· нажмите вариант — сохранится сразу</span></label>
+      <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>`:""}
     <div class="bkm-msg" id="bkm-msg"></div>
     <div class="bkm-actions">${actions||'<div class="bkm-msg">Только просмотр.</div>'}</div>
     ${log?`<div class="bkm-log">${log}</div>`:""}`;
@@ -4291,6 +4298,27 @@ function bkWireModalForm(editMode){
     if(savedep) savedep.onclick = ()=>bkActionSaveDep();
     const depE=document.getElementById("bkm-dep");
     if(depE) depE.oninput=function(){ const d=this.value.replace(/[^\d]/g,""); this.value=d?fmtNum(d):""; };
+    // «Откуда узнали о нас?» — подсветить сохранённое и писать в базу по тапу
+    const srcW=document.getElementById("bkm-src");
+    if(srcW){
+      const bid = bkCurrentBooking.id;
+      sb.from("bookings").select("heard_from").eq("id",bid).maybeSingle().then(({data})=>{
+        if(data && data.heard_from){
+          const el=srcW.querySelector(`button[data-v="${CSS.escape(data.heard_from)}"]`);
+          if(el){ srcW.querySelectorAll("button").forEach(x=>x.classList.remove("on")); el.classList.add("on"); }
+        }
+      }).catch(()=>{});
+      srcW.querySelectorAll("button").forEach(btn=>{
+        btn.onclick = async ()=>{
+          const wasOn = btn.classList.contains("on");
+          srcW.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+          const val = wasOn ? null : btn.dataset.v;
+          if(!wasOn) btn.classList.add("on");
+          const {error} = await sb.from("bookings").update({heard_from:val}).eq("id",bid);
+          if(error) bkMsg(error.message);
+        };
+      });
+    }
     return;
   }
   // новая бронь
@@ -4299,6 +4327,7 @@ function bkWireModalForm(editMode){
   if(!phone) return;
   // защита от автозаполнения десктопного Telegram/браузера — очищаем поле
   phone.value="";
+  bkSrcWireLocal();
   setTimeout(function(){ if(phone && phone.value && phone.value.replace(/[^\d]/g,"")==="998") phone.value=""; }, 50);
   let lookupTimer=null;
   phone.oninput = ()=>{
@@ -4328,6 +4357,27 @@ function bkWireModalForm(editMode){
 // нормализация телефона с автоподстановкой кода Узбекистана (+998)
 // Примеры: "90 123 45 67" -> +998901234567 ; "998901234567" -> +998901234567 ;
 //          "8901234567" -> +998901234567 ; уже "+998..." остаётся как есть
+// «Откуда узнали о нас?» — варианты для статистики
+const BK_SOURCES = ["Instagram","Telegram","Друзья/знакомые","Яндекс","Google","Проходили мимо","Уже были у нас","Другое"];
+function bkSrcChips(cur){
+  return BK_SOURCES.map(v=>`<button type="button" data-v="${v}" class="${cur===v?'on':''}">${v}</button>`).join("");
+}
+function bkSrcSelected(){
+  const el = document.querySelector("#bkm-src button.on");
+  return el ? el.dataset.v : null;
+}
+// локальный переключатель чипов (без записи в базу)
+function bkSrcWireLocal(){
+  const w = document.getElementById("bkm-src");
+  if(!w) return;
+  w.querySelectorAll("button").forEach(btn=>{
+    btn.onclick = ()=>{
+      const wasOn = btn.classList.contains("on");
+      w.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      if(!wasOn) btn.classList.add("on");
+    };
+  });
+}
 function bkNormPhone(raw){
   if(!raw) return null;
   let d = String(raw).replace(/[^\d]/g,"");
@@ -4491,6 +4541,7 @@ async function bkActionCreate(){
     const {data:newB, error} = await sb.from("bookings").insert({
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
+      heard_from: bkSrcSelected(),
       deposit_amount:dep, is_paid:false, status:"booked",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
     }).select("id").single();
@@ -4550,6 +4601,7 @@ async function bkActionWalkin(){
     const {data:newB, error} = await sb.from("bookings").insert({
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:nowIso, guests_count:guests, phone:phoneNorm, guest_name:name||null,
+      heard_from: bkSrcSelected(),
       deposit_amount:dep, is_paid:false, status:"seated",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name,
       seated_by_name: ME.name, seated_at: nowIso
