@@ -4850,6 +4850,7 @@ async function bkActionCancel(){
   bkMsg("…",true);
   const {error}=await sb.from("bookings").update({status:"cancelled", cancelled_by_name:ME.name, cancelled_at:new Date().toISOString()}).eq("id",b.id);
   if(error){ bkMsg(error.message); return; }
+  bkNotify(b.id, "staff_cancel");
   await bkRefreshBookings(); bkCloseModal();
 }
 
