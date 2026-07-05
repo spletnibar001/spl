@@ -4556,7 +4556,7 @@ async function bkActionWalkin(){
     }).select("id").single();
     if(error){ bkMsg(error.message); if(btn) btn.disabled=false; return; }
     bkMsg("Гости посажены", true);
-    if(newB&&newB.id) await bkNotify(newB.id, "seated");
+    if(newB&&newB.id) await bkNotify(newB.id, "seated_walkin");
     BK.date = bkToday();
     await bkRefreshBookings();
     bkCloseModal();
