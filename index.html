@@ -4242,6 +4242,8 @@ function bkModalNew(){
       <input id="bkm-guests" type="number" inputmode="numeric" min="1" placeholder="${t.capacity||""}"></div>
     <div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· считается автоматически, можно изменить</span></label>
       <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
+    <div class="bkm-field"><label>Комментарий <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
+      <textarea id="bkm-note" class="bkm-textarea" rows="2" placeholder="Пожелания гостя, повод, детали…"></textarea></div>
     <div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
       <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>
     <div class="bkm-msg" id="bkm-msg"></div>
@@ -4277,6 +4279,8 @@ function bkModalEdit(){
       <select id="bkm-table">${bkTableOptions(b)}</select></div>
     <div class="bkm-field"><label>Депозит, сум</label>
       <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
+    <div class="bkm-field"><label>Комментарий</label>
+      <textarea id="bkm-note" class="bkm-textarea" rows="2" placeholder="Пожелания гостя, повод, детали…">${(b.note&&!/Заявка с сайта/.test(b.note)?b.note:"").replace(/</g,"&lt;")}</textarea></div>
     <div class="bkm-msg" id="bkm-msg"></div>
     <div class="bkm-actions">
       <button class="bkm-btn primary" id="bkm-saveedit">Сохранить изменения</button>
@@ -4337,10 +4341,15 @@ function bkModalExisting(){
            <button class="bkm-btn secondary" id="bkm-savedep" style="padding:11px 14px;font-size:13px">Сохранить</button>
          </div></div>`
     : `<div class="bkm-dep"><span class="lbl">Депозит ${b.is_paid?"· оплачен":""}</span><span class="val" style="${b.is_paid?'color:var(--emerald)':''}">${dep>0?bkFmtMoney(dep):"—"}</span></div>`;
+  // комментарий: у заявки с сайта — часть после "Коммент:", у брони персонала — весь note
+  const noteRawE = String(b.note||"");
+  const cmE = noteRawE.match(/Коммент:\s*([\s\S]*)$/i);
+  const commentE = (cmE ? cmE[1].trim() : (/Заявка с сайта/.test(noteRawE) ? "" : noteRawE.trim())).replace(/</g,"&lt;");
   return `
     <div class="bkm-field"><label>Гость</label>
       <div style="font-size:16px;font-weight:700">${b.guest_name||b.display_name||"—"} <span style="font-size:12px;color:var(--blue,#4ea6e2);font-weight:400">${vc}</span></div>
       <div style="font-size:13px;color:var(--muted);margin-top:3px">${b.display_phone?bkFmtPhone(b.display_phone):"телефон не указан"}</div></div>
+    ${commentE?`<div class="bkm-field"><label>Комментарий</label><div class="bkm-comment">${commentE}</div></div>`:""}
     <div class="bkm-row">
       <div class="bkm-field"><label>Время</label><div style="font-size:15px;font-weight:700;padding-top:4px">${b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"—"}</div></div>
       <div class="bkm-field"><label>Гостей</label><div style="font-size:15px;font-weight:700;padding-top:4px">${b.guests_count||"—"}</div></div>
@@ -4631,6 +4640,7 @@ async function bkActionCreate(){
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
       heard_from: bkSrcSelected(),
+      note: (document.getElementById("bkm-note")&&document.getElementById("bkm-note").value.trim())||null,
       deposit_amount:dep, is_paid:false, status:"booked",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
     }).select("id").single();
@@ -4691,6 +4701,7 @@ async function bkActionWalkin(){
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:nowIso, guests_count:guests, phone:phoneNorm, guest_name:name||null,
       heard_from: bkSrcSelected(),
+      note: (document.getElementById("bkm-note")&&document.getElementById("bkm-note").value.trim())||null,
       deposit_amount:dep, is_paid:false, status:"seated",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name,
       seated_by_name: ME.name, seated_at: nowIso
@@ -4751,6 +4762,13 @@ async function bkActionSaveEdit(){
     business_date: bkIso(bizDate),
     deposit_amount: dep,
     table_id: newTableId,
+    ...(function(){
+      const el = document.getElementById("bkm-note");
+      if(!el) return {};
+      const cur = bkCurrentBooking && bkCurrentBooking.note;
+      if(cur && /Заявка с сайта/.test(cur)) return {}; // служебный note заявки с сайта не перезаписываем
+      return { note: el.value.trim() || null };
+    })(),
     edited_by: (ME.tg_id||ME.telegram_id||null),
     edited_by_name: ME.name,
     edited_at: new Date().toISOString()
