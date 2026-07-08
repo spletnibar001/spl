@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -4469,7 +4468,7 @@ function bkWireModalForm(editMode){
 // Примеры: "90 123 45 67" -> +998901234567 ; "998901234567" -> +998901234567 ;
 //          "8901234567" -> +998901234567 ; уже "+998..." остаётся как есть
 // «Откуда узнали о нас?» — варианты для статистики
-const BK_SOURCES = ["Instagram","Telegram","Друзья/знакомые","Яндекс","Google","Проходили мимо","Уже были у нас","Другое"];
+const BK_SOURCES = ["Instagram","Telegram","Друзья/знакомые","Яндекс","Google","2GIS","Проходили мимо","Уже были у нас","Другое"];
 function bkSrcChips(cur){
   return BK_SOURCES.map(v=>`<button type="button" data-v="${v}" class="${cur===v?'on':''}">${v}</button>`).join("");
 }
