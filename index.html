@@ -1130,25 +1130,38 @@ async function authorize(){
 }
 
 /* ================= загрузка данных ================= */
+// Supabase отдаёт максимум 1000 строк за запрос — забираем всё пачками.
+// Без этого при росте таблиц (смены, отметки прихода…) свежие строки
+// молча обрезаются: ячейки выглядят пустыми, а вставка бьётся о duplicate key.
+async function sbAll(table){
+  const out = [];
+  for(let ofs = 0; ; ofs += 1000){
+    const {data, error} = await sb.from(table).select("*").range(ofs, ofs + 999);
+    if(error) return {data: out, error};
+    out.push(...(data || []));
+    if(!data || data.length < 1000) break;
+  }
+  return {data: out, error: null};
+}
 async function loadAll(){
   const weekKey = iso(viewStart);
   await sb.rpc("ensure_roster",{ws: weekKey});  // копия состава с прошлой недели при первом открытии
   const q = [
-    sb.from("employees").select("*"),
-    sb.from("rosters").select("*"),
-    sb.from("shifts").select("*"),
-    sb.from("approvals").select("*"),
+    sbAll("employees"),
+    sbAll("rosters"),
+    sbAll("shifts"),
+    sbAll("approvals"),
   ];
   if(CAP.money){
-    q.push(sb.from("emp_rates").select("*"));
-    q.push(sb.from("weekly_values").select("*"));
+    q.push(sbAll("emp_rates"));
+    q.push(sbAll("weekly_values"));
   }
   const seePen = CAP.money || CAP.pen;
-  if(seePen) q.push(sb.from("penalties").select("*"));
+  if(seePen) q.push(sbAll("penalties"));
   const seeBon = CAP.money || CAP.bonus;
-  if(seeBon) q.push(sb.from("bonuses").select("*"));
-  q.push(sb.from("checkins").select("*"));  // отметки прихода (RLS отдаёт по зоне)
-  if(CAP.money) q.push(sb.from("payouts").select("*"));  // отметки выплаты ЗП
+  if(seeBon) q.push(sbAll("bonuses"));
+  q.push(sbAll("checkins"));  // отметки прихода (RLS отдаёт по зоне)
+  if(CAP.money) q.push(sbAll("payouts"));  // отметки выплаты ЗП
   const res = await Promise.all(q);
   for(const r of res) if(r.error) { showMsg(r.error.message); }
   [employees, rosterRows, shiftRows, approvals] = res.slice(0,4).map(r=>r.data||[]);
@@ -2059,15 +2072,15 @@ async function loadStaff(){
   const weekKey = iso(viewStart);
   // staff читает только свои строки (RLS), поэтому select * безопасен
   const [emp, ros, shf, rt, wv, pen, bon, chk, appr] = await Promise.all([
-    sb.from("employees").select("*"),
-    sb.from("rosters").select("*"),
-    sb.from("shifts").select("*"),
-    sb.from("emp_rates").select("*"),
-    sb.from("weekly_values").select("*"),
-    sb.from("penalties").select("*"),
-    sb.from("bonuses").select("*"),
-    sb.from("checkins").select("*"),
-    sb.from("approvals").select("*"),
+    sbAll("employees"),
+    sbAll("rosters"),
+    sbAll("shifts"),
+    sbAll("emp_rates"),
+    sbAll("weekly_values"),
+    sbAll("penalties"),
+    sbAll("bonuses"),
+    sbAll("checkins"),
+    sbAll("approvals"),
   ]);
   employees = emp.data||[]; rosterRows = ros.data||[]; shiftRows = shf.data||[];
   rates = rt.data||[]; wvRows = wv.data||[]; penRows = pen.data||[]; bonRows = bon.data||[];
