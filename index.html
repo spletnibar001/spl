@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -558,6 +559,30 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 #bk-upcoming .u-name{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #bk-upcoming .u-time{font-size:12px;color:var(--muted);font-weight:700;flex-shrink:0}
 
+
+  /* ===== МОДУЛЬ БАР-КОНТРОЛЯ ===== */
+  #bar-fab{position:fixed;right:14px;bottom:14px;z-index:70;background:var(--emerald);color:#0c1410;
+    border:none;border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  #bar-screen{position:fixed;inset:0;z-index:80;background:var(--bg,#10141a);overflow-y:auto;display:none;padding:14px}
+  #bar-screen .brx-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  #bar-screen h2{margin:0;font-size:18px}
+  .brx-close{background:none;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:7px 14px}
+  .brx-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:9px}
+  .brx-card.bad{border-color:#7a3b35;background:rgba(190,70,60,.12)}
+  .brx-row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .brx-nm{font-weight:700;font-size:14.5px}.brx-sub{font-size:12px;color:var(--muted)}
+  .brx-io{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .brx-io input{background:var(--bg,#10141a);border:1px solid var(--line);border-radius:9px;color:var(--text);
+    font-size:16px;padding:8px 10px;width:96px;text-align:right}
+  .brx-lit{font-weight:800;min-width:60px}.brx-was{font-size:12px;color:var(--muted);margin-left:auto}
+  .brx-verdict{display:flex;justify-content:space-between;font-size:12px;margin-top:7px}
+  .brx-ok{color:var(--emerald)}.brx-bad{color:#e8635a;font-weight:700}
+  .brx-btn{width:100%;padding:13px;font-size:15px;font-weight:800;border:none;border-radius:11px;
+    background:var(--emerald);color:#0c1410;margin-top:10px}
+  .brx-btn.sec{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .brx-btn:disabled{opacity:.45}
+  .brx-cnt button{width:40px;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--panel2,#1a2029);color:var(--text);font-size:20px}
+  .brx-calib{font-size:12px;color:#e8a33d;background:none;border:1px dashed #7a6023;border-radius:8px;padding:4px 10px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -648,6 +673,9 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 
   <!-- ЛИЧНЫЙ КАБИНЕТ СОТРУДНИКА (staff) -->
   <div id="staff-cabinet" style="display:none"></div>
+
+  <!-- МОДУЛЬ БАР-КОНТРОЛЯ: полноэкранная панель -->
+  <div id="bar-screen"></div>
 
   <div class="card full-only" id="card-add">
     <h2>Добавить сотрудника в график недели <span id="form-week" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
@@ -2320,6 +2348,15 @@ function scToggle(which){
 }
 async function staffCheckin(ds, empId){
   const id = empId || (employees[0] && employees[0].id); if(!id) return;
+  // бар-контроль: бармен не отмечается, пока по его бару нет открывающего замера
+  try{
+    const g = await barApi("checkin_gate", {});
+    if(g && g.allowed === false){
+      alert(g.inProgressBy ? "Замер бара уже ведёт коллега — отметка откроется после подписания пересменки."
+        : "Сначала проведите пересменку бара — отметка прихода откроется после подписания замера.");
+      barOpen(); return;
+    }
+  }catch(_){ /* если bar-api недоступен — не блокируем отметку */ }
   if(!confirm("Отметить, что вы на смене сегодня?")) return;
   let res;
   try{
@@ -2967,6 +3004,7 @@ async function startApp(){
   // умолчание режима: денежные роли — полный, остальные — только график
   compactView = !CAP.money;
   applyViewMode();
+  initBarModule().catch(()=>{});
   if(CAP.notify || CAP.msg) initNotify();
   if(!CAP.archive && CAP.scope) { /* база видна в своей зоне, без кнопок удаления */ }
   viewStart = payWeekStart(businessNow());
@@ -4881,6 +4919,244 @@ async function bkRefreshBookings(){
 }
 
 authorize();
+
+/* ================= МОДУЛЬ БАР-КОНТРОЛЯ (пересменки) ================= */
+let BAR = { st:null, shift:null, prods:[], prev:{}, items:{}, loc:null };
+
+async function barApi(action, payload){
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/bar-api`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
+             "Authorization":"Bearer "+ME.token},
+    body:JSON.stringify(Object.assign({action}, payload||{}))
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok && d.error && !["busy","no_shift"].includes(d.error)) throw new Error(d.error);
+  return d;
+}
+function barFmt(n,dig){ return (n==null)?"—":Number(n).toLocaleString("ru-RU",{maximumFractionDigits:dig==null?2:dig}); }
+
+async function initBarModule(){
+  if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;     // планшет хостес — без бара
+  try{ BAR.st = await barApi("state",{}); }catch(_){ return; }
+  const canSee = BAR.st?.me && (BAR.st.me.bartender || ["admin","upr","dir","manager","bar_manager"].includes(BAR.st.me.role));
+  if(!canSee || !(BAR.st.locations||[]).length) return;
+  if(document.getElementById("bar-fab")) return;
+  const b = document.createElement("button");
+  b.id="bar-fab"; b.textContent="🍸 Бар";
+  b.addEventListener("click", barOpen);
+  document.body.appendChild(b);
+}
+
+function barClose(){ const sc=$("bar-screen"); sc.style.display="none"; sc.innerHTML=""; }
+async function barOpen(){
+  try{ BAR.st = await barApi("state",{}); }catch(e){ alert("Бар-модуль недоступен: "+e.message); return; }
+  const sc = $("bar-screen"); sc.style.display="block";
+  barHome();
+}
+
+function barHome(){
+  const st = BAR.st, sc = $("bar-screen");
+  const locs = st.locations||[];
+  let html = `<div class="brx-head"><h2>Бар · пересменка</h2><button class="brx-close" onclick="barClose()">✕</button></div>`;
+  const openDrafts = st.open||[];
+  // черновики, ждущие подписи проверяющего (не мои)
+  const toReview = openDrafts.filter(d=>d.measured_by !== st.me.tg);
+  if(toReview.length){
+    html += `<div class="brx-card"><div class="brx-nm">Ждут подтверждения</div>`;
+    toReview.forEach(d=>{
+      const l = locs.find(x=>x.id===d.location_id);
+      html += `<div class="brx-io"><span class="brx-sub">${l?l.name:"Бар"} · замер №${d.id}</span>
+        <button class="brx-btn sec" style="width:auto;margin:0 0 0 auto;padding:8px 14px" onclick="barReview(${d.id})">Проверить и подписать</button></div>`;
+    });
+    html += `</div>`;
+  }
+  // мой открытый черновик — продолжить
+  const mine = openDrafts.find(d=>d.measured_by === st.me.tg);
+  if(mine){
+    html += `<button class="brx-btn" onclick="barResume(${mine.id},${mine.location_id})">Продолжить замер №${mine.id}</button>`;
+  } else if(st.me.bartender){
+    locs.forEach(l=>{
+      const opened = (st.signedToday||[]).some(x=>x.location_id===l.id && ["open","handover"].includes(x.kind));
+      html += `<div class="brx-card"><div class="brx-row1"><span class="brx-nm">${l.name}</span>
+        <span class="brx-sub">${opened?"смена открыта":"смена не открыта"}</span></div>
+        <div class="brx-io">`;
+      if(!opened) html += `<button class="brx-btn" style="margin:0" onclick="barStart(${l.id},'open')">Принять бар (открыть)</button>`;
+      else html += `<button class="brx-btn sec" style="margin:0;flex:1" onclick="barStart(${l.id},'handover')">Пересменка</button>
+                    <button class="brx-btn" style="margin:0;flex:1" onclick="barStart(${l.id},'close')">Закрыть бар</button>`;
+      html += `</div></div>`;
+    });
+  }
+  // журнал для руководителей
+  if(["admin","upr","dir","manager","bar_manager"].includes(st.me.role)){
+    html += `<button class="brx-btn sec" onclick="barLog()">Журнал пересменок</button>`;
+  }
+  sc.innerHTML = html;
+}
+
+async function barStart(locId, kind){
+  let d;
+  try{ d = await barApi("shift_start",{location_id:locId, kind}); }
+  catch(e){ alert(e.message); return; }
+  if(d.error==="busy"){ alert("Замер уже ведёт коллега. Отметка откроется после подписания."); return; }
+  BAR.shift = d.shift; BAR.loc = locId;
+  BAR.prods = d.products||[]; BAR.items = {};
+  BAR.prev = {}; (d.prev||[]).forEach(p=>BAR.prev[p.product_id]=p.volume);
+  barRenderMeasure();
+}
+async function barResume(shiftId, locId){ await barStart(locId, "handover"); if(BAR.shift) BAR.shift.id = shiftId; }
+
+function barRenderMeasure(){
+  const sc = $("bar-screen");
+  let html = `<div class="brx-head"><h2>Замер №${BAR.shift.id}</h2><button class="brx-close" onclick="barHome()">← назад</button></div>`;
+  BAR.prods.forEach(p=>{
+    const prev = BAR.prev[p.id];
+    if(p.method==="weight"){
+      html += `<div class="brx-card" id="brx-c${p.id}">
+        <div class="brx-row1"><span class="brx-nm">${p.name}</span><span class="brx-sub">тара ${barFmt(p.tare_g,0)} г${p.tare_source==="default"?" (по умолч.)":""}</span></div>
+        <div class="brx-io">
+          <input type="number" inputmode="decimal" placeholder="брутто, г" oninput="barCalc(${p.id},this.value)">
+          <span class="brx-sub">г →</span><span class="brx-lit" id="brx-l${p.id}">— л</span>
+          <span class="brx-was">${prev!=null?("было "+barFmt(prev)+" л"):"первый замер"}</span>
+        </div>
+        <div class="brx-verdict"><span class="brx-sub" id="brx-u${p.id}"></span><span id="brx-v${p.id}"></span></div>
+        ${p.tare_source==="default"?`<button class="brx-calib" onclick="barCalib(${p.id})">⚖ Калибровать по полной бутылке</button>`:""}
+      </div>`;
+    }else{
+      html += `<div class="brx-card" id="brx-c${p.id}">
+        <div class="brx-row1"><span class="brx-nm">${p.name}</span><span class="brx-sub">счёт, шт</span></div>
+        <div class="brx-io brx-cnt">
+          <button onclick="barBump(${p.id},-1)">−</button>
+          <input type="number" inputmode="numeric" id="brx-i${p.id}" placeholder="0" oninput="barCount(${p.id},this.value)" style="text-align:center;width:80px">
+          <button onclick="barBump(${p.id},1)">+</button>
+          <span class="brx-was">${prev!=null?("было "+barFmt(prev,0)+" шт"):"первый замер"}</span>
+        </div>
+        <div class="brx-verdict"><span class="brx-sub" id="brx-u${p.id}"></span><span id="brx-v${p.id}"></span></div>
+      </div>`;
+    }
+  });
+  html += `<button class="brx-btn" id="brx-done" disabled onclick="barSubmit()">Заполните все позиции</button>`;
+  sc.innerHTML = html; sc.scrollTop = 0;
+}
+
+function barCalc(pid, v){
+  const p = BAR.prods.find(x=>x.id===pid); const g = parseFloat(v);
+  if(isNaN(g)){ delete BAR.items[pid]; barPaint(pid,null); return; }
+  const vol = Math.max(0,(g - p.tare_g)/p.density/1000);
+  BAR.items[pid] = {product_id:pid, gross_weight_g:g};
+  barPaint(pid, vol);
+}
+function barCount(pid, v){
+  const n = parseInt(v);
+  if(isNaN(n)){ delete BAR.items[pid]; barPaint(pid,null); return; }
+  BAR.items[pid] = {product_id:pid, qty_units:Math.max(0,n)};
+  barPaint(pid, Math.max(0,n));
+}
+function barBump(pid, d){
+  const el = $("brx-i"+pid); const n = Math.max(0,(parseInt(el.value)||0)+d);
+  el.value = n; barCount(pid, n);
+}
+function barPaint(pid, vol){
+  const p = BAR.prods.find(x=>x.id===pid);
+  const lit = $("brx-l"+pid); if(lit) lit.textContent = vol==null?"— л":(barFmt(vol)+" л");
+  const u = $("brx-u"+pid), vv = $("brx-v"+pid), card = $("brx-c"+pid);
+  const prev = BAR.prev[pid];
+  if(vol==null || prev==null){ if(u)u.textContent=""; if(vv)vv.textContent=""; card.classList.remove("bad"); }
+  else{
+    const used = prev - vol;
+    if(u) u.textContent = "расход: "+barFmt(used)+(p.method==="weight"?" л":" шт");
+    // локальная подсветка только «невозможного роста»; норму считает сервер при сохранении
+    if(used < -0.01){ card.classList.add("bad"); vv.className="brx-bad"; vv.textContent="⚠ остаток вырос — проверьте"; }
+    else { card.classList.remove("bad"); vv.className="brx-ok"; vv.textContent="✓"; }
+  }
+  const done = Object.keys(BAR.items).length;
+  const btn = $("brx-done");
+  btn.disabled = done < BAR.prods.length;
+  btn.textContent = btn.disabled ? `Заполнено ${done} из ${BAR.prods.length}` : "Сохранить и запросить подпись";
+}
+
+async function barCalib(pid){
+  const v = prompt("Поставьте ПОЛНУЮ запечатанную бутылку на весы и введите вес, г:");
+  if(!v) return;
+  try{
+    const d = await barApi("calibrate",{product_id:pid, full_gross_g:Number(v)});
+    if(d.error){ alert("Вес неправдоподобен, проверьте: тара получилась "+d.tare+" г"); return; }
+    const p = BAR.prods.find(x=>x.id===pid); p.tare_g = d.tare; p.tare_source="calibrated";
+    alert("Тара сохранена: "+d.tare+" г");
+    barRenderMeasure();
+  }catch(e){ alert(e.message); }
+}
+
+async function barSubmit(){
+  const btn = $("brx-done"); btn.disabled = true; btn.textContent = "Сохраняю…";
+  try{
+    const d = await barApi("shift_save",{shift_id:BAR.shift.id, items:Object.values(BAR.items)});
+    const anoms = (d.saved||[]).filter(x=>x.is_anomaly).length;
+    barSignScreen(anoms);
+  }catch(e){ alert(e.message); btn.disabled=false; btn.textContent="Сохранить и запросить подпись"; }
+}
+
+function barSignScreen(anoms){
+  const sc = $("bar-screen");
+  sc.innerHTML = `<div class="brx-head"><h2>Замер сохранён</h2><button class="brx-close" onclick="barClose()">✕</button></div>
+  <div class="brx-card ${anoms?"bad":""}">
+    <div class="brx-nm">${anoms?("⚠ Аномалий: "+anoms):"Аномалий нет ✓"}</div>
+    <div class="brx-sub" style="margin-top:6px">Теперь нужна подпись проверяющего: попросите коллегу на смене
+    (бармена, администратора или менеджера) открыть «Табель» → кнопка «🍸 Бар» → «Проверить и подписать».</div>
+  </div>
+  <button class="brx-btn sec" onclick="barSelfSign()">Проверяющего нет — подписать одному</button>
+  <button class="brx-btn sec" onclick="barClose()">Закрыть (подпишут позже)</button>`;
+}
+async function barSelfSign(){
+  if(!confirm("Замер без проверяющего попадёт в сводку управляющему. Подписать?")) return;
+  try{
+    await barApi("shift_sign",{shift_id:BAR.shift.id, no_reviewer:true});
+    alert("Пересменка подписана (без проверяющего)."); barClose();
+  }catch(e){ alert(e.message); }
+}
+
+async function barReview(shiftId){
+  // проверяющий смотрит строки и подписывает
+  const { data: items } = await sb.from("bar_shift_items")
+    .select("volume, prev_volume, consumed, is_anomaly, bar_products(name, unit)")
+    .eq("shift_id", shiftId);
+  const sc = $("bar-screen");
+  let html = `<div class="brx-head"><h2>Проверка замера №${shiftId}</h2><button class="brx-close" onclick="barHome()">← назад</button></div>`;
+  (items||[]).forEach(it=>{
+    html += `<div class="brx-card ${it.is_anomaly?"bad":""}"><div class="brx-row1">
+      <span class="brx-nm">${it.bar_products?.name||""}</span>
+      <span class="brx-sub">${barFmt(it.volume)} ${it.bar_products?.unit||""}${it.consumed!=null?(" · расход "+barFmt(it.consumed)):""}</span>
+    </div></div>`;
+  });
+  html += `<div class="brx-card"><div class="brx-sub">Подписывая, вы подтверждаете, что замер проведён здесь и сейчас
+   (бутылки реально на весах). Ответственность за остаток — на принявшем бар.</div></div>
+   <button class="brx-btn" onclick="barSign(${shiftId})">Подтверждаю проведение замера</button>`;
+  sc.innerHTML = html;
+}
+async function barSign(shiftId){
+  try{
+    const d = await barApi("shift_sign",{shift_id:shiftId});
+    alert("Подписано ✓"+(d.anomalies?(" · аномалий: "+d.anomalies):""));
+    barOpen();
+  }catch(e){ alert(e.message); }
+}
+
+async function barLog(){
+  const { data: rows } = await sb.from("bar_shifts")
+    .select("id, business_date, kind, status, anomalies, consumed_uzs, measured_by, no_reviewer, bar_locations(name)")
+    .eq("status","signed").order("signed_at",{ascending:false}).limit(30);
+  const sc = $("bar-screen");
+  let html = `<div class="brx-head"><h2>Журнал пересменок</h2><button class="brx-close" onclick="barHome()">← назад</button></div>`;
+  (rows||[]).forEach(r=>{
+    html += `<div class="brx-card ${r.anomalies?"bad":""}"><div class="brx-row1">
+      <span class="brx-nm">${r.bar_locations?.name||""} · ${r.business_date}</span>
+      <span class="brx-sub">${r.anomalies?("⚠ "+r.anomalies):"✓"}${r.no_reviewer?" · без пров.":""}</span></div>
+      <div class="brx-sub">расход ${barFmt(r.consumed_uzs,0)} UZS · ${r.kind==="open"?"открытие":r.kind==="close"?"закрытие":"пересменка"}</div>
+    </div>`;
+  });
+  sc.innerHTML = html;
+}
+
 </script>
 </body>
 </html>
