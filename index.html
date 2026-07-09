@@ -5175,6 +5175,7 @@ async function barWarehouse(){
   const sc = $("bar-screen");
   let html = `<div class="brx-head"><h2>Склад</h2><button class="brx-close" onclick="barHome()">← назад</button></div>`;
   html += `<button class="brx-btn" onclick="barIssue()">📦 Выдать в бар</button>`;
+  html += `<button class="brx-btn sec" onclick="barSupply()">➕ Приход от поставщика</button>`;
   if(WH.empty) html += `<button class="brx-btn sec" onclick="barInitial()">Первичный ввод остатков</button>`;
   // ожидающие подтверждения выдачи
   const pb = {};
@@ -5222,6 +5223,31 @@ async function barInitialSave(){
   if(!confirm(`Записать начальные остатки по ${items.length} позициям? Действие одноразовое.`)) return;
   try{ await barApi("initial_stock",{items}); alert("Склад заведён ✓"); barWarehouse(); }
   catch(e){ alert(e.message==="not_empty"?"Склад уже не пуст — начальный ввод недоступен":e.message); }
+}
+function barSupply(){
+  const sc = $("bar-screen");
+  sc.innerHTML = `<div class="brx-head"><h2>Приход на склад</h2><button class="brx-close" onclick="barWarehouse()">← назад</button></div>
+  <div class="brx-card">
+    <div class="brx-io"><span class="brx-sub" style="width:86px">Поставщик:</span>
+      <input id="brx-sup-name" placeholder="необязательно" style="flex:1;text-align:left"></div>
+    <div class="brx-io"><span class="brx-sub" style="width:86px">№ накладной:</span>
+      <input id="brx-sup-inv" placeholder="необязательно" style="flex:1;text-align:left"></div>
+  </div>
+  <div class="brx-card">${barQtyRows("brx-su")}</div>
+  <button class="brx-btn" onclick="barSupplySave()">Провести приход</button>`;
+  sc.scrollTop = 0;
+}
+async function barSupplySave(){
+  const items = barCollect("brx-su");
+  if(!items.length){ alert("Укажите количество хотя бы по одной позиции"); return; }
+  if(!confirm(`Провести приход по ${items.length} позициям?`)) return;
+  try{
+    const d = await barApi("supply_create",{items,
+      supplier:$("brx-sup-name").value.trim()||null,
+      invoice_no:$("brx-sup-inv").value.trim()||null});
+    alert(`Приход №${d.batch_id} проведён ✓`);
+    barWarehouse();
+  }catch(e){ alert(e.message); }
 }
 function barIssue(){
   const sc = $("bar-screen");
