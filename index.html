@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -4997,8 +4996,20 @@ function barHome(){
       html += `</div>`;
     });
   }
-  // журнал для руководителей
+  // входящие выдачи со склада — бармену на подтверждение
+  const batches = {};
+  (st.pendIn||[]).forEach(r=>{ (batches[r.batch_id]=batches[r.batch_id]||[]).push(r); });
+  Object.keys(batches).forEach(bid=>{
+    const rows = batches[bid];
+    html += `<div class="brx-card"><div class="brx-row1"><span class="brx-nm">📦 Выдача №${bid}</span>
+      <span class="brx-sub">проверьте по факту</span></div>
+      <div class="brx-sub" style="margin-top:6px">${rows.map(r=>`${r.bar_products?.name||r.product_id} — ${r.qty} ${r.bar_products?.unit||"шт"}`).join("<br>")}</div>
+      <button class="brx-btn" onclick="barBatchConfirm(${bid})">Принял — всё сходится</button></div>`;
+  });
+  // журнал и склад для руководителей
   if(["admin","upr","dir","manager","bar_manager"].includes(st.me.role)){
+    if(["admin","upr","bar_manager","dir"].includes(st.me.role))
+      html += `<button class="brx-btn sec" onclick="barWarehouse()">Склад · остатки и выдачи</button>`;
     html += `<button class="brx-btn sec" onclick="barLog()">Журнал пересменок</button>`;
   }
   sc.innerHTML = html;
@@ -5149,6 +5160,88 @@ async function barSign(shiftId){
     const d = await barApi("shift_sign",{shift_id:shiftId});
     alert("Подписано ✓"+(d.anomalies?(" · аномалий: "+d.anomalies):""));
     barOpen();
+  }catch(e){ alert(e.message); }
+}
+
+async function barBatchConfirm(bid){
+  if(!confirm("Подтверждаете получение? Товар пересчитан по факту.")) return;
+  try{ await barApi("batch_confirm",{batch_id:bid}); alert("Принято ✓"); barOpen(); }
+  catch(e){ alert(e.message); }
+}
+
+let WH = null;
+async function barWarehouse(){
+  try{ WH = await barApi("warehouse_state",{}); }catch(e){ alert(e.message); return; }
+  const sc = $("bar-screen");
+  let html = `<div class="brx-head"><h2>Склад</h2><button class="brx-close" onclick="barHome()">← назад</button></div>`;
+  html += `<button class="brx-btn" onclick="barIssue()">📦 Выдать в бар</button>`;
+  if(WH.empty) html += `<button class="brx-btn sec" onclick="barInitial()">Первичный ввод остатков</button>`;
+  // ожидающие подтверждения выдачи
+  const pb = {};
+  (WH.pending||[]).forEach(r=>{ (pb[r.batch_id]=pb[r.batch_id]||[]).push(r); });
+  Object.keys(pb).forEach(bid=>{
+    const loc = (WH.bars||[]).find(b=>b.id===pb[bid][0].to_loc);
+    html += `<div class="brx-card"><div class="brx-row1"><span class="brx-nm">Выдача №${bid} → ${loc?loc.name:""}</span>
+      <span class="brx-sub" style="color:#e8a33d">ждёт бармена</span></div>
+      <div class="brx-sub" style="margin-top:5px">${pb[bid].map(r=>{
+        const p=(WH.products||[]).find(x=>x.id===r.product_id);
+        return `${p?p.name:r.product_id} — ${r.qty}`;}).join(" · ")}</div></div>`;
+  });
+  html += `<div class="brx-card"><div class="brx-nm">Остатки склада</div>`;
+  (WH.balances||[]).forEach(b=>{
+    if(Number(b.qty)===0 && WH.empty) return;
+    html += `<div class="brx-io" style="margin-top:6px"><span class="brx-sub" style="flex:1">${b.name}</span>
+      <span class="brx-lit" style="min-width:auto;${Number(b.qty)<0?"color:#e8635a":""}">${barFmt(b.qty,2)} шт</span></div>`;
+  });
+  html += `</div>`;
+  sc.innerHTML = html; sc.scrollTop = 0;
+}
+function barQtyRows(prefix){
+  let html = "";
+  (WH.products||[]).forEach(p=>{
+    html += `<div class="brx-io"><span class="brx-sub" style="flex:1">${p.name}</span>
+      <input type="number" inputmode="numeric" id="${prefix}${p.id}" placeholder="0" style="width:76px;text-align:center"></div>`;
+  });
+  return html;
+}
+function barCollect(prefix){
+  return (WH.products||[]).map(p=>({product_id:p.id, qty:parseInt($(prefix+p.id)?.value)||0})).filter(i=>i.qty>0);
+}
+function barInitial(){
+  const sc = $("bar-screen");
+  sc.innerHTML = `<div class="brx-head"><h2>Первичный ввод склада</h2><button class="brx-close" onclick="barWarehouse()">← назад</button></div>
+  <div class="brx-card"><div class="brx-sub">Только ЦЕЛЫЕ закрытые бутылки/банки на складе (не бары).
+  Ввод одноразовый — дальше остатки меняются только приходами и выдачами.</div></div>
+  <div class="brx-card">${barQtyRows("brx-in")}</div>
+  <button class="brx-btn" onclick="barInitialSave()">Сохранить начальные остатки</button>`;
+  sc.scrollTop = 0;
+}
+async function barInitialSave(){
+  const items = barCollect("brx-in");
+  if(!items.length){ alert("Введите хотя бы одну позицию"); return; }
+  if(!confirm(`Записать начальные остатки по ${items.length} позициям? Действие одноразовое.`)) return;
+  try{ await barApi("initial_stock",{items}); alert("Склад заведён ✓"); barWarehouse(); }
+  catch(e){ alert(e.message==="not_empty"?"Склад уже не пуст — начальный ввод недоступен":e.message); }
+}
+function barIssue(){
+  const sc = $("bar-screen");
+  let opts = (WH.bars||[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join("");
+  sc.innerHTML = `<div class="brx-head"><h2>Выдача в бар</h2><button class="brx-close" onclick="barWarehouse()">← назад</button></div>
+  <div class="brx-card"><div class="brx-io"><span class="brx-sub">Куда:</span>
+    <select id="brx-issue-to" style="flex:1;background:var(--bg,#10141a);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:9px">${opts}</select>
+  </div></div>
+  <div class="brx-card">${barQtyRows("brx-is")}</div>
+  <button class="brx-btn" onclick="barIssueSave()">Создать выдачу</button>`;
+  sc.scrollTop = 0;
+}
+async function barIssueSave(){
+  const items = barCollect("brx-is");
+  if(!items.length){ alert("Укажите количество хотя бы по одной позиции"); return; }
+  const to = Number($("brx-issue-to").value);
+  try{
+    const d = await barApi("batch_create",{to_loc:to, items});
+    alert(`Выдача №${d.batch_id} создана (${d.count} поз.). Бармен подтвердит получение в приложении.`);
+    barWarehouse();
   }catch(e){ alert(e.message); }
 }
 
