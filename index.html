@@ -5014,9 +5014,21 @@ function barRenderMeasure(){
     if(p.method==="weight"){
       html += `<div class="brx-card" id="brx-c${p.id}">
         <div class="brx-row1"><span class="brx-nm">${p.name}</span><span class="brx-sub">тара ${barFmt(p.tare_g,0)} г${p.tare_source==="default"?" (по умолч.)":""}</span></div>
+        <div class="brx-sub" style="margin-top:6px">Открытые бутылки — все, со всех станций:</div>
+        <div id="brx-w${p.id}">
+          <div class="brx-io"><input type="number" inputmode="decimal" placeholder="брутто, г" oninput="barWCalc(${p.id})"></div>
+        </div>
         <div class="brx-io">
-          <input type="number" inputmode="decimal" placeholder="брутто, г" oninput="barCalc(${p.id},this.value)">
-          <span class="brx-sub">г →</span><span class="brx-lit" id="brx-l${p.id}">— л</span>
+          <button class="brx-calib" style="border-style:solid" onclick="barAddBottle(${p.id})">+ ещё открытая бутылка</button>
+          <span class="brx-sub" style="margin-left:auto">закрытых, шт:</span>
+          <span class="brx-cnt" style="display:flex;gap:6px;align-items:center">
+            <button onclick="barSealed(${p.id},-1)">−</button>
+            <input type="number" inputmode="numeric" id="brx-s${p.id}" value="0" style="width:56px;text-align:center" oninput="barWCalc(${p.id})">
+            <button onclick="barSealed(${p.id},1)">+</button>
+          </span>
+        </div>
+        <div class="brx-io" style="margin-top:6px">
+          <span class="brx-lit" id="brx-l${p.id}">— л</span>
           <span class="brx-was">${prev!=null?("было "+barFmt(prev)+" л"):"первый замер"}</span>
         </div>
         <div class="brx-verdict"><span class="brx-sub" id="brx-u${p.id}"></span><span id="brx-v${p.id}"></span></div>
@@ -5039,12 +5051,29 @@ function barRenderMeasure(){
   sc.innerHTML = html; sc.scrollTop = 0;
 }
 
-function barCalc(pid, v){
-  const p = BAR.prods.find(x=>x.id===pid); const g = parseFloat(v);
-  if(isNaN(g)){ delete BAR.items[pid]; barPaint(pid,null); return; }
-  const vol = Math.max(0,(g - p.tare_g)/p.density/1000);
-  BAR.items[pid] = {product_id:pid, gross_weight_g:g};
-  barPaint(pid, vol);
+function barAddBottle(pid){
+  const box = $("brx-w"+pid);
+  const d = document.createElement("div"); d.className="brx-io";
+  d.innerHTML = `<input type="number" inputmode="decimal" placeholder="брутто, г" oninput="barWCalc(${pid})">
+    <button class="brx-cnt" style="width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--muted)" onclick="this.parentNode.remove();barWCalc(${pid})">✕</button>`;
+  box.appendChild(d);
+  d.querySelector("input").focus();
+}
+function barSealed(pid, d){
+  const el = $("brx-s"+pid); el.value = Math.max(0,(parseInt(el.value)||0)+d); barWCalc(pid);
+}
+function barWCalc(pid){
+  const p = BAR.prods.find(x=>x.id===pid);
+  const ws = [...$("brx-w"+pid).querySelectorAll("input")]
+    .map(i=>parseFloat(i.value)).filter(g=>!isNaN(g)&&g>0);
+  const sealed = Math.max(0, parseInt($("brx-s"+pid).value)||0);
+  if(!ws.length && !sealed){ delete BAR.items[pid]; barPaint(pid,null); return; }
+  const openL = ws.reduce((s,g)=>s+Math.max(0,(g-p.tare_g)/p.density/1000),0);
+  const vol = openL + sealed*(p.bottle_volume_l||0);
+  BAR.items[pid] = {product_id:pid, weights_g:ws, sealed_units:sealed};
+  const lit = $("brx-l"+pid);
+  lit.textContent = barFmt(vol)+" л"+(sealed?` (${barFmt(openL)} откр. + ${sealed} закр.)`:"");
+  barPaint(pid, vol, true);
 }
 function barCount(pid, v){
   const n = parseInt(v);
@@ -5056,9 +5085,9 @@ function barBump(pid, d){
   const el = $("brx-i"+pid); const n = Math.max(0,(parseInt(el.value)||0)+d);
   el.value = n; barCount(pid, n);
 }
-function barPaint(pid, vol){
+function barPaint(pid, vol, keepLit){
   const p = BAR.prods.find(x=>x.id===pid);
-  const lit = $("brx-l"+pid); if(lit) lit.textContent = vol==null?"— л":(barFmt(vol)+" л");
+  const lit = $("brx-l"+pid); if(lit && !keepLit) lit.textContent = vol==null?"— л":(barFmt(vol)+" л");
   const u = $("brx-u"+pid), vv = $("brx-v"+pid), card = $("brx-c"+pid);
   const prev = BAR.prev[pid];
   if(vol==null || prev==null){ if(u)u.textContent=""; if(vv)vv.textContent=""; card.classList.remove("bad"); }
