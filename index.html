@@ -5020,7 +5020,7 @@ function barRenderMeasure(){
           <span class="brx-was">${prev!=null?("было "+barFmt(prev)+" л"):"первый замер"}</span>
         </div>
         <div class="brx-verdict"><span class="brx-sub" id="brx-u${p.id}"></span><span id="brx-v${p.id}"></span></div>
-        ${p.tare_source==="default"?`<button class="brx-calib" onclick="barCalib(${p.id})">⚖ Калибровать по полной бутылке</button>`:""}
+        ${p.tare_source==="default"?`<button class="brx-calib" onclick="barCalib(${p.id})">⚖ Калибровать (полная бутылка + гейзер)</button>`:""}
       </div>`;
     }else{
       html += `<div class="brx-card" id="brx-c${p.id}">
@@ -5076,7 +5076,7 @@ function barPaint(pid, vol){
 }
 
 async function barCalib(pid){
-  const v = prompt("Поставьте ПОЛНУЮ запечатанную бутылку на весы и введите вес, г:");
+  const v = prompt("Наденьте на ПОЛНУЮ бутылку рабочий гейзер (снять крышку), поставьте на весы и введите вес, г:");
   if(!v) return;
   try{
     const d = await barApi("calibrate",{product_id:pid, full_gross_g:Number(v)});
