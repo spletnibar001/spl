@@ -4976,15 +4976,25 @@ function barHome(){
   if(mine){
     html += `<button class="brx-btn" onclick="barResume(${mine.id},${mine.location_id})">Продолжить замер №${mine.id}</button>`;
   } else if(st.me.bartender){
+    const allowed = st.allowed||[];
+    if(!allowed.length){
+      html += `<div class="brx-card"><div class="brx-nm">Вы не в графике сегодня</div>
+        <div class="brx-sub" style="margin-top:5px">Замер доступен барменам, стоящим в сегодняшнем графике.
+        Если вы вышли на замену — обратитесь к менеджеру, он откроет замер.</div></div>`;
+    }
     locs.forEach(l=>{
+      const ok = allowed.includes(l.id);
       const opened = (st.signedToday||[]).some(x=>x.location_id===l.id && ["open","handover"].includes(x.kind));
-      html += `<div class="brx-card"><div class="brx-row1"><span class="brx-nm">${l.name}</span>
-        <span class="brx-sub">${opened?"смена открыта":"смена не открыта"}</span></div>
-        <div class="brx-io">`;
-      if(!opened) html += `<button class="brx-btn" style="margin:0" onclick="barStart(${l.id},'open')">Принять бар (открыть)</button>`;
-      else html += `<button class="brx-btn sec" style="margin:0;flex:1" onclick="barStart(${l.id},'handover')">Пересменка</button>
-                    <button class="brx-btn" style="margin:0;flex:1" onclick="barStart(${l.id},'close')">Закрыть бар</button>`;
-      html += `</div></div>`;
+      html += `<div class="brx-card" style="${ok?"":"opacity:.5"}"><div class="brx-row1"><span class="brx-nm">${l.name}</span>
+        <span class="brx-sub">${ok?(opened?"смена открыта":"смена не открыта"):"не ваш зал сегодня"}</span></div>`;
+      if(ok){
+        html += `<div class="brx-io">`;
+        if(!opened) html += `<button class="brx-btn" style="margin:0" onclick="barStart(${l.id},'open')">Принять бар (открыть)</button>`;
+        else html += `<button class="brx-btn sec" style="margin:0;flex:1" onclick="barStart(${l.id},'handover')">Пересменка</button>
+                      <button class="brx-btn" style="margin:0;flex:1" onclick="barStart(${l.id},'close')">Закрыть бар</button>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
     });
   }
   // журнал для руководителей
@@ -4999,6 +5009,7 @@ async function barStart(locId, kind){
   try{ d = await barApi("shift_start",{location_id:locId, kind}); }
   catch(e){ alert(e.message); return; }
   if(d.error==="busy"){ alert("Замер уже ведёт коллега. Отметка откроется после подписания."); return; }
+  if(d.error==="not_scheduled"){ alert("Этот бар не в вашем сегодняшнем графике. Замер чужого зала может открыть менеджер."); return; }
   BAR.shift = d.shift; BAR.loc = locId;
   BAR.prods = d.products||[]; BAR.items = {};
   BAR.prev = {}; (d.prev||[]).forEach(p=>BAR.prev[p.product_id]=p.volume);
