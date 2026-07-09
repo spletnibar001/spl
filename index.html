@@ -5026,7 +5026,7 @@ async function barStart(locId, kind){
   BAR.prev = {}; (d.prev||[]).forEach(p=>BAR.prev[p.product_id]=p.volume);
   barRenderMeasure();
 }
-async function barResume(shiftId, locId){ await barStart(locId, "handover"); if(BAR.shift) BAR.shift.id = shiftId; }
+async function barResume(shiftId, locId){ await barStart(locId, "handover"); }
 
 function barRenderMeasure(){
   const sc = $("bar-screen");
