@@ -1124,6 +1124,8 @@ const T = {
   bk_st_booked: {ru:"подтверждена ✓", uz:"tasdiqlandi ✓", en:"confirmed ✓", kz:"расталды ✓", kg:"ырасталды ✓", tj:"тасдиқ шуд ✓", cn:"已确认 ✓"},
   bk_st_cancelled: {ru:"отклонена", uz:"rad etildi", en:"declined", kz:"қабылданбады", kg:"четке кагылды", tj:"рад шуд", cn:"已拒绝"},
   bk_confirmed_h: {ru:"Бронь подтверждена!", uz:"Bron tasdiqlandi!", en:"Booking confirmed!", kz:"Брон расталды!", kg:"Бронь ырасталды!", tj:"Брон тасдиқ шуд!", cn:"预订已确认！"},
+  bk_selfcancel_h: {ru:"Бронь отменена", uz:"Bron bekor qilindi", en:"Booking cancelled", kz:"Бронь болдырылмады", kg:"Бронь жокко чыгарылды", tj:"Брон бекор шуд", cn:"预订已取消"},
+  bk_selfcancel_sub: {ru:"Вы отменили эту бронь. Будем рады видеть вас в другой день!", uz:"Siz bu bronni bekor qildingiz. Sizni boshqa kuni kutamiz!", en:"You cancelled this booking. We'd love to see you another day!", kz:"Сіз бұл броньді болдырмадыңыз. Сізді басқа күні күтеміз!", kg:"Сиз бул бронду жокко чыгардыңыз. Башка күнү күтөбүз!", tj:"Шумо ин бронро бекор кардед. Рӯзи дигар мунтазирем!", cn:"您已取消此预订。欢迎改日光临！"},
   bk_declined_h: {ru:"Заявка отклонена", uz:"Ariza rad etildi", en:"Request declined", kz:"Өтінім қабылданбады", kg:"Өтүнмө четке кагылды", tj:"Дархост рад шуд", cn:"申请已被拒绝"},
   bk_lbl_place: {ru:"Место", uz:"Joy", en:"Place", kz:"Орын", kg:"Жай", tj:"Ҷой", cn:"位置"},
   bk_lbl_when: {ru:"Дата и время", uz:"Sana va vaqt", en:"Date & time", kz:"Күні және уақыты", kg:"Күнү жана убактысы", tj:"Сана ва вақт", cn:"日期与时间"},
@@ -1702,11 +1704,12 @@ function bkfStatusCard(b){
         <button class="bk-cancel-own" id="bk-cancel-own" data-bid="${b.id}">${t('bk_cancel_own')}</button>
       </div>`;
   }
-  // отклонена
+  // отклонена / отменена
   if(b.status==="cancelled"){
     const when = bkfFmtDate(b.business_date) + (b.arrive_at?(" · "+bkfFmtTime(b.arrive_at)):"");
     const reason = (b.cancel_reason||"").trim();
-    const reasonBlock = reason
+    const selfCancel = /^Отмена гостем/i.test(reason);
+    const reasonBlock = (reason && !selfCancel)
       ? `<div class="bk-res-reason"><b>${t('bk_lbl_reason')}:</b> ${reason.replace(/</g,"&lt;")}</div>`
       : "";
     // контакты заведения заявки (караоке/клуб) — чтобы гость мог связаться
@@ -1725,8 +1728,8 @@ function bkfStatusCard(b){
     return `
       <div class="bk-res no">
         <button class="bk-res-close" id="bk-res-close" data-bid="${b.id}" aria-label="${t('hb_close')}" title="${t('hb_close')}">✕</button>
-        <div class="bk-res-h">${t('bk_declined_h')}</div>
-        <div class="bk-res-sub">${t('bk_declined_sub')}</div>
+        <div class="bk-res-h">${selfCancel?t('bk_selfcancel_h'):t('bk_declined_h')}</div>
+        <div class="bk-res-sub">${selfCancel?t('bk_selfcancel_sub'):t('bk_declined_sub')}</div>
         <div class="bk-res-grid">
           <div class="bk-res-item"><span class="bk-res-k">${t('bk_lbl_when')}</span><span class="bk-res-v">${when}</span></div>
         </div>
