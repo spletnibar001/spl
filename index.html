@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1159,12 +1160,28 @@ async function authorize(){
 
 /* ================= загрузка данных ================= */
 // Supabase отдаёт максимум 1000 строк за запрос — забираем всё пачками.
-// Без этого при росте таблиц (смены, отметки прихода…) свежие строки
-// молча обрезаются: ячейки выглядят пустыми, а вставка бьётся о duplicate key.
+// ВАЖНО: страницы обязаны идти в стабильном порядке (по уникальному ключу),
+// иначе Postgres может начинать скан с разных мест и строки теряются между
+// страницами. Для каждой таблицы задаём её ключ сортировки.
+const SB_ALL_ORDER = {
+  employees: ["id"],
+  rosters: ["week_start","employee_id"],
+  shifts: ["employee_id","work_date"],
+  approvals: ["week_start"],
+  emp_rates: ["employee_id","from_date"],
+  weekly_values: ["employee_id","week_start"],
+  penalties: ["id"],
+  bonuses: ["id"],
+  checkins: ["employee_id","work_date"],
+  payouts: ["employee_id","week_start","kind"],
+};
 async function sbAll(table){
   const out = [];
+  const ord = SB_ALL_ORDER[table] || ["id"];
   for(let ofs = 0; ; ofs += 1000){
-    const {data, error} = await sb.from(table).select("*").range(ofs, ofs + 999);
+    let q = sb.from(table).select("*");
+    ord.forEach(c=>{ q = q.order(c, {ascending:true}); });
+    const {data, error} = await q.range(ofs, ofs + 999);
     if(error) return {data: out, error};
     out.push(...(data || []));
     if(!data || data.length < 1000) break;
