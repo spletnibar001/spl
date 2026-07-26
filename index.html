@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -2144,13 +2145,13 @@ async function renderMyCabinetForManager(){
   box.innerHTML = `<div class="card"><div class="hint">Загружаю вашу смену…</div></div>`;
   const tg = Number(ME.tg_id || ME.telegram_id || 0);
   const [emp, shf, rt, wv, pen, bon, chk] = await Promise.all([
-    sb.from("employees").select("*"),
-    sb.from("shifts").select("*"),
-    sb.from("emp_rates").select("*"),
-    sb.from("weekly_values").select("*"),
-    sb.from("penalties").select("*"),
-    sb.from("bonuses").select("*"),
-    sb.from("checkins").select("*"),
+    sbAll("employees"),
+    sbAll("shifts"),
+    sbAll("emp_rates"),
+    sbAll("weekly_values"),
+    sbAll("penalties"),
+    sbAll("bonuses"),
+    sbAll("checkins"),
   ]);
   // мои карточки — из управленческого списка, иначе из самозапроса
   let cards = (employees||[]).filter(e=>Number(e.telegram_id)===tg && !e.archived);
