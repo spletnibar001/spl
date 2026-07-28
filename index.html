@@ -1622,6 +1622,27 @@ async function archiveEmployee(id, undo){
   if(!undo && !confirm(`Удалить ${e.name} из базы? Во всех неделях, где сотрудник уже стоит, он останется.`)) return;
   const {error} = await sb.from("employees").update({archived:!undo}).eq("id",id);
   if(error) showMsg(error.message);
+  // доступ в программу (белый список app_users) — только для админа
+  const tgid = Number(e.telegram_id||0);
+  if(ME.role==="admin" && tgid){
+    if(!undo){
+      // проверяем, что этот Telegram ID не привязан к другой активной карточке (как у Наты)
+      const others = employees.filter(x=>x.id!==id && !x.archived && Number(x.telegram_id)===tgid);
+      if(others.length){
+        showMsg(`Вход не закрыт: этот Telegram привязан ещё к карточке «${others[0].name} · ${others[0].emp_role}»`);
+      }else if(confirm(`Также закрыть ${e.name} вход в программу?`)){
+        const {error:de} = await sb.from("app_users").delete().eq("telegram_id", tgid);
+        showMsg(de ? ("Вход не закрыт: "+de.message) : "Вход в программу закрыт", !de);
+      }
+    }else{
+      // возврат из архива: восстановить доступ, если строки нет
+      const {data:ex} = await sb.from("app_users").select("telegram_id").eq("telegram_id", tgid).maybeSingle();
+      if(!ex && confirm(`Вернуть ${e.name} доступ в программу (роль: сотрудник)?`)){
+        const {error:ie} = await sb.from("app_users").insert({telegram_id:tgid, full_name:e.name, app_role:"staff"});
+        showMsg(ie ? ("Доступ не восстановлен: "+ie.message) : "Доступ в программу восстановлен", !ie);
+      }
+    }
+  }
   await refresh();
 }
 
