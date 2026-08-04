@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0B0A08">
+<title>Касса · просмотр</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:74px}
+.in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
+header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
+.hdr-top{display:flex;align-items:center;gap:8px}
+.logo{font-weight:800;letter-spacing:.25em;color:var(--gold);font-size:14px}
+.ro{margin-left:auto;font-size:10.5px;color:var(--ash);border:1px solid var(--line);border-radius:20px;padding:3px 10px}
+.hdr-bal{margin-top:10px;display:flex;align-items:flex-end;justify-content:space-between}
+.hdr-bal .lbl{font-size:11px;color:var(--gold-dim);letter-spacing:.08em;text-transform:uppercase}
+.hdr-bal .sum{font-size:29px;font-weight:800;color:var(--gold);line-height:1;text-shadow:0 0 22px rgba(232,201,122,.22)}
+.hdr-bal .split{font-size:11px;color:var(--ash);margin-top:4px}
+.asof{font-size:10.5px;color:var(--ash);margin-top:8px}
+main{padding:14px 14px 20px}
+.tabpage{display:none}.tabpage.on{display:block}
+.sect{font-size:11px;color:var(--gold-dim);letter-spacing:.12em;text-transform:uppercase;margin:18px 4px 8px}
+.sect:first-child{margin-top:4px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:14px}
+.kpi .t{font-size:10.5px;color:var(--ash);letter-spacing:.06em;text-transform:uppercase}
+.kpi .v{font-size:22px;font-weight:800;margin-top:6px;line-height:1.05}
+.kpi .s{font-size:11px;color:var(--ash);margin-top:6px;line-height:1.5}
+.kpi.wide{grid-column:1/-1}
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:14px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.row.r-in{border-left-color:var(--in)}.row.r-out{border-left-color:rgba(232,115,90,.75)}
+.row .who{font-weight:600;font-size:14px;line-height:1.3}
+.row .who small{display:block;font-size:11px;color:var(--ash);font-weight:500;margin-top:3px}
+.row .amt{font-weight:800;font-size:15px;white-space:nowrap}
+.badge{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;color:var(--ash)}
+.badge.card{border-color:#3a4a5a;color:#8fb3d4}.badge.cash{border-color:#4a3d20;color:var(--gold-dim)}
+.daygroup{margin-bottom:6px}
+.dayhead{display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:space-between;align-items:baseline;padding:6px 6px 8px;font-size:12px}
+.dayhead b{color:var(--cream);font-weight:700}.dayhead .dsum{color:var(--ash);font-size:11.5px}
+.locked{font-size:10px;color:var(--in);border:1px solid rgba(143,212,155,.3);border-radius:20px;padding:1px 8px}
+.bar{height:8px;border-radius:6px;background:#241d10;overflow:hidden;display:flex;margin-top:8px}
+.bar span{height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--ash)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.calc .l{display:flex;justify-content:space-between;padding:9px 0;font-size:13.5px;color:var(--ash);border-bottom:1px solid #201a10}
+.calc .l:last-child{border-bottom:none}.calc .l b{color:var(--cream);font-weight:600}
+.calc .l.gold b{color:var(--gold);font-weight:800;font-size:16px}
+.card-wrap{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:6px 16px}
+.pill-tabs{display:flex;gap:8px;margin:4px 4px 12px;overflow-x:auto}
+.pill-tabs button{white-space:nowrap;background:var(--panel2);border:1px solid var(--line);color:var(--ash);border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:600}
+.pill-tabs button.on{background:#221B0E;border-color:var(--gold-dim);color:var(--gold)}
+.empty{color:var(--ash);font-size:13px;text-align:center;padding:24px 12px}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:30;display:flex;background:rgba(18,13,6,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:none;color:var(--ash);padding:10px 0 12px;font-size:10.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px}
+nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
+#gate{position:fixed;inset:0;background:var(--smol);z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:30px;text-align:center}
+#gate .g-logo{font-family:serif;letter-spacing:.3em;color:var(--gold);font-size:20px}
+#gate .g-msg{color:var(--ash);font-size:14px;line-height:1.6;max-width:320px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style></head>
+<body>
+
+<div id="gate"><div class="g-logo">КАССА</div><div class="spin"></div><div class="g-msg" id="gateMsg">Проверка доступа…</div></div>
+
+<header style="display:none" id="hdr">
+  <div class="hdr-top"><span class="logo">КАССА</span><span class="ro" id="roBadge">🔒 просмотр</span></div>
+  <div class="hdr-bal">
+    <div><div class="lbl">Остаток в кассе</div><div class="sum" id="hdrSum">—</div></div>
+    <div style="text-align:right"><div class="split" id="hdrNal"></div><div class="split" id="hdrCard"></div></div>
+  </div>
+  <div class="asof" id="asof"></div>
+</header>
+
+<main style="display:none" id="main">
+  <section class="tabpage on" id="tab-summary"></section>
+  <section class="tabpage" id="tab-kassa"></section>
+  <section class="tabpage" id="tab-bank"></section>
+  <section class="tabpage" id="tab-debts"></section>
+  <section class="tabpage" id="tab-salary"></section>
+</main>
+
+<nav style="display:none" id="nav"></nav>
+
+<script>
+/* ==== адрес защищённой функции (без ключей — доступ решает она сама) ==== */
+const FN_URL = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/kassa-view";
+
+/* ===CALC_START=== расчёты кассы (дословно из kassa.html, проверено test_calc.js) ==== */
+const DEBT_CATS = ["Долговой счет ГОСТИ","Долговой учред"];
+const SAL_CATS = ["Зар.плата КАРАОКЕ","Зар.плата ОБЩАЯ","Зар.плата КЛУБ"];
+const DOW = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+let S = { entries:[], days:{} };
+let CATALOG = [];
+function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
+function normName(x){ return String(x).toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
+function staffNameSet(){ const st=new Set(); for(const c of CATALOG){ if(SAL_CATS.includes(c.cat)) st.add(normName(c.cp)); } return st; }
+// «персонал» в долговых = зарплатный справочник + учредители (Долговой учред), как в кассе
+function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG){ if(c.cat==="Долговой учред") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && e.cat==="Долговой учред") st.add(normName(e.cp)); } return st; }
+const fmt = n => (n<0?"−":"") + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
+function shiftDate(iso, n){ const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function human(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]+", "+d.getDate()+" "+MON[d.getMonth()]; }
+function dayEntries(iso){ return S.entries.filter(e=>e.bizDate===iso && !e.deleted); }
+function daySums(iso){ let inn=0,out=0; for(const e of dayEntries(iso)){ if(e.method==="card") continue; if(e.type==="in") inn+=e.amount; else out+=e.amount; } return {inn,out}; }
+function openingOf(iso){ if(!S.openingSet) return 0; if(iso < S.firstDate) return 0; let bal = S.firstOpening, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed){ bal = day.fact; } else { const s = daySums(d); bal = bal + s.inn - s.out; } d = shiftDate(d,1); } return bal; }
+function currentBalance(iso){ const s = daySums(iso); return openingOf(iso) + s.inn - s.out; }
+function dayInClean(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.method==="card" || e.kind==="cardfix") continue; inn+=e.amount; } return inn; }
+function dayInAll(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.kind==="cardfix") continue; inn+=e.amount; } return inn; }
+function daySpendBreakdown(iso){ let nal=0, beznal=0, card=0; for(const e of dayEntries(iso)){ if(e.type!=="out" || e.kind==="cardfix") continue; if(e.method==="card"){ card+=e.amount; continue; } if(e.cat==="Без.нал"){ beznal+=e.amount; continue; } nal+=e.amount; } return {nal, beznal, card, total: nal+beznal+card}; }
+function cardDaySum(iso){ let v=0; for(const e of dayEntries(iso)){ if(e.method!=="card") continue; v += (e.type==="in"? e.amount : -e.amount); } return v; }
+function cardOpeningOf(iso){ if(!S.openingSet) return 0; if(iso <= S.firstDate) return S.cardStart || 0; let bal = S.cardStart || 0, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed && day.cardFact!==undefined){ bal = day.cardFact; } else { bal = bal + cardDaySum(d); } d = shiftDate(d,1); } return bal; }
+function cardBalance(iso){ if(!S.openingSet) return 0; if(iso && iso < S.firstDate) return 0; return cardOpeningOf(iso) + cardDaySum(iso); }
+function debtBalance(cp){ let bal = 0; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue; bal += (e.type==="out"? e.amount : -e.amount); } return bal; }
+function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp || !e.orderNo) continue; if(!acc[e.orderNo]) acc[e.orderNo] = {orderNo:e.orderNo, cat:e.cat, out:0, inn:0, date:e.bizDate}; if(e.type==="out"){ acc[e.orderNo].out += e.amount; if(e.bizDate<acc[e.orderNo].date) acc[e.orderNo].date=e.bizDate; } else acc[e.orderNo].inn += e.amount; } return Object.values(acc).map(a=>({...a, left: a.out-a.inn})).filter(a=>a.left>0).sort((a,b)=>a.date.localeCompare(b.date)); }
+function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
+function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note}); } return out.sort((a,b)=>b.bal-a.bal); }
+function bankAnchor(){ if(!S.bank) return null; const ch = (S.bank.checks||[]); return ch.length ? ch[ch.length-1] : {date:S.bank.startDate, amount:S.bank.startAmount}; }
+function bankFlows(afterDate){ let uz=0,humo=0,rah=0,qr=0,inkass=0,other=0,ret=0; for(const e of S.entries){ if(e.deleted || e.cat!=="Без.нал" || e.bizDate<=afterDate) continue; const n = normName(e.cp); if(e.type==="in"){ ret += e.amount; continue; } if(n.includes("ИНКАССАЦ")) inkass+=e.amount; else if(n.includes("QR")) qr+=e.amount; else if(n.includes("RAHMAT")||n.includes("РАХМАТ")) rah+=e.amount; else if(n.includes("HUMO")||n.includes("ХУМО")) humo+=e.amount; else if(n.includes("UZCARD")||n.includes("УЗКАРД")) uz+=e.amount; else other+=e.amount; } let pays=0; for(const p of ((S.bank&&S.bank.payments)||[])){ if(p.date>afterDate) pays+=p.amount; } let rcv=0; for(const r of ((S.bank&&S.bank.receipts)||[])){ if(r.date>afterDate) rcv+=r.amount; } const fee = Math.round(uz*0.01)+Math.round(humo*0.01)+Math.round((rah+other)*0.015)+Math.round(qr*0.0065); return {uz,humo,rah,qr,inkass,other,ret,pays,rcv,fee}; }
+function bankBalance(){ const a = bankAnchor(); if(!a) return null; const f = bankFlows(a.date); return a.amount + f.uz + f.humo + f.rah + f.qr + f.other + f.inkass + f.rcv - f.ret - f.pays - f.fee; }
+function latestBizDate(){ let mx=null; for(const e of S.entries){ if(!e.deleted && (!mx || e.bizDate>mx)) mx=e.bizDate; } for(const d in S.days){ if(!mx || d>mx) mx=d; } return mx; }
+/* ===CALC_END=== */
+
+/* ==== строки БД -> вид приложения (по meta, без ключей) ==== */
+function rowToEntry(r){ const m=r.meta||{}; const e={id:r.id,bizDate:r.biz_date,cat:(m.cat||""),cp:(m.cp||""),type:r.type,amount:Number(r.amount),note:r.note||"",orderNo:r.order_no||"",by:r.created_by||"",ts:r.created_at||undefined}; if(r.method)e.method=r.method; if(r.kind)e.kind=r.kind; if(m.time)e.time=m.time; if(r.deleted)e.deleted=true; if(m.backdated)e.backdated=m.backdated; return e; }
+function rowToDay(r){ const d={closed:!!r.closed}; if(r.fact!=null)d.fact=Number(r.fact); if(r.card_fact!=null)d.cardFact=Number(r.card_fact); if(r.closed_by)d.by=r.closed_by; if(r.closed_at)d.closedAt=r.closed_at; return d; }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* ==== загрузка через Telegram ==== */
+let VD = null, GEN = null, ROLE = "admin", MYSAL = null, VIEWERCP = "";
+async function boot(){
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if(tg){ try{ tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor("#120d06"); }catch(e){} }
+  const initData = tg && tg.initData;
+  if(!initData){ return gate("Откройте кассу через бота (кнопкой в Telegram). Прямая ссылка в браузере не подойдёт — нужна подпись Telegram."); }
+  try{
+    const res = await fetch(FN_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({initData}) });
+    if(res.status===401){ return gate("Не удалось подтвердить вход Telegram. Откройте заново из бота."); }
+    if(res.status===403){ return gate("Доступ только для админов кассы. Ваш аккаунт не в списке."); }
+    if(!res.ok){ const t=await res.text().catch(()=> ""); return gate("Ошибка сервера ("+res.status+"). "+t.slice(0,120)); }
+    const data = await res.json();
+    hydrate(data);
+    show();
+    renderAll();
+  }catch(e){ gate("Нет связи с сервером. "+String(e.message||e)); }
+}
+function hydrate(data){
+  const s = { entries:[], days:{} };
+  if(data.setup) Object.assign(s, data.setup);
+  if(data.appstate) Object.assign(s, data.appstate);
+  s.entries = (data.entries||[]).map(rowToEntry);
+  s.days = {}; for(const r of (data.days||[])) s.days[r.biz_date]=rowToDay(r);
+  setData(s, data.catalog||[]);
+  VD = latestBizDate();
+  GEN = data.generatedAt;
+  ROLE = data.role || "admin";
+  MYSAL = data.mySalary || null;
+  VIEWERCP = data.viewerCp || "";
+  const roName = {admin:"админ", upr:"управляющий", dir:"директор"}[ROLE] || ROLE;
+  document.getElementById("roBadge").textContent = "🔒 просмотр · " + roName;
+}
+function gate(msg){ document.getElementById("gate").innerHTML = '<div class="g-logo">КАССА</div><div class="g-msg">'+esc(msg)+'</div>'; }
+function show(){ document.getElementById("gate").style.display="none"; for(const id of ["hdr","main","nav"]) document.getElementById(id).style.display=""; }
+
+/* ==== рендер ==== */
+function renderAll(){
+  buildNav();
+  const gd = GEN ? new Date(GEN) : null;
+  if(ROLE==="admin"){
+    if(!VD){ gate("Данных пока нет — касса ещё не закрывала смены."); return; }
+    const nal = currentBalance(VD), card = cardBalance(VD);
+    document.getElementById("hdrSum").textContent = fmt(nal+card);
+    document.getElementById("hdrNal").innerHTML = 'нал <b style="color:var(--cream)">'+fmt(nal)+'</b>';
+    document.getElementById("hdrCard").innerHTML = 'карта <b style="color:var(--cream)">'+fmt(card)+'</b>';
+    document.getElementById("asof").textContent = "данные на последнюю закрытую смену · "+human(VD)+(gd?" · обновлено "+gd.toLocaleString("ru-RU"):"");
+    renderSummary(); renderKassa(); renderBank(); renderDebts();
+  } else {
+    // upr/dir — только долги и своя ЗП, остатки кассы в шапке НЕ показываем
+    const hb = document.querySelector('#hdr .hdr-bal'); if(hb) hb.style.display='none';
+    const who = VIEWERCP ? " · "+esc(VIEWERCP) : "";
+    document.getElementById("asof").innerHTML = "долги персонала и гостей + ваша зарплата"+who+(gd?" · обновлено "+esc(gd.toLocaleString("ru-RU")):"");
+    renderDebts(); renderSalary();
+  }
+}
+function renderSummary(){
+  const nal=currentBalance(VD), card=cardBalance(VD), sp=daySpendBreakdown(VD), inn=dayInAll(VD);
+  const mk=VD.slice(0,7), ds=debtTotalsSplit(mk);
+  const staff=ds.staffCur+ds.staffOld, guest=ds.guestCur+ds.guestOld;
+  const guestCount = debtList().filter(d=>!d.isStaff).length;
+  const bank=bankBalance(); const a=bankAnchor(); const f=a?bankFlows(a.date):null;
+  const term = f?(f.uz+f.humo+f.rah+f.qr+f.other+f.inkass):0;
+  document.getElementById("tab-summary").innerHTML =
+    '<div class="sect">Последняя смена · '+human(VD)+'</div>'+
+    '<div class="kpis">'+
+      '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div><div class="s">касса + карта</div></div>'+
+      '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div><div class="s">нал '+fmt(sp.nal)+' · карта '+fmt(sp.card)+' · безнал '+fmt(sp.beznal)+'</div></div>'+
+      '<div class="kpi wide"><div class="t">Всего в кассе</div><div class="v" style="color:var(--gold)">'+fmt(nal+card)+'</div><div class="s">нал '+fmt(nal)+' · карта '+fmt(card)+'</div></div>'+
+    '</div>'+
+    '<div class="sect">Долги — открыто</div>'+
+    '<div class="kpis">'+
+      '<div class="kpi"><div class="t">Персонал</div><div class="v" style="color:'+(staff?'var(--warn)':'var(--ash)')+'">'+fmt(staff)+'</div><div class="s">этот месяц '+fmt(ds.staffCur)+' · прошлые '+fmt(ds.staffOld)+'</div></div>'+
+      '<div class="kpi"><div class="t">Гости</div><div class="v" style="color:'+(guest?'var(--warn)':'var(--ash)')+'">'+fmt(guest)+'</div><div class="s">открытых счетов: '+guestCount+'</div></div>'+
+    '</div>'+
+    '<div class="sect">Безнал — счёт</div>'+
+    '<div class="kpi wide"><div class="t">Расчётный остаток на счёте</div><div class="v" style="color:'+(bank==null?'var(--ash)':'var(--gold)')+'">'+(bank==null?'не настроен':'≈ '+fmt(bank))+'</div>'+
+      (f?'<div class="s">с последней сверки: терминалы +'+fmt(term)+' · платежи −'+fmt(f.pays)+'</div>':'')+'</div>';
+}
+function methodBadge(e){ if(e.cat==="Без.нал"||e.cat==="Излишки и недостачи"||DEBT_CATS.includes(e.cat)) return ""; return e.method==="card"?'<span class="badge card">КАРТА</span>':'<span class="badge cash">НАЛ</span>'; }
+function rowHtml(e){
+  const parts=[e.cat]; if(e.orderNo)parts.push("счёт №"+e.orderNo); if(e.note)parts.push(e.note); if(e.time)parts.push(e.time); if(e.by)parts.push(e.by);
+  return '<div class="row '+(e.type==="in"?"r-in":"r-out")+'"><div class="who">'+esc(e.cp)+methodBadge(e)+'<small>'+esc(parts.join(" · "))+'</small></div>'+
+    '<div class="amt '+e.type+'">'+(e.type==="in"?"+":"−")+fmt(e.amount)+'</div></div>';
+}
+function renderKassa(){
+  // последние дни с операциями, по убыванию
+  const dates=[...new Set(S.entries.filter(e=>!e.deleted).map(e=>e.bizDate))].sort().reverse().slice(0,14);
+  let html="";
+  if(!dates.length) html='<div class="empty">Операций пока нет.</div>';
+  for(const d of dates){
+    const es=dayEntries(d).slice().reverse();
+    const inn=dayInAll(d), out=daySpendBreakdown(d).total, closed=S.days[d]&&S.days[d].closed;
+    html+='<div class="daygroup"><div class="dayhead"><b>'+human(d)+'</b><span class="dsum">прих. <span class="in">+'+fmt(inn)+'</span> · расх. <span class="out">−'+fmt(out)+'</span>'+(closed?' <span class="locked">закрыт</span>':'')+'</span></div>'+
+      '<div class="rows">'+es.map(rowHtml).join("")+'</div></div>';
+  }
+  document.getElementById("tab-kassa").innerHTML=html;
+}
+function renderBank(){
+  const box=document.getElementById("tab-bank");
+  if(!S.bank||!S.bank.startDate){ box.innerHTML='<div class="empty">Безналичный счёт не настроен в кассе.</div>'; return; }
+  const a=bankAnchor(), f=bankFlows(a.date), bal=bankBalance();
+  const terms=[{n:"Uzcard",v:f.uz,c:"#8fb3d4"},{n:"Humo",v:f.humo,c:"#8FD49B"},{n:"Rahmat",v:f.rah,c:"#E8C97A"},{n:"QR",v:f.qr,c:"#E8A34A"}];
+  if(f.other) terms.push({n:"Прочие",v:f.other,c:"#B89A54"});
+  const tot=terms.reduce((s,t)=>s+t.v,0)||1;
+  const pays=((S.bank.payments)||[]).slice().sort((x,y)=>y.date.localeCompare(x.date)).slice(0,20);
+  box.innerHTML =
+    '<div class="sect">Поступления по терминалам · с последней сверки</div>'+
+    '<div class="bar">'+terms.map(t=>'<span style="width:'+(t.v/tot*100)+'%;background:'+t.c+'"></span>').join("")+'</div>'+
+    '<div class="legend">'+terms.map(t=>'<span><i style="background:'+t.c+'"></i>'+t.n+' '+fmt(t.v)+'</span>').join("")+'</div>'+
+    '<div class="sect">Расчёт счёта</div>'+
+    '<div class="card-wrap calc">'+
+      '<div class="l"><div>Опора (сверка '+a.date+')</div><b>'+fmt(a.amount)+'</b></div>'+
+      '<div class="l"><div>Терминалы Uzcard/Humo/Rahmat/QR</div><b class="in">+'+fmt(f.uz+f.humo+f.rah+f.qr+f.other)+'</b></div>'+
+      '<div class="l"><div>Инкассация</div><b class="in">+'+fmt(f.inkass)+'</b></div>'+
+      (f.rcv?'<div class="l"><div>Приход на счёт</div><b class="in">+'+fmt(f.rcv)+'</b></div>':'')+
+      (f.ret?'<div class="l"><div>Возвраты по безналу</div><b class="out">−'+fmt(f.ret)+'</b></div>':'')+
+      '<div class="l"><div>Платежи со счёта</div><b class="out">−'+fmt(f.pays)+'</b></div>'+
+      '<div class="l"><div>Комиссия терминалов</div><b class="out">−'+fmt(f.fee)+'</b></div>'+
+      '<div class="l gold"><div>Должно быть на счёте</div><b>≈ '+fmt(bal)+'</b></div>'+
+    '</div>'+
+    '<div class="sect">Последние платежи со счёта</div>'+
+    '<div class="rows">'+(pays.length?pays.map(p=>'<div class="row r-out"><div class="who">'+esc(p.category||"платёж")+(p.payee?' · '+esc(p.payee):'')+'<small>'+esc(p.date)+(p.note?' · '+esc(p.note):'')+'</small></div><div class="amt out">−'+fmt(p.amount)+'</div></div>').join(""):'<div class="empty">Платежей нет.</div>')+'</div>';
+}
+let debtKind="staff";
+function renderDebts(){
+  const list=debtList();
+  const staff=list.filter(d=>d.isStaff), guest=list.filter(d=>!d.isStaff);
+  const sT=staff.reduce((s,d)=>s+d.bal,0), gT=guest.reduce((s,d)=>s+d.bal,0);
+  const cur=debtKind==="staff"?staff:guest;
+  document.getElementById("tab-debts").innerHTML =
+    '<div class="pill-tabs">'+
+      '<button class="'+(debtKind==="staff"?"on":"")+'" onclick="setDebt(\'staff\')">Персонал · '+fmt(sT)+'</button>'+
+      '<button class="'+(debtKind==="guest"?"on":"")+'" onclick="setDebt(\'guest\')">Гости · '+fmt(gT)+'</button>'+
+    '</div>'+
+    '<div class="rows">'+(cur.length?cur.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">Открытых долгов нет.</div>')+'</div>';
+}
+function setDebt(k){ debtKind=k; renderDebts(); }
+
+/* ==== своя ЗП (для upr/dir) — итоги считает сервер, тут только показ ==== */
+function renderSalary(){
+  const box=document.getElementById("tab-salary");
+  if(!MYSAL){ box.innerHTML='<div class="empty">Данные по зарплате недоступны.</div>'; return; }
+  const s=MYSAL, mk=(GEN?String(GEN):"").slice(0,7);
+  const parts=(s.parts||[]).filter(p=>p.amount);
+  const rest=s.rest;
+  box.innerHTML =
+    '<div class="sect">Моя зарплата'+(mk?' · '+mk:'')+'</div>'+
+    '<div class="kpis">'+
+      '<div class="kpi"><div class="t">Начислено за месяц</div><div class="v" style="color:var(--gold)">'+fmt(s.accrued)+'</div>'+
+        ((s.parts&&s.parts.length>1)?'<div class="s">'+s.parts.map(p=>esc(p.label)+' '+fmt(p.amount)).join(' · ')+'</div>':'')+'</div>'+
+      '<div class="kpi"><div class="t">Выплачено</div><div class="v in">'+fmt(s.paid)+'</div><div class="s">'+(s.advance?'в т.ч. аванс '+fmt(s.advance):'')+'</div></div>'+
+    '</div>'+
+    '<div class="sect">К выплате</div>'+
+    '<div class="card-wrap calc">'+
+      '<div class="l"><div>Начислено</div><b>'+fmt(s.accrued)+'</b></div>'+
+      '<div class="l"><div>Выплачено в этом месяце</div><b class="in">−'+fmt(s.paid)+'</b></div>'+
+      (s.dm?'<div class="l"><div>Мои долги/заказы (этот месяц)</div><b class="out">−'+fmt(s.dm)+'</b></div>':'')+
+      '<div class="l gold"><div>Остаток к выплате</div><b style="color:'+(rest<0?'var(--out)':'var(--gold)')+'">'+fmt(rest)+'</b></div>'+
+    '</div>'+
+    (s.orderDebt>0?'<div class="sect">Общий долг (заказы + аванс)</div><div class="kpi wide"><div class="t">Всего за мной</div><div class="v" style="color:var(--warn)">'+fmt(s.orderDebt)+'</div><div class="s">накопительно по всем месяцам</div></div>':'');
+}
+
+/* ==== нижняя навигация под роль ==== */
+const NAV_ADMIN = [
+  {id:"summary",ic:"◈",label:"Сводка"},
+  {id:"kassa",ic:"▤",label:"Касса"},
+  {id:"bank",ic:"▧",label:"Безнал"},
+  {id:"debts",ic:"▨",label:"Долги"},
+];
+const NAV_LIMITED = [
+  {id:"debts",ic:"▨",label:"Долги"},
+  {id:"salary",ic:"◉",label:"Моя ЗП"},
+];
+function buildNav(){
+  const items = ROLE==="admin" ? NAV_ADMIN : NAV_LIMITED;
+  const nav=document.getElementById("nav");
+  nav.innerHTML = items.map((it,i)=>'<button data-tab="'+it.id+'"'+(i===0?' class="on"':'')+'><span class="ic">'+it.ic+'</span>'+it.label+'</button>').join("");
+  nav.querySelectorAll('button').forEach(b=>{ b.onclick=()=>setTab(b.dataset.tab); });
+  setTab(items[0].id);
+}
+function setTab(id){
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on', x.dataset.tab===id));
+  document.querySelectorAll('.tabpage').forEach(p=>p.classList.toggle('on', p.id==='tab-'+id));
+  window.scrollTo(0,0);
+}
+
+boot();
+</script>
+</body></html>
