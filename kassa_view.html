@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru"><head>
 <meta charset="UTF-8">
@@ -9,7 +10,7 @@
 :root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:74px}
+body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
 .hdr-top{display:flex;align-items:center;gap:8px}
@@ -42,6 +43,13 @@ main{padding:14px 14px 20px}
 .dayhead{display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:space-between;align-items:baseline;padding:6px 6px 8px;font-size:12px}
 .dayhead b{color:var(--cream);font-weight:700}.dayhead .dsum{color:var(--ash);font-size:11.5px}
 .locked{font-size:10px;color:var(--in);border:1px solid rgba(143,212,155,.3);border-radius:20px;padding:1px 8px}
+.daynav{display:flex;align-items:center;gap:9px;margin:4px 0 14px}
+.daynav .dn-arrow{background:var(--panel2);border:1px solid var(--line);color:var(--gold);border-radius:12px;width:44px;height:46px;font-size:15px;flex:none}
+.datebox{flex:1;text-align:center;border:1.5px solid var(--gold-dim);border-radius:14px;padding:6px 8px;background:rgba(232,201,122,.06);min-width:0}
+.datebox b{display:block;color:var(--gold);font-size:16px;font-weight:800;line-height:1.15}
+.datebox span{display:block;color:var(--ash);font-size:11.5px;margin-top:1px}
+.dn-right{display:flex;gap:8px;align-items:center;flex:none}
+.dn-today{background:var(--panel2);border:1px solid var(--gold-dim);color:var(--gold);border-radius:12px;padding:0 12px;height:46px;font-size:12px;font-weight:600;white-space:nowrap}
 .bar{height:8px;border-radius:6px;background:#241d10;overflow:hidden;display:flex;margin-top:8px}
 .bar span{height:100%}
 .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--ash)}
@@ -105,6 +113,9 @@ function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG){ if(c.
 const fmt = n => (n<0?"−":"") + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 function shiftDate(iso, n){ const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function human(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]+", "+d.getDate()+" "+MON[d.getMonth()]; }
+function humanDM(iso){ const d = new Date(iso+"T12:00:00"); return d.getDate()+" "+MON[d.getMonth()]; }
+function humanDOW(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]; }
+function bizToday(){ const d = new Date(Date.now() - 17*3600*1000); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function dayEntries(iso){ return S.entries.filter(e=>e.bizDate===iso && !e.deleted); }
 function daySums(iso){ let inn=0,out=0; for(const e of dayEntries(iso)){ if(e.method==="card") continue; if(e.type==="in") inn+=e.amount; else out+=e.amount; } return {inn,out}; }
 function openingOf(iso){ if(!S.openingSet) return 0; if(iso < S.firstDate) return 0; let bal = S.firstOpening, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed){ bal = day.fact; } else { const s = daySums(d); bal = bal + s.inn - s.out; } d = shiftDate(d,1); } return bal; }
@@ -131,7 +142,7 @@ function rowToDay(r){ const d={closed:!!r.closed}; if(r.fact!=null)d.fact=Number
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 /* ==== загрузка через Telegram ==== */
-let VD = null, GEN = null, ROLE = "admin", MYSAL = null, VIEWERCP = "";
+let VD = null, GEN = null, ROLE = "admin", MYSAL = null, VIEWERCP = "", SEL = null;
 async function boot(){
   const tg = window.Telegram && window.Telegram.WebApp;
   if(tg){ try{ tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor("#120d06"); }catch(e){} }
@@ -156,6 +167,7 @@ function hydrate(data){
   s.days = {}; for(const r of (data.days||[])) s.days[r.biz_date]=rowToDay(r);
   setData(s, data.catalog||[]);
   VD = latestBizDate();
+  SEL = VD;
   GEN = data.generatedAt;
   ROLE = data.role || "admin";
   MYSAL = data.mySalary || null;
@@ -187,14 +199,16 @@ function renderAll(){
   }
 }
 function renderSummary(){
-  const nal=currentBalance(VD), card=cardBalance(VD), sp=daySpendBreakdown(VD), inn=dayInAll(VD);
-  const mk=VD.slice(0,7), ds=debtTotalsSplit(mk);
+  const d=SEL||VD;
+  const nal=currentBalance(d), card=cardBalance(d), sp=daySpendBreakdown(d), inn=dayInAll(d);
+  const mk=d.slice(0,7), ds=debtTotalsSplit(mk);
   const staff=ds.staffCur+ds.staffOld, guest=ds.guestCur+ds.guestOld;
-  const guestCount = debtList().filter(d=>!d.isStaff).length;
+  const guestCount = debtList().filter(x=>!x.isStaff).length;
   const bank=bankBalance(); const a=bankAnchor(); const f=a?bankFlows(a.date):null;
   const term = f?(f.uz+f.humo+f.rah+f.qr+f.other+f.inkass):0;
   document.getElementById("tab-summary").innerHTML =
-    '<div class="sect">Последняя смена · '+human(VD)+'</div>'+
+    dayNavHtml()+
+    '<div class="sect">Смена за день</div>'+
     '<div class="kpis">'+
       '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div><div class="s">касса + карта</div></div>'+
       '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div><div class="s">нал '+fmt(sp.nal)+' · карта '+fmt(sp.card)+' · безнал '+fmt(sp.beznal)+'</div></div>'+
@@ -216,18 +230,27 @@ function rowHtml(e){
     '<div class="amt '+e.type+'">'+(e.type==="in"?"+":"−")+fmt(e.amount)+'</div></div>';
 }
 function renderKassa(){
-  // последние дни с операциями, по убыванию
-  const dates=[...new Set(S.entries.filter(e=>!e.deleted).map(e=>e.bizDate))].sort().reverse().slice(0,14);
-  let html="";
-  if(!dates.length) html='<div class="empty">Операций пока нет.</div>';
-  for(const d of dates){
-    const es=dayEntries(d).slice().reverse();
-    const inn=dayInAll(d), out=daySpendBreakdown(d).total, closed=S.days[d]&&S.days[d].closed;
-    html+='<div class="daygroup"><div class="dayhead"><b>'+human(d)+'</b><span class="dsum">прих. <span class="in">+'+fmt(inn)+'</span> · расх. <span class="out">−'+fmt(out)+'</span>'+(closed?' <span class="locked">закрыт</span>':'')+'</span></div>'+
-      '<div class="rows">'+es.map(rowHtml).join("")+'</div></div>';
-  }
+  const d=SEL||VD;
+  const es=dayEntries(d).slice().reverse();
+  const inn=dayInAll(d), out=daySpendBreakdown(d).total, closed=S.days[d]&&S.days[d].closed;
+  let html=dayNavHtml()+
+    '<div class="dayhead" style="justify-content:center;padding-top:0"><span class="dsum">прих. <span class="in">+'+fmt(inn)+'</span> · расх. <span class="out">−'+fmt(out)+'</span>'+(closed?' <span class="locked">закрыт</span>':'')+'</span></div>';
+  html += es.length ? '<div class="rows">'+es.map(rowHtml).join("")+'</div>' : '<div class="empty">Нет операций за этот день.</div>';
   document.getElementById("tab-kassa").innerHTML=html;
 }
+/* рамка-дата со стрелками (как в кассе): по умолчанию свежий день, кнопка «сегодня» */
+function dayNavHtml(){
+  const d=SEL||VD; const isToday=(d===bizToday());
+  return '<div class="daynav">'+
+    '<button class="dn-arrow" onclick="navDay(-1)">◀</button>'+
+    '<div class="datebox"><b>'+humanDM(d)+'</b><span>'+humanDOW(d)+(isToday?' · сегодня':'')+'</span></div>'+
+    '<div class="dn-right">'+
+      (isToday?'':'<button class="dn-today" onclick="navToday()">сегодня</button>')+
+      '<button class="dn-arrow" onclick="navDay(1)">▶</button>'+
+    '</div></div>';
+}
+function navDay(delta){ SEL=shiftDate(SEL||VD, delta); renderSummary(); renderKassa(); }
+function navToday(){ SEL=bizToday(); renderSummary(); renderKassa(); }
 function renderBank(){
   const box=document.getElementById("tab-bank");
   if(!S.bank||!S.bank.startDate){ box.innerHTML='<div class="empty">Безналичный счёт не настроен в кассе.</div>'; return; }
