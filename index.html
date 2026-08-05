@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -916,14 +917,13 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Гостевой менеджер","Хостес","Повар",
+const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
-const NO_RATE_ROLES = ["Бар-менеджер","Гостевой менеджер"]; // фикс. оклад 2 р/мес — вне табеля
+const NO_RATE_ROLES = ["Бар-менеджер"]; // фикс. оклад 2 р/мес — вне табеля
 /* автографик: какие дни недели проставить (JS getDay: 0=Вс..6=Сб); null = нет */
 function autoWorkDays(e){
   const all = [0,1,2,3,4,5,6];
   if(e.emp_role === "Бар-менеджер")      return all.filter(d=>d!==2); // вых. ВТ
-  if(e.emp_role === "Гостевой менеджер") return all.filter(d=>d!==3); // вых. СР
   if(e.emp_role === "Менеджер")          return all.filter(d=>d!==(e.pos==="club"?1:2));
   return null;
 }
@@ -933,7 +933,7 @@ const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Барм
 const DEFAULT_MON_RATES = {"Бармен":250000};
 const FIXED_POS = {"Звукооператор":"karaoke",
   "Старший бармен":"karaoke","Свето-оператор":"club",
-  "Бар-менеджер":"both","Гостевой менеджер":"karaoke","Повар":"both","Охрана":"both","Кассир":"both"};
+  "Бар-менеджер":"both","Повар":"both","Охрана":"both","Кассир":"both"};
 const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звукооператор";
 /* рабочие места (залы) для караоке */
 const PLACES = {
@@ -965,7 +965,7 @@ function defaultPlace(e, d){
 const POS_NAME = {club:"Клуб",karaoke:"Караоке",both:"Общие (клуб + караоке)"};
 const POS_SHORT = {club:"Клуб",karaoke:"Караоке",both:"Общие"};
 const POS_ORDER = ["karaoke","club","both"];
-const DISPLAY_ORDER = ["Менеджер","Кассир","Повар","Охрана","Хостес","Бар-менеджер","Гостевой менеджер",
+const DISPLAY_ORDER = ["Менеджер","Кассир","Повар","Охрана","Хостес","Бар-менеджер",
   "Старший бармен","Бармен","Официант","Звукооператор","Свето-оператор"];
 const DOW = ["Ср","Чт","Пт","Сб","Вс","Пн","Вт"];
 
@@ -1224,6 +1224,55 @@ async function loadAll(){
     cabinSeatByDate = {};
     (cs.data||[]).forEach(r=>{ cabinSeatByDate[r.business_date]=r.seatings; });
   }catch(_){ cabinSeatByDate = {}; }
+  await loadKassaPaid(weekKey);
+}
+/* ===== мост в кассу (kassa-payroll): авто-«ВЫДАНО» + запись плана ЗП ===== */
+const KASSA_PREFIX = {"Официант":"ОФИЦИАНТ","Бармен":"БАРМЕН","Старший бармен":"БАРМЕН","Хостес":"ХОСТЕС","Повар":"ПОВАР","Охрана":"ОХРАНА","Кассир":"КАССИР","Звукооператор":"ЗВУКООПЕРАТОР","Свето-оператор":"СВЕТО-ОПЕРАТОР","Менеджер":"МЕНЕДЖЕР","Бар-менеджер":"БАРМЕНЕДЖЕР"};
+function kassaCp(e){ const p=KASSA_PREFIX[e.emp_role]; return p ? (p+" "+e.name) : null; }
+function kNorm(s){ return String(s||"").toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
+function weekLabel(ws){ const f=fromIso(ws); return fmtD(f)+"–"+fmtD(addDays(f,6)); }
+let KASSA_PAID = null;   // {normCp: сумма выплат кассы за неделю}; null = касса недоступна → ручной режим отметок
+async function kpCall(action, extra){
+  const initData = window.Telegram?.WebApp?.initData || "";
+  if(!initData) throw new Error("no initData");
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/kassa-payroll`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY},
+    body:JSON.stringify(Object.assign({action, initData}, extra||{}))
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+async function loadKassaPaid(weekKey){
+  if(!CAP.money){ KASSA_PAID=null; return; }
+  try{ const j = await kpCall("get",{from:weekKey, to:iso(addDays(fromIso(weekKey),6))}); KASSA_PAID = j.summary || {}; }
+  catch(e){ KASSA_PAID = null; }   // касса недоступна → остаёмся в ручном режиме
+}
+function kassaPaidFor(e){ return (KASSA_PAID && kassaCp(e)) ? (KASSA_PAID[kNorm(kassaCp(e))]||0) : 0; }
+async function pushPlansToKassa(weekKey){
+  const wkTo = iso(addDays(fromIso(weekKey),6));
+  const mk = weekKey.slice(0,7), mFrom = mk+"-01", mTo = mk+"-31";
+  for(const id of rosterOf(weekKey)){
+    const e = byId(id); if(!e) continue;
+    const cp = kassaCp(e); if(!cp) continue;                 // роль без связи с кассой — пропускаем
+    const rr = earnedInPeriod(e, weekKey, wkTo);
+    try{
+      if(rr.noPay){                                          // Бар-менеджер (Зоха): оклад с кассы, из табеля — бонусы/штрафы за месяц
+        let mb=0,mp=0;
+        for(const b of bonRows) if(b.employee_id===e.id && b.bonus_date>=mFrom && b.bonus_date<=mTo) mb+=b.amount;
+        for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=mFrom && p.pen_date<=mTo) mp+=p.amount;
+        if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:mk,period_label:mk,oklad:0,bonus:Math.round(mb),planned:Math.round(mb-mp),status:"confirmed"}});
+        continue;
+      }
+      let extraAmt=0;
+      if(e.emp_role==="Официант") extraAmt=Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT);
+      else if(e.emp_role===SOUND_BIG) extraAmt=Math.round(rr.extra||0);
+      const oklad=Math.round(rr.basePlan||0), bonus=Math.round(rr.bon||0), pen=Math.round(rr.pen||0);
+      const planned=oklad+extraAmt+bonus-pen;
+      await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"week",period_key:weekKey,period_label:weekLabel(weekKey),shifts:rr.cntPlan||0,oklad,percent_amount:extraAmt,bonus,planned:Math.round(planned),status:"confirmed"}});
+    }catch(err){ /* сбой по одному не рушит остальных */ }
+  }
 }
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
 // снимать неявку (возвращать день как отработанный) могут только эти роли
@@ -1783,24 +1832,34 @@ function render(){
       let extraAmt = 0;
       if(e.emp_role==="Официант") extraAmt = Math.round((wv.sales||0)*STEPS_PCT);
       else if(e.emp_role===SOUND_BIG) extraAmt = Math.round(r.extra||0);
-      const paidZp = isPaidOut(e.id, wkKey, 'zp');
-      const paidExtra = isPaidOut(e.id, wkKey, 'extra');
-      // отметка выплаты ЗП — только сдельным (не noPay)
-      let payTag = "";
-      if(!noPay){
-        if(CAP.sales){
-          payTag = `<button class="pay-chip${paidZp?' on':''}" onclick="togglePayout('${e.id}','zp')" title="${paidZp?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidZp?'✓ выплачено':'выплатить'}</button>`;
-        }else if(paidZp){
-          payTag = `<span class="pay-chip on ro">✓ выплачено</span>`;
+      let payTag = "", extraTag = "";
+      if(KASSA_PAID!==null){
+        // касса-режим: статус «ВЫДАНО» из факта выплат кассы (за неделю целиком), без ручной отметки
+        if(!noPay || kassaPaidFor(e)>0){
+          const weekTotal = Math.round((r.basePlan||0) + (r.bon||0) - (r.pen||0)) + extraAmt;
+          const kp = kassaPaidFor(e);
+          let cls='', txt='ожидает кассу';
+          if(kp>0 && weekTotal>0 && kp>=weekTotal){ cls='on'; txt='✓ выплачено'; }
+          else if(kp>0){ cls='on'; txt='аванс '+money(kp); }
+          payTag = `<span class="pay-chip ro ${cls}" title="Статус из кассы — по факту выплат">${txt}</span>`;
         }
-      }
-      // отметка выплаты шаги/бонус — только если сумма > 0
-      let extraTag = "";
-      if(extraAmt>0){
-        if(CAP.sales){
-          extraTag = `<button class="pay-chip${paidExtra?' on':''}" onclick="togglePayout('${e.id}','extra')" title="${paidExtra?'Шаги/бонус выплачены — отменить':'Отметить выплату шагов/бонуса'}">${paidExtra?'✓ выпл.':'выплатить'}</button>`;
-        }else if(paidExtra){
-          extraTag = `<span class="pay-chip on ro">✓ выпл.</span>`;
+      }else{
+        // ручной режим (касса недоступна) — как раньше
+        const paidZp = isPaidOut(e.id, wkKey, 'zp');
+        const paidExtra = isPaidOut(e.id, wkKey, 'extra');
+        if(!noPay){
+          if(CAP.sales){
+            payTag = `<button class="pay-chip${paidZp?' on':''}" onclick="togglePayout('${e.id}','zp')" title="${paidZp?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidZp?'✓ выплачено':'выплатить'}</button>`;
+          }else if(paidZp){
+            payTag = `<span class="pay-chip on ro">✓ выплачено</span>`;
+          }
+        }
+        if(extraAmt>0){
+          if(CAP.sales){
+            extraTag = `<button class="pay-chip${paidExtra?' on':''}" onclick="togglePayout('${e.id}','extra')" title="${paidExtra?'Шаги/бонус выплачены — отменить':'Отметить выплату шагов/бонуса'}">${paidExtra?'✓ выпл.':'выплатить'}</button>`;
+          }else if(paidExtra){
+            extraTag = `<span class="pay-chip on ro">✓ выпл.</span>`;
+          }
         }
       }
       // добавим кнопку в ячейку «Шаги»
@@ -1865,11 +1924,16 @@ function render(){
       // основная часть по плану недели (оклад план + бонусы − штрафы)
       const zpBucket = Math.round(rr.basePlan + rr.bon - rr.pen);
       const extraBucket = extraAmt;
-      // ЗП-часть
-      if(isPaidOut(e.id, weekKey, 'zp')) paidSum += zpBucket; else leftSum += zpBucket;
-      // шаги/бонус-часть (если её нет — 0, не влияет)
-      if(extraBucket>0){
-        if(isPaidOut(e.id, weekKey, 'extra')) paidSum += extraBucket; else leftSum += extraBucket;
+      const weekTotal = zpBucket + extraBucket;
+      if(KASSA_PAID!==null){
+        // касса-режим: выплачено = факт кассы (ограниченный планом недели)
+        const kp = kassaPaidFor(e);
+        paidSum += Math.min(kp, weekTotal); leftSum += Math.max(0, weekTotal - kp);
+      }else{
+        if(isPaidOut(e.id, weekKey, 'zp')) paidSum += zpBucket; else leftSum += zpBucket;
+        if(extraBucket>0){
+          if(isPaidOut(e.id, weekKey, 'extra')) paidSum += extraBucket; else leftSum += extraBucket;
+        }
       }
     }
     const payoutCard = roster.length
@@ -3115,6 +3179,7 @@ async function startApp(){
       if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
       const {error} = await sb.from("approvals").insert({week_start:weekKey});
       if(error) showMsg(error.message);
+      else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
     }
     await refresh();
   });
@@ -3558,7 +3623,7 @@ async function bkLoadShiftStaff(ds){
     const checkedSet = new Set((chk.data||[]).map(c=>c.employee_id));
     const isBar = r => r==="Бармен" || r==="Старший бармен";
     const isWaiter = r => r==="Официант";
-    const isMgr = r => r==="Менеджер" || r==="Бар-менеджер" || r==="Гостевой менеджер";
+    const isMgr = r => r==="Менеджер" || r==="Бар-менеджер";
     const isHost = r => r==="Хостес";
     (sh.data||[]).forEach(s=>{
       if(s.status===2) return;                 // неявка — не показываем
