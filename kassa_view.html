@@ -10,7 +10,7 @@
 :root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(130px + env(safe-area-inset-bottom))}
+body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(170px + env(safe-area-inset-bottom))}
 .in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
 .hdr-top{display:flex;align-items:center;gap:8px}
@@ -152,6 +152,15 @@ function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted 
 function venueBadge(v){ if(!v) return ""; const c=v==="клуб"?"#8fb3d4":"#E8C97A"; const t=v==="клуб"?"КЛУБ":"КАРАОКЕ"; return '<span class="badge" style="border-color:'+c+';color:'+c+'">'+t+'</span>'; }
 function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
 function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; const venues=[...new Set(open.map(o=>o.venue).filter(Boolean))]; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note, venues}); } return out.sort((a,b)=>b.bal-a.bal); }
+// группы расходов безнала (как в кассе на ПК)
+const EXPENSE_GROUPS=["Продукты","Алкоголь","Административные","Коммунальные","Налоги"];
+const GROUP_COLOR={"Продукты":"#8FD49B","Алкоголь":"#E8A34A","Административные":"#B89A54","Коммунальные":"#7FB0E8","Налоги":"#E8735A"};
+const GROUP_BY_BANKCAT={"Поставщики":"Продукты","Электричество":"Коммунальные","Газ":"Коммунальные","Вода":"Коммунальные","Вывоз мусора":"Коммунальные","Интернет · связь":"Коммунальные","Налоги ЗП (ИНПС · НДФЛ · соц.)":"Налоги","НДС":"Налоги","Прочее":"Административные"};
+const DEFAULT_SUPPLIERS=["SAPHIR DISTRIBUTION","UNION BEVERAGE TRADE","BEER PLANET","GRAND CRU"];
+function payGroupKey(cat,payee){ return payee?("who:"+normName(payee)):("cat:"+cat); }
+function payGroup(cat,payee){ const k=payGroupKey(cat,payee); if(S.bank&&S.bank.groupOf&&S.bank.groupOf[k]&&EXPENSE_GROUPS.includes(S.bank.groupOf[k])) return S.bank.groupOf[k]; if(payee&&DEFAULT_SUPPLIERS.map(normName).includes(normName(payee))) return "Алкоголь"; return GROUP_BY_BANKCAT[cat]||"Административные"; }
+function groupOfPayment(p){ return (p.group&&EXPENSE_GROUPS.includes(p.group))?p.group:payGroup(p.category,p.payee); }
+function grpBadge(g){ const c=GROUP_COLOR[g]||"#B89A54"; return '<span class="badge" style="border-color:'+c+';color:'+c+'">'+esc(g)+'</span>'; }
 function bankAnchor(){ if(!S.bank) return null; const ch = (S.bank.checks||[]); return ch.length ? ch[ch.length-1] : {date:S.bank.startDate, amount:S.bank.startAmount}; }
 function bankFlows(afterDate){ let uz=0,humo=0,rah=0,qr=0,inkass=0,other=0,ret=0; for(const e of S.entries){ if(e.deleted || e.cat!=="Без.нал" || e.bizDate<=afterDate) continue; const n = normName(e.cp); if(e.type==="in"){ ret += e.amount; continue; } if(n.includes("ИНКАССАЦ")) inkass+=e.amount; else if(n.includes("QR")) qr+=e.amount; else if(n.includes("RAHMAT")||n.includes("РАХМАТ")) rah+=e.amount; else if(n.includes("HUMO")||n.includes("ХУМО")) humo+=e.amount; else if(n.includes("UZCARD")||n.includes("УЗКАРД")) uz+=e.amount; else other+=e.amount; } let pays=0; for(const p of ((S.bank&&S.bank.payments)||[])){ if(p.date>afterDate) pays+=p.amount; } let rcv=0; for(const r of ((S.bank&&S.bank.receipts)||[])){ if(r.date>afterDate) rcv+=r.amount; } const fee = Math.round(uz*0.01)+Math.round(humo*0.01)+Math.round((rah+other)*0.015)+Math.round(qr*0.0065); return {uz,humo,rah,qr,inkass,other,ret,pays,rcv,fee}; }
 function bankBalance(){ const a = bankAnchor(); if(!a) return null; const f = bankFlows(a.date); return a.amount + f.uz + f.humo + f.rah + f.qr + f.other + f.inkass + f.rcv - f.ret - f.pays - f.fee; }
@@ -360,8 +369,16 @@ function renderBank(){
     '</div>'+
     '<div class="card-wrap calc"><div class="l gold"><div>Итого за день (приход − расход)</div><b style="color:'+(ds.net<0?'var(--out)':'var(--in)')+'">'+(ds.net<0?"−":"+")+fmt(Math.abs(ds.net))+'</b></div></div>'+
     '<div class="kpi wide" style="border:2px solid var(--gold);background:rgba(232,201,122,.08);margin-top:10px"><div class="t" style="color:var(--gold)">Должно быть на счёте · на конец дня</div><div class="v" style="color:var(--gold)">≈ '+fmt(balEnd)+'</div></div>';
-  if(dayPays.length) html+='<div class="sect">Платежи со счёта за день</div><div class="rows">'+dayPays.map(p=>'<div class="row r-out"><div class="who">'+esc(p.category||"платёж")+(p.payee?' · '+esc(p.payee):'')+'<small>'+esc(p.date)+(p.note?' · '+esc(p.note):'')+'</small></div><div class="amt out">−'+fmt(p.amount)+'</div></div>').join("")+'</div>';
+  if(dayPays.length) html+='<div class="sect">Платежи со счёта за день</div><div class="rows">'+dayPays.map(p=>'<div class="row r-out"><div class="who">'+esc(p.category||"платёж")+(p.payee?' · '+esc(p.payee):'')+' '+grpBadge(groupOfPayment(p))+'<small>'+esc(p.date)+(p.note?' · '+esc(p.note):'')+'</small></div><div class="amt out">−'+fmt(p.amount)+'</div></div>').join("")+'</div>';
   if(dayRcv.length) html+='<div class="sect">Приходы на счёт за день</div><div class="rows">'+dayRcv.map(r=>'<div class="row r-in"><div class="who">'+(r.from?esc(r.from):"Приход на счёт")+'<small>'+esc(r.date)+(r.note?' · '+esc(r.note):'')+'</small></div><div class="amt in">+'+fmt(r.amount)+'</div></div>').join("")+'</div>';
+  // график расходов по группам за месяц выбранного дня (как в кассе на ПК)
+  const mk=(SEL||VD||"").slice(0,7);
+  const tot={}; EXPENSE_GROUPS.forEach(g=>tot[g]=0); let gsum=0;
+  for(const p of ((S.bank.payments)||[])){ if((p.date||"").slice(0,7)!==mk) continue; const g=groupOfPayment(p); tot[g]=(tot[g]||0)+p.amount; gsum+=p.amount; }
+  const gmax=Math.max(1,...EXPENSE_GROUPS.map(g=>tot[g]));
+  html+='<div class="sect">Расходы по группам · '+mk+'</div><div class="card-wrap calc">'+
+    EXPENSE_GROUPS.map(g=>'<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:var(--cream)">'+g+'</span><b style="color:var(--cream)">'+fmt(tot[g])+'</b></div><div style="height:9px;background:#221a0e;border-radius:5px;overflow:hidden;margin-top:3px"><div style="height:100%;width:'+Math.round(tot[g]/gmax*100)+'%;background:'+GROUP_COLOR[g]+'"></div></div></div>').join("")+
+    '<div class="l gold" style="margin-top:6px"><div>Всего за месяц</div><b>'+fmt(gsum)+'</b></div></div>';
   box.innerHTML=html;
 }
 let debtKind="staff";
