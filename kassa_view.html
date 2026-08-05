@@ -139,6 +139,7 @@ function currentBalance(iso){ const s = daySums(iso); return openingOf(iso) + s.
 function dayInClean(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.method==="card" || e.kind==="cardfix") continue; inn+=e.amount; } return inn; }
 function dayInAll(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.kind==="cardfix") continue; inn+=e.amount; } return inn; }
 function daySpendBreakdown(iso){ let nal=0, beznal=0, card=0; for(const e of dayEntries(iso)){ if(e.type!=="out" || e.kind==="cardfix") continue; if(e.method==="card"){ card+=e.amount; continue; } if(e.cat==="Без.нал"){ beznal+=e.amount; continue; } nal+=e.amount; } return {nal, beznal, card, total: nal+beznal+card}; }
+function dayRevCp(iso,cpName){ let v=0; for(const e of dayEntries(iso)){ if(e.type!=="in"||e.kind==="cardfix"||e.cat!=="Чистая выручка") continue; if(normName(e.cp)===normName(cpName)) v+=e.amount; } return v; }
 function cardDaySum(iso){ let v=0; for(const e of dayEntries(iso)){ if(e.method!=="card") continue; v += (e.type==="in"? e.amount : -e.amount); } return v; }
 function cardOpeningOf(iso){ if(!S.openingSet) return 0; if(iso <= S.firstDate) return S.cardStart || 0; let bal = S.cardStart || 0, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed && day.cardFact!==undefined){ bal = day.cardFact; } else { bal = bal + cardDaySum(d); } d = shiftDate(d,1); } return bal; }
 function cardBalance(iso){ if(!S.openingSet) return 0; if(iso && iso < S.firstDate) return 0; return cardOpeningOf(iso) + cardDaySum(iso); }
@@ -267,18 +268,27 @@ function renderSummary(){
   const guestCount = debtList().filter(x=>!x.isStaff).length;
   const bank=bankBalance(); const a=bankAnchor(); const f=a?bankFlows(a.date):null;
   const term = f?(f.uz+f.humo+f.rah+f.qr+f.other+f.inkass):0;
+  const revK=dayRevCp(d,"Касса КАРАОКЕ"), revC=dayRevCp(d,"Касса КЛУБ");
+  const tb=bankDaySummary(d);
+  const termParts=[];
+  if(tb.uz) termParts.push("Uzcard "+fmt(tb.uz));
+  if(tb.humo) termParts.push("Humo "+fmt(tb.humo));
+  if(tb.rah) termParts.push("Rahmat "+fmt(tb.rah));
+  if(tb.qr) termParts.push("QR "+fmt(tb.qr));
+  if(tb.inkass) termParts.push("инкасс. "+fmt(tb.inkass));
+  if(tb.other) termParts.push("проч. "+fmt(tb.other));
+  const rashSub = "нал "+fmt(sp.nal)+(sp.card?" · карта "+fmt(sp.card):"")+(termParts.length?" · "+termParts.join(" · "):"");
   document.getElementById("tab-summary").innerHTML =
     dayNavHtml()+
     '<div class="sect">Смена за день</div>'+
     '<div class="kpis">'+
-      '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div><div class="s">касса + карта</div></div>'+
-      '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div><div class="s">нал '+fmt(sp.nal)+' · карта '+fmt(sp.card)+' · безнал '+fmt(sp.beznal)+'</div></div>'+
-      '<div class="kpi wide"><div class="t">Всего в кассе</div><div class="v" style="color:var(--gold)">'+fmt(nal+card)+'</div><div class="s">нал '+fmt(nal)+' · карта '+fmt(card)+'</div></div>'+
+      '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div><div class="s">Караоке '+fmt(revK)+' · Клуб '+fmt(revC)+'</div></div>'+
+      '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div><div class="s">'+rashSub+'</div></div>'+
     '</div>'+
     '<div class="sect">Долги — открыто</div>'+
     '<div class="kpis">'+
-      '<div class="kpi"><div class="t">Персонал</div><div class="v" style="color:'+(staff?'var(--warn)':'var(--ash)')+'">'+fmt(staff)+'</div><div class="s">этот месяц '+fmt(ds.staffCur)+' · прошлые '+fmt(ds.staffOld)+'</div></div>'+
-      '<div class="kpi"><div class="t">Гости</div><div class="v" style="color:'+(guest?'var(--warn)':'var(--ash)')+'">'+fmt(guest)+'</div><div class="s">открытых счетов: '+guestCount+'</div></div>'+
+      '<div class="kpi" style="cursor:pointer" onclick="openDebtsTab(\'staff\')"><div class="t">Персонал ›</div><div class="v" style="color:'+(staff?'var(--warn)':'var(--ash)')+'">'+fmt(staff)+'</div><div class="s">этот месяц '+fmt(ds.staffCur)+' · прошлые '+fmt(ds.staffOld)+'</div></div>'+
+      '<div class="kpi" style="cursor:pointer" onclick="openDebtsTab(\'guest\')"><div class="t">Гости ›</div><div class="v" style="color:'+(guest?'var(--warn)':'var(--ash)')+'">'+fmt(guest)+'</div><div class="s">открытых счетов: '+guestCount+'</div></div>'+
     '</div>'+
     '<div class="sect">Безнал — счёт</div>'+
     '<div class="kpi wide"><div class="t">Расчётный остаток на счёте</div><div class="v" style="color:'+(bank==null?'var(--ash)':'var(--gold)')+'">'+(bank==null?'не настроен':'≈ '+fmt(bank))+'</div>'+
@@ -357,6 +367,7 @@ function renderDebts(){
     '<div class="rows">'+(cur.length?cur.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">Открытых долгов нет.</div>')+'</div>';
 }
 function setDebt(k){ debtKind=k; renderDebts(); }
+function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
 
 /* ==== своя ЗП (для upr/dir) — итоги считает сервер, тут только показ ==== */
 function renderSalary(){
