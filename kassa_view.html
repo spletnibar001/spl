@@ -89,7 +89,7 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
 </style></head>
 <body>
 
-<div id="gate"><div class="g-logo">КАССА</div><div class="spin"></div><div class="g-msg" id="gateMsg">Проверка доступа…</div></div>
+<div id="gate" class="decoy"></div>
 
 <header style="display:none" id="hdr">
   <div class="hdr-top"><span class="logo">КАССА</span><span class="ro" id="roBadge">🔒 просмотр</span></div>
@@ -123,9 +123,9 @@ let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
 function normName(x){ return String(x).toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
-function staffNameSet(){ const st=new Set(); for(const c of CATALOG){ if(SAL_CATS.includes(c.cat)) st.add(normName(c.cp)); } return st; }
-// «персонал» в долговых = зарплатный справочник + учредители (Долговой учред), как в кассе
-function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG){ if(c.cat==="Долговой учред") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && e.cat==="Долговой учред") st.add(normName(e.cp)); } return st; }
+function staffNameSet(){ const st=new Set(); for(const c of CATALOG.concat(S.customCps||[])){ if(SAL_CATS.includes(c.cat)) st.add(normName(c.cp)); } return st; }
+// «персонал» в долговых = зарплатный справочник (+ свои контрагенты) + учредители (Долговой учред), как в кассе
+function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG.concat(S.customCps||[])){ if(c.cat==="Долговой учред") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && e.cat==="Долговой учред") st.add(normName(e.cp)); } return st; }
 const fmt = n => (n<0?"−":"") + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 function shiftDate(iso, n){ const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function human(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]+", "+d.getDate()+" "+MON[d.getMonth()]; }
@@ -164,18 +164,19 @@ function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,
 let VD = null, GEN = null, ROLE = "admin", MYSAL = null, VIEWERCP = "", SEL = null;
 async function boot(){
   const tg = window.Telegram && window.Telegram.WebApp;
-  if(tg){ try{ tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor("#120d06"); }catch(e){} }
+  if(tg){ try{ tg.ready(); tg.expand(); }catch(e){} }
+  decoy();                                        // сразу нейтральный экран — на загрузке кассу не раскрываем
   const initData = tg && tg.initData;
-  if(!initData){ return decoy(); }               // открыли в браузере / вне Telegram
+  if(!initData){ return; }                        // открыли в браузере / вне Telegram — остаётся календарь
   try{
     const res = await fetch(FN_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({initData}) });
-    if(res.status===401 || res.status===403){ return decoy(); }  // нет доступа — показываем календарь
-    if(!res.ok){ return decoy(); }               // серверная ошибка — тоже не раскрываем кассу
+    if(res.status===401 || res.status===403){ return; }  // нет доступа — остаётся календарь
+    if(!res.ok){ return; }                        // серверная ошибка — тоже не раскрываем кассу
     const data = await res.json();
     hydrate(data);
     show();
     renderAll();
-  }catch(e){ decoy(); }                           // нет связи — календарь
+  }catch(e){ /* нет связи — остаётся календарь */ }
 }
 /* ==== нейтральная заглушка-календарь ==== */
 let _calM = null;
@@ -235,8 +236,8 @@ function hydrate(data){
   const roName = {admin:"админ", upr:"управляющий", dir:"директор"}[ROLE] || ROLE;
   document.getElementById("roBadge").textContent = "🔒 просмотр · " + roName;
 }
-function gate(msg){ document.getElementById("gate").innerHTML = '<div class="g-logo">КАССА</div><div class="g-msg">'+esc(msg)+'</div>'; }
-function show(){ document.getElementById("gate").style.display="none"; for(const id of ["hdr","main","nav"]) document.getElementById(id).style.display=""; }
+function gate(msg){ const g=document.getElementById("gate"); g.className=""; g.removeAttribute("style"); g.style.display="flex"; g.innerHTML = '<div class="g-logo">КАССА</div><div class="g-msg">'+esc(msg)+'</div>'; }
+function show(){ document.getElementById("gate").style.display="none"; for(const id of ["hdr","main","nav"]) document.getElementById(id).style.display=""; try{ const tg=window.Telegram&&window.Telegram.WebApp; tg&&tg.setHeaderColor&&tg.setHeaderColor("#120d06"); }catch(e){} }
 
 /* ==== рендер ==== */
 function renderAll(){
