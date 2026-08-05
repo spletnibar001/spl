@@ -10,7 +10,7 @@
 :root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(130px + env(safe-area-inset-bottom))}
 .in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
 .hdr-top{display:flex;align-items:center;gap:8px}
@@ -21,7 +21,7 @@ header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a140
 .hdr-bal .sum{font-size:29px;font-weight:800;color:var(--gold);line-height:1;text-shadow:0 0 22px rgba(232,201,122,.22)}
 .hdr-bal .split{font-size:11px;color:var(--ash);margin-top:4px}
 .asof{font-size:10.5px;color:var(--ash);margin-top:8px}
-main{padding:14px 14px 20px}
+main{padding:14px 14px 44px}
 .tabpage{display:none}.tabpage.on{display:block}
 .sect{font-size:11px;color:var(--gold-dim);letter-spacing:.12em;text-transform:uppercase;margin:18px 4px 8px}
 .sect:first-child{margin-top:4px}
@@ -50,8 +50,10 @@ main{padding:14px 14px 20px}
 .datebox span{display:block;color:var(--ash);font-size:11.5px;margin-top:1px}
 .dn-right{display:flex;gap:8px;align-items:center;flex:none}
 .dn-today{background:var(--panel2);border:1px solid var(--gold-dim);color:var(--gold);border-radius:12px;padding:0 12px;height:46px;font-size:12px;font-weight:600;white-space:nowrap}
-.revchip{border:1px solid var(--gold-dim);border-radius:9px;padding:5px 9px;font-size:11.5px;color:var(--ash);line-height:1.3}
-.revchip b{color:var(--cream);font-weight:700}
+.revchip{border:1px solid var(--gold-dim);border-radius:9px;padding:6px 10px;font-size:11px;color:var(--gold-dim);line-height:1.25;letter-spacing:.02em}
+.revchip b{display:block;color:var(--cream);font-weight:800;font-size:15px;margin-top:2px}
+.rline{font-size:12px;color:var(--ash);line-height:1.7}
+.rline b{color:var(--cream);font-weight:700}
 .bar{height:8px;border-radius:6px;background:#241d10;overflow:hidden;display:flex;margin-top:8px}
 .bar span{height:100%}
 .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--ash)}
@@ -273,24 +275,26 @@ function renderSummary(){
   const term = f?(f.uz+f.humo+f.rah+f.qr+f.other+f.inkass):0;
   const revK=dayRevCp(d,"Касса КАРАОКЕ"), revC=dayRevCp(d,"Касса КЛУБ");
   const tb=bankDaySummary(d);
-  const termParts=[];
-  if(tb.uz) termParts.push("Uzcard "+fmt(tb.uz));
-  if(tb.humo) termParts.push("Humo "+fmt(tb.humo));
-  if(tb.rah) termParts.push("Rahmat "+fmt(tb.rah));
-  if(tb.qr) termParts.push("QR "+fmt(tb.qr));
-  if(tb.inkass) termParts.push("инкасс. "+fmt(tb.inkass));
-  if(tb.other) termParts.push("проч. "+fmt(tb.other));
-  const rashSub = "нал "+fmt(sp.nal)+(sp.card?" · карта "+fmt(sp.card):"")+(termParts.length?" · "+termParts.join(" · "):"");
+  const rl=[["нал",sp.nal]];
+  if(sp.card) rl.push(["карта",sp.card]);
+  if(tb.uz) rl.push(["Uzcard",tb.uz]);
+  if(tb.humo) rl.push(["Humo",tb.humo]);
+  if(tb.rah) rl.push(["Rahmat",tb.rah]);
+  if(tb.qr) rl.push(["QR",tb.qr]);
+  if(tb.inkass) rl.push(["инкассация",tb.inkass]);
+  if(tb.other) rl.push(["прочее",tb.other]);
+  const rashLines = rl.map(x=>'<div class="rline">'+x[0]+': <b>'+fmt(x[1])+'</b></div>').join("");
   document.getElementById("tab-summary").innerHTML =
     dayNavHtml()+
     '<div class="sect">Смена за день</div>'+
     '<div class="kpis">'+
       '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div>'+
-        '<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">'+
-          '<div class="revchip">КАССА КАРАОКЕ: <b>'+fmt(revK)+'</b></div>'+
-          '<div class="revchip">КАССА КЛУБ: <b>'+fmt(revC)+'</b></div>'+
+        '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">'+
+          '<div class="revchip">КАССА КАРАОКЕ:<b>'+fmt(revK)+'</b></div>'+
+          '<div class="revchip">КАССА КЛУБ:<b>'+fmt(revC)+'</b></div>'+
         '</div></div>'+
-      '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div><div class="s">'+rashSub+'</div></div>'+
+      '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div>'+
+        '<div style="margin-top:8px">'+rashLines+'</div></div>'+
     '</div>'+
     '<div class="sect">Долги — открыто</div>'+
     '<div class="kpis">'+
