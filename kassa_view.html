@@ -54,6 +54,37 @@ main{padding:14px 14px 44px}
 .revchip b{display:block;color:var(--cream);font-weight:800;font-size:15px;margin-top:2px}
 .rline{font-size:12px;color:var(--ash);line-height:1.7}
 .rline b{color:var(--cream);font-weight:700}
+/* экран расходов */
+.exrev{display:flex;gap:8px}
+.exrev .card{flex:1;border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:var(--panel2)}
+.exrev .card.kar{border-color:#c79a4a}.exrev .card.club{border-color:#5f7fa0}
+.exrev .t{font-size:10.5px;color:var(--ash);text-transform:uppercase;letter-spacing:.04em}
+.exrev .v{font-size:17px;font-weight:800;color:var(--cream);margin-top:4px}
+.exhero{text-align:center;margin:8px 0 2px}
+.exhero .lbl{font-size:11px;color:var(--gold-dim);letter-spacing:.08em;text-transform:uppercase}
+.exhero .sum{font-size:28px;font-weight:800;color:var(--out);line-height:1.05;margin-top:3px}
+.exdonut{display:flex;justify-content:center;margin:6px 0 2px}
+.exlist{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.grp{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px 13px}
+.grp-top{display:flex;align-items:center;gap:9px;cursor:pointer}
+.gdot{width:11px;height:11px;border-radius:3px;flex:none}
+.chev{color:var(--ash);font-size:11px;transition:transform .15s;width:12px;flex:none}
+.grp.open .chev{transform:rotate(90deg)}
+.grp-name{font-weight:700;font-size:14px;color:var(--cream)}
+.grp-pct{margin-left:auto;font-size:12px;color:var(--ash);font-weight:600}
+.grp-amt{font-weight:800;font-size:15px;color:var(--cream);margin-left:10px}
+.gtrack{height:8px;border-radius:5px;background:#241d10;overflow:hidden;margin-top:9px}
+.gtrack > span{display:block;height:100%;border-radius:5px}
+.gdetail{display:none;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+.grp.open .gdetail{display:block}
+.drow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:5px 0;font-size:13px}
+.drow .nm{color:var(--ash)}.drow b{color:var(--cream);font-weight:700;white-space:nowrap}
+.drow .cnt{font-size:10.5px;color:var(--gold-dim);margin-left:6px}
+.fotsplit{display:flex;gap:7px;margin-bottom:8px}
+.fotsplit .fc{flex:1;border:1px solid var(--line);border-radius:10px;padding:7px 6px;text-align:center}
+.fotsplit .fc .k{font-size:9.5px;color:var(--ash);text-transform:uppercase}
+.fotsplit .fc .a{font-size:12.5px;font-weight:800;color:var(--cream);margin-top:2px}
+.subhdr{font-size:10.5px;color:var(--gold-dim);letter-spacing:.08em;text-transform:uppercase;margin:4px 0 2px}
 .bar{height:8px;border-radius:6px;background:#241d10;overflow:hidden;display:flex;margin-top:8px}
 .bar span{height:100%}
 .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--ash)}
@@ -110,6 +141,7 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
   <section class="tabpage" id="tab-bank"></section>
   <section class="tabpage" id="tab-debts"></section>
   <section class="tabpage" id="tab-salary"></section>
+  <section class="tabpage" id="tab-expenses"></section>
 </main>
 
 <nav style="display:none" id="nav"></nav>
@@ -265,7 +297,7 @@ function renderAll(){
     document.getElementById("hdrNal").innerHTML = 'нал <b style="color:var(--cream)">'+fmt(nal)+'</b>';
     document.getElementById("hdrCard").innerHTML = 'карта <b style="color:var(--cream)">'+fmt(card)+'</b>';
     document.getElementById("asof").textContent = "данные на последнюю закрытую смену · "+human(VD)+(gd?" · обновлено "+gd.toLocaleString("ru-RU"):"");
-    renderSummary(); renderKassa(); renderBank(); renderDebts();
+    renderSummary(); renderKassa(); renderBank(); renderDebts(); renderExpenses();
   } else {
     // upr/dir — только долги и своя ЗП, остатки кассы в шапке НЕ показываем
     const hb = document.querySelector('#hdr .hdr-bal'); if(hb) hb.style.display='none';
@@ -397,6 +429,80 @@ function renderDebts(){
 function setDebt(k){ debtKind=k; renderDebts(); }
 function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
 
+/* ===== экран расходов кассы (админ) ===== */
+const MON_NOM=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
+const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка"]);
+let EXPM=null;
+function expMonthLabel(mk){ const p=mk.split("-"); return MON_NOM[(+p[1])-1]+" "+p[0]; }
+function expShiftMonth(mk,n){ let p=mk.split("-").map(Number),y=p[0],m=p[1]+n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
+function expNavMonth(n){ EXPM=expShiftMonth(EXPM||((VD||"").slice(0,7)),n); renderExpenses(); }
+function expReport(mk){
+  const inM=d=>(d||"").slice(0,7)===mk;
+  const fot={"Караоке":0,"Клуб":0,"Общий":0}, fotP={};
+  for(const e of S.entries){ if(e.deleted||e.type!=="out"||!SAL_CATS.includes(e.cat)||!inM(e.bizDate)) continue;
+    const v=e.cat==="Зар.плата КАРАОКЕ"?"Караоке":(e.cat==="Зар.плата КЛУБ"?"Клуб":"Общий");
+    fot[v]+=e.amount; if(!fotP[e.cp])fotP[e.cp]={n:e.cp,a:0,cnt:0}; fotP[e.cp].a+=e.amount; fotP[e.cp].cnt++; }
+  const fotTotal=fot.Караоке+fot.Клуб+fot.Общий;
+  const gs={},gi={}; EXPENSE_GROUPS.forEach(g=>{gs[g]=0;gi[g]={};});
+  for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(p.date)) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0}; gi[g][k].a+=p.amount; gi[g][k].cnt++; }
+  let proc=0; const pi={};
+  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue; if(SAL_CATS.includes(e.cat)||DEBT_CATS.includes(e.cat)||EXP_EXCLUDE.has(e.cat)) continue; proc+=e.amount; const k=e.cp||e.cat; if(!pi[k])pi[k]={n:k,a:0,cnt:0}; pi[k].a+=e.amount; pi[k].cnt++; }
+  let nal=0,card=0;
+  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue; const fc=SAL_CATS.includes(e.cat); const other=!fc&&!DEBT_CATS.includes(e.cat)&&!EXP_EXCLUDE.has(e.cat); if(!fc&&!other) continue; if(e.method==="card")card+=e.amount; else nal+=e.amount; }
+  const bez=EXPENSE_GROUPS.reduce((s,g)=>s+(gs[g]||0),0);
+  let revKar=0,revClub=0;
+  for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||!inM(e.bizDate)) continue; const s=e.type==="in"?1:-1; if(normName(e.cp)===normName("Касса КАРАОКЕ"))revKar+=s*e.amount; else if(normName(e.cp)===normName("Касса КЛУБ"))revClub+=s*e.amount; }
+  const items=o=>Object.values(o).sort((a,b)=>b.a-a.a);
+  const groups=[
+    {name:"ФОТ",hex:GHEX.g1,amt:fotTotal,fot:fot,people:items(fotP)},
+    {name:"Продукты",hex:GHEX.g2,amt:gs["Продукты"]||0,items:items(gi["Продукты"]||{})},
+    {name:"Алкоголь",hex:GHEX.g3,amt:gs["Алкоголь"]||0,items:items(gi["Алкоголь"]||{})},
+    {name:"Налоги",hex:GHEX.g4,amt:gs["Налоги"]||0,items:items(gi["Налоги"]||{})},
+    {name:"Административные",hex:GHEX.g5,amt:gs["Административные"]||0,items:items(gi["Административные"]||{})},
+    {name:"Коммунальные",hex:GHEX.g6,amt:gs["Коммунальные"]||0,items:items(gi["Коммунальные"]||{})},
+    {name:"Прочее",hex:GHEX.g7,amt:proc,items:items(pi)},
+  ];
+  const total=groups.reduce((s,g)=>s+g.amt,0);
+  return {groups,total,nal,card,bez,revKar,revClub};
+}
+function donutSVG(groups,total){
+  const C=2*Math.PI*80,GAP=3; let acc=0;
+  let arcs='<circle cx="105" cy="105" r="80" fill="none" stroke="#241d10" stroke-width="24"/>';
+  for(const g of groups){ if(g.amt<=0) continue; const len=g.amt/total*C; arcs+='<circle cx="105" cy="105" r="80" fill="none" stroke="'+g.hex+'" stroke-width="24" stroke-dasharray="'+Math.max(0,len-GAP)+' '+(C-Math.max(0,len-GAP))+'" stroke-dashoffset="'+(-acc)+'" transform="rotate(-90 105 105)"><title>'+esc(g.name)+': '+fmt(g.amt)+'</title></circle>'; acc+=len; }
+  return '<svg width="210" height="210" viewBox="0 0 210 210">'+arcs+'<text x="105" y="102" text-anchor="middle" fill="#F3ECDA" font-size="18" font-weight="800">'+fmt(Math.round(total/1e6))+' млн</text><text x="105" y="121" text-anchor="middle" fill="#988D75" font-size="11">расходы</text></svg>';
+}
+function renderExpenses(){
+  const box=document.getElementById("tab-expenses"); if(!box) return;
+  if(!EXPM) EXPM=(VD||bizToday()).slice(0,7);
+  const R=expReport(EXPM);
+  const shown=R.groups.filter(g=>g.amt>0);
+  const max=Math.max(1,...shown.map(g=>g.amt));
+  let html='<div class="daynav"><button class="dn-arrow" onclick="expNavMonth(-1)">◀</button>'+
+    '<div class="datebox"><b>'+expMonthLabel(EXPM)+'</b><span>расходы за месяц</span></div>'+
+    '<button class="dn-arrow" onclick="expNavMonth(1)">▶</button></div>';
+  html+='<div class="sect">Оборот по кассам · за месяц</div><div class="exrev">'+
+    '<div class="card kar"><div class="t">Касса Караоке</div><div class="v">'+fmt(R.revKar)+'</div></div>'+
+    '<div class="card club"><div class="t">Касса Клуб</div><div class="v">'+fmt(R.revClub)+'</div></div></div>';
+  html+='<div class="exhero"><div class="lbl">Всего расходов за месяц</div><div class="sum">'+(R.total?"−":"")+fmt(R.total)+'</div></div>';
+  html+='<div class="exdonut">'+(R.total>0?donutSVG(R.groups,R.total):'<div class="empty">Расходов за этот месяц нет.</div>')+'</div>';
+  if(shown.length){
+    html+='<div class="sect">По группам · нажмите для детализации</div><div class="exlist">';
+    shown.forEach((g,i)=>{
+      const pct=Math.round(g.amt/R.total*100);
+      let detail='';
+      if(g.fot){ detail+='<div class="fotsplit"><div class="fc"><div class="k">Караоке</div><div class="a">'+fmt(g.fot.Караоке)+'</div></div><div class="fc"><div class="k">Клуб</div><div class="a">'+fmt(g.fot.Клуб)+'</div></div><div class="fc"><div class="k">Общий</div><div class="a">'+fmt(g.fot.Общий)+'</div></div></div>';
+        detail+=g.people.length?('<div class="subhdr">по сотрудникам</div>'+g.people.map(p=>'<div class="drow"><span class="nm">'+esc(p.n)+(p.cnt>1?'<span class="cnt">'+p.cnt+' вып.</span>':'')+'</span><b>'+fmt(p.a)+'</b></div>').join("")):''; }
+      else { detail+='<div class="subhdr">получатели · за месяц</div>'+(g.items.length?g.items.map(it=>'<div class="drow"><span class="nm">'+esc(it.n)+(it.cnt>1?'<span class="cnt">'+it.cnt+' плат.</span>':'')+'</span><b>'+fmt(it.a)+'</b></div>').join(""):'<div class="drow"><span class="nm">детализации нет</span></div>'); }
+      html+='<div class="grp" id="exg'+i+'"><div class="grp-top" onclick="document.getElementById(\'exg'+i+'\').classList.toggle(\'open\')"><span class="chev">▸</span><span class="gdot" style="background:'+g.hex+'"></span><span class="grp-name">'+g.name+'</span><span class="grp-pct">'+pct+'%</span><span class="grp-amt">'+fmt(g.amt)+'</span></div><div class="gtrack"><span style="width:'+Math.round(g.amt/max*100)+'%;background:'+g.hex+'"></span></div><div class="gdetail">'+detail+'</div></div>';
+    });
+    html+='</div>';
+    html+='<div class="kpi wide" style="margin-top:12px;border:2px solid var(--gold);background:rgba(232,201,122,.07)"><div class="t" style="color:var(--gold)">Итого расходов</div><div class="v" style="color:var(--gold)">'+fmt(R.total)+'</div></div>';
+    html+='<div class="sect">Способ оплаты</div><div class="exrev"><div class="card"><div class="t">Наличка</div><div class="v">'+fmt(R.nal)+'</div></div><div class="card"><div class="t">Карта</div><div class="v">'+fmt(R.card)+'</div></div><div class="card"><div class="t">Безнал</div><div class="v">'+fmt(R.bez)+'</div></div></div>';
+  }
+  box.innerHTML=html;
+}
+
 /* ==== своя ЗП (для upr/dir) — итоги считает сервер, тут только показ ==== */
 function renderSalary(){
   const box=document.getElementById("tab-salary");
@@ -427,6 +533,7 @@ const NAV_ADMIN = [
   {id:"kassa",ic:"▤",label:"Касса"},
   {id:"bank",ic:"▧",label:"Безнал"},
   {id:"debts",ic:"▨",label:"Долги"},
+  {id:"expenses",ic:"◔",label:"Расходы"},
 ];
 const NAV_LIMITED = [
   {id:"debts",ic:"▨",label:"Долги"},
