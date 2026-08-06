@@ -10,7 +10,7 @@
 :root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(170px + env(safe-area-inset-bottom))}
+body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(340px + env(safe-area-inset-bottom))}
 .in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
 .hdr-top{display:flex;align-items:center;gap:8px}
@@ -159,6 +159,15 @@ let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
 function normName(x){ return String(x).toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
+function plural(n, one, few, many){ n=Math.abs(Number(n)||0)%100; const d=n%10; if(n>10&&n<20) return many; if(d>1&&d<5) return few; if(d===1) return one; return many; }
+// остаток нал/карта: для ЗАКРЫТОЙ смены — по факту закрытия (как переносится в кассе), иначе расчётно
+function cashSplit(d){
+  const day = S.days[d];
+  if(day && day.closed && day.fact!==undefined){
+    return { nal: Number(day.fact)||0, card: (day.cardFact!==undefined? (Number(day.cardFact)||0) : cardBalance(d)) };
+  }
+  return { nal: currentBalance(d), card: cardBalance(d) };
+}
 function staffNameSet(){ const st=new Set(); for(const c of CATALOG.concat(S.customCps||[])){ if(SAL_CATS.includes(c.cat)) st.add(normName(c.cp)); } return st; }
 // «персонал» в долговых = зарплатный справочник (+ свои контрагенты) + учредители (Долговой учред), как в кассе
 function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG.concat(S.customCps||[])){ if(c.cat==="Долговой учред"||c.cat==="Долговой счет ПЕРСОНАЛ") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && (e.cat==="Долговой учред"||e.cat==="Долговой счет ПЕРСОНАЛ")) st.add(normName(e.cp)); } return st; }
@@ -292,11 +301,8 @@ function renderAll(){
   const gd = GEN ? new Date(GEN) : null;
   if(ROLE==="admin"){
     if(!VD){ gate("Данных пока нет — касса ещё не закрывала смены."); return; }
-    const nal = currentBalance(VD), card = cardBalance(VD);
-    document.getElementById("hdrSum").textContent = fmt(nal+card);
-    document.getElementById("hdrNal").innerHTML = 'нал <b style="color:var(--cream)">'+fmt(nal)+'</b>';
-    document.getElementById("hdrCard").innerHTML = 'карта <b style="color:var(--cream)">'+fmt(card)+'</b>';
-    document.getElementById("asof").textContent = "данные на последнюю закрытую смену · "+human(VD)+(gd?" · обновлено "+gd.toLocaleString("ru-RU"):"");
+    if(SEL==null) SEL=VD;
+    renderHeader();
     renderSummary(); renderKassa(); renderBank(); renderDebts(); renderExpenses();
   } else {
     // upr/dir — только долги и своя ЗП, остатки кассы в шапке НЕ показываем
@@ -306,8 +312,39 @@ function renderAll(){
     renderDebts(); renderSalary();
   }
 }
+// шапка КАССА отражает ВЫБРАННЫЙ день (перелистывание влияет на остаток нал/карта)
+function renderHeader(){
+  if(ROLE!=="admin"||!VD) return;
+  const d = SEL||VD;
+  const cs = cashSplit(d);
+  const gd = GEN ? new Date(GEN) : null;
+  document.getElementById("hdrSum").textContent = fmt(cs.nal+cs.card);
+  document.getElementById("hdrNal").innerHTML = 'нал <b style="color:var(--cream)">'+fmt(cs.nal)+'</b>';
+  document.getElementById("hdrCard").innerHTML = 'карта <b style="color:var(--cream)">'+fmt(cs.card)+'</b>';
+  const closed = S.days[d] && S.days[d].closed;
+  const lbl = d===VD
+    ? (closed?"последняя закрытая смена":"последняя смена · расчётно")
+    : (closed?"закрытая смена":(d===bizToday()?"текущий день · расчётно":"выбранный день · расчётно"));
+  document.getElementById("asof").textContent = lbl+" · "+human(d)+(gd?" · обновлено "+gd.toLocaleString("ru-RU"):"");
+}
 function renderSummary(){
   const d=SEL||VD;
+  // прогноз кассы за месяц выбранного дня (как в кассе на ПК)
+  const mkP=d.slice(0,7);
+  let rKar=0,rClub=0; const rSet=new Set();
+  for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||e.bizDate.slice(0,7)!==mkP) continue; const s=e.type==="in"?1:-1; const n=normName(e.cp); if(n===normName("Касса КАРАОКЕ")){rKar+=s*e.amount; rSet.add(e.bizDate);} else if(n===normName("Касса КЛУБ")){rClub+=s*e.amount; rSet.add(e.bizDate);} }
+  const dimP=new Date(+mkP.slice(0,4),+mkP.slice(5,7),0).getDate();
+  const curP=mkP===bizToday().slice(0,7);
+  const elP=curP?Math.max(1,rSet.size):dimP;
+  const fP=dimP/elP;
+  const pKar=Math.round(rKar*fP), pClub=Math.round(rClub*fP), pTot=pKar+pClub;
+  const forecastHtml =
+    '<div class="sect">Расчётная касса за месяц (прогноз)</div>'+
+    '<div class="kpi wide"><div class="s" style="margin-bottom:8px">'+(curP?('собрано за '+elP+' '+plural(elP,"день","дня","дней")+' → прогноз на '+dimP+' '+plural(dimP,"день","дня","дней")+', по текущему темпу'):'месяц завершён — фактические итоги')+'</div>'+
+      '<div class="rline">Караоке: <b>'+fmt(pKar)+'</b></div>'+
+      '<div class="rline">Клуб: <b>'+fmt(pClub)+'</b></div>'+
+      '<div class="v" style="color:var(--gold);margin-top:8px">общий приход'+(curP?' (прогноз)':'')+' '+fmt(pTot)+'</div>'+
+    '</div>';
   const nal=currentBalance(d), card=cardBalance(d), sp=daySpendBreakdown(d), inn=dayInAll(d);
   const mk=d.slice(0,7), ds=debtTotalsSplit(mk);
   const staff=ds.staffCur+ds.staffOld, guest=ds.guestCur+ds.guestOld;
@@ -337,6 +374,7 @@ function renderSummary(){
       '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div>'+
         '<div style="margin-top:8px">'+rashLines+'</div></div>'+
     '</div>'+
+    forecastHtml+
     '<div class="sect">Долги — открыто</div>'+
     '<div class="kpis">'+
       '<div class="kpi" style="cursor:pointer" onclick="openDebtsTab(\'staff\')"><div class="t">Персонал ›</div><div class="v" style="color:'+(staff?'var(--warn)':'var(--ash)')+'">'+fmt(staff)+'</div><div class="s">этот месяц '+fmt(ds.staffCur)+' · прошлые '+fmt(ds.staffOld)+'</div></div>'+
@@ -372,8 +410,8 @@ function dayNavHtml(){
       '<button class="dn-arrow" onclick="navDay(1)">▶</button>'+
     '</div></div>';
 }
-function navDay(delta){ SEL=shiftDate(SEL||VD, delta); renderSummary(); renderKassa(); renderBank(); }
-function navToday(){ SEL=bizToday(); renderSummary(); renderKassa(); renderBank(); }
+function navDay(delta){ SEL=shiftDate(SEL||VD, delta); renderHeader(); renderSummary(); renderKassa(); renderBank(); }
+function navToday(){ SEL=bizToday(); renderHeader(); renderSummary(); renderKassa(); renderBank(); }
 function renderBank(){
   const box=document.getElementById("tab-bank");
   if(!S.bank||!S.bank.startDate){ box.innerHTML='<div class="empty">Безналичный счёт не настроен в кассе.</div>'; return; }
