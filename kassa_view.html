@@ -158,7 +158,31 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v7";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v8";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
+function forecastDonutV(pKar,pClub,isForecast){
+  const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
+  const fk=tot>0?pKar/tot:0,fc=tot>0?pClub/tot:0,lk=fk*C,lc=fc*C;
+  const bn=shortNum(tot), bv=bn[0], bu=bn[1];
+  let arcs='<circle cx="105" cy="105" r="80" fill="none" stroke="#241d10" stroke-width="26"/>';
+  if(tot>0){
+    arcs+='<circle cx="105" cy="105" r="80" fill="none" stroke="'+KAR+'" stroke-width="26" stroke-dasharray="'+Math.max(0,lk-GAP).toFixed(1)+' '+(C-Math.max(0,lk-GAP)).toFixed(1)+'" stroke-dashoffset="0" transform="rotate(-90 105 105)"/>';
+    arcs+='<circle cx="105" cy="105" r="80" fill="none" stroke="'+CLUB+'" stroke-width="26" stroke-dasharray="'+Math.max(0,lc-GAP).toFixed(1)+' '+(C-Math.max(0,lc-GAP)).toFixed(1)+'" stroke-dashoffset="'+(-lk).toFixed(1)+'" transform="rotate(-90 105 105)"/>';
+  }
+  const pctK=tot>0?Math.round(fk*100):0,pctC=tot>0?Math.round(fc*100):0;
+  const leg=(c,name,pct,val)=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:8px 12px"><div><span style="display:inline-block;width:12px;height:12px;border-radius:4px;background:'+c+';margin-right:8px;vertical-align:middle"></span>'+name+' <span style="color:var(--ash);font-size:11px">'+pct+'%</span></div><b style="color:'+c+';white-space:nowrap">'+fmt(val)+'</b></div>';
+  return '<div class="sect">'+(isForecast?'Расчётная касса за месяц (прогноз)':'Касса за месяц (факт)')+'</div>'+
+    '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:4px">'+
+      '<svg width="180" height="180" viewBox="0 0 210 210" style="flex:none">'+arcs+
+        '<text x="105" y="100" text-anchor="middle" fill="#F3ECDA" font-size="22" font-weight="800">'+bv+'</text>'+
+        '<text x="105" y="121" text-anchor="middle" fill="#E8C97A" font-size="12" font-weight="700">'+(bu?bu+' · ':'')+(isForecast?'прогноз':'факт')+'</text>'+
+      '</svg>'+
+      '<div style="display:flex;flex-direction:column;gap:9px;min-width:200px;flex:1">'+
+        leg(KAR,'Караоке',pctK,pKar)+leg(CLUB,'Клуб',pctC,pClub)+
+        '<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--gold-dim);border-radius:12px;padding:8px 12px;background:rgba(232,201,122,.06)"><b style="font-weight:700">Общий приход</b><b style="color:var(--gold);white-space:nowrap">'+fmt(tot)+'</b></div>'+
+      '</div>'+
+    '</div>';
+}
 function normName(x){ return String(x).toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
 function plural(n, one, few, many){ n=Math.abs(Number(n)||0)%100; const d=n%10; if(n>10&&n<20) return many; if(d>1&&d<5) return few; if(d===1) return one; return many; }
 // остаток нал/карта: для ЗАКРЫТОЙ смены — по факту закрытия (как переносится в кассе), иначе расчётно
@@ -339,13 +363,7 @@ function renderSummary(){
   const elP=curP?Math.max(1,rSet.size):dimP;
   const fP=dimP/elP;
   const pKar=Math.round(rKar*fP), pClub=Math.round(rClub*fP), pTot=pKar+pClub;
-  const forecastHtml =
-    '<div class="sect">Расчётная касса за месяц (прогноз)</div>'+
-    '<div class="kpi wide"><div class="s" style="margin-bottom:8px">'+(curP?('собрано за '+elP+' '+plural(elP,"день","дня","дней")+' → прогноз на '+dimP+' '+plural(dimP,"день","дня","дней")+', по текущему темпу'):'месяц завершён — фактические итоги')+'</div>'+
-      '<div class="rline">Караоке: <b>'+fmt(pKar)+'</b></div>'+
-      '<div class="rline">Клуб: <b>'+fmt(pClub)+'</b></div>'+
-      '<div class="v" style="color:var(--gold);margin-top:8px">общий приход'+(curP?' (прогноз)':'')+' '+fmt(pTot)+'</div>'+
-    '</div>';
+  const forecastHtml = forecastDonutV(pKar, pClub, curP);
   const nal=currentBalance(d), card=cardBalance(d), sp=daySpendBreakdown(d), inn=dayInAll(d);
   const mk=d.slice(0,7), ds=debtTotalsSplit(mk);
   const staff=ds.staffCur+ds.staffOld, guest=ds.guestCur+ds.guestOld;
