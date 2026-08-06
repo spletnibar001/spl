@@ -151,7 +151,7 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
 const FN_URL = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/kassa-view";
 
 /* ===CALC_START=== расчёты кассы (дословно из kassa.html, проверено test_calc.js) ==== */
-const DEBT_CATS = ["Долговой счет ГОСТИ","Долговой учред"];
+const DEBT_CATS = ["Долговой счет ГОСТИ","Долговой счет ПЕРСОНАЛ","Долговой учред"];
 const SAL_CATS = ["Зар.плата КАРАОКЕ","Зар.плата ОБЩАЯ","Зар.плата КЛУБ"];
 const DOW = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
 const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -161,7 +161,7 @@ function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog |
 function normName(x){ return String(x).toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
 function staffNameSet(){ const st=new Set(); for(const c of CATALOG.concat(S.customCps||[])){ if(SAL_CATS.includes(c.cat)) st.add(normName(c.cp)); } return st; }
 // «персонал» в долговых = зарплатный справочник (+ свои контрагенты) + учредители (Долговой учред), как в кассе
-function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG.concat(S.customCps||[])){ if(c.cat==="Долговой учред") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && e.cat==="Долговой учред") st.add(normName(e.cp)); } return st; }
+function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG.concat(S.customCps||[])){ if(c.cat==="Долговой учред"||c.cat==="Долговой счет ПЕРСОНАЛ") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && (e.cat==="Долговой учред"||e.cat==="Долговой счет ПЕРСОНАЛ")) st.add(normName(e.cp)); } return st; }
 const fmt = n => (n<0?"−":"") + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 function shiftDate(iso, n){ const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function human(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]+", "+d.getDate()+" "+MON[d.getMonth()]; }
