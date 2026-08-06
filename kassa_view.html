@@ -158,6 +158,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
+const VIEW_VER = "v7";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function normName(x){ return String(x).toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
 function plural(n, one, few, many){ n=Math.abs(Number(n)||0)%100; const d=n%10; if(n>10&&n<20) return many; if(d>1&&d<5) return few; if(d===1) return one; return many; }
 // остаток нал/карта: для ЗАКРЫТОЙ смены — по факту закрытия (как переносится в кассе), иначе расчётно
@@ -290,7 +291,7 @@ function hydrate(data){
   MYSAL = data.mySalary || null;
   VIEWERCP = data.viewerCp || "";
   const roName = {admin:"админ", upr:"управляющий", dir:"директор"}[ROLE] || ROLE;
-  document.getElementById("roBadge").textContent = "🔒 просмотр · " + roName;
+  document.getElementById("roBadge").textContent = "🔒 просмотр · " + roName + " · " + VIEW_VER;
 }
 function gate(msg){ const g=document.getElementById("gate"); g.className=""; g.removeAttribute("style"); g.style.display="flex"; g.innerHTML = '<div class="g-logo">КАССА</div><div class="g-msg">'+esc(msg)+'</div>'; }
 function show(){ document.getElementById("gate").style.display="none"; for(const id of ["hdr","main","nav"]) document.getElementById(id).style.display=""; try{ const tg=window.Telegram&&window.Telegram.WebApp; tg&&tg.setHeaderColor&&tg.setHeaderColor("#120d06"); }catch(e){} }
