@@ -9,8 +9,8 @@
 <style>
 :root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(520px + env(safe-area-inset-bottom))}
+html{min-height:100%}
+body{min-height:100%;background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 .in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
 .hdr-top{display:flex;align-items:center;gap:8px}
@@ -21,7 +21,7 @@ header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a140
 .hdr-bal .sum{font-size:29px;font-weight:800;color:var(--gold);line-height:1;text-shadow:0 0 22px rgba(232,201,122,.22)}
 .hdr-bal .split{font-size:11px;color:var(--ash);margin-top:4px}
 .asof{font-size:10.5px;color:var(--ash);margin-top:8px}
-main{padding:14px 14px 44px}
+main{padding:14px 14px calc(200px + env(safe-area-inset-bottom))}
 .tabpage{display:none}.tabpage.on{display:block}
 .sect{font-size:11px;color:var(--gold-dim);letter-spacing:.12em;text-transform:uppercase;margin:18px 4px 8px}
 .sect:first-child{margin-top:4px}
@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v10";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v12";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -374,27 +374,25 @@ function renderSummary(){
   const csx = cashSplit(d); const ostatok = csx.nal + csx.card;
   const prochee = ostatok - (carryOver + revK + revC);
   const tb=bankDaySummary(d);
-  const rl=[["Касса",sp.nal]];
-  if(sp.card) rl.push(["карта",sp.card]);
-  if(tb.uz) rl.push(["Uzcard",tb.uz]);
-  if(tb.humo) rl.push(["Humo",tb.humo]);
-  if(tb.rah) rl.push(["Rahmat",tb.rah]);
-  if(tb.qr) rl.push(["QR",tb.qr]);
-  if(tb.inkass) rl.push(["инкассация",tb.inkass]);
-  if(tb.other) rl.push(["прочее",tb.other]);
-  const rashLines = rl.map(x=>'<div class="rline">'+x[0]+': <b>'+fmt(x[1])+'</b></div>').join("");
+  const term_=[];
+  if(tb.uz) term_.push(["Uzcard",tb.uz]);
+  if(tb.humo) term_.push(["Humo",tb.humo]);
+  if(tb.rah) term_.push(["Rahmat",tb.rah]);
+  if(tb.qr) term_.push(["QR",tb.qr]);
+  if(tb.inkass) term_.push(["Инкассация",tb.inkass]);
+  if(tb.other) term_.push(["Прочие терминалы",tb.other]);
+  const rashLines = term_.length ? term_.map(x=>'<div class="rline">'+x[0]+': <b>'+fmt(x[1])+'</b></div>').join("") : '<div class="rline" style="color:var(--ash)">за день терминалов нет</div>';
   document.getElementById("tab-summary").innerHTML =
     dayNavHtml()+
     '<div class="sect">Смена за день</div>'+
     '<div class="kpis">'+
-      '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div>'+
-        '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">'+
+      '<div class="kpi">'+
+        '<div style="display:flex;flex-direction:column;gap:6px">'+
           '<div class="revchip">ПЕРЕХОДНОЙ ОСТАТОК:<b>'+fmt(carryOver)+'</b></div>'+
           '<div class="revchip">КАССА КАРАОКЕ:<b>'+fmt(revK)+'</b></div>'+
           '<div class="revchip">КАССА КЛУБ:<b>'+fmt(revC)+'</b></div>'+
-          (prochee>0?'<div class="revchip">ПРОЧЕЕ:<b>'+fmt(prochee)+'</b></div>':'')+
         '</div></div>'+
-      '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div>'+
+      '<div class="kpi"><div class="t">Терминалы за день</div>'+
         '<div style="margin-top:8px">'+rashLines+'</div></div>'+
     '</div>'+
     '<div class="sect">Долги — открыто</div>'+
