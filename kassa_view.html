@@ -21,7 +21,7 @@ header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a140
 .hdr-bal .sum{font-size:29px;font-weight:800;color:var(--gold);line-height:1;text-shadow:0 0 22px rgba(232,201,122,.22)}
 .hdr-bal .split{font-size:11px;color:var(--ash);margin-top:4px}
 .asof{font-size:10.5px;color:var(--ash);margin-top:8px}
-main{padding:14px 14px calc(200px + env(safe-area-inset-bottom))}
+main{padding:14px 14px calc(90px + env(safe-area-inset-bottom))}
 .tabpage{display:none}.tabpage.on{display:block}
 .sect{font-size:11px;color:var(--gold-dim);letter-spacing:.12em;text-transform:uppercase;margin:18px 4px 8px}
 .sect:first-child{margin-top:4px}
@@ -59,7 +59,7 @@ main{padding:14px 14px calc(200px + env(safe-area-inset-bottom))}
 .exrev .card{flex:1;border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:var(--panel2)}
 .exrev .card.kar{border-color:#c79a4a}.exrev .card.club{border-color:#5f7fa0}
 .exrev .t{font-size:10.5px;color:var(--ash);text-transform:uppercase;letter-spacing:.04em}
-.exrev .v{font-size:17px;font-weight:800;color:var(--cream);margin-top:4px}
+.exrev .v{font-size:clamp(12px,3.5vw,17px);font-weight:800;color:var(--cream);margin-top:4px;white-space:nowrap}
 .exhero{text-align:center;margin:8px 0 2px}
 .exhero .lbl{font-size:11px;color:var(--gold-dim);letter-spacing:.08em;text-transform:uppercase}
 .exhero .sum{font-size:28px;font-weight:800;color:var(--out);line-height:1.05;margin-top:3px}
@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v12";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v13";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
