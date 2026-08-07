@@ -4,6 +4,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1217,13 +1218,7 @@ async function loadAll(){
   if(seeBon){ bonRows = res[i].data||[]; i++; }
   checkinRows = res[i].data||[]; i++;
   if(CAP.money){ payoutRows = res[i].data||[]; i++; }
-  // посадки в кабинки караоке по дням (для автобонуса звукооператора)
-  try{
-    const wkFrom = iso(viewStart), wkTo = iso(addDays(viewStart,6));
-    const cs = await sb.rpc("cabin_seatings_by_date",{d_from:wkFrom,d_to:wkTo});
-    cabinSeatByDate = {};
-    (cs.data||[]).forEach(r=>{ cabinSeatByDate[r.business_date]=r.seatings; });
-  }catch(_){ cabinSeatByDate = {}; }
+  await loadCabinSeatings();
   await loadKassaPaid(weekKey);
   // авто-обновление плана ЗП в кассе: держим «заработано на сегодня» актуальным при каждом открытии.
   // Пушим не только просматриваемую неделю, но и все утверждённые недели за последние ~6 недель —
@@ -1346,7 +1341,7 @@ function earnedInPeriod(emp, fromS, toS){
     }
   }
   let extra=0, extraLbl="";
-  if(CAP.money){
+  {
     if(emp.emp_role==="Официант"){
       for(const w of wvRows) if(w.employee_id===emp.id && w.week_start>=fromS && w.week_start<=toS)
         extra += (w.sales||0)*STEPS_PCT;
@@ -1424,6 +1419,19 @@ function fillRoles(){
   $("f-role").innerHTML = list.map(r=>`<option>${r}</option>`).join("");
 }
 // «сегодня» по логике рабочего дня: до 05:00 утра — ещё вчерашняя смена
+// посадки в кабинки караоке по дням (для автобонуса звукооператора).
+// Широкий диапазон: с 1-го числа прошлого месяца по 2 недели вперёд,
+// чтобы бонус считался и при навигации по неделям, и в отчётах за период.
+async function loadCabinSeatings(){
+  try{
+    const now = new Date();
+    const dFrom = iso(new Date(now.getFullYear(), now.getMonth()-1, 1));
+    const dTo = iso(addDays(viewStart, 13));
+    const cs = await sb.rpc("cabin_seatings_by_date",{d_from:dFrom, d_to:dTo});
+    cabinSeatByDate = {};
+    (cs.data||[]).forEach(r=>{ cabinSeatByDate[r.business_date]=r.seatings; });
+  }catch(_){ cabinSeatByDate = {}; }
+}
 function isoBizToday(){
   const shifted = new Date(Date.now() - 5*3600*1000);
   return iso(new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate()));
@@ -2231,6 +2239,7 @@ async function loadStaff(){
   ]);
   employees = emp.data||[]; rosterRows = ros.data||[]; shiftRows = shf.data||[];
   rates = rt.data||[]; wvRows = wv.data||[]; penRows = pen.data||[]; bonRows = bon.data||[];
+  await loadCabinSeatings();
   myCheckins = chk.data||[]; approvals = appr.data||[];
 }
 function myEmployeeCards(){
