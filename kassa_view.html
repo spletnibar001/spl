@@ -149,6 +149,8 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
 <script>
 /* ==== адрес защищённой функции (без ключей — доступ решает она сама) ==== */
 const FN_URL = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/kassa-view";
+const FN_ACCESS = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/kassa-access";
+function logViewerAccess(){ try{ fetch(FN_ACCESS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({op:"log",who:(VIEWERCP||("роль "+ROLE)),role:ROLE,source:"viewer"})}).catch(function(){}); }catch(e){} }
 
 /* ===CALC_START=== расчёты кассы (дословно из kassa.html, проверено test_calc.js) ==== */
 const DEBT_CATS = ["Долговой счет ГОСТИ","Долговой счет ПЕРСОНАЛ","Долговой учред"];
@@ -158,7 +160,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v8";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v9";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -257,6 +259,7 @@ async function boot(){
     hydrate(data);
     show();
     renderAll();
+    logViewerAccess();                            // журнал входов (не критично, ошибки глотаем)
   }catch(e){ /* нет связи — остаётся календарь */ }
 }
 /* ==== нейтральная заглушка-календарь ==== */
