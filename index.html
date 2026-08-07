@@ -990,8 +990,8 @@ const CAPS = {
                 scope:[["*","*"]],
                 approve:true, unapprove:true, archive:false, msg:"team", pen:"all", bonus:"all"},
   dir:         {label:"Директор клуба", money:false,
-                scope:[["*","club"],["Бар-менеджер","both"]],
-                approve:false, unapprove:false, archive:false, msg:"team", pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона
+                scope:[["*","club"],["Бар-менеджер","both"],["Охрана","both"]],
+                approve:false, unapprove:false, archive:false, msg:"team", pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона (+ охрана — общая)
   staff:       {label:"Сотрудник", staff:true, money:false, scope:null,
                 approve:false, unapprove:false, archive:false},  // личный кабинет
   phone:       {label:"Обзвон броней", bookingOnly:true, money:false, scope:null,
@@ -1225,9 +1225,14 @@ async function loadAll(){
     (cs.data||[]).forEach(r=>{ cabinSeatByDate[r.business_date]=r.seatings; });
   }catch(_){ cabinSeatByDate = {}; }
   await loadKassaPaid(weekKey);
-  // авто-обновление плана ЗП в кассе: если неделя утверждена — держим «заработано на сегодня» актуальным при каждом открытии
-  if(CAP.money && KASSA_PAID!==null && approvals.some(a=>a.week_start===weekKey)){
-    pushPlansToKassa(weekKey).catch(()=>{});   // фоном, не блокируя отрисовку
+  // авто-обновление плана ЗП в кассе: держим «заработано на сегодня» актуальным при каждом открытии.
+  // Пушим не только просматриваемую неделю, но и все утверждённые недели за последние ~6 недель —
+  // чтобы задним числом добавленный график (напр. новый официант на прошлой неделе) подтянулся в кассу.
+  if(CAP.money && KASSA_PAID!==null){
+    const cutoff = iso(addDays(fromIso(weekKey), -42));   // окно: текущая и ~6 предыдущих недель
+    const weeks = [...new Set(approvals.map(a=>a.week_start))].filter(ws=>ws>=cutoff && ws<=weekKey);
+    if(!weeks.includes(weekKey) && approvals.some(a=>a.week_start===weekKey)) weeks.push(weekKey);
+    (async()=>{ for(const ws of weeks){ try{ await pushPlansToKassa(ws); }catch(_){} } })();  // фоном, последовательно
   }
 }
 /* ===== мост в кассу (kassa-payroll): авто-«ВЫДАНО» + запись плана ЗП ===== */
