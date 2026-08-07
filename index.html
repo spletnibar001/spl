@@ -2325,6 +2325,11 @@ function renderStaffCabinet(cardsArg){
 
     // строки заработка
     let earnRows = "";
+    // звукооператор БЗ: бонус за кабинки — отдельной первой строкой
+    if(me.emp_role===SOUND_BIG && r.extra>0){
+      const cabDays = days.filter(d=>soundCabinBonusForShift(shiftOf(me.id, iso(d)))>0).length;
+      earnRows += `<div class="sc-row"><div class="l"><div class="d">Бонус за кабинки</div><div class="s">посадки в будни · ${cabDays} ${cabDays===1?"день":(cabDays<5?"дня":"дней")}</div></div><div class="r gd">+${fmtNum(r.extra)}</div></div>`;
+    }
     for(const d of days){
       const ds = iso(d), sh = shiftOf(me.id, ds);
       if(sh && sh.status!==2){
