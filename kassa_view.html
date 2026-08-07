@@ -10,7 +10,7 @@
 :root{--smol:#0B0A08;--panel:#161209;--panel2:#1D1810;--line:#2C2517;--gold:#E8C97A;--gold-dim:#B89A54;--cream:#F3ECDA;--ash:#988D75;--in:#8FD49B;--out:#E8735A;--warn:#E8A34A;--alert:#E25A5A}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(340px + env(safe-area-inset-bottom))}
+body{background:var(--smol);color:var(--cream);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:15px;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(520px + env(safe-area-inset-bottom))}
 .in{color:var(--in)}.out{color:var(--out)}.warn{color:var(--warn)}.alert{color:var(--alert)}
 header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#1a1409,#120d06);border-bottom:1px solid #4A3D20;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
 .hdr-top{display:flex;align-items:center;gap:8px}
@@ -150,7 +150,12 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
 /* ==== адрес защищённой функции (без ключей — доступ решает она сама) ==== */
 const FN_URL = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/kassa-view";
 const FN_ACCESS = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/kassa-access";
-function logViewerAccess(){ try{ fetch(FN_ACCESS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({op:"log",who:(VIEWERCP||("роль "+ROLE)),role:ROLE,source:"viewer"})}).catch(function(){}); }catch(e){} }
+function viewerWho(){
+  try{ const u=window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user;
+    if(u){ const nm=[u.first_name,u.last_name].filter(Boolean).join(" ").trim(); return nm || (u.username?("@"+u.username):("id "+u.id)); } }catch(e){}
+  return VIEWERCP || ("роль "+ROLE);
+}
+function logViewerAccess(){ try{ fetch(FN_ACCESS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({op:"log",who:viewerWho(),role:ROLE,source:"viewer"})}).catch(function(){}); }catch(e){} }
 
 /* ===CALC_START=== расчёты кассы (дословно из kassa.html, проверено test_calc.js) ==== */
 const DEBT_CATS = ["Долговой счет ГОСТИ","Долговой счет ПЕРСОНАЛ","Долговой учред"];
@@ -160,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v9";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v10";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -357,16 +362,6 @@ function renderHeader(){
 }
 function renderSummary(){
   const d=SEL||VD;
-  // прогноз кассы за месяц выбранного дня (как в кассе на ПК)
-  const mkP=d.slice(0,7);
-  let rKar=0,rClub=0; const rSet=new Set();
-  for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||e.bizDate.slice(0,7)!==mkP) continue; const s=e.type==="in"?1:-1; const n=normName(e.cp); if(n===normName("Касса КАРАОКЕ")){rKar+=s*e.amount; rSet.add(e.bizDate);} else if(n===normName("Касса КЛУБ")){rClub+=s*e.amount; rSet.add(e.bizDate);} }
-  const dimP=new Date(+mkP.slice(0,4),+mkP.slice(5,7),0).getDate();
-  const curP=mkP===bizToday().slice(0,7);
-  const elP=curP?Math.max(1,rSet.size):dimP;
-  const fP=dimP/elP;
-  const pKar=Math.round(rKar*fP), pClub=Math.round(rClub*fP), pTot=pKar+pClub;
-  const forecastHtml = forecastDonutV(pKar, pClub, curP);
   const nal=currentBalance(d), card=cardBalance(d), sp=daySpendBreakdown(d), inn=dayInAll(d);
   const mk=d.slice(0,7), ds=debtTotalsSplit(mk);
   const staff=ds.staffCur+ds.staffOld, guest=ds.guestCur+ds.guestOld;
@@ -374,8 +369,12 @@ function renderSummary(){
   const bank=bankBalance(); const a=bankAnchor(); const f=a?bankFlows(a.date):null;
   const term = f?(f.uz+f.humo+f.rah+f.qr+f.other+f.inkass):0;
   const revK=dayRevCp(d,"Касса КАРАОКЕ"), revC=dayRevCp(d,"Касса КЛУБ");
+  // переходной остаток дня и «прочее» (остаток − переходной − караоке − клуб, если > 0)
+  const carryOver = openingOf(d) + cardOpeningOf(d);
+  const csx = cashSplit(d); const ostatok = csx.nal + csx.card;
+  const prochee = ostatok - (carryOver + revK + revC);
   const tb=bankDaySummary(d);
-  const rl=[["нал",sp.nal]];
+  const rl=[["Касса",sp.nal]];
   if(sp.card) rl.push(["карта",sp.card]);
   if(tb.uz) rl.push(["Uzcard",tb.uz]);
   if(tb.humo) rl.push(["Humo",tb.humo]);
@@ -390,13 +389,14 @@ function renderSummary(){
     '<div class="kpis">'+
       '<div class="kpi"><div class="t">Приход</div><div class="v in">+'+fmt(inn)+'</div>'+
         '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">'+
+          '<div class="revchip">ПЕРЕХОДНОЙ ОСТАТОК:<b>'+fmt(carryOver)+'</b></div>'+
           '<div class="revchip">КАССА КАРАОКЕ:<b>'+fmt(revK)+'</b></div>'+
           '<div class="revchip">КАССА КЛУБ:<b>'+fmt(revC)+'</b></div>'+
+          (prochee>0?'<div class="revchip">ПРОЧЕЕ:<b>'+fmt(prochee)+'</b></div>':'')+
         '</div></div>'+
       '<div class="kpi"><div class="t">Расход</div><div class="v out">−'+fmt(sp.total)+'</div>'+
         '<div style="margin-top:8px">'+rashLines+'</div></div>'+
     '</div>'+
-    forecastHtml+
     '<div class="sect">Долги — открыто</div>'+
     '<div class="kpis">'+
       '<div class="kpi" style="cursor:pointer" onclick="openDebtsTab(\'staff\')"><div class="t">Персонал ›</div><div class="v" style="color:'+(staff?'var(--warn)':'var(--ash)')+'">'+fmt(staff)+'</div><div class="s">этот месяц '+fmt(ds.staffCur)+' · прошлые '+fmt(ds.staffOld)+'</div></div>'+
@@ -532,6 +532,21 @@ function donutSVG(groups,total){
   for(const g of groups){ if(g.amt<=0) continue; const len=g.amt/total*C; arcs+='<circle cx="105" cy="105" r="80" fill="none" stroke="'+g.hex+'" stroke-width="24" stroke-dasharray="'+Math.max(0,len-GAP)+' '+(C-Math.max(0,len-GAP))+'" stroke-dashoffset="'+(-acc)+'" transform="rotate(-90 105 105)"><title>'+esc(g.name)+': '+fmt(g.amt)+'</title></circle>'; acc+=len; }
   return '<svg width="210" height="210" viewBox="0 0 210 210">'+arcs+'<text x="105" y="102" text-anchor="middle" fill="#F3ECDA" font-size="18" font-weight="800">'+fmt(Math.round(total/1e6))+' млн</text><text x="105" y="121" text-anchor="middle" fill="#988D75" font-size="11">расходы</text></svg>';
 }
+// прогноз кассы за месяц — текстом в рамке (под оборотом по кассам), без бублика
+function forecastTextV(mk, revKar, revClub){
+  const rset=new Set();
+  for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||e.bizDate.slice(0,7)!==mk) continue; const n=normName(e.cp); if(n===normName("Касса КАРАОКЕ")||n===normName("Касса КЛУБ")) rset.add(e.bizDate); }
+  const dim=new Date(+mk.slice(0,4),+mk.slice(5,7),0).getDate();
+  const cur=mk===bizToday().slice(0,7);
+  const f=dim/(cur?Math.max(1,rset.size):dim);
+  const pk=Math.round(revKar*f), pc=Math.round(revClub*f), pt=pk+pc;
+  return '<div class="sect">Расчётная касса за месяц'+(cur?' (прогноз)':' (факт)')+'</div>'+
+    '<div class="kpi wide" style="border:1px solid var(--gold-dim)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><span>Караоке</span><b style="color:#E8C97A;white-space:nowrap">'+fmt(pk)+'</b></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><span>Клуб</span><b style="color:#7FB0E8;white-space:nowrap">'+fmt(pc)+'</b></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 0;border-top:1px solid var(--line);margin-top:4px"><b>Общий приход'+(cur?' (прогноз)':'')+'</b><b style="color:var(--gold);white-space:nowrap">'+fmt(pt)+'</b></div>'+
+    '</div>';
+}
 function renderExpenses(){
   const box=document.getElementById("tab-expenses"); if(!box) return;
   if(!EXPM) EXPM=(VD||bizToday()).slice(0,7);
@@ -544,6 +559,7 @@ function renderExpenses(){
   html+='<div class="sect">Оборот по кассам · за месяц</div><div class="exrev">'+
     '<div class="card kar"><div class="t">Касса Караоке</div><div class="v">'+fmt(R.revKar)+'</div></div>'+
     '<div class="card club"><div class="t">Касса Клуб</div><div class="v">'+fmt(R.revClub)+'</div></div></div>';
+  html+=forecastTextV(EXPM, R.revKar, R.revClub);
   html+='<div class="exhero"><div class="lbl">Всего расходов за месяц</div><div class="sum">'+(R.total?"−":"")+fmt(R.total)+'</div></div>';
   html+='<div class="exdonut">'+(R.total>0?donutSVG(R.groups,R.total):'<div class="empty">Расходов за этот месяц нет.</div>')+'</div>';
   if(shown.length){
