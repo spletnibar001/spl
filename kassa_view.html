@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v16";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v17";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -234,8 +234,19 @@ function cardBalance(iso){ if(!S.openingSet) return 0; if(iso && iso < S.firstDa
 function debtBalance(cp){ let bal = 0; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue; bal += (e.type==="out"? e.amount : -e.amount); } return bal; }
 function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp || !e.orderNo) continue; if(!acc[e.orderNo]) acc[e.orderNo] = {orderNo:e.orderNo, cat:e.cat, out:0, inn:0, date:e.bizDate, venue:null}; if(e.type==="out"){ acc[e.orderNo].out += e.amount; if(e.bizDate<acc[e.orderNo].date) acc[e.orderNo].date=e.bizDate; if(e.venue) acc[e.orderNo].venue=e.venue; } else acc[e.orderNo].inn += e.amount; } return Object.values(acc).map(a=>({...a, left: a.out-a.inn})).filter(a=>a.left>0).sort((a,b)=>a.date.localeCompare(b.date)); }
 function venueBadge(v){ if(!v) return ""; const c=v==="клуб"?"#8fb3d4":"#E8C97A"; const t=v==="клуб"?"КЛУБ":"КАРАОКЕ"; return '<span class="badge" style="border-color:'+c+';color:'+c+'">'+t+'</span>'; }
-function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); if(isStaff && isFixedSalary(e.cp)) continue; for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
-function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); if(st.has(normName(e.cp)) && isFixedSalary(e.cp)) continue; const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; const venues=[...new Set(open.map(o=>o.venue).filter(Boolean))]; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note, venues}); } return out.sort((a,b)=>b.bal-a.bal); }
+function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); if(isStaff && isFixedSalary(e.cp)) continue; if(!isStaff && isWriteoff(e.cp)) continue; for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
+function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); if(st.has(normName(e.cp)) && isFixedSalary(e.cp)) continue; if(!st.has(normName(e.cp)) && isWriteoff(e.cp)) continue; const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; const firstDate = open.length ? open[0].date : null; const venues=[...new Set(open.map(o=>o.venue).filter(Boolean))]; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note, firstDate, venues}); } return out.sort((a,b)=>b.bal-a.bal); }
+// невозвратные (списанные гостевые долги + статья «Невозвратные») — только для админа/кассира
+function canSeeWriteoffs(){ return ROLE==="admin" || ROLE==="cashier"; }
+function woDebtList(){ const st=debtStaffSet(); const out=[]; const seen=new Set();
+  for(const e of S.entries){ if(e.deleted||!DEBT_CATS.includes(e.cat)||seen.has(e.cp)) continue; seen.add(e.cp); if(st.has(normName(e.cp))||!isWriteoff(e.cp)) continue; const bal=debtBalance(e.cp); if(bal>0) out.push({cp:e.cp,bal}); }
+  const nz={}; for(const e of S.entries){ if(e.deleted||e.cat!=="Невозвратные") continue; const k=normName(e.cp); const a=(nz[k]=nz[k]||{cp:e.cp,bal:0}); a.bal += e.type==="out"?e.amount:-e.amount; }
+  for(const k in nz){ if(nz[k].bal>0) out.push({cp:nz[k].cp,bal:nz[k].bal}); }
+  return out.sort((a,b)=>b.bal-a.bal); }
+// просрочка счёта: жёлтый бейдж c 30 дней, красный с 60 дней (как в кассе)
+const DEBT_AGE_WARN=30, DEBT_AGE_ALERT=60;
+function debtAgeDays(dateIso){ const t=Date.parse(dateIso+"T12:00:00"); if(!t) return 0; return Math.floor((Date.now()-t)/86400000); }
+function agingBadge(dateIso){ if(!dateIso) return ""; const d=debtAgeDays(dateIso); if(d>=DEBT_AGE_ALERT) return '<span class="badge" style="border-color:var(--out);color:var(--out)">'+d+' дн</span>'; if(d>=DEBT_AGE_WARN) return '<span class="badge" style="border-color:var(--warn);color:var(--warn)">'+d+' дн</span>'; return ""; }
 // группы расходов безнала (как в кассе на ПК)
 const EXPENSE_GROUPS=["Продукты","Алкоголь","Административные","Коммунальные","Налоги"];
 const GROUP_COLOR={"Продукты":"#8FD49B","Алкоголь":"#E8A34A","Административные":"#B89A54","Коммунальные":"#7FB0E8","Налоги":"#E8735A"};
@@ -488,12 +499,23 @@ function renderDebts(){
   const staff=list.filter(d=>d.isStaff), guest=list.filter(d=>!d.isStaff);
   const sT=staff.reduce((s,d)=>s+d.bal,0), gT=guest.reduce((s,d)=>s+d.bal,0);
   const cur=debtKind==="staff"?staff:guest;
+  // невозвратные — отдельной секцией, только для админа/кассира; в общий итог «Гости» не входят
+  let woHtml='';
+  if(debtKind==="guest" && canSeeWriteoffs()){
+    const woRows=woDebtList();
+    if(woRows.length){
+      const woT=woRows.reduce((s,r)=>s+r.bal,0);
+      woHtml='<div class="sect" style="margin-top:14px">Невозвратные · '+fmt(woT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(не в итоге)</span></div>'+
+        '<div class="rows">'+woRows.map(r=>'<div class="row" style="border-left:3px solid var(--ash)"><div class="who">'+esc(r.cp)+' <span class="badge" style="border-color:var(--ash);color:var(--ash)">НЕВОЗВРАТНЫЙ</span></div><div class="amt" style="color:var(--ash)">−'+fmt(r.bal)+'</div></div>').join("")+'</div>';
+    }
+  }
   document.getElementById("tab-debts").innerHTML =
     '<div class="pill-tabs">'+
       '<button class="'+(debtKind==="staff"?"on":"")+'" onclick="setDebt(\'staff\')">Персонал · '+fmt(sT)+'</button>'+
       '<button class="'+(debtKind==="guest"?"on":"")+'" onclick="setDebt(\'guest\')">Гости · '+fmt(gT)+'</button>'+
     '</div>'+
-    '<div class="rows">'+(cur.length?cur.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+' '+((d.venues||[]).map(venueBadge).join(""))+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">Открытых долгов нет.</div>')+'</div>';
+    '<div class="rows">'+(cur.length?cur.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+' '+agingBadge(d.firstDate)+((d.venues||[]).map(venueBadge).join(""))+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">Открытых долгов нет.</div>')+'</div>'+
+    woHtml;
 }
 function setDebt(k){ debtKind=k; renderDebts(); }
 function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
