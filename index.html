@@ -918,9 +918,9 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар",
+const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
-const NO_RATE_ROLES = ["Бар-менеджер"]; // фикс. оклад 2 р/мес — вне табеля
+const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
 /* автографик: какие дни недели проставить (JS getDay: 0=Вс..6=Сб); null = нет */
 function autoWorkDays(e){
   const all = [0,1,2,3,4,5,6];
@@ -1463,12 +1463,11 @@ function applyRoleDefaults(){
   }
   if(!CAP.money) return;
   const noRate = NO_RATE_ROLES.includes(role);
-  $("f-rate").disabled = noRate;
+  $("f-rate").disabled = false;  // для фикс-ролей в это поле вводится оклад за МЕСЯЦ
   const monAllowed = role==="Бармен" && !noRate;
   $("f-rate-mon").disabled = !monAllowed;
   if(noRate){
-    $("f-rate").value = "";
-    $("fix-note").textContent = ($("fix-note").textContent ? $("fix-note").textContent + " · " : "") + "фикс. оклад 2 р/мес";
+    $("fix-note").textContent = ($("fix-note").textContent ? $("fix-note").textContent + " · " : "") + "фикс: ставка = оклад за МЕСЯЦ, выплата 2 р/мес";
   }
   if(editId) return;
   if(!noRate && DEFAULT_RATES[role]!=null) $("f-rate").value = fmtNum(DEFAULT_RATES[role]);
@@ -1840,7 +1839,9 @@ function render(){
       }
       const noPay = NO_RATE_ROLES.includes(e.emp_role);
       const monNote = !noPay && en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
-      const rateNote = noPay ? "фикс. оклад · 2 р/мес" : `<b>${money(en.rate)}</b>/смена`;
+      const rateNote = noPay
+        ? (en.rate>0 ? `<b>${money(en.rate)}</b>/мес · фикс` : "фикс. оклад · 2 р/мес")
+        : `<b>${money(en.rate)}</b>/смена`;
       const cntTxt = (!noPay && r.cntPlan>r.cnt) ? `${r.cnt} из ${r.cntPlan} смен` : `${r.cnt} смен`;
       let det = r.extraLbl && !noPay ? `${cntTxt} · ${r.extraLbl}` : cntTxt;
       if(r.absent) det += ` · <span class="penal">неявки: ${r.absent}</span>`;
@@ -2325,6 +2326,11 @@ function renderStaffCabinet(cardsArg){
 
     // строки заработка
     let earnRows = "";
+    // фикс-роль: оклад за месяц первой строкой (если задан)
+    if(noPay){
+      const mr = rateForDate(me.id, isoBizToday());
+      if(mr>0) earnRows += `<div class="sc-row"><div class="l"><div class="d">Оклад (фикс)</div><div class="s">выплата 2 раза в месяц</div></div><div class="r g">${fmtNum(mr)} /мес</div></div>`;
+    }
     // звукооператор БЗ: бонус за кабинки — отдельной первой строкой
     if(me.emp_role===SOUND_BIG && r.extra>0){
       const cabDays = days.filter(d=>soundCabinBonusForShift(shiftOf(me.id, iso(d)))>0).length;
@@ -2387,12 +2393,52 @@ function renderStaffCabinet(cardsArg){
       ? `<div class="sc-role-head"><span class="sc-badge" style="background:var(--emerald);color:#0c1410;font-weight:700">${me.emp_role}</span> <span style="color:var(--muted)">· ${POS_NAME[me.pos]} · ${r.cnt} смен · ${noPay?"фикс. оклад":fmtNum(r.sum)+" сум"}</span></div>`
       : "";
 
+    // «Столы сегодня» — официанту со сменой сегодня показываем брони/посадки его территории
+    let tblSlot = "";
+    if(me.emp_role==="Официант"){
+      const shToday = shiftOf(me.id, isoBizToday());
+      if(shToday && shToday.status!==2){
+        const vs = me.pos==="both" ? ["karaoke","club"] : [me.pos];
+        tblSlot = `<div class="sc-sec">Столы сегодня · ${POS_NAME[me.pos]||""}</div>
+          <div id="sc-tbl-${me.id}" data-venues="${vs.join(",")}" class="sc-drawer open" style="margin-top:6px"><div class="sc-row" style="color:var(--muted)">загрузка…</div></div>`;
+      }
+    }
     return `<div class="sc-rolecard">
       ${head}
       <div class="sc-drawer open"><div class="sc-dh">${multi?"Из чего сложилась сумма по роли «"+me.emp_role+"»":"Из чего сложилась сумма"}</div>${earnRows}</div>
       <div class="sc-sec">График${multi?" · "+me.emp_role:""}</div>
       ${dayRows}
+      ${tblSlot}
     </div>`;
+  }
+  // подгрузка столов дня для официанта (после отрисовки)
+  async function scLoadTables(){
+    for(const c of myCards){
+      const box2 = document.getElementById("sc-tbl-"+c.id);
+      if(!box2) continue;
+      const venues = (box2.dataset.venues||"").split(",").filter(Boolean);
+      const today = isoBizToday();
+      let rows = [];
+      for(const vk of venues){
+        try{
+          const {data} = await sb.rpc("staff_tables_today", {p_venue: vk, p_date: today});
+          (data||[]).forEach(r=>rows.push({...r, _venue: vk}));
+        }catch(_){}
+      }
+      if(!rows.length){
+        box2.innerHTML = `<div class="sc-row" style="color:var(--muted)">Пока нет броней на сегодня</div>`;
+        continue;
+      }
+      const both = venues.length>1;
+      box2.innerHTML = rows.map(r=>{
+        const tm = r.arrive_at ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "—";
+        const seated = r.status==="seated";
+        const st = seated ? `<span style="color:var(--emerald);font-weight:700">сели</span>` : `<span style="color:var(--gold);font-weight:700">бронь</span>`;
+        const who = (r.guest_name||"").replace(/</g,"&lt;");
+        const vlbl = both ? ` · ${r._venue==="club"?"Клуб":"Караоке"}` : "";
+        return `<div class="sc-row"><div class="l"><div class="d">${r.zone_title} · ${r.table_name}${vlbl}</div><div class="s">~${tm}${r.guests_count?` · ${r.guests_count} гост.`:""}${who?` · ${who}`:""}</div></div><div class="r">${st}</div></div>`;
+      }).join("");
+    }
   }
 
   // штрафы/бонусы — общие по человеку (по всем карточкам)
@@ -2414,7 +2460,8 @@ function renderStaffCabinet(cardsArg){
 
   // все ли карточки — на фиксированном окладе (без посменной оплаты)
   const allFixed = myCards.every(c=>NO_RATE_ROLES.includes(c.emp_role));
-  const earnVal = allFixed ? "Фикс. оклад" : fmtNum(grandSum);
+  const fixRate = allFixed ? rateForDate(myCards[0].id, isoBizToday()) : 0;
+  const earnVal = allFixed ? (fixRate>0 ? fmtNum(fixRate)+" /мес" : "Фикс. оклад") : fmtNum(grandSum);
   const earnNote = allFixed
     ? `${grandCnt} смен · выплата 2 раза в месяц${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}`
     : `${grandCnt} смен${grandBon?` · бонусы +${fmtNum(grandBon)}`:""}${grandPen?` · штрафы −${fmtNum(grandPen)}`:""}`;
@@ -2459,6 +2506,7 @@ function renderStaffCabinet(cardsArg){
     <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
   `;
   // навигация по неделям
+  scLoadTables();
   const prevBtn = $("sc-wk-prev"), nextBtn = $("sc-wk-next");
   if(prevBtn) prevBtn.addEventListener("click", async ()=>{
     viewStart = addDays(viewStart, -7);
