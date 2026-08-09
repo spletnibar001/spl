@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v13";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v14";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -490,7 +490,14 @@ function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
 /* ===== экран расходов кассы (админ) ===== */
 const MON_NOM=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
-const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка"]);
+const GHEXN={"ФОТ":"#3987e5","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и шоу":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
+const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка","ЗАЛОГ"]);
+const CASH_GROUP_CP={ "Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
+const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и шоу","АТМОСФЕРА":"Маркетинг и шоу" };
+function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normName(x)===normName(cp)); if(k) return CASH_GROUP_CP[k]; if(CASH_GROUP_CAT[cat]) return CASH_GROUP_CAT[cat]; return "Прочее"; }
+const CASH_IN_LABEL={ "Привоз артистов":"приход (билеты/бонусы)","Мелкий ремонт":"приход за ремонт" };
+function cashInLabel(cp){ const k=Object.keys(CASH_IN_LABEL).find(x=>normName(x)===normName(cp)); return k?CASH_IN_LABEL[k]:null; }
+function isWriteoff(cp){ return !!(S.writeoffs && S.writeoffs[normName(cp)]); }
 let EXPM=null;
 function expMonthLabel(mk){ const p=mk.split("-"); return MON_NOM[(+p[1])-1]+" "+p[0]; }
 function expShiftMonth(mk,n){ let p=mk.split("-").map(Number),y=p[0],m=p[1]+n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
@@ -504,22 +511,44 @@ function expReport(mk){
   const fotTotal=fot.Караоке+fot.Клуб+fot.Общий;
   const gs={},gi={}; EXPENSE_GROUPS.forEach(g=>{gs[g]=0;gi[g]={};});
   for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(p.date)) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0}; gi[g][k].a+=p.amount; gi[g][k].cnt++; }
-  let proc=0; const pi={};
-  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue; if(SAL_CATS.includes(e.cat)||DEBT_CATS.includes(e.cat)||EXP_EXCLUDE.has(e.cat)) continue; proc+=e.amount; const k=e.cp||e.cat; if(!pi[k])pi[k]={n:k,a:0,cnt:0}; pi[k].a+=e.amount; pi[k].cnt++; }
+  // касса-расходы по группам (маршрут через cashGroupOf) — как в кассе
+  const cgs={},cgi={};
+  for(const e of S.entries){
+    if(e.deleted||e.kind==="cardfix"||!inM(e.bizDate)) continue;
+    if(SAL_CATS.includes(e.cat)||DEBT_CATS.includes(e.cat)||EXP_EXCLUDE.has(e.cat)||e.cat==="Невозвратные") continue;
+    const g=cashGroupOf(e.cat,e.cp); if(!cgi[g]){cgs[g]=0;cgi[g]={};}
+    const k=e.cp||e.cat; if(!cgi[g][k])cgi[g][k]={n:k,a:0,cnt:0,inA:0};
+    if(e.type==="out"){ cgs[g]+=e.amount; cgi[g][k].a+=e.amount; cgi[g][k].cnt++; }
+    else if(e.type==="in"){ cgi[g][k].inA+=e.amount; }
+  }
+  // Невозвратные: статья «Невозвратные» + списанные гостевые долги
+  let nevoz=0; const nevozI={};
+  for(const e of S.entries){
+    if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue;
+    const isCat=e.cat==="Невозвратные"; const isWoGuest=e.cat==="Долговой счет ГОСТИ" && isWriteoff(e.cp);
+    if(!isCat&&!isWoGuest) continue;
+    nevoz+=e.amount; const k=e.cp||e.cat; if(!nevozI[k])nevozI[k]={n:k,a:0,cnt:0}; nevozI[k].a+=e.amount; nevozI[k].cnt++;
+  }
   let nal=0,card=0;
-  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue; const fc=SAL_CATS.includes(e.cat); const other=!fc&&!DEBT_CATS.includes(e.cat)&&!EXP_EXCLUDE.has(e.cat); if(!fc&&!other) continue; if(e.method==="card")card+=e.amount; else nal+=e.amount; }
+  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue; const fc=SAL_CATS.includes(e.cat); const other=!fc&&!DEBT_CATS.includes(e.cat)&&!EXP_EXCLUDE.has(e.cat)&&e.cat!=="Невозвратные"; if(!fc&&!other) continue; if(e.method==="card")card+=e.amount; else nal+=e.amount; }
   const bez=EXPENSE_GROUPS.reduce((s,g)=>s+(gs[g]||0),0);
   let revKar=0,revClub=0;
   for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||!inM(e.bizDate)) continue; const s=e.type==="in"?1:-1; if(normName(e.cp)===normName("Касса КАРАОКЕ"))revKar+=s*e.amount; else if(normName(e.cp)===normName("Касса КЛУБ"))revClub+=s*e.amount; }
   const items=o=>Object.values(o).sort((a,b)=>b.a-a.a);
+  const merge=(g)=>{ const m={}; for(const it of Object.values(gi[g]||{})) m[it.n]={n:it.n,a:it.a,cnt:it.cnt,inA:0}; for(const it of Object.values(cgi[g]||{})){ if(!m[it.n])m[it.n]={n:it.n,a:0,cnt:0,inA:0}; m[it.n].a+=it.a; m[it.n].cnt+=it.cnt; m[it.n].inA+=it.inA||0; } return items(m); };
+  const gAmt=(g)=>(gs[g]||0)+(cgs[g]||0); const G=n=>GHEXN[n]||"#9085e9";
   const groups=[
-    {name:"ФОТ",hex:GHEX.g1,amt:fotTotal,fot:fot,people:items(fotP)},
-    {name:"Продукты",hex:GHEX.g2,amt:gs["Продукты"]||0,items:items(gi["Продукты"]||{})},
-    {name:"Алкоголь",hex:GHEX.g3,amt:gs["Алкоголь"]||0,items:items(gi["Алкоголь"]||{})},
-    {name:"Налоги",hex:GHEX.g4,amt:gs["Налоги"]||0,items:items(gi["Налоги"]||{})},
-    {name:"Административные",hex:GHEX.g5,amt:gs["Административные"]||0,items:items(gi["Административные"]||{})},
-    {name:"Коммунальные",hex:GHEX.g6,amt:gs["Коммунальные"]||0,items:items(gi["Коммунальные"]||{})},
-    {name:"Прочее",hex:GHEX.g7,amt:proc,items:items(pi)},
+    {name:"ФОТ",hex:G("ФОТ"),amt:fotTotal,fot:fot,people:items(fotP)},
+    {name:"Продукты",hex:G("Продукты"),amt:gAmt("Продукты"),items:merge("Продукты")},
+    {name:"Алкоголь",hex:G("Алкоголь"),amt:gAmt("Алкоголь"),items:merge("Алкоголь")},
+    {name:"Налоги",hex:G("Налоги"),amt:gAmt("Налоги"),items:merge("Налоги")},
+    {name:"Административные",hex:G("Административные"),amt:gAmt("Административные"),items:merge("Административные")},
+    {name:"Коммунальные",hex:G("Коммунальные"),amt:gAmt("Коммунальные"),items:merge("Коммунальные")},
+    {name:"Ремонт",hex:G("Ремонт"),amt:gAmt("Ремонт"),items:merge("Ремонт")},
+    {name:"Маркетинг и шоу",hex:G("Маркетинг и шоу"),amt:gAmt("Маркетинг и шоу"),items:merge("Маркетинг и шоу")},
+    {name:"Комплименты и подарки",hex:G("Комплименты и подарки"),amt:gAmt("Комплименты и подарки"),items:merge("Комплименты и подарки")},
+    {name:"Невозвратные",hex:G("Невозвратные"),amt:nevoz,items:items(nevozI)},
+    {name:"Прочее",hex:G("Прочее"),amt:gAmt("Прочее"),items:merge("Прочее")},
   ];
   const total=groups.reduce((s,g)=>s+g.amt,0);
   return {groups,total,nal,card,bez,revKar,revClub};
@@ -556,7 +585,8 @@ function renderExpenses(){
     '<button class="dn-arrow" onclick="expNavMonth(1)">▶</button></div>';
   html+='<div class="sect">Оборот по кассам · за месяц</div><div class="exrev">'+
     '<div class="card kar"><div class="t">Касса Караоке</div><div class="v">'+fmt(R.revKar)+'</div></div>'+
-    '<div class="card club"><div class="t">Касса Клуб</div><div class="v">'+fmt(R.revClub)+'</div></div></div>';
+    '<div class="card club"><div class="t">Касса Клуб</div><div class="v">'+fmt(R.revClub)+'</div></div></div>'+
+    '<div class="kpi wide" style="margin-top:8px;border:1px solid var(--gold-dim);text-align:center"><div class="t">Общая касса (караоке + клуб)</div><div class="v" style="color:var(--gold)">'+fmt(R.revKar+R.revClub)+'</div></div>';
   html+=forecastTextV(EXPM, R.revKar, R.revClub);
   html+='<div class="exhero"><div class="lbl">Всего расходов за месяц</div><div class="sum">'+(R.total?"−":"")+fmt(R.total)+'</div></div>';
   html+='<div class="exdonut">'+(R.total>0?donutSVG(R.groups,R.total):'<div class="empty">Расходов за этот месяц нет.</div>')+'</div>';
@@ -567,7 +597,7 @@ function renderExpenses(){
       let detail='';
       if(g.fot){ detail+='<div class="fotsplit"><div class="fc"><div class="k">Караоке</div><div class="a">'+fmt(g.fot.Караоке)+'</div></div><div class="fc"><div class="k">Клуб</div><div class="a">'+fmt(g.fot.Клуб)+'</div></div><div class="fc"><div class="k">Общий</div><div class="a">'+fmt(g.fot.Общий)+'</div></div></div>';
         detail+=g.people.length?('<div class="subhdr">по сотрудникам</div>'+g.people.map(p=>'<div class="drow"><span class="nm">'+esc(p.n)+(p.cnt>1?'<span class="cnt">'+p.cnt+' вып.</span>':'')+'</span><b>'+fmt(p.a)+'</b></div>').join("")):''; }
-      else { detail+='<div class="subhdr">получатели · за месяц</div>'+(g.items.length?g.items.map(it=>'<div class="drow"><span class="nm">'+esc(it.n)+(it.cnt>1?'<span class="cnt">'+it.cnt+' плат.</span>':'')+'</span><b>'+fmt(it.a)+'</b></div>').join(""):'<div class="drow"><span class="nm">детализации нет</span></div>'); }
+      else { detail+='<div class="subhdr">получатели · за месяц</div>'+(g.items.length?g.items.map(it=>{ const inLbl=(it.inA>0)?cashInLabel(it.n):null; return '<div class="drow"><span class="nm">'+esc(it.n)+(it.cnt>1?'<span class="cnt">'+it.cnt+' плат.</span>':'')+'</span><b>'+fmt(it.a)+'</b></div>'+(inLbl?'<div class="drow" style="opacity:.85"><span class="nm" style="padding-left:12px;color:var(--in)">↳ '+esc(inLbl)+'</span><b style="color:var(--in)">+'+fmt(it.inA)+'</b></div>':''); }).join(""):'<div class="drow"><span class="nm">детализации нет</span></div>'); }
       html+='<div class="grp" id="exg'+i+'"><div class="grp-top" onclick="document.getElementById(\'exg'+i+'\').classList.toggle(\'open\')"><span class="chev">▸</span><span class="gdot" style="background:'+g.hex+'"></span><span class="grp-name">'+g.name+'</span><span class="grp-pct">'+pct+'%</span><span class="grp-amt">'+fmt(g.amt)+'</span></div><div class="gtrack"><span style="width:'+Math.round(g.amt/max*100)+'%;background:'+g.hex+'"></span></div><div class="gdetail">'+detail+'</div></div>';
     });
     html+='</div>';
