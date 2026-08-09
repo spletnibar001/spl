@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v17";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v18";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -243,10 +243,10 @@ function woDebtList(){ const st=debtStaffSet(); const out=[]; const seen=new Set
   const nz={}; for(const e of S.entries){ if(e.deleted||e.cat!=="Невозвратные") continue; const k=normName(e.cp); const a=(nz[k]=nz[k]||{cp:e.cp,bal:0}); a.bal += e.type==="out"?e.amount:-e.amount; }
   for(const k in nz){ if(nz[k].bal>0) out.push({cp:nz[k].cp,bal:nz[k].bal}); }
   return out.sort((a,b)=>b.bal-a.bal); }
-// просрочка счёта: жёлтый бейдж c 30 дней, красный с 60 дней (как в кассе)
-const DEBT_AGE_WARN=30, DEBT_AGE_ALERT=60;
+// просрочка счёта: жёлтый с 10 дней, оранжевый с 20, красный с 30 (как в кассе)
+const DEBT_AGE_1=10, DEBT_AGE_2=20, DEBT_AGE_3=30;
 function debtAgeDays(dateIso){ const t=Date.parse(dateIso+"T12:00:00"); if(!t) return 0; return Math.floor((Date.now()-t)/86400000); }
-function agingBadge(dateIso){ if(!dateIso) return ""; const d=debtAgeDays(dateIso); if(d>=DEBT_AGE_ALERT) return '<span class="badge" style="border-color:var(--out);color:var(--out)">'+d+' дн</span>'; if(d>=DEBT_AGE_WARN) return '<span class="badge" style="border-color:var(--warn);color:var(--warn)">'+d+' дн</span>'; return ""; }
+function agingBadge(dateIso){ if(!dateIso) return ""; const d=debtAgeDays(dateIso); const col=d>=DEBT_AGE_3?"var(--out)":d>=DEBT_AGE_2?"var(--warn)":d>=DEBT_AGE_1?"var(--gold)":null; if(!col) return ""; return '<span class="badge" style="border-color:'+col+';color:'+col+'">'+d+' дн</span>'; }
 // группы расходов безнала (как в кассе на ПК)
 const EXPENSE_GROUPS=["Продукты","Алкоголь","Административные","Коммунальные","Налоги"];
 const GROUP_COLOR={"Продукты":"#8FD49B","Алкоголь":"#E8A34A","Административные":"#B89A54","Коммунальные":"#7FB0E8","Налоги":"#E8735A"};
