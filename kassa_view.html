@@ -583,10 +583,11 @@ function renderExpenses(){
   let html='<div class="daynav"><button class="dn-arrow" onclick="expNavMonth(-1)">◀</button>'+
     '<div class="datebox"><b>'+expMonthLabel(EXPM)+'</b><span>расходы за месяц</span></div>'+
     '<button class="dn-arrow" onclick="expNavMonth(1)">▶</button></div>';
-  html+='<div class="sect">Оборот по кассам · за месяц</div><div class="exrev">'+
+  html+='<div class="sect">Оборот по кассам · за месяц</div>'+
+    '<div class="kpi wide" style="margin:0 0 8px;border:1px solid var(--gold-dim);text-align:center"><div class="t">Общая касса (караоке + клуб)</div><div class="v" style="color:var(--gold)">'+fmt(R.revKar+R.revClub)+'</div></div>'+
+    '<div class="exrev">'+
     '<div class="card kar"><div class="t">Касса Караоке</div><div class="v">'+fmt(R.revKar)+'</div></div>'+
-    '<div class="card club"><div class="t">Касса Клуб</div><div class="v">'+fmt(R.revClub)+'</div></div></div>'+
-    '<div class="kpi wide" style="margin-top:8px;border:1px solid var(--gold-dim);text-align:center"><div class="t">Общая касса (караоке + клуб)</div><div class="v" style="color:var(--gold)">'+fmt(R.revKar+R.revClub)+'</div></div>';
+    '<div class="card club"><div class="t">Касса Клуб</div><div class="v">'+fmt(R.revClub)+'</div></div></div>';
   html+=forecastTextV(EXPM, R.revKar, R.revClub);
   html+='<div class="exhero"><div class="lbl">Всего расходов за месяц</div><div class="sum">'+(R.total?"−":"")+fmt(R.total)+'</div></div>';
   html+='<div class="exdonut">'+(R.total>0?donutSVG(R.groups,R.total):'<div class="empty">Расходов за этот месяц нет.</div>')+'</div>';
