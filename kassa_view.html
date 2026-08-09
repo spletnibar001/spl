@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v14";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v16";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -203,6 +203,17 @@ function cashSplit(d){
 function staffNameSet(){ const st=new Set(); for(const c of CATALOG.concat(S.customCps||[])){ if(SAL_CATS.includes(c.cat)) st.add(normName(c.cp)); } return st; }
 // «персонал» в долговых = зарплатный справочник (+ свои контрагенты) + учредители (Долговой учред), как в кассе
 function debtStaffSet(){ const st=staffNameSet(); for(const c of CATALOG.concat(S.customCps||[])){ if(c.cat==="Долговой учред"||c.cat==="Долговой счет ПЕРСОНАЛ") st.add(normName(c.cp)); } for(const e of S.entries){ if(!e.deleted && (e.cat==="Долговой учред"||e.cat==="Долговой счет ПЕРСОНАЛ")) st.add(normName(e.cp)); } return st; }
+// фикс-оклад: долг списывается с ЗП как аванс — не показываем в долгах персонала (как в кассе)
+const PCT_CPS_V = { "АРТ Батырханов Тимур":1 };
+const FIXED_PREFIXES_V = ["УПРАВЛЯЮЩИЙ","ТЕХНИК","ДИРЕКТОР","АРТ","БАРМЕНЕДЖЕР","ШЕФ","СММ"];
+function isFixedSalary(cp){
+  if(Object.keys(PCT_CPS_V).some(k=>normName(k)===normName(cp))) return false;
+  if(normName(cp)===normName("МЕНЕДЖЕР Жихарева Олеся")) return false;
+  if(S.salaries && S.salaries[cp]!==undefined) return true;
+  if(normName(cp)===normName("Калькулятор Никита")) return true;
+  const words = String(cp).toUpperCase().split(/\s+/);
+  return FIXED_PREFIXES_V.some(p=>words.includes(p));
+}
 const fmt = n => (n<0?"−":"") + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 function shiftDate(iso, n){ const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function human(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]+", "+d.getDate()+" "+MON[d.getMonth()]; }
@@ -223,8 +234,8 @@ function cardBalance(iso){ if(!S.openingSet) return 0; if(iso && iso < S.firstDa
 function debtBalance(cp){ let bal = 0; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue; bal += (e.type==="out"? e.amount : -e.amount); } return bal; }
 function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp || !e.orderNo) continue; if(!acc[e.orderNo]) acc[e.orderNo] = {orderNo:e.orderNo, cat:e.cat, out:0, inn:0, date:e.bizDate, venue:null}; if(e.type==="out"){ acc[e.orderNo].out += e.amount; if(e.bizDate<acc[e.orderNo].date) acc[e.orderNo].date=e.bizDate; if(e.venue) acc[e.orderNo].venue=e.venue; } else acc[e.orderNo].inn += e.amount; } return Object.values(acc).map(a=>({...a, left: a.out-a.inn})).filter(a=>a.left>0).sort((a,b)=>a.date.localeCompare(b.date)); }
 function venueBadge(v){ if(!v) return ""; const c=v==="клуб"?"#8fb3d4":"#E8C97A"; const t=v==="клуб"?"КЛУБ":"КАРАОКЕ"; return '<span class="badge" style="border-color:'+c+';color:'+c+'">'+t+'</span>'; }
-function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
-function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; const venues=[...new Set(open.map(o=>o.venue).filter(Boolean))]; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note, venues}); } return out.sort((a,b)=>b.bal-a.bal); }
+function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); if(isStaff && isFixedSalary(e.cp)) continue; for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
+function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); if(st.has(normName(e.cp)) && isFixedSalary(e.cp)) continue; const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; const venues=[...new Set(open.map(o=>o.venue).filter(Boolean))]; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note, venues}); } return out.sort((a,b)=>b.bal-a.bal); }
 // группы расходов безнала (как в кассе на ПК)
 const EXPENSE_GROUPS=["Продукты","Алкоголь","Административные","Коммунальные","Налоги"];
 const GROUP_COLOR={"Продукты":"#8FD49B","Алкоголь":"#E8A34A","Административные":"#B89A54","Коммунальные":"#7FB0E8","Налоги":"#E8735A"};
@@ -381,7 +392,7 @@ function renderSummary(){
   if(tb.qr) term_.push(["QR",tb.qr]);
   if(tb.inkass) term_.push(["Инкассация",tb.inkass]);
   if(tb.other) term_.push(["Прочие терминалы",tb.other]);
-  const rashLines = term_.length ? term_.map(x=>'<div class="rline">'+x[0]+': <b>'+fmt(x[1])+'</b></div>').join("") : '<div class="rline" style="color:var(--ash)">за день терминалов нет</div>';
+  const rashLines = term_.length ? term_.map(x=>'<div class="revchip">'+esc(String(x[0]))+':<b>'+fmt(x[1])+'</b></div>').join("") : '<div class="revchip" style="color:var(--ash)">за день терминалов нет<b>—</b></div>';
   document.getElementById("tab-summary").innerHTML =
     dayNavHtml()+
     '<div class="sect">Смена за день</div>'+
@@ -393,7 +404,7 @@ function renderSummary(){
           '<div class="revchip">КАССА КЛУБ:<b>'+fmt(revC)+'</b></div>'+
         '</div></div>'+
       '<div class="kpi"><div class="t">Терминалы за день</div>'+
-        '<div style="margin-top:8px">'+rashLines+'</div></div>'+
+        '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">'+rashLines+'</div></div>'+
     '</div>'+
     '<div class="sect">Долги — открыто</div>'+
     '<div class="kpis">'+
@@ -492,7 +503,7 @@ const MON_NOM=["Январь","Февраль","Март","Апрель","Май
 const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
 const GHEXN={"ФОТ":"#3987e5","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и шоу":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
 const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка","ЗАЛОГ"]);
-const CASH_GROUP_CP={ "Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
+const CASH_GROUP_CP={ "Кальяны":"Продукты","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
 const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и шоу","АТМОСФЕРА":"Маркетинг и шоу" };
 function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normName(x)===normName(cp)); if(k) return CASH_GROUP_CP[k]; if(CASH_GROUP_CAT[cat]) return CASH_GROUP_CAT[cat]; return "Прочее"; }
 const CASH_IN_LABEL={ "Привоз артистов":"приход (билеты/бонусы)","Мелкий ремонт":"приход за ремонт" };
@@ -521,11 +532,12 @@ function expReport(mk){
     if(e.type==="out"){ cgs[g]+=e.amount; cgi[g][k].a+=e.amount; cgi[g][k].cnt++; }
     else if(e.type==="in"){ cgi[g][k].inA+=e.amount; }
   }
-  // Невозвратные: статья «Невозвратные» + списанные гостевые долги
+  // Невозвратные: статья «Невозвратные» + списанные гостевые долги (как в кассе)
+  const _staffSet=debtStaffSet();
   let nevoz=0; const nevozI={};
   for(const e of S.entries){
     if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue;
-    const isCat=e.cat==="Невозвратные"; const isWoGuest=e.cat==="Долговой счет ГОСТИ" && isWriteoff(e.cp);
+    const isCat=e.cat==="Невозвратные"; const isWoGuest=DEBT_CATS.includes(e.cat) && !_staffSet.has(normName(e.cp)) && isWriteoff(e.cp);
     if(!isCat&&!isWoGuest) continue;
     nevoz+=e.amount; const k=e.cp||e.cat; if(!nevozI[k])nevozI[k]={n:k,a:0,cnt:0}; nevozI[k].a+=e.amount; nevozI[k].cnt++;
   }
@@ -629,7 +641,15 @@ function renderSalary(){
       (s.dm?'<div class="l"><div>Мои долги/заказы (этот месяц)</div><b class="out">−'+fmt(s.dm)+'</b></div>':'')+
       '<div class="l gold"><div>Остаток к выплате</div><b style="color:'+(rest<0?'var(--out)':'var(--gold)')+'">'+fmt(rest)+'</b></div>'+
     '</div>'+
-    (s.orderDebt>0?'<div class="sect">Общий долг (заказы + аванс)</div><div class="kpi wide"><div class="t">Всего за мной</div><div class="v" style="color:var(--warn)">'+fmt(s.orderDebt)+'</div><div class="s">накопительно по всем месяцам</div></div>':'');
+    (s.orderDebt>0?'<div class="sect">Общий долг (заказы + аванс)</div><div class="kpi wide"><div class="t">Всего за мной</div><div class="v" style="color:var(--warn)">'+fmt(s.orderDebt)+'</div><div class="s">накопительно по всем месяцам</div></div>':'')+
+    (()=>{ // выплаты по датам — от последней (сверху) к первой, как в кассе
+      const mvs=S.entries.filter(e=>!e.deleted && SAL_CATS.includes(e.cat) && String(e.bizDate).slice(0,7)===mk)
+        .sort((a,b)=>(b.bizDate+(b.ts||"")).localeCompare(a.bizDate+(a.ts||"")));
+      let o='<div class="sect">Выплаты по датам</div>';
+      if(!mvs.length) return o+'<div class="empty">Выплат за месяц нет.</div>';
+      return o+'<div class="rows">'+mvs.map(e=>{ const isOut=e.type==="out"; const lbl=e.kind==="advance"?"Аванс":(isOut?"Зарплата":"Возврат");
+        return '<div class="row '+(isOut?"r-out":"r-in")+'"><div class="who">'+lbl+'<small>'+esc(e.bizDate)+(e.time?' · '+esc(e.time):'')+(e.method==="card"?' · карта':' · нал')+(e.note?' · '+esc(e.note):'')+'</small></div><div class="amt '+(isOut?"out":"in")+'">'+(isOut?"−":"+")+fmt(e.amount)+'</div></div>'; }).join("")+'</div>';
+    })();
 }
 
 /* ==== нижняя навигация под роль ==== */
