@@ -918,7 +918,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 09.08 · сборка 1";
+const APP_VERSION = "v 09.08 · сборка 3";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -2332,6 +2332,13 @@ function renderStaffCabinet(cardsArg){
     if(noPay){
       const mr = rateForDate(me.id, isoBizToday());
       if(mr>0) earnRows += `<div class="sc-row"><div class="l"><div class="d">Оклад (фикс)</div><div class="s">выплата 2 раза в месяц</div></div><div class="r g">${fmtNum(mr)} /мес</div></div>`;
+      earnRows += `<div id="sc-adv-${me.id}" style="display:none">
+        <div class="sc-row" style="cursor:pointer" onclick="scAdvToggle('${me.id}')">
+          <div class="l"><div class="d">Аванс · выплачено за мес. <span id="sc-adv-chev-${me.id}" style="color:var(--gold)">▸ по датам</span></div><div class="s" id="sc-adv-sub-${me.id}"></div></div>
+          <div class="r g" id="sc-adv-sum-${me.id}"></div>
+        </div>
+        <div id="sc-adv-list-${me.id}" style="display:none"></div>
+      </div>`;
     }
     // звукооператор БЗ: бонус за кабинки — отдельной первой строкой
     if(me.emp_role===SOUND_BIG && r.extra>0){
@@ -2362,6 +2369,15 @@ function renderStaffCabinet(cardsArg){
       ? `отработано ${r.cnt} из ${r.cntPlan} смен · план ${fmtNum(r.basePlan + r.extra + r.bon - r.pen)}`
       : "";
     earnRows += `<div class="sc-row tot"><div class="l"><div class="d">Итого${noPay?"":" — заработано"}</div>${cntNote?`<div class="s">${cntNote}</div>`:""}</div><div class="r g">${fmtNum(r.sum)}</div></div>`;
+    if(!noPay){
+      earnRows += `<div id="sc-adv-${me.id}" style="display:none">
+        <div class="sc-row" style="cursor:pointer" onclick="scAdvToggle('${me.id}')">
+          <div class="l"><div class="d">Получено из кассы <span id="sc-adv-chev-${me.id}" style="color:var(--gold)">▸ по датам</span></div><div class="s" id="sc-adv-sub-${me.id}"></div></div>
+          <div class="r g" id="sc-adv-sum-${me.id}"></div>
+        </div>
+        <div id="sc-adv-list-${me.id}" style="display:none"></div>
+      </div>`;
+    }
 
     // график по дням
     let dayRows = "";
@@ -2413,6 +2429,35 @@ function renderStaffCabinet(cardsArg){
       ${tblSlot}
     </div>`;
   }
+  // авансы из кассы по датам — для фикс-ролей (после отрисовки)
+  async function scLoadAdvances(){
+    for(const c of myCards){
+      const wrap = document.getElementById("sc-adv-"+c.id);
+      if(!wrap) continue;
+      try{
+        const mFrom = iso(new Date(viewStart.getFullYear(), viewStart.getMonth(), 1));
+        const mTo = iso(new Date(viewStart.getFullYear(), viewStart.getMonth()+1, 0));
+        const j = await kpCall("my_payouts", {from:mFrom, to:mTo});
+        const rows = j.payouts||[];
+        const net = rows.reduce((a,p)=>a+(p.type==="out"?1:-1)*p.amount, 0);
+        const mLbl = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"][viewStart.getMonth()];
+        document.getElementById("sc-adv-sum-"+c.id).textContent = fmtNum(net);
+        const kindLbl = NO_RATE_ROLES.includes(c.emp_role) ? "аванс · " : "";
+        document.getElementById("sc-adv-sub-"+c.id).textContent = kindLbl+"за "+mLbl+(rows.length?` · ${rows.length} выпл.`:" · выплат не было");
+        document.getElementById("sc-adv-list-"+c.id).innerHTML = rows.length
+          ? rows.map(p=>`<div class="sc-row"><div class="l"><div class="d">${fmtD(fromIso(p.date))}</div><div class="s">${p.type==="out"?"выплата":"возврат"}${p.cat?` · ${p.cat.replace("Зар.плата ","").toLowerCase()}`:""}</div></div><div class="r ${p.type==="out"?"g":"rd"}">${p.type==="out"?"":"−"}${fmtNum(p.amount)}</div></div>`).join("")
+          : `<div class="sc-row" style="color:var(--muted)">В этом месяце выплат не было</div>`;
+        wrap.style.display = "";
+      }catch(_){ /* касса недоступна — блок не показываем */ }
+    }
+  }
+  window.scAdvToggle = function(id){
+    const l = document.getElementById("sc-adv-list-"+id);
+    const ch = document.getElementById("sc-adv-chev-"+id);
+    const open = l.style.display==="none";
+    l.style.display = open ? "" : "none";
+    if(ch) ch.textContent = open ? "▾ скрыть" : "▸ по датам";
+  };
   // подгрузка столов дня для официанта (после отрисовки)
   async function scLoadTables(){
     for(const c of myCards){
@@ -2509,6 +2554,7 @@ function renderStaffCabinet(cardsArg){
   `;
   // навигация по неделям
   scLoadTables();
+  scLoadAdvances();
   const prevBtn = $("sc-wk-prev"), nextBtn = $("sc-wk-next");
   if(prevBtn) prevBtn.addEventListener("click", async ()=>{
     viewStart = addDays(viewStart, -7);
