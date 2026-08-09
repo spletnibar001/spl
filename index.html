@@ -600,7 +600,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 <!-- ПРИЛОЖЕНИЕ -->
 <div id="app">
 <header>
-  <span class="role-badge" id="role-badge"></span>
+  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span>
 </header>
 
 <!-- ПЕРЕКЛЮЧАТЕЛЬ ТАБЕЛЬ / БРОНИРОВАНИЕ -->
@@ -918,6 +918,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
+const APP_VERSION = "v 09.08 · сборка 1";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -934,7 +935,7 @@ const DEFAULT_RATES = {"Охрана":300000,"Официант":200000,"Барм
 const DEFAULT_MON_RATES = {"Бармен":250000};
 const FIXED_POS = {"Звукооператор":"karaoke",
   "Старший бармен":"karaoke","Свето-оператор":"club",
-  "Бар-менеджер":"both","Повар":"both","Охрана":"both","Кассир":"both"};
+  "Бар-менеджер":"both","Повар":"both","Шеф":"both","Охрана":"both","Кассир":"both"};
 const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звукооператор";
 /* рабочие места (залы) для караоке */
 const PLACES = {
@@ -1463,11 +1464,12 @@ function applyRoleDefaults(){
   }
   if(!CAP.money) return;
   const noRate = NO_RATE_ROLES.includes(role);
-  $("f-rate").disabled = false;  // для фикс-ролей в это поле вводится оклад за МЕСЯЦ
+  $("f-rate").disabled = noRate;
   const monAllowed = role==="Бармен" && !noRate;
   $("f-rate-mon").disabled = !monAllowed;
   if(noRate){
-    $("fix-note").textContent = ($("fix-note").textContent ? $("fix-note").textContent + " · " : "") + "фикс: ставка = оклад за МЕСЯЦ, выплата 2 р/мес";
+    $("f-rate").value = "";
+    $("fix-note").textContent = ($("fix-note").textContent ? $("fix-note").textContent + " · " : "") + "фикс. оклад 2 р/мес";
   }
   if(editId) return;
   if(!noRate && DEFAULT_RATES[role]!=null) $("f-rate").value = fmtNum(DEFAULT_RATES[role]);
@@ -3160,6 +3162,8 @@ async function applyManagerVenueScope(){
   }
   // обновим бейдж роли с уточнённым названием
   const rb = $("role-badge"); if(rb) rb.textContent = CAP.label + " · " + ME.name;
+  const av = $("app-ver");
+  if(av){ av.textContent = APP_VERSION; av.title = "Версия программы (обновляется при каждой правке)"; }
 }
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
