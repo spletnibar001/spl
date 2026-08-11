@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v20";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v21";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -337,6 +337,7 @@ function hydrate(data){
   const s = { entries:[], days:{} };
   if(data.setup) Object.assign(s, data.setup);
   if(data.appstate) Object.assign(s, data.appstate);
+  if(data.oldDebts) s.oldDebts = data.oldDebts;   // старые долги приходят и upr/dir (без прочего appstate)
   s.entries = (data.entries||[]).map(rowToEntry);
   s.days = {}; for(const r of (data.days||[])) s.days[r.biz_date]=rowToDay(r);
   setData(s, data.catalog||[]);
@@ -511,13 +512,22 @@ function renderDebts(){
         '<div class="rows">'+woRows.map(r=>'<div class="row" style="border-left:3px solid var(--ash)"><div class="who">'+esc(r.cp)+' <span class="badge" style="border-color:var(--ash);color:var(--ash)">НЕВОЗВРАТНЫЙ</span></div><div class="amt" style="color:var(--ash)">−'+fmt(r.bal)+'</div></div>').join("")+'</div>';
     }
   }
+  // старые долги (до запуска программы) — отдельной секцией под нужной вкладкой, только просмотр (админ/дир/упр)
+  let oldHtml='';
+  const olds=(S.oldDebts||[]).filter(d=>d.left>0 && d.kind===debtKind);
+  if(olds.length){
+    const oT=olds.reduce((s,d)=>s+d.left,0);
+    oldHtml='<div class="sect" style="margin-top:14px">Старые долги · '+fmt(oT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(до запуска программы)</span></div>'+
+      '<div class="rows">'+olds.slice().sort((a,b)=>b.left-a.left).map(d=>'<div class="row r-out" style="border-left:3px solid var(--gold-dim)"><div class="who">'+esc(d.cp)+' <span class="badge" style="border-color:var(--gold-dim);color:var(--gold-dim)">СТАРЫЙ</span><small>'+(d.created?"внесён "+esc(d.created):"")+(d.note?" · "+esc(d.note):"")+(d.left<d.orig?" · было "+fmt(d.orig):"")+'</small></div><div class="amt out">−'+fmt(d.left)+'</div></div>').join("")+'</div>';
+  }
   document.getElementById("tab-debts").innerHTML =
     '<div class="pill-tabs">'+
       '<button class="'+(debtKind==="staff"?"on":"")+'" onclick="setDebt(\'staff\')">Персонал · '+fmt(sT)+'</button>'+
       '<button class="'+(debtKind==="guest"?"on":"")+'" onclick="setDebt(\'guest\')">Гости · '+fmt(gT)+'</button>'+
     '</div>'+
     '<div class="rows">'+(cur.length?cur.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+' '+agingBadge(d.firstDate)+((d.venues||[]).map(venueBadge).join(""))+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">Открытых долгов нет.</div>')+'</div>'+
-    woHtml;
+    woHtml+
+    oldHtml;
 }
 function setDebt(k){ debtKind=k; renderDebts(); }
 function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
