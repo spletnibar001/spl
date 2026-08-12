@@ -55,11 +55,15 @@ main{padding:14px 14px calc(90px + env(safe-area-inset-bottom))}
 .rline{font-size:12px;color:var(--ash);line-height:1.7}
 .rline b{color:var(--cream);font-weight:700}
 /* экран расходов */
-.exrev{display:flex;gap:8px}
-.exrev .card{flex:1;border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:var(--panel2)}
+.exrev{display:flex;gap:8px;flex-wrap:wrap}
+.exrev .card{flex:1 1 250px;min-width:0;border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:var(--panel2)}
 .exrev .card.kar{border-color:#c79a4a}.exrev .card.club{border-color:#5f7fa0}
-.exrev .t{font-size:10.5px;color:var(--ash);text-transform:uppercase;letter-spacing:.04em}
+.exrev .t{font-size:10.5px;color:var(--ash);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:20px}
 .exrev .v{font-size:clamp(12px,3.5vw,17px);font-weight:800;color:var(--cream);margin-top:4px;white-space:nowrap}
+.exrev .r{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:2px 0}
+.exrev .r>span{min-width:0}
+.exrev .r>b{white-space:nowrap;flex:none}
+.exrev .r .sub{display:block;color:var(--ash);font-size:10.5px;margin-top:1px}
 .exhero{text-align:center;margin:8px 0 2px}
 .exhero .lbl{font-size:11px;color:var(--gold-dim);letter-spacing:.08em;text-transform:uppercase}
 .exhero .sum{font-size:28px;font-weight:800;color:var(--out);line-height:1.05;margin-top:3px}
@@ -165,7 +169,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v23";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v24";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -644,7 +648,7 @@ function analyticsBodyV(){
   if(mode==="days"){
     const off=_cmpOff||0; const cd=shiftDate(bizToday(),-off), pd=shiftDate(cd,-7);
     curV=revByVenueRange(cd,cd).tot; prevV=revByVenueRange(pd,pd).tot; curSub=dowLbl(cd); prevSub=dowLbl(pd);
-    cmpArrows='<span style="float:right;display:inline-flex;gap:6px"><button class="dn-arrow" style="padding:0 9px" onclick="cmpNavV(1)">◀</button><button class="dn-arrow" style="padding:0 9px;'+(off<=0?'opacity:.35;pointer-events:none':'')+'" onclick="cmpNavV(-1)">▶</button></span>';
+    cmpArrows='<span style="display:inline-flex;gap:6px;flex:none"><button class="dn-arrow" style="padding:0 9px" onclick="cmpNavV(1)">◀</button><button class="dn-arrow" style="padding:0 9px;'+(off<=0?'opacity:.35;pointer-events:none':'')+'" onclick="cmpNavV(-1)">▶</button></span>';
   } else { const last=per[per.length-1]||{tot:0}, prev=per[per.length-2]||{tot:0}; curV=last.tot; prevV=prev.tot; }
   const pct=prevV>0?Math.round((curV-prevV)/prevV*100):null;
   const unitName=n=>mode==="days"?plural(n,"день","дня","дней"):(mode==="weeks"?plural(n,"неделя","недели","недель"):plural(n,"месяц","месяца","месяцев"));
@@ -665,8 +669,8 @@ function analyticsBodyV(){
     artHtml+
     '<div class="pill-tabs" style="margin:0 0 12px"><button class="'+(mode==="days"?"on":"")+'" onclick="setAnaModeV(\'days\')">Дни</button><button class="'+(mode==="weeks"?"on":"")+'" onclick="setAnaModeV(\'weeks\')">Недели</button><button class="'+(mode==="months"?"on":"")+'" onclick="setAnaModeV(\'months\')">Месяцы</button></div>'+
     '<div class="kpi wide"><div style="display:flex;gap:16px;justify-content:flex-end;margin-bottom:8px;font-size:12px"><span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+KAR+';vertical-align:middle;margin-right:5px"></span>Караоке</span><span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+CLUB+';vertical-align:middle;margin-right:5px"></span>Клуб</span></div><div style="display:flex;align-items:flex-end;gap:5px;padding-top:6px">'+bars+'</div></div>'+
-    '<div class="exrev" style="margin-top:12px"><div class="card"><div class="t">Сравнение · '+one+cmpArrows+'</div><div style="display:flex;justify-content:space-between;padding:2px 0"><span>Текущий'+(curSub?' <span style="color:var(--ash);font-size:10.5px">'+curSub+'</span>':'')+'</span><b>'+fmt(curV)+'</b></div><div style="display:flex;justify-content:space-between;padding:2px 0"><span>Предыдущий'+(prevSub?' <span style="color:var(--ash);font-size:10.5px">'+prevSub+'</span>':'')+'</span><b>'+fmt(prevV)+'</b></div><div style="display:flex;justify-content:space-between;padding:4px 0 0;border-top:1px solid var(--line);margin-top:3px"><span>Изменение</span><b style="color:'+(pct==null?'var(--ash)':(pct>=0?'var(--in)':'var(--out)'))+'">'+(pct==null?'—':(pct>=0?'+':'')+pct+'%')+'</b></div></div>'+
-    '<div class="card"><div class="t">Показатели · '+per.length+' '+unitName(per.length)+'</div><div style="display:flex;justify-content:space-between;padding:2px 0"><span>Лучший '+one+(best?' <span style="color:var(--ash);font-size:10.5px">'+esc(best.label)+'</span>':'')+'</span><b class="in">'+(best?fmt(best.tot):"—")+'</b></div><div style="display:flex;justify-content:space-between;padding:2px 0"><span>Слабый '+one+(worst?' <span style="color:var(--ash);font-size:10.5px">'+esc(worst.label)+'</span>':'')+'</span><b>'+(worst?fmt(worst.tot):"—")+'</b></div><div style="display:flex;justify-content:space-between;padding:4px 0 0;border-top:1px solid var(--line);margin-top:3px"><span>Доля Караоке / Клуб</span><b style="color:var(--gold)">'+((totKar+totClub)>0?Math.round(totKar/(totKar+totClub)*100):0)+'% / '+((totKar+totClub)>0?(100-Math.round(totKar/(totKar+totClub)*100)):0)+'%</b></div></div></div>';
+    '<div class="exrev" style="margin-top:12px"><div class="card"><div class="t"><span>Сравнение · '+one+'</span>'+cmpArrows+'</div><div class="r"><span>Текущий'+(curSub?'<span class="sub">'+curSub+'</span>':'')+'</span><b>'+fmt(curV)+'</b></div><div class="r"><span>Предыдущий'+(prevSub?'<span class="sub">'+prevSub+'</span>':'')+'</span><b>'+fmt(prevV)+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Изменение</span><b style="color:'+(pct==null?'var(--ash)':(pct>=0?'var(--in)':'var(--out)'))+'">'+(pct==null?'—':(pct>=0?'+':'')+pct+'%')+'</b></div></div>'+
+    '<div class="card"><div class="t"><span>Показатели · '+per.length+' '+unitName(per.length)+'</span></div><div class="r"><span>Лучший '+one+(best?'<span class="sub">'+esc(best.label)+'</span>':'')+'</span><b class="in">'+(best?fmt(best.tot):"—")+'</b></div><div class="r"><span>Слабый '+one+(worst?'<span class="sub">'+esc(worst.label)+'</span>':'')+'</span><b>'+(worst?fmt(worst.tot):"—")+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Доля Караоке / Клуб</span><b style="color:var(--gold)">'+((totKar+totClub)>0?Math.round(totKar/(totKar+totClub)*100):0)+'% / '+((totKar+totClub)>0?(100-Math.round(totKar/(totKar+totClub)*100)):0)+'%</b></div></div></div>';
 }
 function renderExpenses(){
   const box=document.getElementById("tab-expenses"); if(!box) return;
