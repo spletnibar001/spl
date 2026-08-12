@@ -165,7 +165,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v22";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v23";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -537,9 +537,9 @@ const MON_NOM=["Январь","Февраль","Март","Апрель","Май
 const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
 const GHEXN={"ФОТ":"#3987e5","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и шоу":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
 const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка","ЗАЛОГ"]);
-const CASH_GROUP_CP={ "Кальяны":"Продукты","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
+const CASH_GROUP_CP={ "Кальяны":"Прочее","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
 const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и шоу","АТМОСФЕРА":"Маркетинг и шоу" };
-function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normName(x)===normName(cp)); if(k) return CASH_GROUP_CP[k]; if(CASH_GROUP_CAT[cat]) return CASH_GROUP_CAT[cat]; return "Прочее"; }
+function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normName(x)===normName(cp)); if(k) return CASH_GROUP_CP[k]; if(normName(cp).includes("МАГАЗИН")) return "Прочее"; if(CASH_GROUP_CAT[cat]) return CASH_GROUP_CAT[cat]; return "Прочее"; }
 const CASH_IN_LABEL={ "Привоз артистов":"приход (билеты/бонусы)","Мелкий ремонт":"приход за ремонт" };
 function cashInLabel(cp){ const k=Object.keys(CASH_IN_LABEL).find(x=>normName(x)===normName(cp)); return k?CASH_IN_LABEL[k]:null; }
 function isWriteoff(cp){ return !!(S.writeoffs && S.writeoffs[normName(cp)]); }
