@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1862,7 +1863,7 @@ function bkfDrawForm(){
   const dates = bkfDates();
   let zones = bkfZonesFor(BK_STATE.venue);
   // в бронь нельзя выбирать «Закрытую кабинку» — убираем её из списка
-  zones = zones.filter(z=>!/закры/i.test(String(z.title||"")));
+  zones = zones.filter(z=>!/закры|средн/i.test(String(z.title||"")));  // скрытые от гостей зоны: закрытая кабинка, средний зал
   // для клуба — фиксированный порядок: Подиум, Красные диваны, Коктейльные, ВИП, Кабинка
   if(BK_STATE.venue==="club"){
     const order = ["подиум","красн","коктейль","вип","кабин"];
