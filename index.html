@@ -918,7 +918,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 09.08 · сборка 4";
+const APP_VERSION = "v 15.08 · сборка 5";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -3904,6 +3904,13 @@ function bkRenderKaraoke(){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Большой зал ${bkStaffHead("big")}</span><span class="sub">депозиты ${weekend?"пт/сб":"будни"}</span></div>
       <div class="bk-grid">${sorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
+  // Средний зал — ряд из трёх столов
+  const mid=Z("mid");
+  if(mid){
+    const midSorted=[...mid.tables].sort((a,b)=>(parseInt(a.name.replace(/\D/g,""))||0)-(parseInt(b.name.replace(/\D/g,""))||0));
+    html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Средний зал ${bkStaffHead("mid")}</span><span class="sub">до 14 гостей за стол</span></div>
+      <div class="bk-kab">${midSorted.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
+  }
   // Кабинки
   const cab=Z("cabin");
   if(cab){
@@ -4004,6 +4011,8 @@ function bkSchemaKaraoke(){
 
   let html = bkMgmtHead("karaoke") + `<div class="bk-scheme-wrap"><div class="bk-scheme">
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Большой зал ${bkStaffHead("big")}</span><span class="sub">депозиты ${weekend?"пт/сб":"будни"}</span></div>${big}</div>
+    <div class="bk-panel"><div class="bk-zone-lbl"><span>Средний зал ${bkStaffHead("mid")}</span><span class="sub">до 14 гостей за стол</span></div>
+      <div class="bk-kab">${(bkZonesOf("karaoke").find(z=>z.zone.key==="mid")||{tables:[]}).tables.slice().sort((a,b)=>(parseInt(a.name.replace(/\D/g,""))||0)-(parseInt(b.name.replace(/\D/g,""))||0)).map(t=>bkTableCell(t,weekend)).join("")}</div></div>
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Кабинки ${bkStaffHead("cabin")}</span></div>
       <div class="bk-kab">${cab?cab.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Малый зал ${bkStaffHead("small")}</span><span class="sub">${weekend?"800 000 за стол":"только пт/сб"}</span></div>
