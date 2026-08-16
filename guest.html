@@ -1528,7 +1528,7 @@ async function bkfLoadRef(){
     SB.from("zones").select("*").order("sort"),
     SB.from("tables").select("*").order("id"),
   ]);
-  BK_REF = { venues:v.data||[], zones:z.data||[], tables:tb.data||[] };
+  BK_REF = { venues:v.data||[], zones:z.data||[], tables:(tb.data||[]).filter(x=>!x.archived) };
   return BK_REF;
 }
 
