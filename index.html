@@ -918,7 +918,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 15.08 · сборка 5";
+const APP_VERSION = "v 15.08 · сборка 7";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -940,18 +940,19 @@ const STEPS_PCT = 0.01, CABIN_BONUS = 100000, SOUND_BIG = "Звукоопера�
 /* рабочие места (залы) для караоке */
 const PLACES = {
   big:   {label:"Большой зал", short:"БЗ", limit:4, soft:false}, // жёсткий стоп на 4-м
+  mid:   {label:"Средний зал", short:"СЗ", limit:2, soft:false},
   small: {label:"Малый зал",   short:"МЗ", limit:2, soft:false},
   letka: {label:"Летка",       short:"Л",  limit:2, soft:false},
   cabin: {label:"Кабинки",     short:"К",  limit:1, soft:false},
 };
-const PLACE_COLORS = {big:"#1fbf7a", small:"#4ea6e2", letka:"#d9b04c", cabin:"#b79aee"};
+const PLACE_COLORS = {big:"#1fbf7a", mid:"#e2a06b", small:"#4ea6e2", letka:"#d9b04c", cabin:"#b79aee"};
 /* какие места доступны должности (только караоке).
    d — день (Date); для бармена Малый зал доступен только в пятницу/субботу */
 function placesFor(e, d){
   if(e.pos !== "karaoke") return null;
   const weekend = d && (d.getDay()===5 || d.getDay()===6); // пятница/суббота
   if(e.emp_role === "Официант")
-    return weekend ? ["big","small","letka","cabin"] : ["big","letka","cabin"]; // МЗ только в пт/сб
+    return weekend ? ["big","mid","small","letka","cabin"] : ["big","mid","letka","cabin"]; // МЗ только в пт/сб
   if(e.emp_role === "Бармен")
     return weekend ? ["big","small"] : ["big"];            // МЗ только в пт/сб
   if(e.emp_role === "Звукооператор")
@@ -3657,7 +3658,8 @@ async function bkLoadRef(){
     sb.from("zones").select("*").order("sort"),
     sb.from("tables").select("*").order("id"),
   ]);
-  BK.data.venues=v.data||[]; BK.data.zones=z.data||[]; BK.data.tables=t.data||[];
+  BK.data.venues=v.data||[]; BK.data.zones=z.data||[];
+  BK.data.tables=(t.data||[]).filter(x=>!x.archived);  // архивные столы скрыты везде
 }
 
 async function bkLoadAndRender(){
@@ -3963,7 +3965,7 @@ function bkTableByCode(code){ return BK.data.tables.find(t=>t.code===code); }
 function bkSchemaCell(code, style, opts){
   opts = opts || {};
   const t = bkTableByCode(code);
-  if(!t) return `<div class="bk-fx" style="${style}">${opts.label||code}</div>`;
+  if(!t) return "";  // архивный/отсутствующий стол — пустое место на схеме
   const weekend = bkIsWeekend(BK.date);
   const b = bkBookingFor(t.id);
   const cls = bkTableCls(b);
