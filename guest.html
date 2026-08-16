@@ -1017,7 +1017,7 @@ const CLUB_ZONES = [
     },
     cap: { ru: "большая компания", uz: "katta kompaniya", en: "large group" },
     dep: "request",
-    imgs: [],
+    imgs: ["club_vip_1.jpg","club_vip_2.jpg"],
   },
   {
     id: "podium",
@@ -2102,7 +2102,7 @@ function renderZones(){
     let gallery;
     if (z.imgs && z.imgs.length) {
       if (zgState[z.id] == null) zgState[z.id] = 0;
-      const slides = z.imgs.map(f => `<div class="zg-slide"><img src="${zoneImgPath(f)}" alt="" loading="lazy"></div>`).join("");
+      const slides = z.imgs.map(f => `<div class="zg-slide"><img src="${zoneImgPath(f)}" alt="" loading="lazy" onerror="this.closest('.zg-slide').style.display='none'"></div>`).join("");
       const dots = z.imgs.length > 1
         ? `<div class="zg-dots">${z.imgs.map((_,i)=>`<span class="zg-dot ${i===0?'on':''}" data-zd="${z.id}:${i}"></span>`).join("")}</div>` : "";
       const arrows = z.imgs.length > 1
