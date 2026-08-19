@@ -918,7 +918,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 15.08 · сборка 7";
+const APP_VERSION = "v 16.08 · сборка 11";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -989,6 +989,10 @@ const CAPS = {
                 scope:[["Повар","*"]],
                 approve:false, unapprove:false, archive:false,
                 pen:[["Повар","*"]]},  // штрафы: только повара
+  sound:       {label:"Ст. звукооператор", money:false, ownCabinet:true,
+                scope:[["Звукооператор","*"]],
+                approve:false, unapprove:false, archive:false,
+                pen:false},  // ставит смены звукооператорам, включая себя
   upr:         {label:"Управляющий", money:true,
                 scope:[["*","*"]],
                 approve:true, unapprove:true, archive:false, msg:"team", pen:"all", bonus:"all"},
@@ -1027,6 +1031,10 @@ let compactView = false; // true = только график
 let posFilter = "all", viewStart = null, editId = null;
 
 /* ================= даты и числа ================= */
+// выключен ли автобонус за кабинки у сотрудника на неделе (weekly_values.cabin_off)
+function cabinOffFor(empId, weekKey){
+  return wvRows.some(w=>w.employee_id===empId && w.week_start===weekKey && w.cabin_off);
+}
 function payWeekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
   x.setDate(x.getDate()-((x.getDay()-3+7)%7));return x;}
 // "сейчас" с учётом бизнес-дня: время до 05:00 считается ещё предыдущим днём
@@ -1350,9 +1358,12 @@ function earnedInPeriod(emp, fromS, toS){
       extraLbl = "шаги "+money(extra);
     }else if(emp.emp_role===SOUND_BIG){
       // автобонус за кабинки по сменам (БЗ, будни): 1 посадка=100к, 2+=200к
+      // отключается на конкретную неделю переключателем в табеле (weekly_values.cabin_off)
       for(const s of shiftRows){
         if(s.employee_id!==emp.id) continue;
-        if(s.work_date>=fromS && s.work_date<=toS) extra += soundCabinBonusForShift(s);
+        if(s.work_date<fromS || s.work_date>toS) continue;
+        if(cabinOffFor(emp.id, iso(payWeekStart(fromIso(s.work_date))))) continue;
+        extra += soundCabinBonusForShift(s);
       }
       extraLbl = "кабинки "+money(extra);
     }
@@ -1687,6 +1698,21 @@ async function removeFromWeek(id){
   if(editId===id) cancelEdit();
   await refresh();
 }
+// вкл/выкл автобонуса за кабинки у звукооператора — на просматриваемую неделю (только админ)
+async function toggleCabinBonus(id){
+  const e = byId(id); if(!e) return;
+  const wk = iso(viewStart);
+  const turnOff = !cabinOffFor(e.id, wk);
+  if(!confirm(turnOff
+    ? `Отключить ${e.name} бонус за кабинки на неделю ${weekLabel(wk)}?`
+    : `Включить ${e.name} бонус за кабинки на неделю ${weekLabel(wk)}?`)) return;
+  const {error} = await sb.from("weekly_values")
+    .upsert({employee_id:e.id, week_start:wk, cabin_off:turnOff}, {onConflict:"employee_id,week_start"});
+  if(error){ showMsg(error.message); return; }
+  showMsg(turnOff ? "Бонус за кабинки на эту неделю отключён" : "Бонус за кабинки на эту неделю включён", true);
+  await refresh();
+}
+window.toggleCabinBonus = toggleCabinBonus;
 async function archiveEmployee(id, undo){
   const e = byId(id); if(!e) return;
   if(!undo && !confirm(`Удалить ${e.name} из базы? Во всех неделях, где сотрудник уже стоит, он останется.`)) return;
@@ -1907,7 +1933,11 @@ function render(){
         : `<td class="total-col">${money(r.sum)}</td>`;
       moneyCells = saleCell + stepsCell + penbonTd + shiftTd + totalTd;
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
-        <div class="meta">${e.emp_role} · ${rateNote}${monNote}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
+        <div class="meta">${e.emp_role} · ${rateNote}${monNote}${
+          (e.emp_role===SOUND_BIG && ME.role==="admin")
+            ? (()=>{const off=cabinOffFor(e.id, iso(viewStart));
+                return ` · <span onclick="toggleCabinBonus('${e.id}')" style="cursor:pointer;border:1px solid ${off?'var(--line)':'var(--emerald)'};color:${off?'var(--muted)':'var(--emerald)'};border-radius:8px;padding:1px 7px;font-size:10px" title="Автобонус за кабинки на ЭТУ неделю — нажмите, чтобы переключить">кабинки: ${off?'выкл':'вкл'} · эта неделя</span>`;})()
+            : ""}${e.archived?' · <span style="color:var(--red)">удалён из базы</span>':""}</div></td>`
         + cells + moneyCells;
     }else{
       tr.innerHTML = `<td class="emp"><span class="nm">${e.name}</span>
