@@ -169,7 +169,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v25";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v26";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -545,10 +545,10 @@ function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
 /* ===== экран расходов кассы (админ) ===== */
 const MON_NOM=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
-const GHEXN={"ФОТ":"#3987e5","Шоу / артисты":"#7E57C2","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и шоу":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
+const GHEXN={"ФОТ":"#3987e5","ШОУ":"#7E57C2","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и артисты":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
 const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка","ЗАЛОГ"]);
-const CASH_GROUP_CP={ "Кальяны":"Прочее","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
-const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и шоу","АТМОСФЕРА":"Маркетинг и шоу" };
+const CASH_GROUP_CP={ "Кальяны":"Прочее","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и артисты","Маркетинг":"Маркетинг и артисты","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и артисты","МАССОВКА Счет":"Маркетинг и артисты","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и артисты","Доставка":"Прочее" };
+const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и артисты","АТМОСФЕРА":"Маркетинг и артисты" };
 function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normName(x)===normName(cp)); if(k) return CASH_GROUP_CP[k]; if(normName(cp).includes("МАГАЗИН")) return "Прочее"; if(CASH_GROUP_CAT[cat]) return CASH_GROUP_CAT[cat]; return "Прочее"; }
 const CASH_IN_LABEL={ "Привоз артистов":"приход (билеты/бонусы)","Мелкий ремонт":"приход за ремонт" };
 function cashInLabel(cp){ const k=Object.keys(CASH_IN_LABEL).find(x=>normName(x)===normName(cp)); return k?CASH_IN_LABEL[k]:null; }
@@ -558,7 +558,7 @@ function expMonthLabel(mk){ const p=mk.split("-"); return MON_NOM[(+p[1])-1]+" "
 function expShiftMonth(mk,n){ let p=mk.split("-").map(Number),y=p[0],m=p[1]+n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
 function expNavMonth(n){ EXPM=expShiftMonth(EXPM||((VD||"").slice(0,7)),n); renderExpenses(); }
 // шоу-программа (диджеи, МС, гоу-гоу, массовка, шоу, оркестр) — как isDailyStage в кассе (роли Сцена/Шоу)
-function isShowRole(cp){ const w=String(cp).trim().split(/\s+/)[0].toUpperCase(); return ["DJ","MC","МС","ГОУ-ГОУ","МАССОВКА","ШОУ","ОРКЕСТР"].includes(w); }
+function isShowRole(cp){ if(/БЭКВОКАЛ/.test(normName(cp))) return true; const w=String(cp).trim().split(/\s+/)[0].toUpperCase(); return ["DJ","MC","МС","ГОУ-ГОУ","МАССОВКА","ШОУ","ОРКЕСТР"].includes(w); }
 function expReport(mk){
   const inM=d=>(d||"").slice(0,7)===mk;
   const fot={"Караоке":0,"Клуб":0,"Общий":0}, fotP={};
@@ -600,14 +600,14 @@ function expReport(mk){
   const gAmt=(g)=>(gs[g]||0)+(cgs[g]||0); const G=n=>GHEXN[n]||"#9085e9";
   const groups=[
     {name:"ФОТ",hex:G("ФОТ"),amt:fotTotal,fot:fot,people:items(fotP)},
-    {name:"Шоу / артисты",hex:G("Шоу / артисты"),amt:showTotal,fot:show,people:items(showP)},
+    {name:"ШОУ",hex:G("ШОУ"),amt:showTotal,fot:show,people:items(showP)},
     {name:"Продукты",hex:G("Продукты"),amt:gAmt("Продукты"),items:merge("Продукты")},
     {name:"Алкоголь",hex:G("Алкоголь"),amt:gAmt("Алкоголь"),items:merge("Алкоголь")},
     {name:"Налоги",hex:G("Налоги"),amt:gAmt("Налоги"),items:merge("Налоги")},
     {name:"Административные",hex:G("Административные"),amt:gAmt("Административные"),items:merge("Административные")},
     {name:"Коммунальные",hex:G("Коммунальные"),amt:gAmt("Коммунальные"),items:merge("Коммунальные")},
     {name:"Ремонт",hex:G("Ремонт"),amt:gAmt("Ремонт"),items:merge("Ремонт")},
-    {name:"Маркетинг и шоу",hex:G("Маркетинг и шоу"),amt:gAmt("Маркетинг и шоу"),items:merge("Маркетинг и шоу")},
+    {name:"Маркетинг и артисты",hex:G("Маркетинг и артисты"),amt:gAmt("Маркетинг и артисты"),items:merge("Маркетинг и артисты")},
     {name:"Комплименты и подарки",hex:G("Комплименты и подарки"),amt:gAmt("Комплименты и подарки"),items:merge("Комплименты и подарки")},
     {name:"Невозвратные",hex:G("Невозвратные"),amt:nevoz,items:items(nevozI)},
     {name:"Прочее",hex:G("Прочее"),amt:gAmt("Прочее"),items:merge("Прочее")},
@@ -641,11 +641,12 @@ let _anaMode="days", _cmpOff=0;
 function setAnaModeV(m){ _anaMode=m; renderExpenses(); }
 function cmpNavV(d){ _cmpOff=Math.max(0,(_cmpOff||0)+d); renderExpenses(); }
 function curWeekWed(){ const t=bizToday(); const d=new Date(t+"T12:00:00"); const back=(d.getDay()-3+7)%7; return shiftDate(t,-back); }
+function curWeekMon(){ const t=bizToday(); const d=new Date(t+"T12:00:00"); const back=(d.getDay()+6)%7; return shiftDate(t,-back); }
 function revByVenueRange(from,to){ let kar=0,club=0; for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||e.bizDate<from||e.bizDate>to) continue; const s=e.type==="in"?1:-1; const n=normName(e.cp); if(n===normName("Касса КАРАОКЕ"))kar+=s*e.amount; else if(n===normName("Касса КЛУБ"))club+=s*e.amount; } return {kar,club,tot:kar+club}; }
 function anaPeriods(mode){ const rows=[];
   if(mode==="days"){ const t=bizToday(); for(let i=13;i>=0;i--){ const d=shiftDate(t,-i); rows.push({from:d,to:d,label:(+d.slice(8,10))+"."+d.slice(5,7)}); } }
   else if(mode==="months"){ const mk0=bizToday().slice(0,7); for(let i=5;i>=0;i--){ const mk=expShiftMonth(mk0,-i); rows.push({from:mk+"-01",to:mk+"-31",label:(MON_NOM[+mk.slice(5,7)-1]||"").slice(0,3)+" "+mk.slice(2,4)}); } }
-  else { const w0=curWeekWed(); for(let i=7;i>=0;i--){ const wk=shiftDate(w0,-7*i); const to=shiftDate(wk,6); rows.push({from:wk,to:to,label:(+wk.slice(8,10))+"."+wk.slice(5,7)}); } }
+  else { const w0=curWeekMon(); for(let i=7;i>=0;i--){ const wk=shiftDate(w0,-7*i); const to=shiftDate(wk,6); rows.push({from:wk,to:to,label:(+wk.slice(8,10))+"."+wk.slice(5,7)}); } }
   return rows.map(p=>Object.assign(p, revByVenueRange(p.from,p.to))); }
 const ARTIST_CP="Привоз артистов";
 function artistROI(mk){ const inM=d=>(d||"").slice(0,7)===mk; let exp=0,inc=0;
@@ -661,7 +662,8 @@ function analyticsBodyV(){
     const off=_cmpOff||0; const cd=shiftDate(bizToday(),-off), pd=shiftDate(cd,-7);
     curV=revByVenueRange(cd,cd).tot; prevV=revByVenueRange(pd,pd).tot; curSub=dowLbl(cd); prevSub=dowLbl(pd);
     cmpArrows='<span style="display:inline-flex;gap:6px;flex:none"><button class="dn-arrow" style="padding:0 9px" onclick="cmpNavV(1)">◀</button><button class="dn-arrow" style="padding:0 9px;'+(off<=0?'opacity:.35;pointer-events:none':'')+'" onclick="cmpNavV(-1)">▶</button></span>';
-  } else { const last=per[per.length-1]||{tot:0}, prev=per[per.length-2]||{tot:0}; curV=last.tot; prevV=prev.tot; }
+  } else { const last=per[per.length-1]||{tot:0}, prev=per[per.length-2]||{tot:0}; curV=last.tot; prevV=prev.tot;
+    const rng=p=>(p&&p.from)?(mode==="weeks"?"Пн ":"")+p.from.slice(8,10)+"."+p.from.slice(5,7)+" – "+(mode==="weeks"?"Вс ":"")+p.to.slice(8,10)+"."+p.to.slice(5,7):""; curSub=rng(last); prevSub=rng(prev); }
   const pct=prevV>0?Math.round((curV-prevV)/prevV*100):null;
   const unitName=n=>mode==="days"?plural(n,"день","дня","дней"):(mode==="weeks"?plural(n,"неделя","недели","недель"):plural(n,"месяц","месяца","месяцев"));
   const withData=per.filter(p=>p.tot>0);
