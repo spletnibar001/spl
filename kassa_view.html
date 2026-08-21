@@ -169,7 +169,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v24";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v25";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -501,15 +501,20 @@ function renderBank(){
   box.innerHTML=html;
 }
 let debtKind="staff";
+let _debtQ="";
+function debtSearchV(v){ _debtQ=v; renderDebts(); const el=document.getElementById("debtSearch"); if(el){ el.focus(); try{ const p=el.value.length; el.setSelectionRange(p,p); }catch(_){} } }
 function renderDebts(){
   const list=debtList();
   const staff=list.filter(d=>d.isStaff), guest=list.filter(d=>!d.isStaff);
   const sT=staff.reduce((s,d)=>s+d.bal,0), gT=guest.reduce((s,d)=>s+d.bal,0);
   const cur=debtKind==="staff"?staff:guest;
+  const nq=normName((_debtQ||"").trim());
+  const match=d=>!nq||normName(d.cp||"").includes(nq)||(d.note&&normName(d.note).includes(nq));
+  const curF=cur.filter(match);
   // невозвратные — отдельной секцией, только для админа/кассира; в общий итог «Гости» не входят
   let woHtml='';
   if(debtKind==="guest" && canSeeWriteoffs()){
-    const woRows=woDebtList();
+    const woRows=woDebtList().filter(match);
     if(woRows.length){
       const woT=woRows.reduce((s,r)=>s+r.bal,0);
       woHtml='<div class="sect" style="margin-top:14px">Невозвратные · '+fmt(woT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(не в итоге)</span></div>'+
@@ -518,7 +523,7 @@ function renderDebts(){
   }
   // старые долги (до запуска программы) — отдельной секцией под нужной вкладкой, только просмотр (админ/дир/упр)
   let oldHtml='';
-  const olds=(S.oldDebts||[]).filter(d=>d.left>0 && d.kind===debtKind);
+  const olds=(S.oldDebts||[]).filter(d=>d.left>0 && d.kind===debtKind && match(d));
   if(olds.length){
     const oT=olds.reduce((s,d)=>s+d.left,0);
     oldHtml='<div class="sect" style="margin-top:14px">Старые долги · '+fmt(oT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(до запуска программы)</span></div>'+
@@ -529,7 +534,8 @@ function renderDebts(){
       '<button class="'+(debtKind==="staff"?"on":"")+'" onclick="setDebt(\'staff\')">Персонал · '+fmt(sT)+'</button>'+
       '<button class="'+(debtKind==="guest"?"on":"")+'" onclick="setDebt(\'guest\')">Гости · '+fmt(gT)+'</button>'+
     '</div>'+
-    '<div class="rows">'+(cur.length?cur.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+' '+agingBadge(d.firstDate)+((d.venues||[]).map(venueBadge).join(""))+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">Открытых долгов нет.</div>')+'</div>'+
+    '<input id="debtSearch" placeholder="🔍 Поиск по имени…" oninput="debtSearchV(this.value)" value="'+esc(_debtQ)+'" autocomplete="off" style="width:100%;margin:8px 0 4px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);font-size:14px">'+
+    '<div class="rows">'+(curF.length?curF.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+' '+agingBadge(d.firstDate)+((d.venues||[]).map(venueBadge).join(""))+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">'+(nq?"Ничего не найдено.":"Открытых долгов нет.")+'</div>')+'</div>'+
     woHtml+
     oldHtml;
 }
@@ -539,7 +545,7 @@ function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
 /* ===== экран расходов кассы (админ) ===== */
 const MON_NOM=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
-const GHEXN={"ФОТ":"#3987e5","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и шоу":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
+const GHEXN={"ФОТ":"#3987e5","Шоу / артисты":"#7E57C2","Продукты":"#d95926","Алкоголь":"#199e70","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Ремонт":"#b6873b","Маркетинг и шоу":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
 const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка","ЗАЛОГ"]);
 const CASH_GROUP_CP={ "Кальяны":"Прочее","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и шоу","Маркетинг":"Маркетинг и шоу","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и шоу","МАССОВКА Счет":"Маркетинг и шоу","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и шоу","Доставка":"Прочее" };
 const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и шоу","АТМОСФЕРА":"Маркетинг и шоу" };
@@ -551,13 +557,18 @@ let EXPM=null;
 function expMonthLabel(mk){ const p=mk.split("-"); return MON_NOM[(+p[1])-1]+" "+p[0]; }
 function expShiftMonth(mk,n){ let p=mk.split("-").map(Number),y=p[0],m=p[1]+n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
 function expNavMonth(n){ EXPM=expShiftMonth(EXPM||((VD||"").slice(0,7)),n); renderExpenses(); }
+// шоу-программа (диджеи, МС, гоу-гоу, массовка, шоу, оркестр) — как isDailyStage в кассе (роли Сцена/Шоу)
+function isShowRole(cp){ const w=String(cp).trim().split(/\s+/)[0].toUpperCase(); return ["DJ","MC","МС","ГОУ-ГОУ","МАССОВКА","ШОУ","ОРКЕСТР"].includes(w); }
 function expReport(mk){
   const inM=d=>(d||"").slice(0,7)===mk;
   const fot={"Караоке":0,"Клуб":0,"Общий":0}, fotP={};
+  const show={"Караоке":0,"Клуб":0,"Общий":0}, showP={};
   for(const e of S.entries){ if(e.deleted||e.type!=="out"||!SAL_CATS.includes(e.cat)||!inM(e.bizDate)) continue;
     const v=e.cat==="Зар.плата КАРАОКЕ"?"Караоке":(e.cat==="Зар.плата КЛУБ"?"Клуб":"Общий");
-    fot[v]+=e.amount; if(!fotP[e.cp])fotP[e.cp]={n:e.cp,a:0,cnt:0}; fotP[e.cp].a+=e.amount; fotP[e.cp].cnt++; }
+    if(isShowRole(e.cp)){ show[v]+=e.amount; if(!showP[e.cp])showP[e.cp]={n:e.cp,a:0,cnt:0}; showP[e.cp].a+=e.amount; showP[e.cp].cnt++; }
+    else { fot[v]+=e.amount; if(!fotP[e.cp])fotP[e.cp]={n:e.cp,a:0,cnt:0}; fotP[e.cp].a+=e.amount; fotP[e.cp].cnt++; } }
   const fotTotal=fot.Караоке+fot.Клуб+fot.Общий;
+  const showTotal=show.Караоке+show.Клуб+show.Общий;
   const gs={},gi={}; EXPENSE_GROUPS.forEach(g=>{gs[g]=0;gi[g]={};});
   for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(p.date)) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0}; gi[g][k].a+=p.amount; gi[g][k].cnt++; }
   // касса-расходы по группам (маршрут через cashGroupOf) — как в кассе
@@ -589,6 +600,7 @@ function expReport(mk){
   const gAmt=(g)=>(gs[g]||0)+(cgs[g]||0); const G=n=>GHEXN[n]||"#9085e9";
   const groups=[
     {name:"ФОТ",hex:G("ФОТ"),amt:fotTotal,fot:fot,people:items(fotP)},
+    {name:"Шоу / артисты",hex:G("Шоу / артисты"),amt:showTotal,fot:show,people:items(showP)},
     {name:"Продукты",hex:G("Продукты"),amt:gAmt("Продукты"),items:merge("Продукты")},
     {name:"Алкоголь",hex:G("Алкоголь"),amt:gAmt("Алкоголь"),items:merge("Алкоголь")},
     {name:"Налоги",hex:G("Налоги"),amt:gAmt("Налоги"),items:merge("Налоги")},
@@ -697,7 +709,7 @@ function renderExpenses(){
     shown.forEach((g,i)=>{
       const pct=Math.round(g.amt/R.total*100);
       let detail='';
-      if(g.fot){ detail+='<div class="fotsplit"><div class="fc"><div class="k">Караоке</div><div class="a">'+fmt(g.fot.Караоке)+'</div></div><div class="fc"><div class="k">Клуб</div><div class="a">'+fmt(g.fot.Клуб)+'</div></div><div class="fc"><div class="k">Общий</div><div class="a">'+fmt(g.fot.Общий)+'</div></div></div>';
+      if(g.fot){ const gp=a=>g.amt>0?Math.round(a/g.amt*100):0; detail+='<div class="fotsplit"><div class="fc"><div class="k">Караоке</div><div class="a">'+fmt(g.fot.Караоке)+'</div><div class="k">'+gp(g.fot.Караоке)+'%</div></div><div class="fc"><div class="k">Клуб</div><div class="a">'+fmt(g.fot.Клуб)+'</div><div class="k">'+gp(g.fot.Клуб)+'%</div></div><div class="fc"><div class="k">Общий</div><div class="a">'+fmt(g.fot.Общий)+'</div><div class="k">'+gp(g.fot.Общий)+'%</div></div></div>';
         detail+=g.people.length?('<div class="subhdr">по сотрудникам</div>'+g.people.map(p=>'<div class="drow"><span class="nm">'+esc(p.n)+(p.cnt>1?'<span class="cnt">'+p.cnt+' вып.</span>':'')+'</span><b>'+fmt(p.a)+'</b></div>').join("")):''; }
       else { detail+='<div class="subhdr">получатели · за месяц</div>'+(g.items.length?g.items.map(it=>{ const inLbl=(it.inA>0)?cashInLabel(it.n):null; return '<div class="drow"><span class="nm">'+esc(it.n)+(it.cnt>1?'<span class="cnt">'+it.cnt+' плат.</span>':'')+'</span><b>'+fmt(it.a)+'</b></div>'+(inLbl?'<div class="drow" style="opacity:.85"><span class="nm" style="padding-left:12px;color:var(--in)">↳ '+esc(inLbl)+'</span><b style="color:var(--in)">+'+fmt(it.inA)+'</b></div>':''); }).join(""):'<div class="drow"><span class="nm">детализации нет</span></div>'); }
       html+='<div class="grp" id="exg'+i+'"><div class="grp-top" onclick="document.getElementById(\'exg'+i+'\').classList.toggle(\'open\')"><span class="chev">▸</span><span class="gdot" style="background:'+g.hex+'"></span><span class="grp-name">'+g.name+'</span><span class="grp-pct">'+pct+'%</span><span class="grp-amt">'+fmt(g.amt)+'</span></div><div class="gtrack"><span style="width:'+Math.round(g.amt/max*100)+'%;background:'+g.hex+'"></span></div><div class="gdetail">'+detail+'</div></div>';
