@@ -169,7 +169,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v26";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v27";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -686,6 +686,72 @@ function analyticsBodyV(){
     '<div class="exrev" style="margin-top:12px"><div class="card"><div class="t"><span>Сравнение · '+one+'</span>'+cmpArrows+'</div><div class="r"><span>Текущий'+(curSub?'<span class="sub">'+curSub+'</span>':'')+'</span><b>'+fmt(curV)+'</b></div><div class="r"><span>Предыдущий'+(prevSub?'<span class="sub">'+prevSub+'</span>':'')+'</span><b>'+fmt(prevV)+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Изменение</span><b style="color:'+(pct==null?'var(--ash)':(pct>=0?'var(--in)':'var(--out)'))+'">'+(pct==null?'—':(pct>=0?'+':'')+pct+'%')+'</b></div></div>'+
     '<div class="card"><div class="t"><span>Показатели · '+per.length+' '+unitName(per.length)+'</span></div><div class="r"><span>Лучший '+one+(best?'<span class="sub">'+esc(best.label)+'</span>':'')+'</span><b class="in">'+(best?fmt(best.tot):"—")+'</b></div><div class="r"><span>Слабый '+one+(worst?'<span class="sub">'+esc(worst.label)+'</span>':'')+'</span><b>'+(worst?fmt(worst.tot):"—")+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Доля Караоке / Клуб</span><b style="color:var(--gold)">'+((totKar+totClub)>0?Math.round(totKar/(totKar+totClub)*100):0)+'% / '+((totKar+totClub)>0?(100-Math.round(totKar/(totKar+totClub)*100)):0)+'%</b></div></div></div>';
 }
+/* ==== Здоровье финансовой модели (только админ) ==== */
+function pctRu(p){ return (Math.round(p*1000)/10).toString().replace(".",",")+"%"; }
+function healthReport(mk,R){
+  R=R||expReport(mk); const rev=(R.revKar||0)+(R.revClub||0);
+  const g={}; for(const x of R.groups) g[x.name]=x.amt||0;
+  const cogs=(g["Продукты"]||0)+(g["Алкоголь"]||0);
+  const labor=(g["ФОТ"]||0)+(g["ШОУ"]||0);
+  const mkt=(g["Маркетинг и артисты"]||0);
+  const occ=(g["Административные"]||0)+(g["Коммунальные"]||0);
+  const other=(g["Налоги"]||0)+(g["Ремонт"]||0)+(g["Невозвратные"]||0)+(g["Комплименты и подарки"]||0)+(g["Прочее"]||0);
+  const total=R.total||(cogs+labor+mkt+occ+other), prime=cogs+labor, net=rev-total;
+  const P=a=>rev>0?a/rev:0;
+  const blocks=[
+    {name:"Себестоимость",sub:"продукты + алкоголь",amt:cogs,p:P(cogs),lo:0,hi:.30,color:"#199e70",hint:"алкоголь высоковат — проверь наценку и недоливы"},
+    {name:"Люди и шоу",sub:"ФОТ + резиденты, диджеи, шоу, массовка",amt:labor,p:P(labor),lo:.30,hi:.35,color:"#3987e5",hint:"фикс резидентов привязать к выручке ночи"},
+    {name:"Маркетинг и артисты",sub:"промо + привоз артистов (разовые)",amt:mkt,p:P(mkt),lo:.03,hi:.07,color:"#c94db0",hint:"следи за окупаемостью артистов (блок «Артисты · окупаемость»)"},
+    {name:"Помещение",sub:"аренда + коммуналка + админ",amt:occ,p:P(occ),lo:.08,hi:.12,color:"#d55181",hint:"коммуналку разобрать по счётчикам"},
+    {name:"Прочее и резервы",sub:"налоги, ремонт, невозвратные, прочее",amt:other,p:P(other),lo:.05,hi:.08,color:"#9085e9",hint:"невозвратные почти обнуляемы политикой"}
+  ];
+  return {rev,total,net,prime,cogs,labor,mkt,occ,other,netP:P(net),primeP:P(prime),laborP:P(labor),blocks};
+}
+function healthBlockStatus(p,lo,hi){ const tol=.03; if(p>=lo-1e-9&&p<=hi+1e-9) return "in"; if(p<lo) return (lo-p<=tol)?"in":"warn"; return (p-hi<=tol)?"warn":"out"; }
+function healthSectionV(mk,R){
+  const H=healthReport(mk,R); if(H.rev<=0) return "";
+  const netSt=H.netP>=.15?"in":(H.netP>=.12?"warn":"out");
+  const primeSt=H.primeP<=.65?"in":(H.primeP<=.68?"warn":"out");
+  const laborSt=healthBlockStatus(H.laborP,.30,.35);
+  const stPill=st=>st==="in"?'<span style="color:var(--in)">✓ норма</span>':(st==="warn"?'<span style="color:var(--warn)">! внимание</span>':'<span style="color:var(--out)">✕ вне нормы</span>');
+  const bd=st=>st==="out"?"var(--out)":(st==="warn"?"var(--warn)":"var(--gold-dim)");
+  const kpi=(lab,val,tgt,st,fillW,tickAt)=>'<div class="card" style="text-align:left;border:1px solid '+bd(st)+'">'+
+    '<div class="t" style="text-transform:uppercase;letter-spacing:.05em;font-size:10px">'+lab+'</div>'+
+    '<div class="v" style="color:var(--'+st+');font-size:23px">'+val+'</div>'+
+    '<div class="s" style="font-size:10.5px">'+tgt+'</div>'+
+    '<div style="height:6px;border-radius:4px;background:#2f2513;margin-top:8px;position:relative;overflow:hidden"><span style="position:absolute;left:0;top:0;bottom:0;width:'+Math.min(100,fillW)+'%;background:var(--'+st+');border-radius:4px"></span><i style="position:absolute;top:-3px;left:'+tickAt+'%;width:2px;height:12px;background:var(--cream);opacity:.7"></i></div></div>';
+  const SC=0.50;
+  const rows=H.blocks.map(function(b){
+    const st=healthBlockStatus(b.p,b.lo,b.hi);
+    const bandL=b.lo/SC*100, bandW=(b.hi-b.lo)/SC*100, fillW=Math.min(100,b.p/SC*100);
+    const normLbl=b.lo<=0?"≤"+pctRu(b.hi):pctRu(b.lo)+"–"+pctRu(b.hi);
+    return '<div style="padding:13px 0;border-bottom:1px solid var(--line)">'+
+      '<div style="display:flex;align-items:baseline;gap:9px"><span style="width:10px;height:10px;border-radius:3px;background:'+b.color+';flex:none;transform:translateY(1px)"></span>'+
+      '<span style="font-size:14px;color:var(--cream);font-weight:500">'+b.name+'</span>'+
+      '<b style="margin-left:auto;color:var(--'+st+');font-size:16px">'+pctRu(b.p)+'</b>'+
+      '<span style="font-size:11px;color:var(--ash)">'+fmt(b.amt)+'</span></div>'+
+      '<div style="font-size:11px;color:var(--ash);margin:2px 0 0 19px">'+b.sub+'</div>'+
+      '<div style="position:relative;height:11px;border-radius:6px;background:#241c10;margin:9px 0 6px;overflow:hidden">'+
+      '<div style="position:absolute;top:0;bottom:0;left:'+bandL+'%;width:'+bandW+'%;background:rgba(143,212,155,.18);border-left:1px dashed rgba(143,212,155,.5);border-right:1px dashed rgba(143,212,155,.5)"></div>'+
+      '<div style="position:absolute;left:0;top:0;bottom:0;width:'+fillW+'%;background:var(--'+st+');border-radius:6px"></div></div>'+
+      '<div style="font-size:11.5px;color:var(--ash)">'+stPill(st)+' · норма '+normLbl+(st!=="in"?" · "+b.hint:"")+'</div></div>';
+  }).join("");
+  const overs=H.blocks.filter(function(b){return b.p>b.hi+1e-9;}).sort(function(a,b){return (b.p-b.hi)-(a.p-a.hi);});
+  const gapP=Math.max(0,.15-H.netP), gapMoney=Math.round(gapP*H.rev);
+  const verdict=netSt==="in"?"модель здорова — маржа в целевом диапазоне":(H.net>0?"модель рабочая, но без запаса":"модель убыточна за месяц");
+  const diag='<div style="margin-top:14px;background:linear-gradient(180deg,#2b1f13,#241a10);border:1px solid var(--gold-dim);border-radius:14px;padding:15px 16px">'+
+    '<div style="font-size:12.5px;color:var(--gold);font-weight:600;margin-bottom:8px">⚑ Диагноз: '+verdict+'</div>'+
+    '<div style="font-size:13px;line-height:1.6;color:var(--cream)">Prime cost <b style="color:var(--'+primeSt+')">'+pctRu(H.primeP)+'</b> (себестоимость + люди), потолок 65%'+(primeSt==="in"?" — в норме":"")+'. '+
+    (overs.length?("Выше нормы: "+overs.map(function(o){return o.name.toLowerCase()+" "+pctRu(o.p);}).join(", ")+"."):"Все крупные блоки в норме.")+
+    (gapP>0?(" Чтобы выйти на 15% чистыми — срезать ~"+pctRu(gapP)+" кассы (≈ "+fmt(gapMoney)+"/мес)."):"")+'</div></div>';
+  return '<div class="sect">Здоровье модели · доля от кассы vs норма формата</div>'+
+    '<div class="exrev" style="margin-bottom:12px">'+
+      kpi("Чистая маржа",pctRu(H.netP),"цель 15–20%",netSt,H.netP/0.25*100,60)+
+      kpi("Prime cost",pctRu(H.primeP),"потолок 65%",primeSt,H.primeP*100,65)+
+      kpi("Люди и шоу",pctRu(H.laborP),"норма 33–35%",laborSt,H.laborP/0.50*100,70)+
+    '</div>'+
+    '<div class="kpi wide" style="text-align:left;padding:4px 16px">'+rows+'</div>'+diag;
+}
 function renderExpenses(){
   const box=document.getElementById("tab-expenses"); if(!box) return;
   if(!EXPM) EXPM=(VD||bizToday()).slice(0,7);
@@ -705,6 +771,7 @@ function renderExpenses(){
   html+='<div class="kpi wide" style="margin:8px 0 0;border:1px solid var(--gold-dim);text-align:center"><div class="t">Средняя касса за день</div><div class="v" style="color:var(--gold)">'+fmt(avgDay)+'</div>'+(revDays?'<div class="s">за '+revDays+' '+plural(revDays,"день","дня","дней")+' со сменой</div>':'')+'</div>';
   html+=forecastTextV(EXPM, R.revKar, R.revClub);
   html+='<div class="exhero"><div class="lbl">Всего расходов за месяц</div><div class="sum">'+(R.total?"−":"")+fmt(R.total)+'</div></div>';
+  if(R.total>0 && ROLE==="admin") html+=healthSectionV(EXPM,R);
   html+='<div class="exdonut">'+(R.total>0?donutSVG(R.groups,R.total):'<div class="empty">Расходов за этот месяц нет.</div>')+'</div>';
   if(shown.length){
     html+='<div class="sect">По группам · нажмите для детализации</div><div class="exlist">';
