@@ -169,7 +169,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v27";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v28";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -640,6 +640,42 @@ function forecastTextV(mk, revKar, revClub){
 let _anaMode="days", _cmpOff=0;
 function setAnaModeV(m){ _anaMode=m; renderExpenses(); }
 function cmpNavV(d){ _cmpOff=Math.max(0,(_cmpOff||0)+d); renderExpenses(); }
+function weekdayRevData(win){
+  const t=bizToday(), from=shiftDate(t,-(win-1)), perDate={};
+  for(const e of S.entries){
+    if(e.deleted||e.cat!=="Чистая выручка"||e.bizDate<from||e.bizDate>t) continue;
+    const n=normName(e.cp); if(n!==normName("Касса КАРАОКЕ")&&n!==normName("Касса КЛУБ")) continue;
+    perDate[e.bizDate]=(perDate[e.bizDate]||0)+(e.type==="in"?1:-1)*e.amount;
+  }
+  const wd=[]; for(let i=0;i<7;i++) wd.push({sum:0,n:0}); let tot=0,ndays=0;
+  for(const iso in perDate){ const g=new Date(iso+"T12:00:00").getDay(); wd[g].sum+=perDate[iso]; wd[g].n++; tot+=perDate[iso]; ndays++; }
+  const order=[1,2,3,4,5,6,0], labels=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  return {rows:order.map((g,i)=>({lab:labels[i],avg:wd[g].n?wd[g].sum/wd[g].n:0,n:wd[g].n})), avgAll:ndays?tot/ndays:0, ndays};
+}
+function weekdayCardV(){
+  const W=weekdayRevData(56); if(W.ndays<3) return "";
+  const withData=W.rows.filter(r=>r.n>0), maxV=Math.max(1,...withData.map(r=>r.avg)), minV=Math.min(...withData.map(r=>r.avg));
+  const H=150, SC=H-16;
+  const barCols=W.rows.map(function(r){
+    const has=r.n>0, isWe=(r.lab==="Пт"||r.lab==="Сб"), weakest=has&&r.avg===minV&&r.avg<W.avgAll, weak=has&&r.avg<W.avgAll;
+    const col=!has?"var(--line)":(weakest?"var(--out)":(weak?"#6E7E92":"var(--gold)"));
+    const bh=has?Math.max(3,Math.round(r.avg/maxV*SC)):0;
+    return '<div style="flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative">'+
+      '<div style="font-size:9.5px;text-align:center;color:'+(weakest?'var(--out)':(isWe?'var(--gold)':'var(--cream)'))+';white-space:nowrap">'+(has?shortNum(r.avg)[0]:"—")+'</div>'+
+      '<div style="height:'+bh+'px;background:'+col+';border-radius:4px 4px 0 0"></div></div>';
+  }).join("");
+  const labCols=W.rows.map(function(r){return '<div style="flex:1;text-align:center;font-size:10px;color:'+((r.lab==="Пт"||r.lab==="Сб")?'var(--gold)':'var(--ash)')+'">'+r.lab+'</div>';}).join("");
+  const avgY=Math.round(W.avgAll/maxV*SC);
+  const weakNames=W.rows.filter(function(r){return r.n>0&&r.avg<W.avgAll;}).map(function(r){return r.lab;});
+  return '<div class="kpi wide" style="margin-top:12px;text-align:left">'+
+    '<div class="sect" style="margin:0 0 2px">Касса по дням недели · слабые ночи</div>'+
+    '<div style="font-size:11.5px;color:var(--ash);margin:0 0 10px">Средняя касса за смену (за 8 недель). Красным — самая слабая ночь, серым — ниже средней, золотом — выше. Пунктир: средняя '+fmt(Math.round(W.avgAll))+'.</div>'+
+    '<div style="position:relative;display:flex;align-items:flex-end;gap:6px;height:'+H+'px">'+
+    '<div style="position:absolute;left:0;right:0;bottom:'+avgY+'px;border-top:1px dashed var(--out);opacity:.6"></div>'+barCols+'</div>'+
+    '<div style="display:flex;gap:6px;margin-top:5px">'+labCols+'</div>'+
+    (weakNames.length?'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:9px;padding-top:8px"><span>Ниже средней — заполнять в первую очередь</span><b style="color:var(--out)">'+weakNames.join(" · ")+'</b></div>':"")+
+    '</div>';
+}
 function curWeekWed(){ const t=bizToday(); const d=new Date(t+"T12:00:00"); const back=(d.getDay()-3+7)%7; return shiftDate(t,-back); }
 function curWeekMon(){ const t=bizToday(); const d=new Date(t+"T12:00:00"); const back=(d.getDay()+6)%7; return shiftDate(t,-back); }
 function revByVenueRange(from,to){ let kar=0,club=0; for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||e.bizDate<from||e.bizDate>to) continue; const s=e.type==="in"?1:-1; const n=normName(e.cp); if(n===normName("Касса КАРАОКЕ"))kar+=s*e.amount; else if(n===normName("Касса КЛУБ"))club+=s*e.amount; } return {kar,club,tot:kar+club}; }
@@ -684,7 +720,7 @@ function analyticsBodyV(){
     '<div class="pill-tabs" style="margin:0 0 12px"><button class="'+(mode==="days"?"on":"")+'" onclick="setAnaModeV(\'days\')">Дни</button><button class="'+(mode==="weeks"?"on":"")+'" onclick="setAnaModeV(\'weeks\')">Недели</button><button class="'+(mode==="months"?"on":"")+'" onclick="setAnaModeV(\'months\')">Месяцы</button></div>'+
     '<div class="kpi wide"><div style="display:flex;gap:16px;justify-content:flex-end;margin-bottom:8px;font-size:12px"><span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+KAR+';vertical-align:middle;margin-right:5px"></span>Караоке</span><span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+CLUB+';vertical-align:middle;margin-right:5px"></span>Клуб</span></div><div style="display:flex;align-items:flex-end;gap:5px;padding-top:6px">'+bars+'</div></div>'+
     '<div class="exrev" style="margin-top:12px"><div class="card"><div class="t"><span>Сравнение · '+one+'</span>'+cmpArrows+'</div><div class="r"><span>Текущий'+(curSub?'<span class="sub">'+curSub+'</span>':'')+'</span><b>'+fmt(curV)+'</b></div><div class="r"><span>Предыдущий'+(prevSub?'<span class="sub">'+prevSub+'</span>':'')+'</span><b>'+fmt(prevV)+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Изменение</span><b style="color:'+(pct==null?'var(--ash)':(pct>=0?'var(--in)':'var(--out)'))+'">'+(pct==null?'—':(pct>=0?'+':'')+pct+'%')+'</b></div></div>'+
-    '<div class="card"><div class="t"><span>Показатели · '+per.length+' '+unitName(per.length)+'</span></div><div class="r"><span>Лучший '+one+(best?'<span class="sub">'+esc(best.label)+'</span>':'')+'</span><b class="in">'+(best?fmt(best.tot):"—")+'</b></div><div class="r"><span>Слабый '+one+(worst?'<span class="sub">'+esc(worst.label)+'</span>':'')+'</span><b>'+(worst?fmt(worst.tot):"—")+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Доля Караоке / Клуб</span><b style="color:var(--gold)">'+((totKar+totClub)>0?Math.round(totKar/(totKar+totClub)*100):0)+'% / '+((totKar+totClub)>0?(100-Math.round(totKar/(totKar+totClub)*100)):0)+'%</b></div></div></div>';
+    '<div class="card"><div class="t"><span>Показатели · '+per.length+' '+unitName(per.length)+'</span></div><div class="r"><span>Лучший '+one+(best?'<span class="sub">'+esc(best.label)+'</span>':'')+'</span><b class="in">'+(best?fmt(best.tot):"—")+'</b></div><div class="r"><span>Слабый '+one+(worst?'<span class="sub">'+esc(worst.label)+'</span>':'')+'</span><b>'+(worst?fmt(worst.tot):"—")+'</b></div><div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:4px"><span>Доля Караоке / Клуб</span><b style="color:var(--gold)">'+((totKar+totClub)>0?Math.round(totKar/(totKar+totClub)*100):0)+'% / '+((totKar+totClub)>0?(100-Math.round(totKar/(totKar+totClub)*100)):0)+'%</b></div></div></div>'+weekdayCardV();
 }
 /* ==== Здоровье финансовой модели (только админ) ==== */
 function pctRu(p){ return (Math.round(p*1000)/10).toString().replace(".",",")+"%"; }
