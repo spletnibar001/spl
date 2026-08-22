@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -587,6 +588,70 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   .brx-btn:disabled{opacity:.45}
   .brx-cnt button{width:40px;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--panel2,#1a2029);color:var(--text);font-size:20px}
   .brx-calib{font-size:12px;color:#e8a33d;background:none;border:1px dashed #7a6023;border-radius:8px;padding:4px 10px;margin-top:8px}
+/* ===== ЧЕЛЛЕНДЖ «3 ОТЗЫВА» (хостес + менеджер смены) ===== */
+#rc-fab{position:fixed;right:14px;bottom:16px;z-index:120;display:none;align-items:center;gap:8px;
+  padding:11px 16px;border-radius:26px;border:1px solid var(--gold);cursor:pointer;
+  background:linear-gradient(180deg,#2a2418,#1d1a13);color:var(--gold);
+  font-size:13px;font-weight:800;letter-spacing:.02em;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+#rc-fab.done{border-color:var(--emerald);color:var(--emerald);background:linear-gradient(180deg,#152a20,#111d17)}
+#rc-fab .rc-fab-n{background:rgba(0,0,0,.35);border-radius:12px;padding:2px 8px;font-size:12px}
+.rc-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;display:none;
+  align-items:flex-start;justify-content:center;padding:14px;overflow-y:auto}
+.rc-modal.open{display:flex}
+.rc-card{width:100%;max-width:520px;background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;margin:auto 0}
+.rc-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.rc-head h3{font-size:16px;font-weight:800;letter-spacing:.04em}
+.rc-head .rc-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.rc-x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:19px;cursor:pointer;padding:0 4px}
+.rc-body{padding:14px 16px 18px}
+.rc-plat{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;
+  border:1px solid var(--gold);background:rgba(217,176,76,.10);margin-bottom:12px}
+.rc-plat .rc-plat-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.rc-plat .rc-plat-v{font-size:19px;font-weight:800;color:var(--gold);line-height:1.15}
+.rc-dead{margin-left:auto;text-align:right;font-size:11px;color:var(--muted)}
+.rc-dead b{display:block;color:var(--text);font-size:13px}
+.rc-prog{display:flex;gap:8px;margin:0 0 14px}
+.rc-slot{flex:1;height:44px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.rc-slot b{font-size:15px;color:var(--muted)}
+.rc-slot.wait{border-color:var(--gold);color:var(--gold)}
+.rc-slot.wait b{color:var(--gold)}
+.rc-slot.ok{border-color:var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald)}
+.rc-slot.ok b{color:var(--emerald)}
+.rc-sec{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+  margin:14px 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+.rc-sec:first-child{border-top:none;padding-top:0;margin-top:0}
+.rc-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:11px;background:var(--panel2);margin-bottom:8px}
+.rc-row.ok{border-color:var(--emerald)}
+.rc-row.wait{border-color:var(--gold)}
+.rc-row .rc-nm{flex:1;min-width:0}
+.rc-row .rc-nm b{display:block;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc-row .rc-nm span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.rc-btn{border:1px solid var(--gold);background:rgba(217,176,76,.12);color:var(--gold);
+  padding:8px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.rc-btn.gr{border-color:var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald)}
+.rc-btn.gh{border-color:var(--line);background:none;color:var(--muted)}
+.rc-btn:disabled{opacity:.5;cursor:default}
+.rc-tag{font-size:11px;font-weight:700;padding:4px 9px;border-radius:9px;border:1px solid var(--gold);color:var(--gold)}
+.rc-tag.ok{border-color:var(--emerald);color:var(--emerald)}
+.rc-empty{color:var(--muted);font-size:12.5px;padding:10px 2px;line-height:1.5}
+.rc-note{margin-top:14px;padding:11px 13px;border-radius:11px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.55}
+.rc-msg{font-size:12px;margin-top:8px;min-height:16px}
+.rc-msg.err{color:var(--red)} .rc-msg.ok{color:var(--emerald)}
+.rc-mgr-h{display:flex;align-items:center;gap:8px;margin:14px 0 8px}
+.rc-mgr-h .n{font-size:14px;font-weight:800}
+.rc-mgr-h .v{font-size:11px;color:var(--muted)}
+.rc-mgr-h .p{margin-left:auto;font-size:11px;font-weight:700;color:var(--gold);
+  border:1px solid var(--gold);border-radius:9px;padding:3px 8px}
+.rc-mgr-h .p.ok{color:var(--emerald);border-color:var(--emerald)}
+.rc-star{color:var(--gold)}
+.rc-done-bnr{padding:12px 14px;border-radius:12px;border:1px solid var(--emerald);
+  background:rgba(31,191,122,.12);color:var(--emerald);font-size:13px;font-weight:700;line-height:1.5;margin-bottom:12px}
+
 </style>
 </head>
 <body>
@@ -918,7 +983,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 17.08 · сборка 16";
+const APP_VERSION = "v 22.08 · сборка 17";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -2256,6 +2321,7 @@ async function startStaffCabinet(){
   renderStaffCabinet();
   // теперь, когда карточка сотрудника загружена, решаем доступ к бронированию
   try{ bkInit(); }catch(e){ console.warn("bkInit(staff)",e); }
+  try{ rcInit(); }catch(e){ console.warn("rcInit(staff)",e); }   // челлендж «3 отзыва»
 }
 async function loadStaff(){
   const weekKey = iso(viewStart);
@@ -2643,6 +2709,7 @@ async function staffCheckin(ds, empId){
   }
   if(CAP.staff){ await loadStaff(); renderStaffCabinet(); }
   else { await renderMyCabinetForManager(); }   // руководитель в режиме «Моя смена»
+  try{ await rcOnCheckin(id); }catch(_){}       // челлендж «3 отзыва» — всплывает после отметки
 }
 window.scToggle = scToggle;
 window.staffCheckin = staffCheckin;
@@ -3264,6 +3331,7 @@ async function startApp(){
   }
   // для staff bkInit вызовется внутри startStaffCabinet (после загрузки его карточки)
   if(!CAP.staff){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
+  if(!CAP.staff){ try{ rcInit(); }catch(e){ console.warn("rcInit",e); } }   // челлендж «3 отзыва»: панель менеджера
   if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
   if(!CAP.pen) document.querySelectorAll(".pen-only").forEach(el=>el.style.display="none");
@@ -4169,6 +4237,9 @@ function bkBookingList(title){
     const when = finished ? "ушли" : (seated ? "пришли" : tm);
     const vt = bkVisitsTextRow(b);
     const vc = (vt!=="новый гость") ? `<span class="bl-times">${vt}</span>` : `<span class="bl-new">новый гость</span>`;
+    // ⭐ — кандидат челленджа «3 отзыва» (новый гость своей площадки с телефоном в брони)
+    const star = (typeof rcIsCandidateBooking==="function" && rcIsCandidateBooking(b))
+      ? `<span class="rc-star" title="Кандидат на отзыв">⭐</span> ` : "";
     const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
     // караоке: оплату не отслеживаем. Клуб: показываем только «✓ оплачено» после оплаты,
     // метку «не оплачено» не показываем нигде.
@@ -4184,7 +4255,7 @@ function bkBookingList(title){
       : "";
     return `<div class="bk-brow ${finished?"b-finished":(seated?"b-seated":"b-booked")}">
       <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-zone">${b.zone_title||""}</div><div class="t-time">${when}</div></div>
-      <div class="bk-bmain"><div class="bl-name">${b.guest_name||b.display_name||"—"} ${vc}</div>
+      <div class="bk-bmain"><div class="bl-name">${star}${b.guest_name||b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         ${author}
         <div class="bk-bpay">${dep} ${pay}</div></div>
@@ -5746,6 +5817,358 @@ async function barLog(){
   });
   sc.innerHTML = html;
 }
+
+
+/* ============================================================
+   ЧЕЛЛЕНДЖ «3 ОТЗЫВА» ДЛЯ ХОСТЕС
+   - всплывает при отметке «Я на смене» (пт, сб и один случайный будний день недели)
+   - платформа чередуется по челленджам площадки: Google -> Яндекс -> Google ...
+   - кандидаты: новые гости смены её площадки (телефон впервые в бронях), значок ⭐
+   - подтверждает менеджер смены; третий подтверждённый -> автобонус +100 000
+   Требует SQL-миграцию review-challenge.sql (таблицы review_challenge_* и функции rc_*)
+   ============================================================ */
+const RC = {
+  role: null,        // 'hostess' | 'manager'
+  emp: null,         // карточка хостес
+  venue: null,       // площадка хостес: karaoke | club
+  venues: [],        // площадки, которые подтверждает менеджер
+  state: null,       // ответ rc_state
+  list: [],          // ответ rc_pending (для менеджера)
+  cand: [],          // кандидаты — новые гости смены
+  busy: false,
+  timer: null,
+};
+
+function rcDate(){ try{ return isoBizToday(); }catch(_){ return bkIso(bkToday()); } }
+function rcVenueRu(v){ return v==="club" ? "Клуб" : "Караоке"; }
+
+// площадки, которые подтверждает руководитель
+function rcMgrVenues(){
+  const r = ME && ME.role;
+  if(r==="admin" || r==="upr") return ["karaoke","club"];
+  if(r==="dir" || r==="bar_manager") return ["club"];
+  if(r==="manager") return [/клуб/i.test(CAP && CAP.label || "") ? "club" : "karaoke"];
+  return [];
+}
+
+// карточка хостес текущего пользователя (если он хостес)
+function rcMyHostessCard(){
+  try{
+    const list = (typeof myEmployeeCards==="function" && myEmployeeCards().length)
+      ? myEmployeeCards() : (employees||[]);
+    return list.find(e=>e && e.emp_role==="Хостес" && !e.archived) || null;
+  }catch(_){ return null; }
+}
+
+// отмечена ли хостес на смене сегодня
+function rcCheckedIn(){
+  try{
+    const ds = rcDate();
+    const rows = (typeof myCheckins!=="undefined" && myCheckins.length) ? myCheckins : (checkinRows||[]);
+    if(!rows.length) return true;   // данных нет — не мешаем показу
+    return rows.some(c=>String(c.employee_id)===String(RC.emp.id) && c.work_date===ds);
+  }catch(_){ return true; }
+}
+
+// новый гость: телефон впервые в бронях
+function rcIsNewGuest(b){
+  const k = b.visit_count_kar, c = b.visit_count_club;
+  if(k===undefined && c===undefined) return (b.visit_count||0)===0;
+  return ((k||0)+(c||0))===0;
+}
+// кандидат челленджа: новый гость своей площадки, который уже пришёл, с телефоном в брони
+function rcIsCandidateBooking(b){
+  if(!b || RC.role!=="hostess" || !RC.state || !RC.state.is_day) return false;
+  if(b.venue_key !== RC.venue) return false;
+  if(!(b.status==="seated" || b.status==="finished")) return false;
+  if(!b.display_phone) return false;
+  return rcIsNewGuest(b);
+}
+
+/* ---------- загрузка ---------- */
+async function rcLoadHostess(){
+  const ds = rcDate();
+  const { data, error } = await sb.rpc("rc_state", {
+    p_employee_id: String(RC.emp.id), p_venue: RC.venue, p_date: ds
+  });
+  if(error){ console.warn("rc_state", error.message); RC.state = null; return; }
+  RC.state = data || null;
+  RC.cand = [];
+  if(RC.state && RC.state.is_day){
+    try{
+      const b = await sb.from("v_bookings_full").select("*").eq("business_date", ds);
+      RC.cand = (b.data||[]).filter(rcIsCandidateBooking)
+        .sort((x,y)=> String(x.arrive_at||"") < String(y.arrive_at||"") ? -1 : 1);
+    }catch(_){}
+  }
+}
+async function rcLoadManager(){
+  const { data, error } = await sb.rpc("rc_pending", { p_date: rcDate(), p_venues: RC.venues });
+  if(error){ console.warn("rc_pending", error.message); RC.list = []; return; }
+  RC.list = data || [];
+}
+
+/* ---------- кнопка-таблетка ---------- */
+function rcFab(){
+  let el = document.getElementById("rc-fab");
+  if(!el){
+    el = document.createElement("button");
+    el.id = "rc-fab";
+    el.onclick = rcOpen;
+    document.body.appendChild(el);
+  }
+  if(RC.role==="hostess"){
+    const st = RC.state;
+    if(!st || !st.is_day){ el.style.display="none"; return; }
+    const done = st.challenge && st.challenge.status==="done";
+    el.className = done ? "done" : "";
+    el.innerHTML = `⭐ Челлендж <span class="rc-fab-n">${st.confirmed||0}/${(st.challenge&&st.challenge.target)||3}</span>`;
+    el.style.display = "flex";
+    return;
+  }
+  if(RC.role==="manager"){
+    const waiting = RC.list.reduce((t,c)=>t + (c.items||[]).filter(i=>i.status==="pending").length, 0);
+    if(!RC.list.length){ el.style.display="none"; return; }
+    el.className = waiting ? "" : "done";
+    el.innerHTML = `⭐ Отзывы хостес${waiting?` <span class="rc-fab-n">${waiting}</span>`:""}`;
+    el.style.display = "flex";
+    return;
+  }
+  el.style.display = "none";
+}
+
+/* ---------- модалка ---------- */
+function rcModalEl(){
+  let m = document.getElementById("rc-modal");
+  if(!m){
+    m = document.createElement("div");
+    m.id = "rc-modal"; m.className = "rc-modal";
+    m.innerHTML = `<div class="rc-card">
+      <div class="rc-head">
+        <div><h3 id="rc-title">Челлендж «3 отзыва»</h3><div class="rc-sub" id="rc-sub"></div></div>
+        <button class="rc-x" id="rc-x">✕</button>
+      </div>
+      <div class="rc-body" id="rc-body"></div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", e=>{ if(e.target===m) rcClose(); });
+    m.querySelector("#rc-x").onclick = rcClose;
+  }
+  return m;
+}
+function rcOpen(){ rcModalEl().classList.add("open"); rcRender(); }
+function rcClose(){ const m=document.getElementById("rc-modal"); if(m) m.classList.remove("open"); }
+function rcMsg(t, ok){
+  const el = document.getElementById("rc-msg"); if(!el) return;
+  el.textContent = t || ""; el.className = "rc-msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(el.textContent===t) el.textContent=""; }, 4000);
+}
+
+function rcRender(){
+  const m = document.getElementById("rc-modal"); if(!m || !m.classList.contains("open")) return;
+  document.getElementById("rc-body").innerHTML =
+    RC.role==="hostess" ? rcBodyHostess() : rcBodyManager();
+}
+
+/* ----- экран хостес ----- */
+function rcBodyHostess(){
+  const st = RC.state;
+  document.getElementById("rc-title").textContent = "Челлендж «3 отзыва»";
+  if(!st || !st.is_day){
+    document.getElementById("rc-sub").textContent = "";
+    return `<div class="rc-empty">Сегодня челленджа нет. Он приходит в пятницу, субботу и один случайный будний день недели.</div>`;
+  }
+  const ch = st.challenge, target = ch.target||3, conf = st.confirmed||0;
+  const items = st.items||[];
+  const wait = items.filter(i=>i.status==="pending");
+  const okItems = items.filter(i=>i.status==="confirmed");
+  document.getElementById("rc-sub").textContent =
+    rcVenueRu(RC.venue) + " · " + (RC.emp && RC.emp.name || "") + " · смена " + fmtFull(fromIso(ch.business_date));
+
+  // прогресс — три слота
+  let slots = "";
+  for(let i=0;i<target;i++){
+    const cls = i < conf ? "ok" : (i < conf + wait.length ? "wait" : "");
+    const lbl = i < conf ? "принят" : (i < conf + wait.length ? "на проверке" : "пусто");
+    slots += `<div class="rc-slot ${cls}"><b>${i+1}</b>${lbl}</div>`;
+  }
+
+  const done = ch.status==="done";
+  const banner = done
+    ? `<div class="rc-done-bnr">Челлендж выполнен - бонус 100 000 сум уже начислен в вашу зарплату за эту смену.</div>` : "";
+
+  // кандидаты — новые гости смены, по которым отзыв ещё не отмечен
+  const used = new Set(items.filter(i=>i.status!=="rejected").map(i=>String(i.booking_id)));
+  const cand = RC.cand.filter(b=>!used.has(String(b.id)));
+  const candRows = cand.length ? cand.map(b=>{
+    const nm = (b.guest_name||b.display_name||"Гость").replace(/</g,"&lt;");
+    const tbl = [b.table_name, b.zone_title].filter(Boolean).join(" · ");
+    return `<div class="rc-row">
+      <div class="rc-nm"><b><span class="rc-star">⭐</span> ${nm}</b><span>${tbl||"—"}${b.display_phone?" · "+bkFmtPhone(b.display_phone):""}</span></div>
+      <button class="rc-btn" onclick="rcAdd('${b.id}')">Отзыв оставлен</button>
+    </div>`;
+  }).join("") : `<div class="rc-empty">Новых гостей на смене пока нет. Как только новый гость сядет за стол, он появится здесь со значком ⭐.</div>`;
+
+  const waitRows = wait.map(i=>`<div class="rc-row wait">
+      <div class="rc-nm"><b>${(i.guest_name||"Гость").replace(/</g,"&lt;")}</b><span>${i.table_name||""}</span></div>
+      <span class="rc-tag">ждёт менеджера</span>
+      <button class="rc-btn gh" onclick="rcRemove('${i.id}')">убрать</button>
+    </div>`).join("");
+  const okRows = okItems.map(i=>`<div class="rc-row ok">
+      <div class="rc-nm"><b>${(i.guest_name||"Гость").replace(/</g,"&lt;")}</b><span>подтвердил(а): ${i.confirmed_by||"менеджер"}</span></div>
+      <span class="rc-tag ok">принят</span>
+    </div>`).join("");
+
+  return `${banner}
+    <div class="rc-plat">
+      <div><div class="rc-plat-l">Сегодня просим отзыв на</div>
+        <div class="rc-plat-v">${st.platform_ru||""}</div></div>
+      <div class="rc-dead">до конца смены<b>до 05:00</b></div>
+    </div>
+    <div class="rc-prog">${slots}</div>
+    ${okRows ? `<div class="rc-sec">Принято</div>${okRows}` : ""}
+    ${waitRows ? `<div class="rc-sec">На проверке у менеджера</div>${waitRows}` : ""}
+    <div class="rc-sec">Новые гости смены ⭐</div>
+    ${candRows}
+    <div class="rc-msg" id="rc-msg"></div>
+    <div class="rc-note">Просим отзыв только у новых гостей - тех, кто у нас впервые (⭐ в списке броней).
+      Отметили «Отзыв оставлен» - покажите отзыв менеджеру смены с экрана, он подтвердит.
+      Три подтверждённых отзыва до 05:00 - бонус 100 000 сум в зарплату за эту смену.</div>`;
+}
+
+/* ----- экран менеджера ----- */
+function rcBodyManager(){
+  document.getElementById("rc-title").textContent = "Отзывы хостес · подтверждение";
+  document.getElementById("rc-sub").textContent =
+    RC.venues.map(rcVenueRu).join(" + ") + " · смена " + fmtFull(fromIso(rcDate()));
+  if(!RC.list.length){
+    return `<div class="rc-empty">Сегодня челленджа у хостес нет либо смена ещё не началась.</div>`;
+  }
+  let html = "";
+  RC.list.forEach(c=>{
+    const items = (c.items||[]).filter(i=>i.status!=="rejected");
+    const conf = c.confirmed||0, target = c.target||3;
+    html += `<div class="rc-mgr-h">
+        <div><div class="n">${(c.name||"Хостес").replace(/</g,"&lt;")}</div>
+          <div class="v">${rcVenueRu(c.venue)} · отзыв на ${c.platform_ru}</div></div>
+        <div class="p ${c.status==="done"?"ok":""}">${conf}/${target}</div>
+      </div>`;
+    if(!items.length){
+      html += `<div class="rc-empty">Отзывов пока не заявлено.</div>`;
+    } else {
+      html += items.map(i=>{
+        const nm = (i.guest_name||"Гость").replace(/</g,"&lt;");
+        const sub = [i.table_name, i.guest_phone?bkFmtPhone(i.guest_phone):""].filter(Boolean).join(" · ");
+        if(i.status==="confirmed"){
+          return `<div class="rc-row ok"><div class="rc-nm"><b>${nm}</b><span>${sub}</span></div>
+            <span class="rc-tag ok">принят</span></div>`;
+        }
+        return `<div class="rc-row wait"><div class="rc-nm"><b>${nm}</b><span>${sub||"ждёт проверки"}</span></div>
+          <button class="rc-btn gr" onclick="rcConfirm('${i.id}')">✓ Видел отзыв</button>
+          <button class="rc-btn gh" onclick="rcReject('${i.id}')">нет</button></div>`;
+      }).join("");
+    }
+  });
+  return html + `<div class="rc-msg" id="rc-msg"></div>
+    <div class="rc-note">Хостес показывает отзыв с экрана телефона гостя. Третий подтверждённый отзыв
+      автоматически начисляет ей бонус 100 000 сум с примечанием «Челлендж: 3 отзыва».</div>`;
+}
+
+/* ---------- действия ---------- */
+async function rcAdd(bookingId){
+  if(RC.busy) return; RC.busy = true;
+  try{
+    const b = RC.cand.find(x=>String(x.id)===String(bookingId));
+    if(!b || !RC.state || !RC.state.challenge){ RC.busy=false; return; }
+    if(typeof ensureToken==="function") await ensureToken();
+    const { data, error } = await sb.rpc("rc_add", {
+      p_challenge_id: RC.state.challenge.id,
+      p_booking_id: String(b.id),
+      p_guest_name: b.guest_name || b.display_name || "Гость",
+      p_guest_phone: b.display_phone || null,
+      p_table: [b.table_name, b.zone_title].filter(Boolean).join(" · ")
+    });
+    if(error){ rcMsg(error.message); RC.busy=false; return; }
+    if(data && data.ok===false){ rcMsg(data.error||"Не получилось"); RC.busy=false; return; }
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+    await rcLoadHostess(); rcFab(); rcRender();
+    rcMsg("Отмечено. Покажите отзыв менеджеру смены", true);
+  } finally { RC.busy = false; }
+}
+async function rcRemove(itemId){
+  if(!confirm("Убрать этот отзыв из челленджа?")) return;
+  const { data, error } = await sb.rpc("rc_remove", { p_item_id: itemId });
+  if(error){ rcMsg(error.message); return; }
+  if(data && data.ok===false){ rcMsg(data.error); return; }
+  await rcLoadHostess(); rcFab(); rcRender();
+}
+async function rcConfirm(itemId){
+  if(RC.busy) return; RC.busy = true;
+  try{
+    if(typeof ensureToken==="function") await ensureToken();
+    const { data, error } = await sb.rpc("rc_confirm", { p_item_id: itemId, p_by: ME.name });
+    if(error){ rcMsg(error.message); return; }
+    if(data && data.ok===false){ rcMsg(data.error); return; }
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+    await rcLoadManager(); rcFab(); rcRender();
+    if(data && data.done) rcMsg("Челлендж выполнен - бонус 100 000 начислен", true);
+    else rcMsg("Отзыв принят", true);
+  } finally { RC.busy = false; }
+}
+async function rcReject(itemId){
+  if(!confirm("Отклонить этот отзыв?")) return;
+  const { data, error } = await sb.rpc("rc_reject", { p_item_id: itemId, p_by: ME.name });
+  if(error){ rcMsg(error.message); return; }
+  if(data && data.ok===false){ rcMsg(data.error); return; }
+  await rcLoadManager(); rcFab(); rcRender();
+}
+
+/* ---------- запуск ---------- */
+// показать окно автоматически один раз за смену (после отметки «Я на смене»)
+function rcAutoShow(force){
+  if(RC.role!=="hostess" || !RC.state || !RC.state.is_day) return;
+  if(RC.state.challenge && RC.state.challenge.status==="done") return;
+  const key = "rc_seen_" + rcDate() + "_" + (RC.emp && RC.emp.id);
+  if(!force && localStorage.getItem(key)) return;
+  try{ localStorage.setItem(key, "1"); }catch(_){}
+  rcOpen();
+}
+// вызывается после успешной отметки «Я на смене»
+async function rcOnCheckin(empId){
+  if(RC.role!=="hostess") return;
+  if(String(empId)!==String(RC.emp && RC.emp.id)) return;
+  await rcLoadHostess(); rcFab(); rcAutoShow(true);
+}
+async function rcRefresh(){
+  if(RC.role==="hostess"){ await rcLoadHostess(); }
+  else if(RC.role==="manager"){ await rcLoadManager(); }
+  rcFab(); rcRender();
+}
+async function rcInit(){
+  try{
+    if(RC.timer){ clearInterval(RC.timer); RC.timer = null; }
+    RC.role = null; RC.state = null; RC.list = [];
+    const host = rcMyHostessCard();
+    if(host){
+      RC.role = "hostess"; RC.emp = host;
+      RC.venue = host.pos==="club" ? "club" : "karaoke";
+      await rcLoadHostess();
+      rcFab();
+      if(rcCheckedIn()) rcAutoShow(false);
+    } else {
+      const vs = rcMgrVenues();
+      if(!vs.length) return;
+      RC.role = "manager"; RC.venues = vs;
+      await rcLoadManager();
+      rcFab();
+    }
+    // тихое обновление, пока приложение открыто
+    RC.timer = setInterval(()=>{ if(!document.hidden) rcRefresh().catch(()=>{}); }, 60000);
+  }catch(e){ console.warn("rcInit", e); }
+}
+window.rcOpen = rcOpen; window.rcClose = rcClose; window.rcAdd = rcAdd;
+window.rcRemove = rcRemove; window.rcConfirm = rcConfirm; window.rcReject = rcReject;
+window.rcRefresh = rcRefresh;
 
 </script>
 </body>
