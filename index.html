@@ -5,7 +5,6 @@
 
 
 
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -983,7 +982,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 22.08 · сборка 17";
+const APP_VERSION = "v 22.08 · сборка 18";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -3307,18 +3306,18 @@ async function applyManagerVenueScope(){
   }
   // обновим бейдж роли с уточнённым названием
   const rb = $("role-badge"); if(rb) rb.textContent = CAP.label + " · " + ME.name;
+}
+async function startApp(){
+  $("role-badge").textContent = CAP.label + " · " + ME.name;
+  // версия и кнопка обзвона — для всех ролей (а не только менеджеров)
   const av = $("app-ver");
   if(av){ av.textContent = APP_VERSION; av.title = "Версия программы (обновляется при каждой правке)"; }
   const cb = $("call-btn");
   if(cb){
-    const myTg = Number(ME.tg_id||ME.telegram_id||0);
     // обзвон: админ (всё), директор (гости клуба), планшет хостес (караоке, рабочий телефон)
     const eligible = ME.role==="admin" || ME.role==="dir" || (typeof TABLET_MODE!=="undefined" && TABLET_MODE);
     if(eligible){ cb.style.display=""; cb.onclick = ()=>callOpen(); }
   }
-}
-async function startApp(){
-  $("role-badge").textContent = CAP.label + " · " + ME.name;
   // менеджер: scope зависит от его заведения (pos). Менеджер клуба → команда клуба,
   // менеджер караоке → команда караоке. Делаем ДО первой загрузки данных.
   await applyManagerVenueScope();
