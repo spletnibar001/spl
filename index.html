@@ -600,7 +600,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 <!-- ПРИЛОЖЕНИЕ -->
 <div id="app">
 <header>
-  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span>
+  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span><button id="call-btn" style="display:none;margin-left:10px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:5px 12px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">📞 Обзвон</button>
 </header>
 
 <!-- ПЕРЕКЛЮЧАТЕЛЬ ТАБЕЛЬ / БРОНИРОВАНИЕ -->
@@ -918,7 +918,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 16.08 · сборка 11";
+const APP_VERSION = "v 17.08 · сборка 16";
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -3242,6 +3242,13 @@ async function applyManagerVenueScope(){
   const rb = $("role-badge"); if(rb) rb.textContent = CAP.label + " · " + ME.name;
   const av = $("app-ver");
   if(av){ av.textContent = APP_VERSION; av.title = "Версия программы (обновляется при каждой правке)"; }
+  const cb = $("call-btn");
+  if(cb){
+    const myTg = Number(ME.tg_id||ME.telegram_id||0);
+    // обзвон: админ (всё), директор (гости клуба), планшет хостес (караоке, рабочий телефон)
+    const eligible = ME.role==="admin" || ME.role==="dir" || (typeof TABLET_MODE!=="undefined" && TABLET_MODE);
+    if(eligible){ cb.style.display=""; cb.onclick = ()=>callOpen(); }
+  }
 }
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
@@ -4278,6 +4285,155 @@ function bkUpdateReqsButton(){
   if(badge){ badge.textContent=n; badge.classList.toggle("zero", n===0); }
 }
 
+// ===== ОБЗВОН ГОСТЕЙ (хостес/менеджеры/админ) =====
+let CALL_SEG = "sleeping";
+let CALL_VENUE = "all";   // all | karaoke | club — админ выбирает, хостес привязана к своей площадке
+function callMyVenue(){
+  if(ME.role === "admin") return "all";
+  if(ME.role === "dir") return "club";   // директор — только гости клуба
+  // планшет: площадка из его учётки (ХОСТ КАРА-ОКЕ -> караоке, клубный -> клуб)
+  if(typeof TABLET_MODE!=="undefined" && TABLET_MODE){
+    const nm = String(ME.name||"").toLowerCase();
+    if(nm.includes("кара")) return "karaoke";
+    if(nm.includes("клуб") || nm.includes("club")) return "club";
+    return "all";
+  }
+  return "all";
+}
+const CALL_SEG_LBL = {sleeping:"Уснувшие", newbie:"Новички", bigparty:"Компании 8+"};
+const CALL_SEG_NOTE = {
+  sleeping:"Были 3+ раз, не приходили больше 45 дней",
+  newbie:"Один визит 2–4 недели назад — звонок-благодарность",
+  bigparty:"Приходили компанией от 8 человек, не были больше месяца"};
+const CALL_SCRIPTS = {
+sleeping:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! Это [я] из SPLETNI. Вы у нас частый гость, а последнее время вас не видно — решила лично позвонить. Не отвлекаю?»</div>
+<h4>Предложение</h4><div class="csay">«В пятницу/субботу как раз [повод]. Забронировать вам ваш столик? Придёте — будем рады.»</div>
+<h4>Возражения</h4><div class="cobj"><b>«Дорого / не до этого»</b> — «Понимаю. Бронь для вас всегда без предоплаты — наберите за день, всё сделаем.»</div>
+<div class="cobj"><b>«Был неприятный случай»</b> — выслушать, не спорить: «Спасибо, что сказали — передам руководству. Следующий визит — комплимент от заведения.» Отметить «Перезвонить», сообщить менеджеру.</div>
+<div class="ctip">Цель — вернуть гостя, не продать. Один отказ = вежливо попрощаться.</div>`,
+newbie:`<h4>Начало</h4><div class="csay">«[Имя], добрый день! Это [я] из SPLETNI — вы были у нас недавно. Звоню сказать спасибо и спросить: как вам всё?»</div>
+<h4>Слушаем</h4><div class="csay">Дать выговориться. Понравилось → «В выходные [повод] — забронировать стол?» Замечания → записать, поблагодарить.</div>
+<h4>Возражения</h4><div class="cobj"><b>«Вы кто?»</b> — «Караоке и клуб SPLETNI на Машхади, вы бронировали столик. Благодарим гостей лично :)»</div>
+<div class="cobj"><b>«Было шумно / долго ждали»</b> — «Спасибо за честность. В будни спокойнее — встретим как надо.»</div>
+<div class="ctip">Тон — благодарность, не продажа. Второй визит решает всё.</div>`,
+bigparty:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! SPLETNI. Вы приходили к нам большой компанией — планируете что-то отметить в ближайшее время?»</div>
+<h4>Предложение</h4><div class="csay">«Под компанию от 8 человек держим большие столы и Средний зал до 14 гостей. День рождения или корпоратив — соберём программу.»</div>
+<h4>Возражения</h4><div class="cobj"><b>«Пока не планируем»</b> — «Соберётесь — наберите меня, стол найдём даже в субботу.» Отметить «Перезвонить».</div>
+<div class="cobj"><b>«Сколько депозит?»</b> — назвать честно и добавить: «Депозит полностью идёт в счёт заказа.»</div>
+<div class="ctip">Самые дорогие брони. Перед праздниками прозванивать весь список.</div>`};
+async function callOpen(){
+  const mv = callMyVenue();
+  if(mv !== "all") CALL_VENUE = mv;          // хостес — только её площадка
+  else if(ME.role !== "admin") CALL_VENUE = "all";
+  document.getElementById("bkm-title").textContent = "Обзвон гостей";
+  document.getElementById("bkm-sub").textContent = "загрузка…";
+  document.getElementById("bkm-body").innerHTML = "";
+  document.getElementById("bk-modal").classList.add("open");
+  if(typeof bkCurrentTable!=="undefined"){ bkCurrentTable=null; bkCurrentBooking=null; }
+  await callRender();
+}
+async function callRender(){
+  await ensureToken();
+  const seg = CALL_SEG;
+  let rows=[], done=[], st=null;
+  try{
+    const [a,b,c] = await Promise.all([
+      sb.rpc("call_segment_list", {p_segment: seg, p_venue: CALL_VENUE, p_limit: 15}),
+      sb.rpc("call_recent", {p_segment: seg, p_venue: CALL_VENUE}),
+      sb.rpc("call_month_stats"),
+    ]);
+    rows=a.data||[]; done=b.data||[]; st=(c.data&&c.data[0])||null;
+  }catch(e){ document.getElementById("bkm-sub").textContent = String(e.message||e); return; }
+  // журнал просмотра — не блокирует
+  try{ sb.from("call_views").insert({tg_id:Number(ME.tg_id||ME.telegram_id||0), viewer_name:ME.name, segment:seg, shown:rows.length}).then(()=>{}); }catch(_){}
+  const segBtn = k=>`<button type="button" data-cs="${k}" class="${seg===k?'on':''}">${CALL_SEG_LBL[k]}</button>`;
+  const RES_LBL = {will_come:"придёт", recall:"перезвонить", refused:"отказ", no_call:"не звонить"};
+  let html = `<style>
+    .cw-src{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+    .cw-src button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+    .cw-src button.on{background:var(--emerald);border-color:var(--emerald);color:#08130d;font-weight:700}
+    .csay{background:var(--panel2);border-left:3px solid var(--emerald);border-radius:0 8px 8px 0;padding:7px 10px;margin:5px 0;font-size:12.5px;line-height:1.5}
+    .cobj{margin:5px 0;font-size:12.5px;line-height:1.5}.cobj b{color:var(--gold)}
+    .ctip{color:var(--muted);font-size:11.5px;margin-top:6px}
+    .cscr h4{margin:8px 0 3px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    .ccard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+    .crow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .cres{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .cres button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 9px;font-size:11.5px;cursor:pointer}
+    .ccall{background:rgba(31,191,122,.15);border:1px solid var(--emerald);color:var(--emerald);border-radius:10px;padding:7px 12px;font-size:12.5px;text-decoration:none;font-weight:700;white-space:nowrap}
+  </style>
+  ${(function(){
+    const mv = callMyVenue();
+    const VLBL = {all:"Все", karaoke:"Караоке", club:"Клуб"};
+    if(mv !== "all")
+      return `<div style="font-size:11px;color:var(--muted);margin-bottom:6px">Ваша площадка: <b style="color:var(--emerald)">${VLBL[mv]}</b></div>`;
+    const vb = k=>`<button type="button" data-cv="${k}" class="${CALL_VENUE===k?'on':''}">${VLBL[k]}</button>`;
+    return `<div class="cw-src" id="cw-venue" style="margin-bottom:6px">${vb("all")}${vb("karaoke")}${vb("club")}</div>`;
+  })()}
+  <div class="cw-src" id="cw-seg">${segBtn("sleeping")}${segBtn("newbie")}${segBtn("bigparty")}</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${CALL_SEG_NOTE[seg]} · показано ${rows.length} (порциями по 15)</div>
+  <details style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:0 12px">
+    <summary style="cursor:pointer;padding:9px 0;font-size:12.5px;font-weight:700;color:var(--gold)">📋 Скрипт разговора</summary>
+    <div class="cscr" style="padding-bottom:10px">${CALL_SCRIPTS[seg]}</div>
+  </details>`;
+  if(!rows.length) html += `<div class="ccard" style="color:var(--muted)">В этом сегменте сейчас некому звонить — все обзвонены или пусто.</div>`;
+  rows.forEach(r=>{
+    html += `<div class="ccard" id="cc-${r.guest_id}">
+      <div class="crow">
+        <div><div style="font-weight:700">${(r.name||"Гость").replace(/</g,"&lt;")}</div>
+          <div style="font-size:11.5px;color:var(--muted)">${r.visits} визит(ов) · ${r.venue} · был(а) ${r.days_ago} дн. назад · ${r.phone_masked}</div></div>
+        ${(typeof TABLET_MODE!=="undefined" && TABLET_MODE)
+          ? `<button class="ccall" style="cursor:pointer" onclick="callReveal('${r.guest_id}','${r.phone_tel}',this)">👁 Показать номер</button>`
+          : `<a class="ccall" href="tel:${r.phone_tel}">📞 Позвонить</a>`}
+      </div>
+      <div class="cres">${Object.entries(RES_LBL).map(([k,l])=>
+        `<button type="button" onclick="callResult('${r.guest_id}','${r.phone_tel}','${k}',this)">${l}</button>`).join("")}</div>
+    </div>`;
+  });
+  if(done.length){
+    html += `<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px">Обзвонены за 7 дней</div>`;
+    done.forEach(d=>{
+      const dt = new Date(d.called_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+      html += `<div class="ccard" style="opacity:.6"><div class="crow">
+        <div><div style="font-weight:700">${(d.name||"Гость").replace(/</g,"&lt;")} <span style="color:var(--emerald);font-size:11px">${RES_LBL[d.result]||d.result}</span></div>
+        <div style="font-size:11.5px;color:var(--muted)">звонил(а) ${d.called_by_name||"—"} · ${dt}</div></div></div></div>`;
+    });
+  }
+  if(st) html += `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:9px;display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)">
+    <span>За месяц: ${st.calls} звонков · ${st.came} броней после «придёт»</span>
+    <span style="color:var(--emerald);font-weight:700">${st.calls?Math.round(st.came*100/st.calls):0}%</span></div>`;
+  document.getElementById("bkm-sub").textContent = CALL_SEG_LBL[seg];
+  document.getElementById("bkm-body").innerHTML = html;
+  document.querySelectorAll("#cw-seg button").forEach(b=>{
+    b.onclick = ()=>{ CALL_SEG = b.dataset.cs; callRender(); };
+  });
+  document.querySelectorAll("#cw-venue button").forEach(b=>{
+    b.onclick = ()=>{ CALL_VENUE = b.dataset.cv; callRender(); };
+  });
+}
+async function callResult(gid, phone, res, btn){
+  const names = {will_come:"Придёт", recall:"Перезвонить", refused:"Отказ", no_call:"НЕ ЗВОНИТЬ больше никогда"};
+  if(res==="no_call" && !confirm("Гость просил не звонить? Он навсегда исчезнет из списков обзвона.")) return;
+  btn.disabled = true;
+  const {error} = await sb.from("guest_calls").insert({
+    guest_id: gid, phone_norm: phone, segment: CALL_SEG, result: res, venue: CALL_VENUE==="all" ? null : CALL_VENUE,
+    called_by: Number(ME.tg_id||ME.telegram_id||0), called_by_name: ME.name });
+  if(error){ alert(error.message); btn.disabled=false; return; }
+  const card = document.getElementById("cc-"+gid);
+  if(card){ card.style.opacity=".55"; card.querySelector(".cres").innerHTML =
+    `<span style="color:var(--emerald);font-size:12px;font-weight:700">✓ ${names[res]}</span>`; }
+}
+// показать полный номер на планшете (для набора на рабочем телефоне) + журнал раскрытий
+async function callReveal(gid, phone, btn){
+  btn.outerHTML = `<span style="font-weight:800;font-size:15px;color:var(--emerald);white-space:nowrap">${phone}</span>`;
+  try{
+    await sb.from("call_views").insert({
+      tg_id: Number(ME.tg_id||ME.telegram_id||0), viewer_name: ME.name,
+      segment: "reveal", shown: 1, detail: gid });
+  }catch(_){}
+}
+window.callReveal = callReveal;
+window.callOpen = callOpen; window.callResult = callResult;
 // ===== СТАТИСТИКА «ОТКУДА УЗНАЛИ О НАС» (админ) =====
 let BK_SRC_ROWS = null, BK_SRC_PERIOD = "this";
 async function bkOpenSrcStats(){
