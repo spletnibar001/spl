@@ -650,6 +650,20 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .rc-star{color:var(--gold)}
 .rc-done-bnr{padding:12px 14px;border-radius:12px;border:1px solid var(--emerald);
   background:rgba(31,191,122,.12);color:var(--emerald);font-size:13px;font-weight:700;line-height:1.5;margin-bottom:12px}
+.rc-tabs{display:flex;gap:6px;margin-bottom:12px}
+.rc-tabs button{flex:1;padding:8px 6px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer}
+.rc-tabs button.on{border-color:var(--gold);color:var(--gold);background:rgba(217,176,76,.12)}
+.rc-cnt{text-align:right;min-width:66px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.rc-cnt b{display:block;font-size:19px;color:var(--gold);letter-spacing:0}
+.rc-row.ok .rc-cnt b{color:var(--emerald)}
+.rc-tot{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--panel2);
+  border:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.rc-tot b{color:var(--text)}
+.rc-week{margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);font-size:12.5px;color:var(--muted)}
+.rc-week b{color:var(--gold);font-size:15px}
+#rc-fab.idle{border-color:var(--line);color:var(--muted);background:var(--panel)}
 
 </style>
 </head>
@@ -982,7 +996,25 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 22.08 · сборка 18";
+const APP_VERSION = "v 23.08 · сборка 20";
+/* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
+   Если здесь не последняя сборка — открылась старая версия из кэша. */
+(function(){
+  function rcShowVer(){
+    var av = document.getElementById("app-ver");
+    if(av && !av.textContent){ av.textContent = APP_VERSION; av.title = "Версия программы"; }
+    var au = document.getElementById("auth-screen");
+    if(au && !document.getElementById("auth-ver")){
+      var d = document.createElement("div");
+      d.id = "auth-ver";
+      d.style.cssText = "margin-top:12px;font-size:11px;color:#8b93a1;letter-spacing:.05em";
+      d.textContent = APP_VERSION;
+      au.appendChild(d);
+    }
+  }
+  rcShowVer();
+  document.addEventListener("DOMContentLoaded", rcShowVer);
+})();
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
@@ -1092,6 +1124,8 @@ const DEFAULT_BONUS = 50000;
 let penEmpId = null;
 const DEFAULT_PENALTY = 50000;
 let compactView = false; // true = только график
+// true, пока рисуется ЛИЧНЫЙ кабинет: сотрудник видит свои бонусы/штрафы в «Итого»
+let SC_OWN = false;
 let posFilter = "all", viewStart = null, editId = null;
 
 /* ================= даты и числа ================= */
@@ -1432,8 +1466,10 @@ function earnedInPeriod(emp, fromS, toS){
       extraLbl = "кабинки "+money(extra);
     }
   }
-  const pen = (CAP.money||CAP.pen) ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
-  const bon = (CAP.money||CAP.bonus) ? bonusesIn(emp.id, fromS, toS).reduce((t,b)=>t+b.amount,0) : 0;
+  // в личном кабинете человек всегда видит свои бонусы и штрафы (RLS отдаёт только его строки)
+  const own = (typeof SC_OWN!=="undefined") && SC_OWN;
+  const pen = (CAP.money||CAP.pen||own) ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
+  const bon = (CAP.money||CAP.bonus||own) ? bonusesIn(emp.id, fromS, toS).reduce((t,b)=>t+b.amount,0) : 0;
   return {cnt, base, cntPlan, basePlan, extra, extraLbl, noPay, absent, pen, bon, sum: noPay ? 0 : base+extra+bon-pen};
 }
 
@@ -2392,6 +2428,7 @@ async function renderMyCabinetForManager(){
 }
 function renderStaffCabinet(cardsArg){
   const box = $("staff-cabinet");
+  SC_OWN = true;   // личный кабинет: считаем бонусы/штрафы в «Итого»
   // ВСЕ карточки этого человека. Для staff RLS вернул только его строки → берём все.
   // Для руководителя (свой кабинет) передаём явно его карточки.
   const myCards = cardsArg || employees.slice();
@@ -2649,6 +2686,7 @@ function renderStaffCabinet(cardsArg){
 
     <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
   `;
+  SC_OWN = false;
   // навигация по неделям
   scLoadTables();
   scLoadAdvances();
@@ -5834,6 +5872,9 @@ const RC = {
   state: null,       // ответ rc_state
   list: [],          // ответ rc_pending (для менеджера)
   cand: [],          // кандидаты — новые гости смены
+  tab: "today",      // today | week | month — вкладка в панели менеджера
+  report: [],        // сводка по хостес за период
+  myWeek: 0,         // отзывов за неделю у самой хостес
   busy: false,
   timer: null,
 };
@@ -5893,6 +5934,7 @@ async function rcLoadHostess(){
   if(error){ console.warn("rc_state", error.message); RC.state = null; return; }
   RC.state = data || null;
   RC.cand = [];
+  await rcLoadMyWeek();
   if(RC.state && RC.state.is_day){
     try{
       const b = await sb.from("v_bookings_full").select("*").eq("business_date", ds);
@@ -5905,6 +5947,37 @@ async function rcLoadManager(){
   const { data, error } = await sb.rpc("rc_pending", { p_date: rcDate(), p_venues: RC.venues });
   if(error){ console.warn("rc_pending", error.message); RC.list = []; return; }
   RC.list = data || [];
+}
+
+/* ---------- сводка за период ---------- */
+// платёжная неделя со среды — как в табеле
+function rcWeekStart(ds){
+  const d = fromIso(ds); const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay()-3+7)%7)); return x;
+}
+function rcRange(tab){
+  const ds = rcDate();
+  if(tab==="week"){ const a = rcWeekStart(ds); return [iso(a), iso(addDays(a,6))]; }
+  if(tab==="month"){ const d = fromIso(ds);
+    return [iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(new Date(d.getFullYear(), d.getMonth()+1, 0))]; }
+  return [ds, ds];
+}
+async function rcLoadReport(tab){
+  const [from,to] = rcRange(tab);
+  const venues = RC.role==="hostess" ? [RC.venue] : RC.venues;
+  const { data, error } = await sb.rpc("rc_report", { p_from: from, p_to: to, p_venues: venues });
+  if(error){ console.warn("rc_report", error.message); RC.report = []; return; }
+  RC.report = data || [];
+}
+// сколько отзывов хостес собрала за текущую неделю
+async function rcLoadMyWeek(){
+  RC.myWeek = 0;
+  try{
+    const [from,to] = rcRange("week");
+    const { data } = await sb.rpc("rc_report", { p_from: from, p_to: to, p_venues: [RC.venue] });
+    const row = (data||[]).find(r=>String(r.employee_id)===String(RC.emp.id));
+    if(row) RC.myWeek = row.confirmed||0;
+  }catch(_){}
 }
 
 /* ---------- кнопка-таблетка ---------- */
@@ -5927,8 +6000,8 @@ function rcFab(){
   }
   if(RC.role==="manager"){
     const waiting = RC.list.reduce((t,c)=>t + (c.items||[]).filter(i=>i.status==="pending").length, 0);
-    if(!RC.list.length){ el.style.display="none"; return; }
-    el.className = waiting ? "" : "done";
+    // кнопка видна всегда — через неё открывается и сводка за неделю/месяц
+    el.className = waiting ? "" : (RC.list.length ? "done" : "idle");
     el.innerHTML = `⭐ Отзывы хостес${waiting?` <span class="rc-fab-n">${waiting}</span>`:""}`;
     el.style.display = "flex";
     return;
@@ -6030,20 +6103,48 @@ function rcBodyHostess(){
     <div class="rc-sec">Новые гости смены ⭐</div>
     ${candRows}
     <div class="rc-msg" id="rc-msg"></div>
+    <div class="rc-week">За неделю принято отзывов: <b>${RC.myWeek||0}</b></div>
     <div class="rc-note">Просим отзыв только у новых гостей - тех, кто у нас впервые (⭐ в списке броней).
       Отметили «Отзыв оставлен» - покажите отзыв менеджеру смены с экрана, он подтвердит.
       Три подтверждённых отзыва до 05:00 - бонус 100 000 сум в зарплату за эту смену.</div>`;
 }
 
 /* ----- экран менеджера ----- */
+function rcTabs(){
+  const t = RC.tab || "today";
+  return `<div class="rc-tabs">
+    <button class="${t==="today"?"on":""}" onclick="rcSetTab('today')">Сегодня</button>
+    <button class="${t==="week"?"on":""}" onclick="rcSetTab('week')">Неделя</button>
+    <button class="${t==="month"?"on":""}" onclick="rcSetTab('month')">Месяц</button>
+  </div>`;
+}
+// сводка: сколько отзывов собрала каждая хостес за период
+function rcBodyReport(){
+  const [from,to] = rcRange(RC.tab);
+  const per = RC.tab==="week" ? "неделя" : "месяц";
+  document.getElementById("rc-sub").textContent =
+    RC.venues.map(rcVenueRu).join(" + ") + " · " + per + " " + fmtD(fromIso(from)) + " — " + fmtD(fromIso(to));
+  if(!RC.report.length){
+    return rcTabs() + `<div class="rc-empty">За этот период отзывов ещё нет.</div>`;
+  }
+  const rows = RC.report.map(r=>`<div class="rc-row ${r.done>0?"ok":""}">
+      <div class="rc-nm"><b>${(r.name||"Хостес").replace(/</g,"&lt;")}</b>
+        <span>${rcVenueRu(r.venue)} · челленджей ${r.challenges||0} · выполнено ${r.done||0}${r.pending?" · ждут проверки "+r.pending:""}</span></div>
+      <div class="rc-cnt"><b>${r.confirmed||0}</b>отзыв(ов)</div>
+    </div>`).join("");
+  const tot = RC.report.reduce((t,r)=>t+(r.confirmed||0),0);
+  const bon = RC.report.reduce((t,r)=>t+(r.bonus||0),0);
+  return rcTabs() + rows + `<div class="rc-tot">Всего отзывов: <b>${tot}</b> · бонусов начислено: <b>${fmtNum(bon)} сум</b></div>`;
+}
 function rcBodyManager(){
-  document.getElementById("rc-title").textContent = "Отзывы хостес · подтверждение";
+  document.getElementById("rc-title").textContent = "Отзывы хостес";
+  if(RC.tab && RC.tab!=="today") return rcBodyReport();
   document.getElementById("rc-sub").textContent =
     RC.venues.map(rcVenueRu).join(" + ") + " · смена " + fmtFull(fromIso(rcDate()));
   if(!RC.list.length){
-    return `<div class="rc-empty">Сегодня челленджа у хостес нет либо смена ещё не началась.</div>`;
+    return rcTabs() + `<div class="rc-empty">Сегодня челленджа у хостес нет либо смена ещё не началась.</div>`;
   }
-  let html = "";
+  let html = rcTabs();
   RC.list.forEach(c=>{
     const items = (c.items||[]).filter(i=>i.status!=="rejected");
     const conf = c.confirmed||0, target = c.target||3;
@@ -6072,6 +6173,13 @@ function rcBodyManager(){
     <div class="rc-note">Хостес показывает отзыв с экрана телефона гостя. Третий подтверждённый отзыв
       автоматически начисляет ей бонус 100 000 сум с примечанием «Челлендж: 3 отзыва».</div>`;
 }
+
+async function rcSetTab(t){
+  RC.tab = t;
+  if(t==="today") await rcLoadManager(); else await rcLoadReport(t);
+  rcRender();
+}
+window.rcSetTab = rcSetTab;
 
 /* ---------- действия ---------- */
 async function rcAdd(bookingId){
