@@ -996,7 +996,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 23.08 · сборка 23";
+const APP_VERSION = "v 23.08 · сборка 24";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1339,23 +1339,69 @@ async function loadAll(){
   }
 }
 /* ===== мост в кассу (kassa-payroll): авто-«ВЫДАНО» + запись плана ЗП ===== */
-/* буфер и бой посуды — только официанты и бармены; данные из кассы, только просмотр */
+/* --- буфер и бой посуды: только просмотр, данные считает касса (экшен my_buffer) --- */
 const BUF_TARGET = 1000000;
-const BUF_ROLES  = ["Официант","Бармен","Старший бармен"];
-/* Учёт буфера и боя стартует с текущей платёжной недели (среда 19.08.2026).
-   Дата ЗАФИКСИРОВАНА: буфер — накопительный остаток, он не должен обнуляться
-   каждую новую неделю. Строки кассы раньше этой даты не считаются. */
-const BUF_FROM   = "2026-08-19";
+const BUF_ROLES  = ["Официант","Бармен","Старший бармен"];   // бар-менеджер — управленец, его не касается
+/* Учёт стартует с текущей платёжной недели (среда 19.08.2026). Дата ЗАФИКСИРОВАНА:
+   буфер — накопительный остаток, он не должен обнуляться каждую новую неделю. */
+const BUF_FROM     = "2026-08-19";
 const BUF_FROM_LBL = "19 августа";
 async function kpBuffer(e){
-  // Экшен my_buffer в kassa-payroll: считает буфер и бой по строкам кассы этого сотрудника.
-  // my_payouts сюда не годится — он отдаёт только зарплатные категории (SAL_CATS).
+  // my_payouts сюда не годится — он отдаёт только зарплатные категории (SAL_CATS)
   const j = await kpCall("my_buffer", {from:BUF_FROM});
   if(!j || j.ok===false) return null;
   if(j.eligible===false) return null;              // должность без буфера — блок не показываем
   return {buffer:Number(j.buffer)||0, boy:Number(j.boy)||0, src:"my_buffer"};
 }
-
+const KASSA_PREFIX = {"Официант":"ОФИЦИАНТ","Бармен":"БАРМЕН","Старший бармен":"БАРМЕН","Хостес":"ХОСТЕС","Повар":"ПОВАР","Охрана":"ОХРАНА","Кассир":"КАССИР","Звукооператор":"ЗВУКООПЕРАТОР","Свето-оператор":"СВЕТО-ОПЕРАТОР","Менеджер":"МЕНЕДЖЕР","Бар-менеджер":"БАРМЕНЕДЖЕР"};
+function kassaCp(e){ const p=KASSA_PREFIX[e.emp_role]; return p ? (p+" "+e.name) : null; }
+function kNorm(s){ return String(s||"").toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
+function weekLabel(ws){ const f=fromIso(ws); return fmtD(f)+"–"+fmtD(addDays(f,6)); }
+let KASSA_PAID = null;   // {normCp: сумма выплат кассы за неделю}; null = касса недоступна → ручной режим отметок
+async function kpCall(action, extra){
+  const initData = window.Telegram?.WebApp?.initData || "";
+  if(!initData) throw new Error("no initData");
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/kassa-payroll`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY},
+    body:JSON.stringify(Object.assign({action, initData}, extra||{}))
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+async function loadKassaPaid(weekKey){
+  if(!CAP.money){ KASSA_PAID=null; return; }
+  try{ const j = await kpCall("get",{from:weekKey, to:iso(addDays(fromIso(weekKey),6))}); KASSA_PAID = j.summary || {}; }
+  catch(e){ KASSA_PAID = null; }   // касса недоступна → остаёмся в ручном режиме
+}
+function kassaPaidFor(e){ return (KASSA_PAID && kassaCp(e)) ? (KASSA_PAID[kNorm(kassaCp(e))]||0) : 0; }
+async function pushPlansToKassa(weekKey){
+  const wkTo = iso(addDays(fromIso(weekKey),6));
+  const mk = weekKey.slice(0,7), mFrom = mk+"-01", mTo = mk+"-31";
+  for(const id of rosterOf(weekKey)){
+    const e = byId(id); if(!e) continue;
+    const cp = kassaCp(e); if(!cp) continue;                 // роль без связи с кассой — пропускаем
+    const rr = earnedInPeriod(e, weekKey, wkTo);
+    try{
+      if(rr.noPay){                                          // Бар-менеджер (Зоха): оклад с кассы, из табеля — бонусы/штрафы за месяц
+        let mb=0,mp=0;
+        for(const b of bonRows) if(b.employee_id===e.id && b.bonus_date>=mFrom && b.bonus_date<=mTo) mb+=b.amount;
+        for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=mFrom && p.pen_date<=mTo) mp+=p.amount;
+        if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:mk,period_label:mk,oklad:0,bonus:Math.round(mb),planned:Math.round(mb-mp),status:"confirmed"}});
+        continue;
+      }
+      let extraAmt=0;
+      if(e.emp_role==="Официант") extraAmt=Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT/5000)*5000; // шаги 1% кратно 5000
+      else if(e.emp_role===SOUND_BIG) extraAmt=Math.round(rr.extra||0);
+      const earned=Math.round(rr.base||0);        // заработано на сегодня (отработанные смены)
+      const planWeek=Math.round(rr.basePlan||0);  // план на всю неделю
+      const bonus=Math.round(rr.bon||0), pen=Math.round(rr.pen||0);
+      const planned=earned+extraAmt+bonus-pen;    // итого к выплате на сегодня
+      await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"week",period_key:weekKey,period_label:weekLabel(weekKey),shifts:rr.cnt||0,oklad:earned,plan_week:planWeek,percent_amount:extraAmt,bonus,penalty:pen,planned:Math.round(planned),status:"confirmed"}});
+    }catch(err){ /* сбой по одному не рушит остальных */ }
+  }
+}
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
 // снимать неявку (возвращать день как отработанный) могут только эти роли
 const canClearAbsence = () => ['admin','upr','dir'].includes(ME.role);
