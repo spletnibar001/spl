@@ -996,7 +996,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 23.08 · сборка 20";
+const APP_VERSION = "v 23.08 · сборка 23";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1339,55 +1339,23 @@ async function loadAll(){
   }
 }
 /* ===== мост в кассу (kassa-payroll): авто-«ВЫДАНО» + запись плана ЗП ===== */
-const KASSA_PREFIX = {"Официант":"ОФИЦИАНТ","Бармен":"БАРМЕН","Старший бармен":"БАРМЕН","Хостес":"ХОСТЕС","Повар":"ПОВАР","Охрана":"ОХРАНА","Кассир":"КАССИР","Звукооператор":"ЗВУКООПЕРАТОР","Свето-оператор":"СВЕТО-ОПЕРАТОР","Менеджер":"МЕНЕДЖЕР","Бар-менеджер":"БАРМЕНЕДЖЕР"};
-function kassaCp(e){ const p=KASSA_PREFIX[e.emp_role]; return p ? (p+" "+e.name) : null; }
-function kNorm(s){ return String(s||"").toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
-function weekLabel(ws){ const f=fromIso(ws); return fmtD(f)+"–"+fmtD(addDays(f,6)); }
-let KASSA_PAID = null;   // {normCp: сумма выплат кассы за неделю}; null = касса недоступна → ручной режим отметок
-async function kpCall(action, extra){
-  const initData = window.Telegram?.WebApp?.initData || "";
-  if(!initData) throw new Error("no initData");
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/kassa-payroll`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY},
-    body:JSON.stringify(Object.assign({action, initData}, extra||{}))
-  });
-  const j = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
-  return j;
+/* буфер и бой посуды — только официанты и бармены; данные из кассы, только просмотр */
+const BUF_TARGET = 1000000;
+const BUF_ROLES  = ["Официант","Бармен","Старший бармен"];
+/* Учёт буфера и боя стартует с текущей платёжной недели (среда 19.08.2026).
+   Дата ЗАФИКСИРОВАНА: буфер — накопительный остаток, он не должен обнуляться
+   каждую новую неделю. Строки кассы раньше этой даты не считаются. */
+const BUF_FROM   = "2026-08-19";
+const BUF_FROM_LBL = "19 августа";
+async function kpBuffer(e){
+  // Экшен my_buffer в kassa-payroll: считает буфер и бой по строкам кассы этого сотрудника.
+  // my_payouts сюда не годится — он отдаёт только зарплатные категории (SAL_CATS).
+  const j = await kpCall("my_buffer", {from:BUF_FROM});
+  if(!j || j.ok===false) return null;
+  if(j.eligible===false) return null;              // должность без буфера — блок не показываем
+  return {buffer:Number(j.buffer)||0, boy:Number(j.boy)||0, src:"my_buffer"};
 }
-async function loadKassaPaid(weekKey){
-  if(!CAP.money){ KASSA_PAID=null; return; }
-  try{ const j = await kpCall("get",{from:weekKey, to:iso(addDays(fromIso(weekKey),6))}); KASSA_PAID = j.summary || {}; }
-  catch(e){ KASSA_PAID = null; }   // касса недоступна → остаёмся в ручном режиме
-}
-function kassaPaidFor(e){ return (KASSA_PAID && kassaCp(e)) ? (KASSA_PAID[kNorm(kassaCp(e))]||0) : 0; }
-async function pushPlansToKassa(weekKey){
-  const wkTo = iso(addDays(fromIso(weekKey),6));
-  const mk = weekKey.slice(0,7), mFrom = mk+"-01", mTo = mk+"-31";
-  for(const id of rosterOf(weekKey)){
-    const e = byId(id); if(!e) continue;
-    const cp = kassaCp(e); if(!cp) continue;                 // роль без связи с кассой — пропускаем
-    const rr = earnedInPeriod(e, weekKey, wkTo);
-    try{
-      if(rr.noPay){                                          // Бар-менеджер (Зоха): оклад с кассы, из табеля — бонусы/штрафы за месяц
-        let mb=0,mp=0;
-        for(const b of bonRows) if(b.employee_id===e.id && b.bonus_date>=mFrom && b.bonus_date<=mTo) mb+=b.amount;
-        for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=mFrom && p.pen_date<=mTo) mp+=p.amount;
-        if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:mk,period_label:mk,oklad:0,bonus:Math.round(mb),planned:Math.round(mb-mp),status:"confirmed"}});
-        continue;
-      }
-      let extraAmt=0;
-      if(e.emp_role==="Официант") extraAmt=Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT/5000)*5000; // шаги 1% кратно 5000
-      else if(e.emp_role===SOUND_BIG) extraAmt=Math.round(rr.extra||0);
-      const earned=Math.round(rr.base||0);        // заработано на сегодня (отработанные смены)
-      const planWeek=Math.round(rr.basePlan||0);  // план на всю неделю
-      const bonus=Math.round(rr.bon||0), pen=Math.round(rr.pen||0);
-      const planned=earned+extraAmt+bonus-pen;    // итого к выплате на сегодня
-      await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"week",period_key:weekKey,period_label:weekLabel(weekKey),shifts:rr.cnt||0,oklad:earned,plan_week:planWeek,percent_amount:extraAmt,bonus,penalty:pen,planned:Math.round(planned),status:"confirmed"}});
-    }catch(err){ /* сбой по одному не рушит остальных */ }
-  }
-}
+
 const isApproved = ws => approvals.some(a=>a.week_start===ws);
 // снимать неявку (возвращать день как отработанный) могут только эти роли
 const canClearAbsence = () => ['admin','upr','dir'].includes(ME.role);
@@ -2554,13 +2522,44 @@ function renderStaffCabinet(cardsArg){
           <div id="sc-tbl-${me.id}" data-venues="${vs.join(",")}" class="sc-drawer open" style="margin-top:6px"><div class="sc-row" style="color:var(--muted)">загрузка…</div></div>`;
       }
     }
+    // Буфер и бой посуды — только официанты и бармены (менеджеров это не касается)
+    let bufSlot = "";
+    if(BUF_ROLES.includes(me.emp_role)){
+      bufSlot = `<div class="sc-sec" id="sc-buf-sec-${me.id}" style="display:none">Буфер и бой посуды${multi?" · "+me.emp_role:""}</div>
+        <div id="sc-buf-${me.id}" class="sc-drawer open" style="display:none"></div>`;
+    }
     return `<div class="sc-rolecard">
       ${head}
       <div class="sc-drawer open"><div class="sc-dh">${multi?"Из чего сложилась сумма по роли «"+me.emp_role+"»":"Из чего сложилась сумма"}</div>${earnRows}</div>
       <div class="sc-sec">График${multi?" · "+me.emp_role:""}</div>
       ${dayRows}
       ${tblSlot}
+      ${bufSlot}
     </div>`;
+  }
+  // буфер и бой посуды из кассы — официантам и барменам (после отрисовки)
+  async function scLoadBuffer(){
+    for(const c of myCards){
+      if(!BUF_ROLES.includes(c.emp_role)) continue;
+      const box2 = document.getElementById("sc-buf-"+c.id);
+      const sec  = document.getElementById("sc-buf-sec-"+c.id);
+      if(!box2) continue;
+      let d = null;
+      try{ d = await kpBuffer(c); }catch(e){ console.warn("буфер: касса не отдала данные", e); }
+      if(!d) continue;                      // касса недоступна — блок не показываем
+      const full = d.buffer >= BUF_TARGET;
+      const pct  = Math.max(0, Math.min(100, Math.round(d.buffer / BUF_TARGET * 100)));
+      box2.innerHTML =
+        `<div class="sc-row"><div class="l"><div class="d">Буфер</div><div class="s">${
+            full ? "буфер набран, удержаний больше нет"
+                 : "возвратный залог · по 100 000 в пятницу и субботу · отдаётся при увольнении"
+          }</div></div><div class="r ${full?"g":"gd"}">${fmtNum(d.buffer)} <span style="color:var(--muted);font-weight:600">/ ${fmtNum(BUF_TARGET)}</span></div></div>
+         <div style="padding:2px 13px 11px"><div style="height:6px;border-radius:4px;background:var(--panel2);overflow:hidden">
+           <div style="height:100%;width:${pct}%;background:${full?"var(--emerald)":"var(--gold)"}"></div></div></div>
+         <div class="sc-row"><div class="l"><div class="d">Бой посуды</div><div class="s">невозвратный сбор в пользу клуба · 5 000 за смену</div></div><div class="r rd">${d.boy?"−":""}${fmtNum(d.boy)}</div></div>
+         <div class="sc-row" style="font-size:11px;color:var(--muted)">Учёт с ${BUF_FROM_LBL}. Начисляет и удерживает касса — здесь только просмотр.</div>`;
+      box2.style.display = ""; if(sec) sec.style.display = "";
+    }
   }
   // авансы из кассы по датам — для фикс-ролей (после отрисовки)
   async function scLoadAdvances(){
@@ -2690,6 +2689,7 @@ function renderStaffCabinet(cardsArg){
   // навигация по неделям
   scLoadTables();
   scLoadAdvances();
+  scLoadBuffer();
   const prevBtn = $("sc-wk-prev"), nextBtn = $("sc-wk-next");
   if(prevBtn) prevBtn.addEventListener("click", async ()=>{
     viewStart = addDays(viewStart, -7);
