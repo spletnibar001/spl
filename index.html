@@ -996,7 +996,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 23.08 · сборка 24";
+const APP_VERSION = "v 23.08 · сборка 25";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1353,6 +1353,53 @@ async function kpBuffer(e){
   if(j.eligible===false) return null;              // должность без буфера — блок не показываем
   return {buffer:Number(j.buffer)||0, boy:Number(j.boy)||0, src:"my_buffer"};
 }
+
+/* --- мои долги и квитанции (фото чеков) — только свои строки, всё через кассу --- */
+const RCPT_BTN_CSS = "border:1px solid var(--gold);background:rgba(217,176,76,.12);color:var(--gold);"
+  + "border-radius:9px;padding:6px 11px;font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap";
+async function kpDebts(){
+  const j = await kpCall("my_debts", {});      // без from — долг живёт, пока не погашен
+  return (!j || j.ok===false) ? null : j;
+}
+// показать модалку с квитанцией (создаётся один раз)
+function scReceiptShow(html){
+  let bg = document.getElementById("rcpt-bg");
+  if(!bg){
+    bg = document.createElement("div");
+    bg.id = "rcpt-bg";
+    bg.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.86);display:flex;"
+      + "align-items:center;justify-content:center;z-index:300;padding:16px";
+    bg.innerHTML = `<div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;
+        padding:14px;max-width:96vw;max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700">Квитанция</div>
+      <div id="rcpt-body" style="min-width:230px;text-align:center"></div>
+      <button id="rcpt-close" style="border:1px solid var(--line);background:var(--panel2);color:var(--text);
+        border-radius:10px;padding:11px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">Закрыть</button>
+    </div>`;
+    document.body.appendChild(bg);
+    bg.addEventListener("click", e=>{ if(e.target===bg) scReceiptClose(); });
+    bg.querySelector("#rcpt-close").onclick = scReceiptClose;
+  }
+  bg.style.display = "flex";
+  document.getElementById("rcpt-body").innerHTML = html;
+}
+function scReceiptClose(){ const b=document.getElementById("rcpt-bg"); if(b) b.style.display="none"; }
+// ссылка живёт 5 минут и выдаётся кассой только на свою строку
+async function scReceipt(entryId, which){
+  scReceiptShow(`<div style="color:var(--muted);font-size:13px;padding:20px 6px">Загружаю…</div>`);
+  let j = null;
+  try{ j = await kpCall("receipt_url", {entry_id:entryId, which:which||"photo"}); }
+  catch(e){
+    scReceiptShow(`<div style="color:var(--red);font-size:13px;line-height:1.6;padding:12px 6px">Не удалось получить квитанцию.<br>${String(e && e.message || e)}</div>`);
+    return;
+  }
+  if(!j || !j.url){
+    scReceiptShow(`<div style="color:var(--muted);font-size:13px;line-height:1.6;padding:12px 6px">Квитанция ещё не выгружена кассиром.</div>`);
+    return;
+  }
+  scReceiptShow(`<img src="${j.url}" alt="Квитанция" style="max-width:100%;max-height:74vh;border-radius:10px;display:block">`);
+}
+window.scReceipt = scReceipt; window.scReceiptClose = scReceiptClose;
 const KASSA_PREFIX = {"Официант":"ОФИЦИАНТ","Бармен":"БАРМЕН","Старший бармен":"БАРМЕН","Хостес":"ХОСТЕС","Повар":"ПОВАР","Охрана":"ОХРАНА","Кассир":"КАССИР","Звукооператор":"ЗВУКООПЕРАТОР","Свето-оператор":"СВЕТО-ОПЕРАТОР","Менеджер":"МЕНЕДЖЕР","Бар-менеджер":"БАРМЕНЕДЖЕР"};
 function kassaCp(e){ const p=KASSA_PREFIX[e.emp_role]; return p ? (p+" "+e.name) : null; }
 function kNorm(s){ return String(s||"").toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
@@ -2607,6 +2654,37 @@ function renderStaffCabinet(cardsArg){
       box2.style.display = ""; if(sec) sec.style.display = "";
     }
   }
+  // мои долги из кассы + квитанции (после отрисовки). Долгов нет — блок не показываем.
+  async function scLoadDebts(){
+    const box = document.getElementById("sc-debts");
+    const sec = document.getElementById("sc-debts-sec");
+    if(!box) return;
+    let j = null;
+    try{ j = await kpDebts(); }catch(e){ console.warn("долги: касса не отдала данные", e); }
+    if(!j || !j.debts || !j.debts.length) return;
+    const rows = j.debts.map(d=>{
+      const isOut = d.type === "out";
+      const head = d.note || (isOut ? "Долг" : "Погашение");
+      const sub = [
+        d.date ? fmtD(fromIso(d.date)) : "",
+        d.orderNo ? ("счёт № " + d.orderNo) : "",
+      ].filter(Boolean).join(" · ");
+      let btns = "";
+      if(d.has_photo) btns += `<button style="${RCPT_BTN_CSS}" onclick="scReceipt('${d.id}','photo')">📷 Квитанция</button>`;
+      if(d.has_item)  btns += `<button style="${RCPT_BTN_CSS}" onclick="scReceipt('${d.id}','item')">📦 Залог</button>`;
+      return `<div class="sc-row"><div class="l"><div class="d">${String(head).replace(/</g,"&lt;")}</div><div class="s">${sub}</div></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="r ${isOut?"rd":"g"}">${isOut?"−":"+"}${fmtNum(d.amount)}</div>${btns}
+        </div></div>`;
+    }).join("");
+    const left = (j.totals && j.totals.left) || 0;
+    box.innerHTML = rows
+      + `<div class="sc-row tot"><div class="l"><div class="d">Остаётся погасить</div>
+           <div class="s">начислено ${fmtNum((j.totals&&j.totals.out)||0)} · погашено ${fmtNum((j.totals&&j.totals.paid)||0)}</div></div>
+         <div class="r ${left>0?"rd":"g"}">${fmtNum(left)}</div></div>`
+      + `<div class="sc-row" style="font-size:11px;color:var(--muted)">Долги ведёт касса — здесь только просмотр. Квитанцию видите только вы.</div>`;
+    box.style.display = ""; if(sec) sec.style.display = "";
+  }
   // авансы из кассы по датам — для фикс-ролей (после отрисовки)
   async function scLoadAdvances(){
     for(const c of myCards){
@@ -2729,6 +2807,9 @@ function renderStaffCabinet(cardsArg){
 
     ${myCards.map((c,i)=>cardBlock(c,i)).join("")}
 
+    <div class="sc-sec" id="sc-debts-sec" style="display:none">Мои долги</div>
+    <div class="sc-drawer open" id="sc-debts" style="display:none"></div>
+
     <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
   `;
   SC_OWN = false;
@@ -2736,6 +2817,7 @@ function renderStaffCabinet(cardsArg){
   scLoadTables();
   scLoadAdvances();
   scLoadBuffer();
+  scLoadDebts();
   const prevBtn = $("sc-wk-prev"), nextBtn = $("sc-wk-next");
   if(prevBtn) prevBtn.addEventListener("click", async ()=>{
     viewStart = addDays(viewStart, -7);
