@@ -996,7 +996,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 23.08 · сборка 25";
+const APP_VERSION = "v 25.08 · сборка 27";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1341,7 +1341,16 @@ async function loadAll(){
 /* ===== мост в кассу (kassa-payroll): авто-«ВЫДАНО» + запись плана ЗП ===== */
 /* --- буфер и бой посуды: только просмотр, данные считает касса (экшен my_buffer) --- */
 const BUF_TARGET = 1000000;
-const BUF_ROLES  = ["Официант","Бармен","Старший бармен"];   // бар-менеджер — управленец, его не касается
+const BUF_ROLES  = ["Официант","Бармен","Старший бармен"];
+/* Роли, где буфер зависит от площадки: клубные платят, караокешные — нет.
+   Бар-менеджер буфер не платит вовсе. */
+const BUF_ROLE_POS = {"Менеджер":["club"], "Хостес":["club"]};
+function bufEligible(c){
+  if(!c) return false;
+  if(BUF_ROLES.includes(c.emp_role)) return true;
+  const ps = BUF_ROLE_POS[c.emp_role];
+  return !!ps && ps.includes(c.pos);
+}
 /* Учёт стартует с текущей платёжной недели (среда 19.08.2026). Дата ЗАФИКСИРОВАНА:
    буфер — накопительный остаток, он не должен обнуляться каждую новую неделю. */
 const BUF_FROM     = "2026-08-19";
@@ -2617,7 +2626,7 @@ function renderStaffCabinet(cardsArg){
     }
     // Буфер и бой посуды — только официанты и бармены (менеджеров это не касается)
     let bufSlot = "";
-    if(BUF_ROLES.includes(me.emp_role)){
+    if(bufEligible(me)){
       bufSlot = `<div class="sc-sec" id="sc-buf-sec-${me.id}" style="display:none">Буфер и бой посуды${multi?" · "+me.emp_role:""}</div>
         <div id="sc-buf-${me.id}" class="sc-drawer open" style="display:none"></div>`;
     }
@@ -2633,7 +2642,7 @@ function renderStaffCabinet(cardsArg){
   // буфер и бой посуды из кассы — официантам и барменам (после отрисовки)
   async function scLoadBuffer(){
     for(const c of myCards){
-      if(!BUF_ROLES.includes(c.emp_role)) continue;
+      if(!bufEligible(c)) continue;
       const box2 = document.getElementById("sc-buf-"+c.id);
       const sec  = document.getElementById("sc-buf-sec-"+c.id);
       if(!box2) continue;
