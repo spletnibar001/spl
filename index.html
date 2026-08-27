@@ -996,7 +996,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.08 · сборка 27";
+const APP_VERSION = "v 26.08 · сборка 29";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1409,7 +1409,7 @@ async function scReceipt(entryId, which){
   scReceiptShow(`<img src="${j.url}" alt="Квитанция" style="max-width:100%;max-height:74vh;border-radius:10px;display:block">`);
 }
 window.scReceipt = scReceipt; window.scReceiptClose = scReceiptClose;
-const KASSA_PREFIX = {"Официант":"ОФИЦИАНТ","Бармен":"БАРМЕН","Старший бармен":"БАРМЕН","Хостес":"ХОСТЕС","Повар":"ПОВАР","Охрана":"ОХРАНА","Кассир":"КАССИР","Звукооператор":"ЗВУКООПЕРАТОР","Свето-оператор":"СВЕТО-ОПЕРАТОР","Менеджер":"МЕНЕДЖЕР","Бар-менеджер":"БАРМЕНЕДЖЕР"};
+const KASSA_PREFIX = {"Официант":"ОФИЦИАНТ","Бармен":"БАРМЕН","Старший бармен":"БАРМЕН","Хостес":"ХОСТЕС","Повар":"ПОВАР","Охрана":"ОХРАНА","Кассир":"КАССИР","Звукооператор":"ЗВУКООПЕРАТОР","Свето-оператор":"СВЕТО-ОПЕРАТОР","Менеджер":"МЕНЕДЖЕР","Бар-менеджер":"БАРМЕНЕДЖЕР","Шеф":"ШЕФ"};
 function kassaCp(e){ const p=KASSA_PREFIX[e.emp_role]; return p ? (p+" "+e.name) : null; }
 function kNorm(s){ return String(s||"").toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
 function weekLabel(ws){ const f=fromIso(ws); return fmtD(f)+"–"+fmtD(addDays(f,6)); }
@@ -2658,7 +2658,7 @@ function renderStaffCabinet(cardsArg){
           }</div></div><div class="r ${full?"g":"gd"}">${fmtNum(d.buffer)} <span style="color:var(--muted);font-weight:600">/ ${fmtNum(BUF_TARGET)}</span></div></div>
          <div style="padding:2px 13px 11px"><div style="height:6px;border-radius:4px;background:var(--panel2);overflow:hidden">
            <div style="height:100%;width:${pct}%;background:${full?"var(--emerald)":"var(--gold)"}"></div></div></div>
-         <div class="sc-row"><div class="l"><div class="d">Бой посуды</div><div class="s">невозвратный сбор в пользу клуба · 5 000 за смену</div></div><div class="r rd">${d.boy?"−":""}${fmtNum(d.boy)}</div></div>
+         <div class="sc-row"><div class="l"><div class="d">Бой посуды</div><div class="s">удержано за бой посуды · 5 000 за смену</div></div><div class="r rd">${d.boy?"−":""}${fmtNum(d.boy)}</div></div>
          <div class="sc-row" style="font-size:11px;color:var(--muted)">Учёт с ${BUF_FROM_LBL}. Начисляет и удерживает касса — здесь только просмотр.</div>`;
       box2.style.display = ""; if(sec) sec.style.display = "";
     }
