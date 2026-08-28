@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -702,6 +703,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
         </div>
         <button id="bk-reqs-btn" style="display:none">Заявки <span id="bk-reqs-badge" class="bk-reqs-badge">0</span></button>
         <button id="bk-src-btn" style="display:none">📊 Источники</button>
+        <button id="bk-spec-btn" style="display:none">★ Особые даты</button>
       </div>
     </div>
     <div class="bk-datecard">
@@ -996,7 +998,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 26.08 · сборка 29";
+const APP_VERSION = "v 29.08 · сборка 31";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -3785,11 +3787,16 @@ function bkInit(){
     if(["admin","upr","dir"].includes(ME.role)) srcBtn.style.display="";
     srcBtn.onclick = ()=>bkOpenSrcStats();
   }
+  var specBtn=document.getElementById("bk-spec-btn");
+  if(specBtn){
+    if(["admin","upr"].includes(ME.role)) specBtn.style.display="";
+    specBtn.onclick = ()=>bkOpenSpecials();
+  }
   // глобальная привязка закрытия модалки (работает для любого содержимого: брони, заявки)
   var modalX=document.getElementById("bkm-close");
   if(modalX) modalX.onclick = bkCloseModal;
   var modalBg=document.getElementById("bk-modal");
-  if(modalBg) modalBg.addEventListener("click", function(e){ if(e.target===modalBg) bkCloseModal(); });
+  if(modalBg) bkWireBackdrop(modalBg);
   bkStartReqPolling();
   BK.date = bkToday();
   // делегированный тап по столу -> открыть модалку брони
@@ -3841,7 +3848,7 @@ function bkInit(){
   var modal=document.getElementById("bk-modal");
   if(modal && !modal.dataset.bkBg){
     modal.dataset.bkBg="1";
-    modal.addEventListener("click", function(e){ if(e.target===modal) bkCloseModal(); });
+    bkWireBackdrop(modal);
   }
   // хостес и роль обзвона заходят сразу в бронирование
   if(BK.bkRole === "hostess" || BK.bkRole === "phone") bkSetMode("booking");
@@ -3932,13 +3939,41 @@ function bkRenderVenueTabs(){
 
 async function bkLoadRef(){
   if(BK.data.venues.length) return; // справочники грузим один раз
-  const [v,z,t] = await Promise.all([
+  const [v,z,t,sp] = await Promise.all([
     sb.from("venues").select("*").order("id"),
     sb.from("zones").select("*").order("sort"),
     sb.from("tables").select("*").order("id"),
+    sb.from("deposit_special_days").select("*").order("day"),   // особые даты (если таблицы нет — просто пусто)
   ]);
   BK.data.venues=v.data||[]; BK.data.zones=z.data||[];
   BK.data.tables=(t.data||[]).filter(x=>!x.archived);  // архивные столы скрыты везде
+  BK.data.specials=sp.data||[];
+}
+
+/* ===== ОСОБЫЕ ДАТЫ: депозит выше обычного на конкретный день =====
+   Правило живёт только на свой день — после него тарифы возвращаются сами.
+   Приоритет: правило по зоне важнее правила по площадке, а оно — важнее общего. */
+function bkSpecialFor(dayIso, venueKey, zoneId){
+  const rows = (BK.data.specials||[]).filter(r =>
+    String(r.day)===dayIso &&
+    (!r.venue_key || r.venue_key===venueKey) &&
+    (!r.zone_id   || String(r.zone_id)===String(zoneId)));
+  if(!rows.length) return null;
+  const rank = r => (r.zone_id?2:0) + (r.venue_key?1:0);
+  return rows.slice().sort((a,b)=>rank(b)-rank(a))[0];
+}
+// особое правило для конкретного стола на дату
+function bkSpecialForTable(t, dateObj){
+  if(!t) return null;
+  const z = (BK.data.zones||[]).find(x=>x.id===t.zone_id);
+  const v = z ? (BK.data.venues||[]).find(x=>x.id===z.venue_id) : null;
+  return bkSpecialFor(bkIso(dateObj), v?v.key:null, z?z.id:null);
+}
+function bkApplySpecial(dep, sp){
+  if(!sp) return dep;
+  if(sp.amount) return Number(sp.amount)||0;
+  if(sp.mult)   return Math.round(dep * (Number(sp.mult)||1));
+  return dep;
 }
 
 async function bkLoadAndRender(){
@@ -4450,6 +4485,7 @@ function bkClubKeyCutoff(t){
 function bkCalcDeposit(t, dateObj, timeStr){
   const weekend = bkIsWeekend(dateObj);
   let dep = weekend ? (t.deposit_weekend||0) : (t.deposit_weekday||0);
+  dep = bkApplySpecial(dep, bkSpecialForTable(t, dateObj));   // особая дата — свой тариф
   // отсечка: время прихода >= cutoff и < 05:00 -> депозита нет
   if(timeStr){
     const cutoff = bkClubKeyCutoff(t);
@@ -4461,6 +4497,15 @@ function bkCalcDeposit(t, dateObj, timeStr){
     if(isNight && mins >= cmins) dep = 0;
   }
   return dep;
+}
+
+// подсказка «на эту дату особый тариф» под полем депозита
+function bkSpecialHint(t, dateObj){
+  const sp = bkSpecialForTable(t, dateObj);
+  if(!sp) return "";
+  const what = sp.amount ? bkFmtMoney(sp.amount) : ("×"+String(sp.mult).replace(".",","));
+  return `<div class="bkm-hint" style="color:var(--gold);font-size:12px;margin-top:6px">
+    ★ Особый тариф на эту дату: ${what}${sp.note?" · "+String(sp.note).replace(/</g,"&lt;"):""}</div>`;
 }
 
 let bkCurrentTable = null;   // стол, по которому открыта модалка
@@ -4484,6 +4529,33 @@ function bkOpenModal(tableId, editMode){
 function bkCloseModal(){
   document.getElementById("bk-modal").classList.remove("open");
   bkCurrentTable=null; bkCurrentBooking=null;
+}
+// Закрытие окна по тёмному фону.
+// Раньше хватало одного click по фону — а браузер отдаёт целью клика общего родителя.
+// Выделили текст в поле и увели курсор за карточку (или кликнули по нативному календарю) —
+// целью становился фон, и окно закрывалось вместе со всем введённым.
+// Теперь фон закрывает окно, только если и нажатие, и отпускание были на самом фоне,
+// а если в форме уже что-то введено — спрашиваем подтверждение.
+let bkBgDown = false;
+function bkFormDirty(){
+  return ["bkm-phone","bkm-name","bkm-guests","bkm-note"].some(id=>{
+    const el = document.getElementById(id);
+    return el && String(el.value||"").trim() !== "";
+  });
+}
+function bkWireBackdrop(modal){
+  if(!modal || modal.dataset.bkBgWired) return;
+  modal.dataset.bkBgWired = "1";
+  const down = e => { bkBgDown = (e.target === modal); };
+  modal.addEventListener("mousedown", down);
+  modal.addEventListener("touchstart", down, {passive:true});
+  modal.addEventListener("click", function(e){
+    const onBg = (e.target === modal) && bkBgDown;
+    bkBgDown = false;
+    if(!onBg) return;
+    if(bkFormDirty() && !confirm("Закрыть окно? Введённые данные не сохранятся.")) return;
+    bkCloseModal();
+  });
 }
 
 // ===== ЗАЯВКИ ОТ ГОСТЕЙ (status=request) =====
@@ -4681,6 +4753,115 @@ window.callReveal = callReveal;
 window.callOpen = callOpen; window.callResult = callResult;
 // ===== СТАТИСТИКА «ОТКУДА УЗНАЛИ О НАС» (админ) =====
 let BK_SRC_ROWS = null, BK_SRC_PERIOD = "this";
+/* ===== ЭКРАН НАСТРОЙКИ ОСОБЫХ ДАТ (админ и управляющий) ===== */
+async function bkReloadSpecials(){
+  const {data, error} = await sb.from("deposit_special_days").select("*").order("day");
+  if(error){ BK.data.specials = BK.data.specials||[]; return error.message; }
+  BK.data.specials = data||[];
+  return null;
+}
+async function bkOpenSpecials(){
+  document.getElementById("bkm-title").textContent = "Особые даты · депозиты";
+  document.getElementById("bkm-sub").textContent = "тариф действует только на указанный день";
+  document.getElementById("bkm-body").innerHTML = `<div class="bkm-msg">загрузка…</div>`;
+  document.getElementById("bk-modal").classList.add("open");
+  bkCurrentTable = null; bkCurrentBooking = null;
+  await ensureToken();
+  const err = await bkReloadSpecials();
+  bkRenderSpecials(err);
+}
+function bkSpecScopeLabel(r){
+  if(r.zone_id){
+    const z = (BK.data.zones||[]).find(x=>String(x.id)===String(r.zone_id));
+    return z ? z.title : ("зона "+r.zone_id);
+  }
+  if(r.venue_key) return r.venue_key==="club" ? "Клуб · вся площадка" : "Караоке · вся площадка";
+  return "Обе площадки";
+}
+function bkRenderSpecials(err){
+  const today = bkIso(bkToday());
+  const rows = (BK.data.specials||[]).filter(r=>String(r.day)>=today);
+  const zoneOpts = (BK.data.zones||[]).map(z=>{
+    const v = (BK.data.venues||[]).find(x=>x.id===z.venue_id);
+    const vk = v?v.key:"";
+    return `<option value="${vk}|${z.id}">${vk==="club"?"Клуб":"Караоке"} · ${z.title}</option>`;
+  }).join("");
+  const list = rows.length ? rows.map(r=>{
+    const what = r.amount ? bkFmtMoney(r.amount)+" сум" : ("×"+String(r.mult).replace(".",","));
+    return `<div class="bk-brow" style="align-items:center">
+      <div class="bk-when"><div class="t-tbl">${fmtD(fromIso(r.day))}</div><div class="t-zone">${fromIso(r.day).getFullYear()}</div></div>
+      <div class="bk-bmain">
+        <div class="bl-name">${bkSpecScopeLabel(r)} <span class="bl-times">${what}</span></div>
+        <div class="bl-meta">${r.note?String(r.note).replace(/</g,"&lt;"):"без примечания"}${r.created_by?" · "+r.created_by:""}</div>
+      </div>
+      <button class="bkm-btn danger" style="padding:8px 12px;font-size:12px" onclick="bkSpecDel('${r.id}')">Удалить</button>
+    </div>`;
+  }).join("") : `<div class="bkm-msg">Особых дат впереди нет — везде обычные тарифы.</div>`;
+
+  document.getElementById("bkm-body").innerHTML = `
+    ${err?`<div class="bkm-msg" style="color:var(--red)">${err}<br>Похоже, миграция deposit-special.sql ещё не прогнана.</div>`:""}
+    ${list}
+    <div class="bkm-field" style="margin-top:14px"><label>Новая особая дата</label></div>
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Дата</label><input id="bkspec-day" type="date" value="${today}"></div>
+      <div class="bkm-field"><label>Где</label>
+        <select id="bkspec-scope">
+          <option value="club|">Клуб · вся площадка</option>
+          <option value="karaoke|">Караоке · вся площадка</option>
+          ${zoneOpts}
+        </select></div>
+    </div>
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Множитель <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· напр. 2 = вдвое</span></label>
+        <input id="bkspec-mult" type="text" inputmode="decimal" placeholder="2"></div>
+      <div class="bkm-field"><label>Или сумма, сум</label>
+        <input id="bkspec-amount" type="text" inputmode="numeric" placeholder="5 000 000"></div>
+    </div>
+    <div class="bkm-field"><label>Примечание</label>
+      <input id="bkspec-note" type="text" placeholder="повод: концерт, праздник…"></div>
+    <div class="bkm-msg" id="bkspec-msg"></div>
+    <button class="bkm-btn primary" id="bkspec-add">Добавить</button>
+    <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">
+      Тариф действует только на выбранный день — на следующий всё возвращается к обычному.
+      Сумма важнее множителя. Правило по зоне перебивает правило по площадке.
+      Особые даты видит и приложение гостей.</div>`;
+  const amtEl = document.getElementById("bkspec-amount");
+  if(amtEl) amtEl.oninput = function(){ const d=this.value.replace(/[^\d]/g,""); this.value = d?fmtNum(d):""; };
+  const addBtn = document.getElementById("bkspec-add");
+  if(addBtn) addBtn.onclick = bkSpecAdd;
+}
+async function bkSpecAdd(){
+  const msg = document.getElementById("bkspec-msg");
+  const day = document.getElementById("bkspec-day").value;
+  if(!day){ msg.textContent = "Укажите дату"; return; }
+  const [venue_key, zone_id] = String(document.getElementById("bkspec-scope").value).split("|");
+  const mult = parseFloat(String(document.getElementById("bkspec-mult").value||"").replace(",","."));
+  const amount = parseNum(document.getElementById("bkspec-amount").value);
+  if(!(mult>0) && !(amount>0)){ msg.textContent = "Укажите множитель или сумму"; return; }
+  msg.textContent = "Сохраняем…";
+  const {error} = await sb.from("deposit_special_days").insert({
+    day, venue_key: venue_key||null, zone_id: zone_id||null,
+    mult: (amount>0) ? null : mult,
+    amount: (amount>0) ? amount : null,
+    note: document.getElementById("bkspec-note").value.trim()||null,
+    created_by: ME.name
+  });
+  if(error){ msg.textContent = error.message; return; }
+  msg.textContent = "";
+  await bkReloadSpecials();
+  bkRenderSpecials();
+  if(BK.mode==="booking") bkRender();
+}
+async function bkSpecDel(id){
+  if(!confirm("Убрать особый тариф на эту дату?")) return;
+  const {error} = await sb.from("deposit_special_days").delete().eq("id", id);
+  if(error){ const m=document.getElementById("bkspec-msg"); if(m) m.textContent=error.message; return; }
+  await bkReloadSpecials();
+  bkRenderSpecials();
+  if(BK.mode==="booking") bkRender();
+}
+window.bkSpecDel = bkSpecDel;
+
 async function bkOpenSrcStats(){
   document.getElementById("bkm-title").textContent = "Откуда узнали о нас";
   document.getElementById("bkm-sub").textContent = "загрузка…";
@@ -4966,7 +5147,8 @@ function bkModalNew(){
     <div class="bkm-field"><label>Гостей</label>
       <input id="bkm-guests" type="number" inputmode="numeric" min="1" placeholder="${t.capacity||""}"></div>
     <div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· считается автоматически, можно изменить</span></label>
-      <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}"></div>
+      <input id="bkm-dep" type="text" inputmode="numeric" value="${dep>0?bkFmtMoney(dep):"0"}">
+      ${bkSpecialHint(t, BK.date)}</div>
     <div class="bkm-field"><label>Комментарий <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
       <textarea id="bkm-note" class="bkm-textarea" rows="2" placeholder="Пожелания гостя, повод, детали…"></textarea></div>
     <div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
@@ -5041,19 +5223,24 @@ function bkModalExisting(){
   if(b.created_by_name) log += `Создал: ${b.created_by_name}${b.created_at?" · "+bkFmtDT(b.created_at):""}<br>`;
   if(b.edited_by_name)  log += `Изменил: ${b.edited_by_name}${b.edited_at?" · "+bkFmtDT(b.edited_at):""}<br>`;
   if(b.seated_by_name)  log += `Посадил: ${b.seated_by_name}${b.seated_at?" · "+bkFmtDT(b.seated_at):""}<br>`;
-  if(b.paid_by_name)    log += `Оплату отметил: ${b.paid_by_name}${b.paid_at?" · "+bkFmtDT(b.paid_at):""}<br>`;
+  if(b.paid_by_name)    log += (b.is_paid ? "Оплату отметил: " : "Отметка оплаты снята · ") + `${b.paid_by_name}${b.paid_at?" · "+bkFmtDT(b.paid_at):""}<br>`;
   if(b.finished_by_name)log += `Гости ушли: ${b.finished_by_name}${b.finished_at?" · "+bkFmtDT(b.finished_at):""}<br>`;
   const canEdit = BK.canEdit;
+  // пока не оплачено — «Отметить оплату»; после — «Снять отметку» (только руководство)
+  const payBtn = !showPay ? ""
+    : (!b.is_paid
+        ? `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`
+        : (bkCanUnpay() ? `<button class="bkm-btn secondary" id="bkm-unpay">Снять отметку оплаты</button>` : ""));
   let actions = "";
   if(canEdit){
     actions += `<button class="bkm-btn secondary" id="bkm-edit">✎ Изменить данные</button>`;
     if(!seated){
       actions += `<button class="bkm-btn primary" id="bkm-seat">Гости сели</button>`;
-      if(showPay && !b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+      actions += payBtn;
       actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
     } else {
       // гости сидят: можно отметить оплату и «гости ушли» (завершить, освободить стол)
-      if(showPay && !b.is_paid) actions += `<button class="bkm-btn gold" id="bkm-pay">Отметить оплату</button>`;
+      actions += payBtn;
       actions += `<button class="bkm-btn primary" id="bkm-finish">Гости ушли</button>`;
       actions += `<button class="bkm-btn danger" id="bkm-cancel">Снять бронь</button>`;
     }
@@ -5116,6 +5303,8 @@ function bkWireModalForm(editMode){
     if(editBtn) editBtn.onclick = ()=>bkOpenModal(bkCurrentTable.id, true); // открыть форму правки
     if(seat) seat.onclick = ()=>bkActionSeat();
     if(pay)  pay.onclick  = ()=>bkActionPay();
+    const unpay=document.getElementById("bkm-unpay");
+    if(unpay) unpay.onclick = ()=>bkActionUnpay();
     if(can)  can.onclick  = ()=>bkActionCancel();
     if(fin)  fin.onclick  = ()=>bkActionFinish();
     if(savedep) savedep.onclick = ()=>bkActionSaveDep();
@@ -5562,13 +5751,34 @@ async function bkActionSeat(){
   await bkNotify(b.id, "seated");
   await bkRefreshBookings(); bkCloseModal();
 }
+// снять отметку оплаты может только руководство
+function bkCanUnpay(){
+  return ["admin","upr","dir","manager"].includes(ME && ME.role);
+}
 async function bkActionPay(){
   const b=bkCurrentBooking; if(!b) return;
+  const dep = b.deposit_amount||0;
+  // подтверждение: раньше отметка ставилась одним тапом и снять её было нельзя
+  if(!confirm(`Отметить депозит ${bkFmtMoney(dep)} как оплаченный?\n\nПосле этого сумму депозита изменить нельзя, а снять отметку сможет только руководство.`)) return;
   bkMsg("…",true);
   const {error}=await sb.from("bookings").update({is_paid:true, paid_by_name:ME.name, paid_at:new Date().toISOString()}).eq("id",b.id);
   if(error){ bkMsg(error.message); return; }
   await bkRefreshBookings(); bkCloseModal();
 }
+// снять ошибочную отметку оплаты; кто поставил и кто снял — остаётся в журнале брони
+async function bkActionUnpay(){
+  const b=bkCurrentBooking; if(!b) return;
+  if(!bkCanUnpay()){ bkMsg("Снять отметку оплаты может только руководство"); return; }
+  if(!confirm("Снять отметку «оплачено»?\n\nДепозит снова станет редактируемым. В журнале брони останется, кто поставил и кто снял отметку.")) return;
+  const who = b.paid_by_name ? `отметил(а) ${b.paid_by_name}, снял(а) ${ME.name}` : `снял(а) ${ME.name}`;
+  bkMsg("…",true);
+  const {error}=await sb.from("bookings").update({
+    is_paid:false, paid_by_name:who, paid_at:new Date().toISOString()
+  }).eq("id",b.id);
+  if(error){ bkMsg(error.message); return; }
+  await bkRefreshBookings(); bkCloseModal();
+}
+window.bkActionUnpay = bkActionUnpay;
 async function bkActionCancel(){
   const b=bkCurrentBooking; if(!b) return;
   if(!confirm("Снять бронь со стола "+(bkCurrentTable?bkCurrentTable.name:"")+"?")) return;
