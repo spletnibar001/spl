@@ -1074,7 +1074,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 29.08 · сборка 2";
+const GUEST_VERSION = "v 29.08 · сборка 3";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -2082,8 +2082,7 @@ function bkfDrawForm(){
     const spLine = sp ? `<div class="bk-bizday">★ ${t('bk_dep_special')}${sp.note?" · "+String(sp.note).replace(/</g,"&lt;"):""}</div>` : "";
     depBlock = `<label class="bk-lbl">${t('bk_dep')}</label>
       <div class="bk-input" style="opacity:.95"><b>${val}</b></div>
-      ${spLine}
-      <div class="bk-bizday">${t('bk_dep_note')}</div>`;
+      ${spLine}`;
   }
 
   body.innerHTML = `
