@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1070,6 +1071,25 @@ const CLUB_ZONES = [
 ];
 
 
+// ============ ВЕРСИЯ ============
+// Виден внизу главной страницы. Если там не последний номер — открылась
+// старая версия из кэша (обновите страницу / очистите кэш Telegram).
+const GUEST_VERSION = "v 29.08 · сборка 2";
+(function(){
+  function showGuestVer(){
+    if(document.getElementById("guest-ver")) return;
+    if(!document.body) return;
+    const d = document.createElement("div");
+    d.id = "guest-ver";
+    d.style.cssText = "position:relative;text-align:center;padding:14px 0 26px;"
+      + "font-size:11px;letter-spacing:.05em;color:rgba(255,255,255,.35)";
+    d.textContent = GUEST_VERSION;
+    document.body.appendChild(d);
+  }
+  showGuestVer();
+  document.addEventListener("DOMContentLoaded", showGuestVer);
+})();
+
 // ============ СЛОВАРЬ ИНТЕРФЕЙСА (ru/uz/en) ============
 const T = {
   karaoke: {ru:"Караоке", uz:"Karaoke", en:"Karaoke", kz:"Караоке", kg:"Караоке", tj:"Караоке", cn:"卡拉OK"},
@@ -1102,6 +1122,23 @@ const T = {
   daily: {ru:"Ежедневно", uz:"Har kuni", en:"Daily", kz:"Күн сайын", kg:"Күн сайын", tj:"Ҳар рӯз", cn:"每天"},
   weekdays: {ru:"Будни", uz:"Ish kunlari", en:"Weekdays", kz:"Жұмыс күндері", kg:"Иш күндөрү", tj:"Рӯзҳои корӣ", cn:"工作日"},
   weekend: {ru:"Пт–Сб", uz:"Juma–Shanba", en:"Fri–Sat", kz:"Жм–Сб", kg:"Жм–Иш", tj:"Ҷм–Шн", cn:"周五–周六"},
+  bk_dep:      {ru:"Депозит", uz:"Depozit", en:"Deposit"},
+  bk_dep_none: {ru:"без депозита", uz:"depozitsiz", en:"no deposit"},
+  bk_dep_wd_note: {ru:"В будни депозит зависит от стола — хостес назовёт сумму при подтверждении брони.",
+                   uz:"Ish kunlarida depozit stolga bog'liq — xostes bronni tasdiqlashda summani aytadi.",
+                   en:"On weekdays the deposit depends on the table — the hostess will tell you the amount when confirming."},
+  bk_dep_special: {ru:"На эту дату действует особый тариф",
+                   uz:"Bu sanaga maxsus tarif amal qiladi",
+                   en:"A special rate applies on this date"},
+  bk_dep_note: {ru:"Пятница и суббота — тариф выходного дня. После 02:00 депозита нет.",
+                uz:"Juma va shanba — dam olish kuni tarifi. 02:00 dan keyin depozit yo'q.",
+                en:"Friday and Saturday use the weekend rate. After 2:00 there is no deposit."},
+  bk_g_more:   {ru:"больше · по запросу", uz:"ko'proq · so'rov bo'yicha", en:"more · on request"},
+  bk_g_upto:   {ru:"до", uz:"gacha", en:"up to"},
+  bk_g_ppl:    {ru:"чел. за столом", uz:"kishi bir stolda", en:"guests per table"},
+  bk_g_hint:   {ru:"Больше гостей — соберём несколько столов, хостес перезвонит.",
+                uz:"Ko'proq mehmon bo'lsa — bir nechta stol qo'shamiz, xostes qo'ng'iroq qiladi.",
+                en:"For a bigger group we will join several tables — the hostess will call you back."},
   soon: {ru:"Раздел в разработке", uz:"Bo'lim ishlab chiqilmoqda", en:"Coming soon", kz:"Бөлім әзірленуде", kg:"Бөлүм даярдалууда", tj:"Бахш дар тайёрӣ", cn:"栏目开发中"},
   soon_sub: {ru:"Скоро здесь появятся фото залов и онлайн-бронирование столов.", uz:"Tez orada bu yerda zallar fotosi va onlayn bron paydo bo'ladi.", en:"Photos of the halls and online table booking will appear here soon.", kz:"Жақында мұнда залдардың фотосы мен онлайн брондау пайда болады.", kg:"Жакында бул жерде залдардын фотосу жана онлайн брондоо пайда болот.", tj:"Ба зудӣ дар ин ҷо аксҳои толорҳо ва бронкунии онлайн пайдо мешавад.", cn:"大厅照片和在线预订即将上线。"},
   bk_venue: {ru:"Заведение", uz:"Muassasa", en:"Venue", kz:"Мекеме", kg:"Мекеме", tj:"Муассиса", cn:"场所"},
@@ -1523,13 +1560,117 @@ function bkfPlaceLabel(tableId){
 // загрузка справочников (заведения + зоны + столы) из базы
 async function bkfLoadRef(){
   if(BK_REF) return BK_REF;
-  const [v,z,tb] = await Promise.all([
+  const [v,z,tb,sp] = await Promise.all([
     SB.from("venues").select("*").order("id"),
     SB.from("zones").select("*").order("sort"),
     SB.from("tables").select("*").order("id"),
+    SB.from("deposit_special_days").select("*").order("day"),   // особые даты; нет таблицы — просто пусто
   ]);
-  BK_REF = { venues:v.data||[], zones:z.data||[], tables:(tb.data||[]).filter(x=>!x.archived) };
+  BK_REF = { venues:v.data||[], zones:z.data||[],
+             tables:(tb.data||[]).filter(x=>!x.archived), specials:sp.data||[] };
   return BK_REF;
+}
+
+/* ===== ДЕПОЗИТЫ И ВМЕСТИМОСТЬ ЗОНЫ (из таблицы tables) ===== */
+function bkfZoneTables(zoneId){
+  if(!BK_REF || !zoneId) return [];
+  return BK_REF.tables.filter(x=>x.zone_id===zoneId);
+}
+// максимум гостей за ОДНИМ столом зоны; 0 = тарифов/вместимости нет
+function bkfZoneMaxGuests(zoneId){
+  const caps = bkfZoneTables(zoneId).map(x=>Number(x.capacity)||0).filter(v=>v>0);
+  return caps.length ? Math.max(...caps) : 0;
+}
+function bkfMoney(n){ return Number(n||0).toLocaleString("ru-RU").replace(/\u00A0/g," "); }
+// пятница и суббота — тариф выходного
+function bkfIsWeekendIso(dateIso){
+  if(!dateIso) return false;
+  const [y,m,d] = String(dateIso).split("-").map(Number);
+  const dw = new Date(y, m-1, d).getDay();
+  return dw===5 || dw===6;
+}
+// разброс тарифов по зоне: {wdMin,wdMax,weMin,weMax}; null — тарифы не заданы
+function bkfZoneDeposit(zoneId){
+  const ts = bkfZoneTables(zoneId);
+  const wd = ts.map(x=>Number(x.deposit_weekday)||0).filter(v=>v>0);
+  const we = ts.map(x=>Number(x.deposit_weekend)||0).filter(v=>v>0);
+  if(!wd.length && !we.length) return null;
+  return {
+    wdMin: wd.length?Math.min(...wd):0, wdMax: wd.length?Math.max(...wd):0,
+    weMin: we.length?Math.min(...we):0, weMax: we.length?Math.max(...we):0,
+  };
+}
+// «2 000 000» либо «от 1 000 000», если столы зоны по разной цене
+function bkfDepRange(min, max, fromWord){
+  if(!max) return null;
+  return (min && min!==max) ? `${fromWord} ${bkfMoney(min)}` : bkfMoney(max);
+}
+// особая дата: тариф выше (или ниже) обычного только на этот день
+function bkfSpecialFor(dateIso, venueKey, zoneId){
+  const rows = ((BK_REF && BK_REF.specials) || []).filter(r =>
+    String(r.day)===String(dateIso) &&
+    (!r.venue_key || r.venue_key===venueKey) &&
+    (!r.zone_id   || String(r.zone_id)===String(zoneId)));
+  if(!rows.length) return null;
+  const rank = r => (r.zone_id?2:0) + (r.venue_key?1:0);
+  return rows.slice().sort((a,b)=>rank(b)-rank(a))[0];
+}
+function bkfSpecialForTable(tbl, dateIso){
+  if(!tbl || !BK_REF) return null;
+  const z = BK_REF.zones.find(x=>x.id===tbl.zone_id);
+  const v = z ? BK_REF.venues.find(x=>x.id===z.venue_id) : null;
+  return bkfSpecialFor(dateIso, v?v.key:null, z?z.id:null);
+}
+// показываем ли гостю сумму: только пятница/суббота либо особая дата
+function bkfShowDeposit(dateIso, zoneId){
+  if(bkfIsWeekendIso(dateIso)) return true;
+  if(!zoneId) return false;
+  const z = BK_REF && BK_REF.zones.find(x=>x.id===zoneId);
+  const v = z ? BK_REF.venues.find(x=>x.id===z.venue_id) : null;
+  return !!bkfSpecialFor(dateIso, v?v.key:null, zoneId);
+}
+// депозит конкретного стола на дату и время (зеркало расчёта в приложении персонала)
+function bkfTableDeposit(tbl, dateIso, timeStr){
+  if(!tbl) return 0;
+  let dep = Number(bkfIsWeekendIso(dateIso) ? tbl.deposit_weekend : tbl.deposit_weekday) || 0;
+  const sp = bkfSpecialForTable(tbl, dateIso);
+  if(sp){
+    if(sp.amount) dep = Number(sp.amount)||0;
+    else if(sp.mult) dep = Math.round(dep * (Number(sp.mult)||1));
+  }
+  if(timeStr){
+    // отсечка заведения: караоке 02:00, клуб 03:00 — ночью после неё депозита нет
+    let cutoff = "02:00";
+    try{
+      const z = BK_REF.zones.find(z=>z.id===tbl.zone_id);
+      const v = z ? BK_REF.venues.find(v=>v.id===z.venue_id) : null;
+      if(v && v.deposit_cutoff) cutoff = String(v.deposit_cutoff).slice(0,5);
+    }catch(_){}
+    const [h,mi] = String(timeStr).split(":").map(Number);
+    const [ch,cm] = cutoff.split(":").map(Number);
+    const mins = h*60+mi, cmins = ch*60+cm;
+    if(mins < 5*60 && mins >= cmins) dep = 0;   // ночные часы после отсечки
+  }
+  return dep;
+}
+// депозит зоны на дату — по самому дешёвому столу зоны (гостю показываем «от»)
+function bkfZoneDepositFor(zoneId, dateIso, timeStr){
+  const ts = bkfZoneTables(zoneId);
+  if(!ts.length) return null;
+  const vals = ts.map(x=>bkfTableDeposit(x, dateIso, timeStr)).filter(v=>v>0);
+  if(!vals.length) return 0;
+  return { min: Math.min(...vals), max: Math.max(...vals) };
+}
+
+// представительный стол зоны: самый дешёвый из тех, куда помещается компания
+function bkfPickTable(zoneId, guests){
+  const ts = bkfZoneTables(zoneId);
+  if(!ts.length) return null;
+  const n = (guests && guests!=="more") ? Number(guests) : 0;
+  const fit = n ? ts.filter(x=>(Number(x.capacity)||0) >= n) : ts.slice();
+  const pool = fit.length ? fit : ts.slice();
+  const price = x => Number(bkfIsWeekendIso(BK_STATE.date) ? x.deposit_weekend : x.deposit_weekday) || 0;
+  return pool.slice().sort((a,b)=>price(a)-price(b))[0] || null;
 }
 
 // зоны выбранного заведения
@@ -1896,8 +2037,54 @@ function bkfDrawForm(){
     return `<button data-bt="${tm}" ${passed?'disabled class="past"':`class="${BK_STATE.time===tm?'on':''}"`}>${tm}</button>`;
   }).join("") + `</div>`;
 
-  const guestOpts = [1,2,3,4,5,6,8,10,12,15,20].map(n=>
-    `<option value="${n}" ${BK_STATE.guests==n?'selected':''}>${n}${n>=20?'+':''}</option>`).join("");
+  // количество гостей ограничиваем вместимостью самого большого стола выбранной зоны;
+  // для компаний крупнее — вариант «больше · по запросу», хостес соберёт столы вручную
+  const maxCap = bkfZoneMaxGuests(BK_STATE.zoneId);
+  let steps = [1,2,3,4,5,6,8,10,12,15,20];
+  if(maxCap){
+    steps = steps.filter(n=>n<=maxCap);
+    if(!steps.includes(maxCap)) steps.push(maxCap);
+    steps.sort((a,b)=>a-b);
+  }
+  // выбранное раньше число больше вместимости (сменили зону) — сбрасываем
+  if(BK_STATE.guests && BK_STATE.guests!=="more" && maxCap && Number(BK_STATE.guests) > maxCap) BK_STATE.guests = null;
+  const guestOpts = steps.map(n=>
+    `<option value="${n}" ${BK_STATE.guests==n?'selected':''}>${n}</option>`).join("")
+    + `<option value="more" ${BK_STATE.guests==="more"?'selected':''}>${t('bk_g_more')}</option>`;
+  const guestHint = maxCap
+    ? `<div class="bk-bizday">${t('bk_g_upto')} ${maxCap} ${t('bk_g_ppl')}. ${t('bk_g_hint')}</div>` : "";
+
+  // депозит выбранной зоны на выбранную дату и время
+  const depShow = bkfShowDeposit(BK_STATE.date, BK_STATE.zoneId);
+  const depInfo = depShow ? bkfZoneDepositFor(BK_STATE.zoneId, BK_STATE.date, BK_STATE.time) : null;
+  let depBlock = "";
+  if(!depShow && BK_STATE.zoneId){
+    // будни — сумма не публикуется, хостес называет её при подтверждении
+    depBlock = `<label class="bk-lbl">${t('bk_dep')}</label>
+      <div class="bk-input" style="opacity:.95"><b>${pick(ZONE_DEP_NOTE.request)}</b></div>
+      <div class="bk-bizday">${t('bk_dep_wd_note')}</div>`;
+  }
+  if(depInfo !== null){
+    // число гостей выбрано — показываем точную сумму того стола, который подберётся
+    const depTbl = (BK_STATE.guests && BK_STATE.guests!=="more")
+      ? bkfPickTable(BK_STATE.zoneId, BK_STATE.guests) : null;
+    let val;
+    if(depTbl){
+      const d = bkfTableDeposit(depTbl, BK_STATE.date, BK_STATE.time);
+      val = d>0 ? bkfMoney(d) : t('bk_dep_none');
+    } else {
+      val = (depInfo === 0 || !depInfo.max)
+        ? t('bk_dep_none')
+        : bkfDepRange(depInfo.min, depInfo.max, pick(ZONE_DEP_NOTE.from));
+    }
+    const spTbl = bkfPickTable(BK_STATE.zoneId, BK_STATE.guests) || (bkfZoneTables(BK_STATE.zoneId)[0]);
+    const sp = bkfSpecialForTable(spTbl, BK_STATE.date);
+    const spLine = sp ? `<div class="bk-bizday">★ ${t('bk_dep_special')}${sp.note?" · "+String(sp.note).replace(/</g,"&lt;"):""}</div>` : "";
+    depBlock = `<label class="bk-lbl">${t('bk_dep')}</label>
+      <div class="bk-input" style="opacity:.95"><b>${val}</b></div>
+      ${spLine}
+      <div class="bk-bizday">${t('bk_dep_note')}</div>`;
+  }
 
   body.innerHTML = `
     <div class="bk-note">${t('bk_intro')}</div>
@@ -1917,6 +2104,9 @@ function bkfDrawForm(){
 
     <label class="bk-lbl">${t('bk_guests')}</label>
     <select id="bk-guests" class="bk-input"><option value="">—</option>${guestOpts}</select>
+    ${guestHint}
+
+    ${depBlock}
 
     <label class="bk-lbl">${t('bk_phone')}</label>
     <input id="bk-phone" class="bk-input" type="tel" inputmode="tel" placeholder="+998 __ ___ __ __" value="${BK_STATE.phone||''}">
@@ -1936,6 +2126,8 @@ function bkfDrawForm(){
     const fmt=()=>{ phEl.value = bkfFmtPhoneInput(phEl.value); };
     phEl.oninput=fmt; fmt();
   }
+  const gEl = document.getElementById("bk-guests");
+  if(gEl) gEl.onchange = ()=>{ bkfSaveInputs(); bkfDrawForm(); };   // сумма депозита зависит от числа гостей
   document.getElementById("bk-submit").onclick = bkfSubmit;
 }
 
@@ -2025,14 +2217,21 @@ async function bkfSubmit(){
     const zone = BK_REF.zones.find(z=>z.id===BK_STATE.zoneId);
     const venue = BK_REF.venues.find(v=>v.id===zone.venue_id);
     // представительный стол выбранной зоны (персонал переназначит при подтверждении)
-    const tbl = BK_REF.tables.find(x=>x.zone_id===zone.id);
+    const tbl = bkfPickTable(zone.id, BK_STATE.guests) || BK_REF.tables.find(x=>x.zone_id===zone.id);
     if(!tbl){ bkfMsg("Зона недоступна, выберите другую"); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
-    const guests = BK_STATE.guests?Number(BK_STATE.guests):null;
+    const isMore = BK_STATE.guests === "more";
+    const guests = (BK_STATE.guests && !isMore) ? Number(BK_STATE.guests) : null;
+    // депозит по тарифу стола на выбранную дату — чтобы сумма была видна и гостю, и персоналу
+    const depAmount = bkfTableDeposit(tbl, BK_STATE.date, BK_STATE.time);
+    const capNote = isMore
+      ? ("Компания больше " + (bkfZoneMaxGuests(zone.id) || "") + " чел. — нужен подбор столов")
+      : null;
     // время прихода -> timestamptz; ночные часы (00:00-04:59) = следующий календарный день
     const arriveAt = bkfComposeArrive(BK_STATE.date, BK_STATE.time);
     const noteParts = [
       "🌐 Заявка с сайта",
+      capNote,
       BK_STATE.comment?("Коммент: "+BK_STATE.comment.trim()):null
     ].filter(Boolean);
 
@@ -2045,7 +2244,7 @@ async function bkfSubmit(){
       guests_count: guests,
       phone: phone,
       note: noteParts.join(" · "),
-      deposit_amount: 0,
+      deposit_amount: depAmount,
       is_paid: false,
       created_by: Number(GUEST.tg_id),
       created_by_name: GUEST.name
@@ -2119,7 +2318,8 @@ function renderZones(){
     if (z.cap && pick(z.cap)) {
       tags.push(`<span class="zone-tag"><svg class="zt-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 6a3 3 0 0 1 0 6M21 20c0-2.5-2-4-4-4.5"/></svg><b>${pick(z.cap)}</b></span>`);
     }
-    tags.push(`<span class="zone-tag">${pick(Z.deposit)}: <b>${pick(Z.request)}</b></span>`);
+    // подставляется после загрузки справочников (bkfFillZoneDeps); пока — «по запросу»
+    tags.push(`<span class="zone-tag" id="zdep-${z.id}">${pick(Z.deposit)}: <b>${pick(Z.request)}</b></span>`);
 
     const note = z.note ? `<div class="zone-note">${pick(z.note)}</div>` : "";
 
@@ -2138,6 +2338,7 @@ function renderZones(){
   el.innerHTML = `
     <div class="sec-head"><button class="back" data-go="home">←</button><h2>${ZONE_VENUE==='karaoke'?t('karaoke'):t('club')} · ${t('zones_t')}</h2></div>
     ${cards}`;
+  bkfFillZoneDeps(zones);   // реальные тарифы из базы вместо «по запросу»
 
   // навигация разделов
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
@@ -2161,27 +2362,46 @@ function renderZones(){
     // сопоставляем карточную зону с зоной из базы
     try{
       await bkfLoadRef();
-      if(card && BK_REF && BK_REF.zones){
-        const cname = (card.name && card.name.ru ? card.name.ru : "").trim().toLowerCase();
-        const dbZones = bkfZonesFor(BK_STATE.venue);
-        const norm = s => String(s||"").trim().toLowerCase();
-        // 1) точное совпадение по названию
-        let match = dbZones.find(z=>norm(z.title)===cname);
-        // 2) по ключевому слову (карточки детальные: «Кабинка №1», «Летка (…)», и т.д.)
-        if(!match){
-          const cid = String(cardId);
-          let kw = null;
-          if(/^cab|^vip/.test(cid) || /кабин/.test(cname)) kw = "кабин";
-          else if(cid==="letka" || /летк/.test(cname)) kw = "летк";
-          else if(cid==="big" || /больш/.test(cname)) kw = "больш";
-          else if(cid==="small" || /мал/.test(cname)) kw = "мал";
-          if(kw) match = dbZones.find(z=>norm(z.title).includes(kw));
-        }
-        if(match) BK_STATE.zoneId = match.id;
-      }
+      const match = bkfMatchZoneCard(card, BK_STATE.venue);
+      if(match) BK_STATE.zoneId = match.id;
     }catch(_){}
     BK_GOTO_FORM = true;   // гость явно идёт бронировать конкретную зону — открываем форму сразу
     go("book");
+  });
+}
+
+// карточка витрины -> зона из базы (по названию, затем по ключевому слову)
+function bkfMatchZoneCard(card, venueKey){
+  if(!card || !BK_REF || !BK_REF.zones) return null;
+  const norm = v => String(v||"").trim().toLowerCase();
+  const cname = norm(card.name && card.name.ru ? card.name.ru : "");
+  const dbZones = bkfZonesFor(venueKey);
+  let match = dbZones.find(z=>norm(z.title)===cname);
+  if(!match){
+    const cid = String(card.id||"");
+    let kw = null;
+    if(/^cab|^vip/.test(cid) || /кабин/.test(cname)) kw = "кабин";
+    else if(cid==="letka" || /летк/.test(cname)) kw = "летк";
+    else if(cid==="big" || /больш/.test(cname)) kw = "больш";
+    else if(cid==="small" || /мал/.test(cname)) kw = "мал";
+    if(kw) match = dbZones.find(z=>norm(z.title).includes(kw));
+  }
+  return match || null;
+}
+// подставить в карточки витрины реальные тарифы: «будни 1 000 000 · Пт–Сб 2 000 000»
+async function bkfFillZoneDeps(cards){
+  try{ await bkfLoadRef(); }catch(_){ return; }
+  const Z = ZONE_DEP_NOTE;
+  (cards||[]).forEach(card=>{
+    const el = document.getElementById("zdep-"+card.id);
+    if(!el) return;
+    const match = bkfMatchZoneCard(card, ZONE_VENUE);
+    const d = match ? bkfZoneDeposit(match.id) : null;
+    if(!d) return;                       // тарифы не заданы — оставляем «по запросу»
+    // гостю публикуем только тариф выходного дня; в будни остаётся «по запросу»
+    const we = bkfDepRange(d.weMin, d.weMax, pick(Z.from));
+    if(!we) return;
+    el.innerHTML = `${pick(Z.deposit)}: <b>${pick(Z.we)} ${we}</b>`;
   });
 }
 
