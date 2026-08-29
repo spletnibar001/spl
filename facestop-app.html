@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Фейс-стоп · SPLETNI</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#0b0a08; --panel:#141210; --panel2:#1b1814; --line:#2b2419;
+    --gold:#d4af37; --gold-soft:#e8cf8b; --gold-dim:#8a7433;
+    --text:#efe9dd; --muted:#9c9284;
+    --green:#4caf7d; --red:#d9534f; --amber:#e0a63b;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 50% -10%, #1a1509 0%, var(--bg) 60%);
+    color:var(--text);min-height:100vh;padding-bottom:40px;
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px}
+
+  header.top{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .title{font-size:22px;font-weight:700;letter-spacing:.5px;
+    background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);font-size:13px;margin-top:3px}
+  .stats{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 14px;min-width:92px}
+  .stat b{display:block;font-size:20px;color:var(--gold-soft);line-height:1.1}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .search{position:relative;flex:1 1 240px}
+  .search input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    color:var(--text);padding:11px 14px 11px 38px;font-size:14px;outline:none}
+  .search input:focus{border-color:var(--gold-dim)}
+  .search svg{position:absolute;left:12px;top:11px;opacity:.55}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    border-radius:999px;padding:9px 15px;font-size:13px;cursor:pointer;user-select:none}
+  .chip:hover{color:var(--text)}
+  .chip.on{border-color:var(--green);color:var(--text);box-shadow:0 0 0 1px rgba(76,175,125,.25) inset}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:12px;
+    padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit}
+  .btn:hover{border-color:var(--gold-dim)}
+  .btn.gold{background:linear-gradient(180deg,#3a2f12,#241d0c);border-color:var(--gold-dim);color:var(--gold-soft)}
+  .btn.danger{border-color:#4a2320;color:#f0b6b3}
+  .btn.danger:hover{border-color:var(--red)}
+  .btn[disabled]{opacity:.5;cursor:default}
+
+  .msg{display:none;margin-bottom:12px;padding:11px 14px;border-radius:12px;font-size:13.5px;
+    border:1px solid #4a2320;background:#20100e;color:#f0b6b3}
+  .msg.on{display:block}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+    display:flex;flex-direction:column;cursor:pointer;transition:.15s}
+  .card:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+  .card.removed{opacity:.5}
+  .ph{position:relative;aspect-ratio:1/1;background:#0d0b09;overflow:hidden}
+  .ph img{width:100%;height:100%;object-fit:cover;display:block}
+  .ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.75) 100%)}
+  .badges{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;z-index:2}
+  .badge{font-size:11px;padding:4px 9px;border-radius:999px;background:rgba(10,9,7,.8);border:1px solid var(--line)}
+  .badge.new{border-color:var(--green);color:#b6e7ce}
+  .badge.debt{border-color:var(--amber);color:#f3d79a}
+  .badge.ban{border-color:var(--red);color:#f2b8b5}
+  .badge.watch{border-color:var(--gold-dim);color:var(--gold-soft)}
+  .ph .nm{position:absolute;left:10px;right:10px;bottom:8px;z-index:2;font-weight:600;font-size:15px;text-shadow:0 2px 8px #000}
+  .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .reason{font-size:13px;color:#d9d1c2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+    overflow:hidden;min-height:38px}
+  .meta{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;margin-top:auto}
+  .tg{color:var(--gold-dim)}
+  .empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:50px 10px}
+
+  .ov{position:fixed;inset:0;background:rgba(5,4,3,.8);backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .ov.on{display:flex}
+  .modal{background:var(--panel2);border:1px solid var(--line);border-radius:18px;width:min(880px,100%);
+    max-height:92vh;overflow:auto;display:grid;grid-template-columns:340px 1fr}
+  @media(max-width:720px){.modal{grid-template-columns:1fr}}
+  .modal .pic{background:#0d0b09}
+  .modal .pic img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover}
+  .thumbs{display:flex;gap:6px;padding:8px;flex-wrap:wrap}
+  .thumbs img{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+  .modal .side{padding:18px;display:flex;flex-direction:column;gap:12px}
+  .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+  .fld input,.fld textarea{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);padding:9px 12px;font-size:14px;outline:none;font-family:inherit}
+  .fld textarea{min-height:70px;resize:vertical}
+  .fld input:focus,.fld textarea:focus{border-color:var(--gold-dim)}
+  .log{border-top:1px solid var(--line);padding-top:10px;font-size:12.5px;color:var(--muted);
+    display:flex;flex-direction:column;gap:6px;max-height:150px;overflow:auto}
+  .log b{color:#cfc6b5;font-weight:600}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .close{position:absolute;top:14px;right:16px;font-size:26px;color:var(--muted);cursor:pointer;z-index:60}
+
+  /* вход по коду */
+  .gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px;z-index:80}
+  .gate.on{display:flex}
+  .gate .box{width:min(340px,100%);text-align:center}
+  .gate .title{font-size:20px;margin-bottom:6px}
+  .gate p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .gate input{width:100%;text-align:center;letter-spacing:2px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;color:var(--text);padding:13px;font-size:16px;outline:none;font-family:inherit}
+  .gate input:focus{border-color:var(--gold-dim)}
+  .gate .btn{width:100%;margin-top:10px;padding:13px}
+  .gate .err{color:#f0b6b3;font-size:13px;min-height:18px;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="title">ФЕЙС-СТОП</div>
+      <div class="sub" id="sub">Загрузка...</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="sActive">-</b><span>в стопе</span></div>
+      <div class="stat"><b id="sNew">-</b><span>новых</span></div>
+      <div class="stat"><b id="sDebt">-</b><span>долги</span></div>
+      <div class="stat"><b id="sOff">-</b><span>сняты</span></div>
+    </div>
+  </header>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="bar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Поиск по имени, причине, автору">
+    </div>
+    <div class="chips" id="chips"></div>
+    <button class="btn gold" id="addBtn">Добавить вручную</button>
+    <button class="btn" id="reload">Обновить</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="ov" id="ov">
+  <div style="position:relative;width:min(880px,100%)">
+    <span class="close" id="ovClose">&times;</span>
+    <div class="modal">
+      <div class="pic">
+        <img id="mImg" alt="">
+        <div class="thumbs" id="mThumbs"></div>
+      </div>
+      <div class="side">
+        <div class="fld"><label>Имя / кличка</label><input id="mName" placeholder="Без имени"></div>
+        <div class="fld"><label>Причина</label><textarea id="mReason"></textarea></div>
+        <div class="fld"><label>Тип</label><div class="chips" id="mKinds"></div></div>
+        <div class="fld" id="mAmountWrap" style="display:none"><label>Сумма долга, сум</label><input id="mAmount" inputmode="numeric"></div>
+        <div class="fld"><label>Заметка</label><textarea id="mNote" placeholder="Что важно знать охране"></textarea></div>
+        <div class="log" id="mLog"></div>
+        <div class="acts">
+          <button class="btn gold" id="mSave">Сохранить</button>
+          <button class="btn" id="mAddPhoto">Ещё фото</button>
+          <button class="btn danger" id="mToggle">Снять со стопа</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="gate" id="gate">
+  <div class="box">
+    <div class="title">ФЕЙС-СТОП</div>
+    <p>Введите код доступа</p>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+    <button class="btn gold" id="pinGo">Войти</button>
+    <div class="err" id="pinErr"></div>
+  </div>
+</div>
+
+<input type="file" id="file" accept="image/*" style="display:none">
+
+<script>
+/* ============ настройки ============ */
+var API = "https://wtncocptetgcjsumavev.supabase.co/functions/v1/facestop-api";
+var KINDS = { ban:"Отказ", debt:"Долг", watch:"Наблюдение" };
+var FILTERS = [["all","Все"],["new","Новые"],["debt","Долги"],["ban","Отказ"],["watch","Наблюдение"],["removed","Снятые"]];
+
+var $ = function(id){ return document.getElementById(id); };
+var auth = "", me = null, rows = [], filter = "all", query = "", current = null, photoTarget = "new";
+
+/* ============ хранение кода ============ */
+function savePin(v){ try { localStorage.setItem("fs_pin", v); } catch (e) {} }
+function loadPin(){ try { return localStorage.getItem("fs_pin") || ""; } catch (e) { return ""; } }
+function dropPin(){ try { localStorage.removeItem("fs_pin"); } catch (e) {} }
+
+/* ============ запросы ============ */
+async function api(action, payload){
+  var res = await fetch(API, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-fs-auth": auth },
+    body: JSON.stringify(Object.assign({ action: action }, payload || {})),
+  });
+  var data = null;
+  try { data = await res.json(); } catch (e) { data = { error: "сервер вернул не JSON" }; }
+  if (!res.ok) throw new Error(data && data.error ? data.error : "ошибка " + res.status);
+  return data;
+}
+
+function fail(e){
+  $("msg").textContent = String(e && e.message ? e.message : e);
+  $("msg").classList.add("on");
+  setTimeout(function(){ $("msg").classList.remove("on"); }, 6000);
+}
+
+/* ============ утилиты ============ */
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c];
+  });
+}
+function money(v){ return v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : ""; }
+function day(s){ return s ? String(s).slice(0, 10).split("-").reverse().join(".") : ""; }
+var BLANK = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="#141210"/>' +
+  '<text x="150" y="155" font-family="Arial" font-size="14" fill="#6b6154" text-anchor="middle">фото недоступно</text></svg>');
+
+/* ============ список ============ */
+function matches(r){
+  if (filter === "removed") { if (r.status !== "removed") return false; }
+  else if (r.status !== "active") return false;
+  if (filter === "new" && !r.is_new) return false;
+  if (["debt","ban","watch"].indexOf(filter) !== -1 && r.kind !== filter) return false;
+  if (query) {
+    var hay = ((r.display_name || "") + " " + (r.reason || "") + " " + (r.tg_author || "")).toLowerCase();
+    if (hay.indexOf(query.toLowerCase()) === -1) return false;
+  }
+  return true;
+}
+
+function renderChips(){
+  $("chips").innerHTML = FILTERS.map(function(f){
+    return '<div class="chip' + (filter === f[0] ? " on" : "") + '" data-f="' + f[0] + '">' + f[1] + "</div>";
+  }).join("");
+}
+
+function renderStats(){
+  var a = rows.filter(function(r){ return r.status === "active"; });
+  $("sActive").textContent = a.length;
+  $("sNew").textContent = a.filter(function(r){ return r.is_new; }).length;
+  $("sDebt").textContent = a.filter(function(r){ return r.kind === "debt"; }).length;
+  $("sOff").textContent = rows.filter(function(r){ return r.status === "removed"; }).length;
+}
+
+function render(){
+  renderChips();
+  renderStats();
+  var list = rows.filter(matches);
+  if (!list.length){ $("grid").innerHTML = '<div class="empty">Ничего не найдено</div>'; return; }
+  $("grid").innerHTML = list.map(function(r){
+    var b = "";
+    if (r.is_new && r.status === "active") b += '<span class="badge new">новое из группы</span>';
+    b += '<span class="badge ' + r.kind + '">' + KINDS[r.kind] + (r.kind === "debt" && r.amount ? " · " + money(r.amount) : "") + "</span>";
+    if (r.status === "removed") b += '<span class="badge">снят</span>';
+    return '<div class="card' + (r.status === "removed" ? " removed" : "") + '" data-id="' + r.id + '">' +
+      '<div class="ph"><img src="' + (r.photo_url || BLANK) + '" alt=""><div class="badges">' + b + "</div>" +
+      '<div class="nm">' + esc(r.display_name || "Без имени") + "</div></div>" +
+      '<div class="body"><div class="reason">' + esc(r.reason) + "</div>" +
+      '<div class="meta"><span class="tg">' + esc(r.tg_author || "") + "</span><span>" + day(r.created_at) + "</span></div>" +
+      "</div></div>";
+  }).join("");
+}
+
+async function load(){
+  try {
+    var data = await api("list");
+    me = data.me;
+    rows = data.rows || [];
+    $("sub").textContent = "Вы вошли как " + me.name + " · " + (me.role === "owner" ? "владелец" : me.role === "manager" ? "менеджер" : "охрана");
+    var canEdit = me.role === "owner" || me.role === "manager";
+    $("addBtn").style.display = canEdit ? "" : "none";
+    render();
+  } catch (e) {
+    if (String(e.message).indexOf("Доступ") !== -1){ dropPin(); showGate("Код не подошёл"); }
+    else fail(e);
+  }
+}
+
+/* ============ карточка ============ */
+async function openCard(id){
+  try {
+    var data = await api("card", { id: id });
+    current = data.guest;
+    $("mImg").src = current.photo_url || BLANK;
+    $("mThumbs").innerHTML = (data.photos || []).map(function(p){
+      return '<img src="' + (p.photo_url || BLANK) + '" alt="">';
+    }).join("");
+    $("mName").value = current.display_name || "";
+    $("mReason").value = current.reason || "";
+    $("mNote").value = current.note || "";
+    $("mAmount").value = current.amount || "";
+    renderKinds();
+    $("mLog").innerHTML = (data.log || []).map(function(l){
+      var what = { created:"создана", edited:"изменена", removed:"снят со стопа", restored:"возвращён", photo_added:"добавлено фото" }[l.action] || l.action;
+      return "<div><b>" + esc(l.actor || "") + "</b> · " + what + ' <span style="opacity:.7">' + day(l.at) + "</span></div>";
+    }).join("");
+    var owner = me && me.role === "owner";
+    var canEdit = me && (me.role === "owner" || me.role === "manager");
+    $("mToggle").style.display = owner ? "" : "none";
+    $("mSave").style.display = canEdit ? "" : "none";
+    $("mAddPhoto").style.display = canEdit ? "" : "none";
+    $("mToggle").textContent = current.status === "active" ? "Снять со стопа" : "Вернуть в стоп";
+    $("ov").classList.add("on");
+    if (current.is_new) api("seen", { id: id }).catch(function(){});
+  } catch (e) { fail(e); }
+}
+
+function renderKinds(){
+  $("mKinds").innerHTML = Object.keys(KINDS).map(function(k){
+    return '<div class="chip' + (current.kind === k ? " on" : "") + '" data-k="' + k + '">' + KINDS[k] + "</div>";
+  }).join("");
+  $("mAmountWrap").style.display = current.kind === "debt" ? "" : "none";
+}
+
+function closeCard(){ $("ov").classList.remove("on"); current = null; }
+
+/* ============ фото ============ */
+function shrink(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var max = 1000;
+        var k = Math.min(1, max / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = function(){ reject(new Error("не удалось прочитать изображение")); };
+      img.src = reader.result;
+    };
+    reader.onerror = function(){ reject(new Error("не удалось прочитать файл")); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============ события ============ */
+$("chips").addEventListener("click", function(e){
+  var c = e.target.closest(".chip"); if (!c) return;
+  filter = c.dataset.f; render();
+});
+$("q").addEventListener("input", function(e){ query = e.target.value.trim(); render(); });
+$("reload").addEventListener("click", load);
+$("grid").addEventListener("click", function(e){
+  var c = e.target.closest(".card"); if (!c) return;
+  openCard(c.dataset.id);
+});
+$("ovClose").addEventListener("click", closeCard);
+$("ov").addEventListener("click", function(e){ if (e.target === $("ov")) closeCard(); });
+$("mThumbs").addEventListener("click", function(e){
+  if (e.target.tagName === "IMG") $("mImg").src = e.target.src;
+});
+$("mKinds").addEventListener("click", function(e){
+  var c = e.target.closest(".chip"); if (!c || !current) return;
+  current.kind = c.dataset.k; renderKinds();
+});
+
+$("mSave").addEventListener("click", async function(){
+  if (!current) return;
+  try {
+    await api("save", {
+      id: current.id,
+      display_name: $("mName").value.trim(),
+      reason: $("mReason").value.trim(),
+      kind: current.kind,
+      amount: $("mAmount").value,
+      note: $("mNote").value.trim(),
+    });
+    closeCard();
+    await load();
+  } catch (e) { fail(e); }
+});
+
+$("mToggle").addEventListener("click", async function(){
+  if (!current) return;
+  try {
+    var to = current.status === "active" ? "removed" : "active";
+    var why = to === "removed" ? (prompt("Причина снятия со стопа:") || "") : "";
+    await api("status", { id: current.id, status: to, reason: why });
+    closeCard();
+    await load();
+  } catch (e) { fail(e); }
+});
+
+$("addBtn").addEventListener("click", function(){ photoTarget = "new"; $("file").click(); });
+$("mAddPhoto").addEventListener("click", function(){ photoTarget = "card"; $("file").click(); });
+
+$("file").addEventListener("change", async function(e){
+  var f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    var dataUrl = await shrink(f);
+    if (photoTarget === "card" && current){
+      await api("photo", { id: current.id, photo: dataUrl });
+      var id = current.id; closeCard(); await load(); openCard(id);
+    } else {
+      var res = await api("add", { photo: dataUrl, kind: "ban", reason: "" });
+      await load();
+      if (res.id) openCard(res.id);
+    }
+  } catch (err) { fail(err); }
+});
+
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeCard(); });
+
+/* ============ вход ============ */
+function showGate(err){
+  $("gate").classList.add("on");
+  $("pinErr").textContent = err || "";
+}
+$("pinGo").addEventListener("click", function(){
+  var v = $("pin").value.trim();
+  if (!v) return;
+  auth = "pin " + v;
+  savePin(v);
+  $("gate").classList.remove("on");
+  load();
+});
+$("pin").addEventListener("keydown", function(e){ if (e.key === "Enter") $("pinGo").click(); });
+
+(function start(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg && tg.initData){
+    try { tg.ready(); tg.expand(); } catch (e) {}
+    auth = "tma " + tg.initData;
+    load();
+    return;
+  }
+  var saved = loadPin();
+  if (saved){ auth = "pin " + saved; load(); return; }
+  showGate("");
+})();
+</script>
+</body>
+</html>
