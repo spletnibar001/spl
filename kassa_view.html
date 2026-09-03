@@ -170,7 +170,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v34";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v35";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -220,7 +220,15 @@ function isFixedSalary(cp){
   return FIXED_PREFIXES_V.some(p=>words.includes(p));
 }
 function isPctSalary(cp){ return Object.keys(PCT_CPS_V).some(k=>normName(k)===normName(cp)); } // % от кассы (АРТ) — долг тоже вычитается из ЗП
-function autoSalaryDebt(cp){ return isFixedSalary(cp) || isPctSalary(cp); }
+// Долг вычитается из ЗП автоматически только пока идёт оклад. После даты «оклад по»
+// (увольнение) долг становится обычным и должен показываться в долгах персонала — как в кассе.
+function salaryEndedFor(cp){
+  const m = S.salaryEnd || {};
+  const k = Object.keys(m).find(x=>normName(x)===normName(cp));
+  if(!k || !m[k]) return false;
+  return bizToday().slice(0,7) > String(m[k]).slice(0,7);
+}
+function autoSalaryDebt(cp){ return (isFixedSalary(cp) || isPctSalary(cp)) && !salaryEndedFor(cp); }
 const fmt = n => (n<0?"−":"") + Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 function shiftDate(iso, n){ const d = new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function human(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]+", "+d.getDate()+" "+MON[d.getMonth()]; }
@@ -228,19 +236,21 @@ function humanDM(iso){ const d = new Date(iso+"T12:00:00"); return d.getDate()+"
 function humanDOW(iso){ const d = new Date(iso+"T12:00:00"); return DOW[d.getDay()]; }
 function bizToday(){ const d = new Date(Date.now() - 17*3600*1000); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function dayEntries(iso){ return S.entries.filter(e=>e.bizDate===iso && !e.deleted); }
-function daySums(iso){ let inn=0,out=0; for(const e of dayEntries(iso)){ if(e.method==="card") continue; if(e.type==="in") inn+=e.amount; else out+=e.amount; } return {inn,out}; }
+function daySums(iso){ let inn=0,out=0; for(const e of dayEntries(iso)){ if(e.method==="card" || e.kind==="offset") continue; if(e.type==="in") inn+=e.amount; else out+=e.amount; } return {inn,out}; }
 function openingOf(iso){ if(!S.openingSet) return 0; if(iso < S.firstDate) return 0; let bal = S.firstOpening, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed){ bal = day.fact; } else { const s = daySums(d); bal = bal + s.inn - s.out; } d = shiftDate(d,1); } return bal; }
 function currentBalance(iso){ const s = daySums(iso); return openingOf(iso) + s.inn - s.out; }
-function dayInClean(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.method==="card" || e.kind==="cardfix") continue; inn+=e.amount; } return inn; }
-function dayInAll(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.kind==="cardfix") continue; inn+=e.amount; } return inn; }
-function daySpendBreakdown(iso){ let nal=0, beznal=0, card=0; for(const e of dayEntries(iso)){ if(e.type!=="out" || e.kind==="cardfix") continue; if(e.method==="card"){ card+=e.amount; continue; } if(e.cat==="Без.нал"){ beznal+=e.amount; continue; } nal+=e.amount; } return {nal, beznal, card, total: nal+beznal+card}; }
+function dayInClean(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.method==="card" || e.kind==="cardfix" || e.kind==="offset") continue; inn+=e.amount; } return inn; }
+function dayInAll(iso){ let inn=0; for(const e of dayEntries(iso)){ if(e.type!=="in" || e.kind==="cardfix" || e.kind==="offset") continue; inn+=e.amount; } return inn; }
+function daySpendBreakdown(iso){ let nal=0, beznal=0, card=0; for(const e of dayEntries(iso)){ if(e.type!=="out" || e.kind==="cardfix" || e.kind==="offset") continue; if(e.method==="card"){ card+=e.amount; continue; } if(e.cat==="Без.нал"){ beznal+=e.amount; continue; } nal+=e.amount; } return {nal, beznal, card, total: nal+beznal+card}; }
 function dayRevCp(iso,cpName){ let v=0; for(const e of dayEntries(iso)){ if(e.type!=="in"||e.kind==="cardfix"||e.cat!=="Чистая выручка") continue; if(normName(e.cp)===normName(cpName)) v+=e.amount; } return v; }
 function cardDaySum(iso){ let v=0; for(const e of dayEntries(iso)){ if(e.method!=="card") continue; v += (e.type==="in"? e.amount : -e.amount); } return v; }
 function cardOpeningOf(iso){ if(!S.openingSet) return 0; if(iso <= S.firstDate) return S.cardStart || 0; let bal = S.cardStart || 0, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed && day.cardFact!==undefined){ bal = day.cardFact; } else { bal = bal + cardDaySum(d); } d = shiftDate(d,1); } return bal; }
 function cardBalance(iso){ if(!S.openingSet) return 0; if(iso && iso < S.firstDate) return 0; return cardOpeningOf(iso) + cardDaySum(iso); }
 function debtBalance(cp){ let bal = 0; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue; bal += (e.type==="out"? e.amount : -e.amount); } return bal; }
 function izyatieTotal(){ const n=normName("ИЗЪЯТИЕ"); let v=0; for(const e of S.entries){ if(e.deleted||normName(e.cp)!==n) continue; v+=(e.type==="out"?e.amount:-e.amount); } return v; }
-function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp || !e.orderNo) continue; if(!acc[e.orderNo]) acc[e.orderNo] = {orderNo:e.orderNo, cat:e.cat, out:0, inn:0, date:e.bizDate, venue:null}; if(e.type==="out"){ acc[e.orderNo].out += e.amount; if(e.bizDate<acc[e.orderNo].date) acc[e.orderNo].date=e.bizDate; if(e.venue) acc[e.orderNo].venue=e.venue; } else acc[e.orderNo].inn += e.amount; } return Object.values(acc).map(a=>({...a, left: a.out-a.inn})).filter(a=>a.left>0).sort((a,b)=>a.date.localeCompare(b.date)); }
+function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp || !e.orderNo) continue; if(!acc[e.orderNo]) acc[e.orderNo] = {orderNo:e.orderNo, cat:e.cat, out:0, inn:0, date:e.bizDate, venue:null}; if(e.type==="out"){ acc[e.orderNo].out += e.amount; if(e.bizDate<acc[e.orderNo].date) acc[e.orderNo].date=e.bizDate; if(e.venue) acc[e.orderNo].venue=e.venue; } else acc[e.orderNo].inn += e.amount; } let _l = Object.values(acc).map(a=>({...a, left: a.out-a.inn})).filter(a=>a.left>0).sort((a,b)=>a.date.localeCompare(b.date));
+  if(autoSalaryDebt(cp)){ const _cur=bizToday().slice(0,7); _l=_l.filter(a=>String(a.date||"").slice(0,7)>=_cur); }   // месяц прошёл — заказы удержаны из ЗП
+  return _l; }
 function venueBadge(v){ if(!v) return ""; const c=v==="клуб"?"#8fb3d4":"#E8C97A"; const t=v==="клуб"?"КЛУБ":"КАРАОКЕ"; return '<span class="badge" style="border-color:'+c+';color:'+c+'">'+t+'</span>'; }
 function debtTotalsSplit(mk){ const st = debtStaffSet(); const seen = new Set(); const r = {staffCur:0, staffOld:0, guestCur:0, guestOld:0}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); const isStaff = st.has(normName(e.cp)); if(isStaff && autoSalaryDebt(e.cp)) continue; if(!isStaff && isWriteoff(e.cp)) continue; for(const o of openDebts(e.cp)){ const cur = o.date.slice(0,7)===mk; if(isStaff){ if(cur) r.staffCur+=o.left; else r.staffOld+=o.left; } else { if(cur) r.guestCur+=o.left; else r.guestOld+=o.left; } } } return r; }
 function debtList(){ const st = debtStaffSet(); const seen = new Set(); const out = []; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(e.cp)) continue; seen.add(e.cp); if(st.has(normName(e.cp)) && autoSalaryDebt(e.cp)) continue; if(!st.has(normName(e.cp)) && isWriteoff(e.cp)) continue; const bal = debtBalance(e.cp); if(bal<=0) continue; const open = openDebts(e.cp); const note = open.length ? ("счетов: "+open.length+" · с "+open[0].date) : ""; const firstDate = open.length ? open[0].date : null; const venues=[...new Set(open.map(o=>o.venue).filter(Boolean))]; out.push({cp:e.cp, isStaff: st.has(normName(e.cp)), bal, note, firstDate, venues}); } return out.sort((a,b)=>b.bal-a.bal); }
@@ -562,22 +572,68 @@ function expShiftMonth(mk,n){ let p=mk.split("-").map(Number),y=p[0],m=p[1]+n; w
 function expNavMonth(n){ EXPM=expShiftMonth(EXPM||((VD||"").slice(0,7)),n); renderExpenses(); }
 // шоу-программа (диджеи, МС, гоу-гоу, массовка, шоу, оркестр) — как isDailyStage в кассе (роли Сцена/Шоу)
 function isShowRole(cp){ if(/БЭКВОКАЛ/.test(normName(cp))) return true; const w=String(cp).trim().split(/\s+/)[0].toUpperCase(); return ["DJ","MC","МС","ГОУ-ГОУ","МАССОВКА","ШОУ","ОРКЕСТР"].includes(w); }
+/* ===== Месяц расхода по примечанию (добавлено 02.09.2026) =====
+   Часть расходов оплачивается в следующем месяце: кальяны за 21–31 августа провели 2 сентября,
+   и вся сумма падала в сентябрьскую аналитику. Если в примечании явно назван другой период —
+   «за август», «за Август 2026», «за период с 21.08 по 31.08» — расход учитывается в ТОМ месяце.
+   Требуем слово «за» перед месяцем/датой, иначе имена вроде «Марта» ловились бы как месяц.
+   На кассу и остаток дня это не влияет: там деньги считаются по дню операции. */
+const _MONW_RE = /(январ[ья]|феврал[ья]|марта?|апрел[ья]|ма[йя]|июн[ья]|июл[ья]|августа?|сентябр[ья]|октябр[ья]|ноябр[ья]|декабр[ья])/;
+const _MONW_LIST = ["январ","феврал","март","апрел","ма","июн","июл","август","сентябр","октябр","ноябр","декабр"];
+function _monIdx(w){
+  w = String(w||"");
+  for(let i=_MONW_LIST.length-1; i>=0; i--){ if(w.indexOf(_MONW_LIST[i])===0 && !(i===4 && w.indexOf("март")===0)) return i; }
+  return -1;
+}
+function noteMonthKey(note, dateIso){
+  const t = " " + String(note||"").toLowerCase().replace(/\u0451/g,"е") + " ";
+  if(t.indexOf(" за ") < 0 && t.indexOf(" за-") < 0) return null;
+  const base = String(dateIso||"");
+  const bY = +base.slice(0,4), bM = +base.slice(5,7);
+  if(!bY || !bM) return null;
+  const mk = (y,m)=> y + "-" + String(m).padStart(2,"0");
+  const re = /(^|[^a-zа-я])за([^a-zа-я])/g;
+  let g, wins = [];
+  while((g = re.exec(t)) !== null) wins.push(t.slice(g.index, g.index + 52));
+  for(const w of wins){
+    const mw = _MONW_RE.exec(w);
+    const dt = /(\d{1,2})[.\-\/](\d{1,2})(?:[.\-\/](\d{2,4}))?/.exec(w);
+    if(mw){
+      const i = _monIdx(mw[1]); if(i < 0) continue;
+      const yy = /(20\d{2})/.exec(w);
+      let y = yy ? +yy[1] : (i + 1 > bM ? bY - 1 : bY);
+      return mk(y, i + 1);
+    }
+    if(dt){
+      const mm = +dt[2];
+      if(mm >= 1 && mm <= 12){
+        let y = dt[3] ? (dt[3].length === 2 ? 2000 + (+dt[3]) : +dt[3]) : (mm > bM ? bY - 1 : bY);
+        return mk(y, mm);
+      }
+    }
+  }
+  return null;
+}
+// месяц, в котором расход должен попасть в аналитику
+function entryMonthKey(e){ return noteMonthKey(e.note, e.bizDate) || String(e.bizDate||"").slice(0,7); }
+function payMonthKey(p){ return noteMonthKey(p.note, p.date) || String(p.date||"").slice(0,7); }
 function expReport(mk){
   const inM=d=>(d||"").slice(0,7)===mk;
   const fot={"Караоке":0,"Клуб":0,"Общий":0}, fotP={};
   const show={"Караоке":0,"Клуб":0,"Общий":0}, showP={};
-  for(const e of S.entries){ if(e.deleted||e.type!=="out"||!SAL_CATS.includes(e.cat)||!inM(e.bizDate)) continue;
+  // kind "offset" — зачёт заказов в зарплату: денег не выходило, в ФОТ не идёт (как в кассе)
+  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="offset"||!SAL_CATS.includes(e.cat)||!inM(entryMonthKey(e))) continue;
     const v=e.cat==="Зар.плата КАРАОКЕ"?"Караоке":(e.cat==="Зар.плата КЛУБ"?"Клуб":"Общий");
     if(isShowRole(e.cp)){ show[v]+=e.amount; if(!showP[e.cp])showP[e.cp]={n:e.cp,a:0,cnt:0}; showP[e.cp].a+=e.amount; showP[e.cp].cnt++; }
     else { fot[v]+=e.amount; if(!fotP[e.cp])fotP[e.cp]={n:e.cp,a:0,cnt:0}; fotP[e.cp].a+=e.amount; fotP[e.cp].cnt++; } }
   const fotTotal=fot.Караоке+fot.Клуб+fot.Общий;
   const showTotal=show.Караоке+show.Клуб+show.Общий;
   const gs={},gi={}; EXPENSE_GROUPS.forEach(g=>{gs[g]=0;gi[g]={};});
-  for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(p.date)) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0}; gi[g][k].a+=p.amount; gi[g][k].cnt++; }
+  for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(payMonthKey(p))) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0}; gi[g][k].a+=p.amount; gi[g][k].cnt++; }
   // касса-расходы по группам (маршрут через cashGroupOf) — как в кассе
   const cgs={},cgi={};
   for(const e of S.entries){
-    if(e.deleted||e.kind==="cardfix"||!inM(e.bizDate)) continue;
+    if(e.deleted||e.kind==="cardfix"||!inM(entryMonthKey(e))) continue;
     if(SAL_CATS.includes(e.cat)||DEBT_CATS.includes(e.cat)||EXP_EXCLUDE.has(e.cat)||e.cat==="Невозвратные") continue;
     const g=cashGroupOf(e.cat,e.cp); if(!cgi[g]){cgs[g]=0;cgi[g]={};}
     const k=e.cp||e.cat; if(!cgi[g][k])cgi[g][k]={n:k,a:0,cnt:0,inA:0};
@@ -588,13 +644,13 @@ function expReport(mk){
   const _staffSet=debtStaffSet();
   let nevoz=0; const nevozI={};
   for(const e of S.entries){
-    if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue;
+    if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(entryMonthKey(e))) continue;
     const isCat=e.cat==="Невозвратные"; const isWoGuest=DEBT_CATS.includes(e.cat) && !_staffSet.has(normName(e.cp)) && isWriteoff(e.cp);
     if(!isCat&&!isWoGuest) continue;
     nevoz+=e.amount; const k=e.cp||e.cat; if(!nevozI[k])nevozI[k]={n:k,a:0,cnt:0}; nevozI[k].a+=e.amount; nevozI[k].cnt++;
   }
   let nal=0,card=0;
-  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(e.bizDate)) continue; const fc=SAL_CATS.includes(e.cat); const other=!fc&&!DEBT_CATS.includes(e.cat)&&!EXP_EXCLUDE.has(e.cat)&&e.cat!=="Невозвратные"; if(!fc&&!other) continue; if(e.method==="card")card+=e.amount; else nal+=e.amount; }
+  for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||e.kind==="offset"||!inM(entryMonthKey(e))) continue; const fc=SAL_CATS.includes(e.cat); const other=!fc&&!DEBT_CATS.includes(e.cat)&&!EXP_EXCLUDE.has(e.cat); if(!fc&&!other) continue; if(e.method==="card")card+=e.amount; else nal+=e.amount; }
   const bez=EXPENSE_GROUPS.reduce((s,g)=>s+(gs[g]||0),0);
   let revKar=0,revClub=0;
   for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||!inM(e.bizDate)) continue; const s=e.type==="in"?1:-1; if(normName(e.cp)===normName("Касса КАРАОКЕ"))revKar+=s*e.amount; else if(normName(e.cp)===normName("Касса КЛУБ"))revClub+=s*e.amount; }
