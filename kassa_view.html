@@ -170,7 +170,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v35";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v36";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -247,7 +247,9 @@ function cardDaySum(iso){ let v=0; for(const e of dayEntries(iso)){ if(e.method!
 function cardOpeningOf(iso){ if(!S.openingSet) return 0; if(iso <= S.firstDate) return S.cardStart || 0; let bal = S.cardStart || 0, d = S.firstDate; while(d < iso){ const day = S.days[d]; if(day && day.closed && day.cardFact!==undefined){ bal = day.cardFact; } else { bal = bal + cardDaySum(d); } d = shiftDate(d,1); } return bal; }
 function cardBalance(iso){ if(!S.openingSet) return 0; if(iso && iso < S.firstDate) return 0; return cardOpeningOf(iso) + cardDaySum(iso); }
 function debtBalance(cp){ let bal = 0; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue; bal += (e.type==="out"? e.amount : -e.amount); } return bal; }
-function izyatieTotal(){ const n=normName("ИЗЪЯТИЕ"); let v=0; for(const e of S.entries){ if(e.deleted||normName(e.cp)!==n) continue; v+=(e.type==="out"?e.amount:-e.amount); } return v; }
+// списания изъятия хранятся в настройках (appstate), а не операцией дня — как в кассе
+function izyatieWrittenOff(){ let v=0; for(const w of (S.izyatieWriteoffs||[])) v += Number(w.amount)||0; return v; }
+function izyatieTotal(){ const n=normName("ИЗЪЯТИЕ"); let v=0; for(const e of S.entries){ if(e.deleted||normName(e.cp)!==n) continue; v+=(e.type==="out"?e.amount:-e.amount); } return v - izyatieWrittenOff(); }
 function openDebts(cp){ const acc = {}; for(const e of S.entries){ if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp || !e.orderNo) continue; if(!acc[e.orderNo]) acc[e.orderNo] = {orderNo:e.orderNo, cat:e.cat, out:0, inn:0, date:e.bizDate, venue:null}; if(e.type==="out"){ acc[e.orderNo].out += e.amount; if(e.bizDate<acc[e.orderNo].date) acc[e.orderNo].date=e.bizDate; if(e.venue) acc[e.orderNo].venue=e.venue; } else acc[e.orderNo].inn += e.amount; } let _l = Object.values(acc).map(a=>({...a, left: a.out-a.inn})).filter(a=>a.left>0).sort((a,b)=>a.date.localeCompare(b.date));
   if(autoSalaryDebt(cp)){ const _cur=bizToday().slice(0,7); _l=_l.filter(a=>String(a.date||"").slice(0,7)>=_cur); }   // месяц прошёл — заказы удержаны из ЗП
   return _l; }
