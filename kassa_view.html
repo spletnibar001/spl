@@ -170,7 +170,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v36";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v37";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -587,6 +587,18 @@ function _monIdx(w){
   for(let i=_MONW_LIST.length-1; i>=0; i--){ if(w.indexOf(_MONW_LIST[i])===0 && !(i===4 && w.indexOf("март")===0)) return i; }
   return -1;
 }
+/* Год для месяца, названного в примечании без года: берём тот, при котором месяц ближе
+   всего к дате операции. «за сентябрь» на платеже от 29 августа — сентябрь ТОГО ЖЕ года
+   (предоплата вперёд, случай VEDA), а «за декабрь» на записи от 10 февраля — декабрь
+   прошлого. Раньше любой месяц «позже текущего» уезжал на год назад (найдено 07.09.2026). */
+function _nearYear(m1, bY, bM){
+  let best = bY, bestD = Infinity;
+  for(const y of [bY - 1, bY, bY + 1]){
+    const d = Math.abs((y * 12 + m1) - (bY * 12 + bM));
+    if(d < bestD){ bestD = d; best = y; }
+  }
+  return best;
+}
 function noteMonthKey(note, dateIso){
   const t = " " + String(note||"").toLowerCase().replace(/\u0451/g,"е") + " ";
   if(t.indexOf(" за ") < 0 && t.indexOf(" за-") < 0) return null;
@@ -603,13 +615,13 @@ function noteMonthKey(note, dateIso){
     if(mw){
       const i = _monIdx(mw[1]); if(i < 0) continue;
       const yy = /(20\d{2})/.exec(w);
-      let y = yy ? +yy[1] : (i + 1 > bM ? bY - 1 : bY);
+      let y = yy ? +yy[1] : _nearYear(i + 1, bY, bM);
       return mk(y, i + 1);
     }
     if(dt){
       const mm = +dt[2];
       if(mm >= 1 && mm <= 12){
-        let y = dt[3] ? (dt[3].length === 2 ? 2000 + (+dt[3]) : +dt[3]) : (mm > bM ? bY - 1 : bY);
+        let y = dt[3] ? (dt[3].length === 2 ? 2000 + (+dt[3]) : +dt[3]) : _nearYear(mm, bY, bM);
         return mk(y, mm);
       }
     }
