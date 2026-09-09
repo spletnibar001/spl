@@ -98,6 +98,25 @@ main{padding:14px 14px calc(90px + env(safe-area-inset-bottom))}
 .calc .l:last-child{border-bottom:none}.calc .l b{color:var(--cream);font-weight:600}
 .calc .l.gold b{color:var(--gold);font-weight:800;font-size:16px}
 .card-wrap{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:6px 16px}
+/* Плитки ежемесячных платежей — как на кассе, только для чтения (v38) */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media(max-width:420px){.tiles{grid-template-columns:1fr}}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:96px;display:flex;flex-direction:column;gap:3px}
+.tile.paid{border-color:var(--in);background:rgba(93,168,110,.10)}
+.tile.pre{border-color:var(--in);border-style:dashed;background:rgba(93,168,110,.05)}
+.tile.late{border-color:var(--out)}
+.tile .thead{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.tile .grp{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tile .tag{flex:none;font-size:8px;letter-spacing:.07em;white-space:nowrap;border:1px solid;border-radius:20px;padding:1px 6px;font-weight:800}
+.tile .nm{font-size:13px;font-weight:700;color:var(--cream);line-height:1.2}
+.tile .note{font-size:10.5px;color:var(--ash);line-height:1.25}
+.tile .amt2{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--cream);margin-top:auto}
+.tile .st{font-size:10px;color:var(--ash)}
+.tlegend{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:10.5px;color:var(--ash)}
+.tsw{display:inline-block;width:10px;height:10px;border-radius:3px;border:1px solid var(--line);vertical-align:-1px;margin-right:4px}
+.tsw.paid{border-color:var(--in);background:rgba(93,168,110,.35)}
+.tsw.pre{border-color:var(--in);border-style:dashed}
+.tsw.late{border-color:var(--out)}
 .pill-tabs{display:flex;gap:8px;margin:4px 4px 12px;overflow-x:auto}
 .pill-tabs button{white-space:nowrap;background:var(--panel2);border:1px solid var(--line);color:var(--ash);border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:600}
 .pill-tabs button.on{background:#221B0E;border-color:var(--gold-dim);color:var(--gold)}
@@ -170,7 +189,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v37";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v38";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -503,6 +522,7 @@ function renderBank(){
     '</div>'+
     '<div class="card-wrap calc"><div class="l gold"><div>Итого за день (приход − расход)</div><b style="color:'+(ds.net<0?'var(--out)':'var(--in)')+'">'+(ds.net<0?"−":"+")+fmt(Math.abs(ds.net))+'</b></div></div>'+
     '<div class="kpi wide" style="border:2px solid var(--gold);background:rgba(232,201,122,.08);margin-top:10px"><div class="t" style="color:var(--gold)">Должно быть на счёте · на конец дня</div><div class="v" style="color:var(--gold)">≈ '+fmt(balEnd)+'</div></div>';
+  html+=monthlyBillsHtmlV();
   if(dayPays.length) html+='<div class="sect">Платежи со счёта за день</div><div class="rows">'+dayPays.map(p=>'<div class="row r-out"><div class="who">'+esc(p.category||"платёж")+(p.payee?' · '+esc(p.payee):'')+' '+grpBadge(groupOfPayment(p))+'<small>'+esc(p.date)+(p.note?' · '+esc(p.note):'')+'</small></div><div class="amt out">−'+fmt(p.amount)+'</div></div>').join("")+'</div>';
   if(dayRcv.length) html+='<div class="sect">Приходы на счёт за день</div><div class="rows">'+dayRcv.map(r=>'<div class="row r-in"><div class="who">'+(r.from?esc(r.from):"Приход на счёт")+'<small>'+esc(r.date)+(r.note?' · '+esc(r.note):'')+'</small></div><div class="amt in">+'+fmt(r.amount)+'</div></div>').join("")+'</div>';
   // график расходов по группам за месяц выбранного дня (как в кассе на ПК)
@@ -631,6 +651,100 @@ function noteMonthKey(note, dateIso){
 // месяц, в котором расход должен попасть в аналитику
 function entryMonthKey(e){ return noteMonthKey(e.note, e.bizDate) || String(e.bizDate||"").slice(0,7); }
 function payMonthKey(p){ return noteMonthKey(p.note, p.date) || String(p.date||"").slice(0,7); }
+
+/* ===== ЕЖЕМЕСЯЧНЫЕ ПЛАТЕЖИ · ПЛИТКИ (v38) =====
+   Ровно тот же расчёт, что в кассе: список счетов и ручные отметки приходят в appstate
+   (S.monthlyBills / S.monthlyMarks), состояние плитки считается по платежам со счёта.
+   Здесь только просмотр — отметить оплату вручную можно лишь в кассе. */
+function vMonthlyBills(){ return Array.isArray(S.monthlyBills) ? S.monthlyBills : []; }
+function vBillMarks(){ return (S.monthlyMarks && typeof S.monthlyMarks==="object") ? S.monthlyMarks : {}; }
+function vBillMarkKey(id, mk){ return String(id)+"|"+mk; }
+function vBillShift(b){ const n = Number(b && b.shift); return (isFinite(n) && n>0) ? Math.min(12, Math.round(n)) : 0; }
+function vBillMatches(b, p){ return b.kind==="cat" ? String(p.category||"")===String(b.key) : normName(p.payee||"")===normName(b.key); }
+function vBillForPayment(p){
+  const cands = vMonthlyBills().filter(b=>vBillMatches(b, p));
+  if(!cands.length) return null;
+  if(cands.length===1) return cands[0].id;
+  const pn = normName(p.note||"");
+  const byNote = cands.filter(b=>b.note && pn && pn.indexOf(normName(b.note))>=0);
+  if(byNote.length===1) return byNote[0].id;
+  const pool = byNote.length ? byNote : cands;
+  let best = pool[0], bd = Infinity;
+  for(const b of pool){ const d = Math.abs((Number(b.amount)||0) - (Number(p.amount)||0)); if(d < bd){ bd = d; best = b; } }
+  return best.id;
+}
+function vBillCoverMk(b, p){
+  const n = noteMonthKey(p.note, p.date);
+  if(n) return n;
+  const base = String(p.date||"").slice(0,7);
+  const sh = vBillShift(b);
+  return sh ? expShiftMonth(base, sh) : base;
+}
+function vBillState(b, mk){
+  let sum = 0, last = "";
+  for(const p of ((S.bank&&S.bank.payments)||[])){
+    if(vBillForPayment(p) !== b.id) continue;
+    if(vBillCoverMk(b, p) !== mk) continue;
+    sum += Number(p.amount)||0;
+    const d = String(p.date||""); if(d > last) last = d;
+  }
+  const mark = vBillMarks()[vBillMarkKey(b.id, mk)] || null;
+  const paid = sum > 0;
+  const cur = bizToday().slice(0,7);
+  const sh = vBillShift(b);
+  const pmk = sh ? expShiftMonth(mk, -sh) : mk;
+  let late = false;
+  if(!paid && !mark){
+    if(pmk < cur) late = true;
+    else if(pmk === cur && b.due>0 && Number(bizToday().slice(8,10)) > b.due) late = true;
+  }
+  return { paid, mark, late, sum, last, pmk, float: !paid && !(Number(b.amount)>0) };
+}
+function vBillsMk(){ return window._vBillMk || bizToday().slice(0,7); }
+function vBillsNav(n){ window._vBillMk = expShiftMonth(vBillsMk(), n); renderBank(); }
+function vBillsToday(){ window._vBillMk = bizToday().slice(0,7); renderBank(); }
+function vMonPre(i){ const nm=(MON_NOM[i]||"").toLowerCase(); return i===4 ? "мае" : nm.replace(/ь$/,"")+"е"; }
+function monthlyBillsHtmlV(){
+  const bills = vMonthlyBills();
+  if(!bills.length) return "";
+  const mk = vBillsMk(), cur = bizToday().slice(0,7);
+  const st = bills.map(b=>({b, s:vBillState(b, mk)}));
+  const paidSum = st.filter(x=>x.s.paid).reduce((a,x)=>a+x.s.sum,0);
+  const leftSum = st.filter(x=>!x.s.paid && !x.s.mark).reduce((a,x)=>a+(Number(x.b.amount)||0),0);
+  const doneCnt = st.filter(x=>x.s.paid || x.s.mark).length;
+  const tiles = st.map(({b,s})=>{
+    const cls = s.paid ? "paid" : (s.mark ? "pre" : (s.late ? "late" : ""));
+    let tag = "";
+    if(s.mark) tag = '<div class="tag" style="border-color:var(--in);color:var(--in)">ВПЕРЁД</div>';
+    else if(!s.paid && b.due>0) tag = '<div class="tag" style="border-color:'+(s.late?"var(--out)":"var(--gold-dim)")+';color:'+(s.late?"var(--out)":"var(--gold-dim)")+'">СРОК '+b.due+'</div>';
+    else if(!s.paid && vBillShift(b)) tag = '<div class="tag" style="border-color:var(--gold-dim);color:var(--gold-dim)">АВАНС</div>';
+    let sub;
+    if(s.paid) sub = "оплачено" + (s.last ? " "+s.last.slice(8,10)+"."+s.last.slice(5,7) : "");
+    else if(s.mark) sub = "отмечено вручную";
+    else if(s.late) sub = (s.pmk<cur) ? "не оплачено" : "просрочено";
+    else sub = vBillShift(b) ? ("платим в "+vMonPre(parseInt(s.pmk.slice(5,7),10)-1)) : "ждёт оплаты";
+    const amt = s.paid ? fmt(s.sum) : (s.float ? "сумма плавает" : fmt(Number(b.amount)||0));
+    return '<div class="tile '+cls+'">'+
+      '<div class="thead"><div class="grp">'+esc(b.group||"")+'</div>'+tag+'</div>'+
+      '<div class="nm">'+esc(b.label||"")+'</div>'+
+      (b.note?'<div class="note">'+esc(b.note)+'</div>':'')+
+      '<div class="amt2"'+(s.float?' style="font-size:11.5px;font-weight:600;color:var(--ash)"':'')+'>'+amt+'</div>'+
+      '<div class="st">'+sub+'</div></div>';
+  }).join("");
+  return '<div class="sect">Ежемесячные платежи</div>'+
+    '<div class="card-wrap" style="padding:12px 14px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'+
+        '<button class="dn-arrow" style="width:40px;height:36px;font-size:13px" onclick="vBillsNav(-1)">◀</button>'+
+        '<div style="text-align:center;flex:1"><b style="color:'+(mk===cur?"var(--gold)":"var(--warn)")+'">'+esc(expMonthLabel(mk))+'</b>'+
+          '<div style="font-size:11px;color:var(--ash)">оплачено '+doneCnt+' из '+bills.length+(leftSum>0?" · осталось "+fmt(leftSum):"")+'</div></div>'+
+        (mk!==cur?'<button class="dn-arrow" style="width:auto;padding:0 10px;height:36px;font-size:11px" onclick="vBillsToday()">сегодня</button>':'')+
+        '<button class="dn-arrow" style="width:40px;height:36px;font-size:13px" onclick="vBillsNav(1)">▶</button>'+
+      '</div>'+
+      '<div class="tiles">'+tiles+'</div>'+
+      '<div style="margin-top:10px;font-size:12px;color:var(--ash)">Оплачено за месяц <b style="font-family:var(--mono);color:var(--in)">'+fmt(paidSum)+'</b>'+(leftSum>0?' · осталось <b style="font-family:var(--mono);color:var(--cream)">'+fmt(leftSum)+'</b>':'')+'</div>'+
+      '<div class="tlegend"><span><i class="tsw paid"></i>оплачено</span><span><i class="tsw pre"></i>отмечено заранее</span><span><i class="tsw late"></i>просрочено</span><span><i class="tsw"></i>ждёт оплаты</span></div>'+
+    '</div>';
+}
 function expReport(mk){
   const inM=d=>(d||"").slice(0,7)===mk;
   const fot={"Караоке":0,"Клуб":0,"Общий":0}, fotP={};
