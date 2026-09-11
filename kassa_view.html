@@ -189,7 +189,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v38";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v40";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -473,9 +473,17 @@ function rowHtml(e){
   return '<div class="row '+(e.type==="in"?"r-in":"r-out")+'"><div class="who">'+esc(e.cp)+methodBadge(e)+'<small>'+esc(parts.join(" · "))+'</small></div>'+
     '<div class="amt '+e.type+'">'+(e.type==="in"?"+":"−")+fmt(e.amount)+'</div></div>';
 }
+/* Порядок журнала — как в кассе (v38): сначала выручка клуба и караоке,
+   затем терминалы, потом всё остальное по времени. Сортировка стабильная. */
+function jrnRank(e){
+  const cat = String(e && e.cat || "");
+  if(cat === "Чистая выручка") return 0;
+  if(cat === "Без.нал") return 1;
+  return 2;
+}
 function renderKassa(){
   const d=SEL||VD;
-  const es=dayEntries(d).slice().reverse();
+  const es=dayEntries(d).slice().reverse().sort((a,b)=>jrnRank(a)-jrnRank(b));
   const inn=dayInAll(d), out=daySpendBreakdown(d).total, closed=S.days[d]&&S.days[d].closed;
   let html=dayNavHtml()+
     '<div class="dayhead" style="justify-content:center;padding-top:0"><span class="dsum">прих. <span class="in">+'+fmt(inn)+'</span> · расх. <span class="out">−'+fmt(out)+'</span>'+(closed?' <span class="locked">закрыт</span>':'')+'</span></div>';
@@ -537,6 +545,71 @@ function renderBank(){
 }
 let debtKind="staff";
 let _debtQ="";
+/* Раскрытие деталей по тапу (10.09.2026): у человека бывает несколько счетов,
+   а в строке была только общая сумма. Разворачиваем список прямо под строкой. */
+const _debtOpen = {};
+function escAttr(x){ return String(x).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;"); }
+function debtBoxId(key){ return "dbx_" + String(key).replace(/[^A-Za-zА-Яа-я0-9]/g,"_"); }
+function debtToggle(key){
+  _debtOpen[key] = !_debtOpen[key];
+  const el = document.getElementById(debtBoxId(key));
+  if(el) el.style.display = _debtOpen[key] ? "block" : "none";
+}
+function detailBox(key, inner){
+  return '<div id="'+debtBoxId(key)+'" style="display:'+(_debtOpen[key]?"block":"none")+';padding:2px 0 8px 10px;border-left:2px solid var(--line);margin:-4px 0 6px 10px">'+inner+'</div>';
+}
+// список открытых счетов человека
+function accDetailHtml(cp){
+  const accs = openDebts(cp);
+  if(!accs.length) return '<div style="font-size:11.5px;color:var(--ash);padding:4px 0">Нет открытых счетов.</div>';
+  return accs.map(o=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
+    '<span style="color:var(--cream)">счёт №'+esc(o.orderNo)+' <span style="color:var(--ash)">· '+esc(o.date)+(o.venue?" · "+esc(o.venue):"")+'</span></span>'+
+    '<b style="font-family:var(--mono);color:var(--out)">−'+fmt(o.left)+'</b></div>').join("");
+}
+// операции по статье «Невозвратные» за этот месяц
+function nevozDetailHtml(cp, mk){
+  const n = normName(cp), rows = [];
+  for(const e of S.entries){
+    if(e.deleted || e.cat!=="Невозвратные" || normName(e.cp)!==n) continue;
+    if(entryMonthKey(e) !== mk) continue;
+    rows.push(e);
+  }
+  rows.sort((a,b)=>String(a.bizDate).localeCompare(String(b.bizDate)));
+  if(!rows.length) return '<div style="font-size:11.5px;color:var(--ash);padding:4px 0">Деталей нет.</div>';
+  return rows.map(e=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
+    '<span style="color:var(--cream)">'+esc(e.bizDate)+(e.note?' <span style="color:var(--ash)">· '+esc(e.note)+'</span>':'')+'</span>'+
+    '<b style="font-family:var(--mono);color:'+(e.type==="in"?'var(--in)':'var(--out)')+'">'+(e.type==="in"?"+":"−")+fmt(e.amount)+'</b></div>').join("");
+}
+/* Невозвратные по месяцам — расчёт из кассы: списанные гостевые долги (месяц списания,
+   иначе последняя дата счёта) + статья «Невозвратные» по месяцу записи, с учётом
+   примечания «за <месяц>». Месяцы до старта учёта отсекаем. */
+function woMonthRows(){
+  const st = debtStaffSet(), rows = [], seen = new Set();
+  for(const e of S.entries){
+    if(e.deleted || !DEBT_CATS.includes(e.cat) || seen.has(normName(e.cp)) || st.has(normName(e.cp)) || !isWriteoff(e.cp)) continue;
+    seen.add(normName(e.cp));
+    const accs = openDebts(e.cp);
+    const t = accs.reduce((s,o)=>s+o.left,0);
+    if(t>0){
+      const w = (S.writeoffs||{})[normName(e.cp)];
+      let mk = (w && w.at) ? String(w.at).slice(0,7) : "";
+      if(!mk){ let last=""; for(const o of accs){ const d=String(o.date||""); if(d>last) last=d; } mk = last.slice(0,7); }
+      rows.push({cp:e.cp, total:t, writeoff:true, mk: mk || "—"});
+    }
+  }
+  const nz = {};
+  for(const e of S.entries){
+    if(e.deleted || e.cat!=="Невозвратные") continue;
+    const mk = entryMonthKey(e), k = normName(e.cp)+"|"+mk;
+    const a = (nz[k] = nz[k] || {cp:e.cp, mk, bal:0});
+    a.bal += e.type==="out" ? e.amount : -e.amount;
+  }
+  for(const k in nz){ if(nz[k].bal!==0) rows.push({cp:nz[k].cp, total:nz[k].bal, writeoff:false, mk:nz[k].mk}); }
+  // граница та же, что в кассе: salaryStartIso() = S.salaryFrom, иначе старт кассы
+  const launch = String((S.salaryFrom && String(S.salaryFrom).trim()) ? S.salaryFrom : (S.firstDate||"")).slice(0,7);
+  const out = launch ? rows.filter(r=>r.mk==="—" || String(r.mk) >= launch) : rows;
+  return out.sort((a,b)=> String(b.mk).localeCompare(String(a.mk)) || b.total-a.total || a.cp.localeCompare(b.cp,"ru"));
+}
 function debtSearchV(v){ _debtQ=v; renderDebts(); const el=document.getElementById("debtSearch"); if(el){ el.focus(); try{ const p=el.value.length; el.setSelectionRange(p,p); }catch(_){} } }
 function renderDebts(){
   const list=debtList();
@@ -546,19 +619,37 @@ function renderDebts(){
   const nq=normName((_debtQ||"").trim());
   const match=d=>!nq||normName(d.cp||"").includes(nq)||(d.note&&normName(d.note).includes(nq));
   const curF=cur.filter(match);
-  // невозвратные — отдельной секцией, только для админа/кассира; в общий итог «Гости» не входят
+  // невозвратные — отдельной секцией по месяцам (как в кассе), только для админа/кассира;
+  // в общий итог «Гости» не входят, месяцы до старта учёта не показываем
   let woHtml='';
   if(debtKind==="guest" && canSeeWriteoffs()){
-    const woRows=woDebtList().filter(match);
+    const woRows=woMonthRows().filter(match);
     if(woRows.length){
-      const woT=woRows.reduce((s,r)=>s+r.bal,0);
-      woHtml='<div class="sect" style="margin-top:14px">Невозвратные · '+fmt(woT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(не в итоге)</span></div>'+
-        '<div class="rows">'+woRows.map(r=>'<div class="row" style="border-left:3px solid var(--ash)"><div class="who">'+esc(r.cp)+' <span class="badge" style="border-color:var(--ash);color:var(--ash)">НЕВОЗВРАТНЫЙ</span></div><div class="amt" style="color:var(--ash)">−'+fmt(r.bal)+'</div></div>').join("")+'</div>';
+      const woT=woRows.reduce((s,r)=>s+r.total,0);
+      const byM={}; for(const r of woRows){ (byM[r.mk]=byM[r.mk]||[]).push(r); }
+      const months=Object.keys(byM).sort((a,b)=>String(b).localeCompare(String(a)));
+      const avg=months.length?Math.round(woT/months.length):0;
+      woHtml='<div class="sect" style="margin-top:14px">Невозвратные · '+fmt(woT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(не в итоге)</span></div>';
+      if(months.length>1) woHtml+='<div style="font-size:11.5px;color:var(--ash);margin:-2px 0 6px">Теряем в среднем <b style="color:var(--cream)">'+fmt(avg)+'</b> в месяц · месяцев: '+months.length+'</div>';
+      for(const mk of months){
+        const ms=byM[mk].reduce((s,r)=>s+r.total,0);
+        woHtml+='<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:10px 0 4px;border-bottom:1px solid var(--line);padding-bottom:3px">'+
+          '<b style="font-size:12.5px;color:var(--cream)">'+(mk==="—"?"без даты":esc(expMonthLabel(mk)))+'</b>'+
+          '<b style="font-family:var(--mono);font-size:12.5px;color:'+(ms<0?'var(--in)':'var(--ash)')+'">'+(ms<0?"+":"−")+fmt(Math.abs(ms))+'</b></div>';
+        woHtml+='<div class="rows">'+byM[mk].map(r=>{
+          const key="wo:"+r.cp+"|"+r.mk;
+          return '<div class="row" style="border-left:3px solid '+(r.total<0?'var(--in)':'var(--ash)')+';cursor:pointer" onclick="debtToggle(\''+escAttr(key)+'\')">'+
+            '<div class="who">'+esc(r.cp)+' <span class="badge" style="border-color:var(--ash);color:var(--ash)">'+(r.total<0?"ВОЗВРАТ":"НЕВОЗВРАТНЫЙ")+'</span>'+
+            '<small>нажмите — детали</small></div>'+
+            '<div class="amt" style="color:'+(r.total<0?'var(--in)':'var(--ash)')+'">'+(r.total<0?"+":"−")+fmt(Math.abs(r.total))+'</div></div>'+
+            detailBox(key, r.writeoff ? accDetailHtml(r.cp) : nevozDetailHtml(r.cp, r.mk));
+        }).join("")+'</div>';
+      }
     }
   }
   // старые долги (до запуска программы) — отдельной секцией под нужной вкладкой, только просмотр (админ/дир/упр)
   let oldHtml='';
-  const olds=(S.oldDebts||[]).filter(d=>d.left>0 && d.kind===debtKind && match(d));
+  const olds=oldDebtsAll().filter(d=>d.left>0 && d.kind===debtKind && match(d));
   if(olds.length){
     const oT=olds.reduce((s,d)=>s+d.left,0);
     oldHtml='<div class="sect" style="margin-top:14px">Старые долги · '+fmt(oT)+' <span style="color:var(--ash);font-weight:400;text-transform:none">(до запуска программы)</span></div>'+
@@ -570,7 +661,15 @@ function renderDebts(){
       '<button class="'+(debtKind==="guest"?"on":"")+'" onclick="setDebt(\'guest\')">Гости · '+fmt(gT)+'</button>'+
     '</div>'+
     '<input id="debtSearch" placeholder="🔍 Поиск по имени…" oninput="debtSearchV(this.value)" value="'+esc(_debtQ)+'" autocomplete="off" style="width:100%;margin:8px 0 4px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);font-size:14px">'+
-    '<div class="rows">'+(curF.length?curF.map(d=>'<div class="row r-out"><div class="who">'+esc(d.cp)+' '+agingBadge(d.firstDate)+((d.venues||[]).map(venueBadge).join(""))+'<small>'+esc(d.note||"долг")+'</small></div><div class="amt out">−'+fmt(d.bal)+'</div></div>').join(""):'<div class="empty">'+(nq?"Ничего не найдено.":"Открытых долгов нет.")+'</div>')+'</div>'+
+    '<div class="rows">'+(curF.length?curF.map(d=>{
+      const key="d:"+d.cp;
+      const many=(openDebts(d.cp).length>0);
+      return '<div class="row r-out"'+(many?' style="cursor:pointer" onclick="debtToggle(\''+escAttr(key)+'\')"':'')+'>'+
+        '<div class="who">'+esc(d.cp)+' '+agingBadge(d.firstDate)+((d.venues||[]).map(venueBadge).join(""))+
+        '<small>'+esc(d.note||"долг")+(many?' · нажмите — счета':'')+'</small></div>'+
+        '<div class="amt out">−'+fmt(d.bal)+'</div></div>'+
+        (many?detailBox(key, accDetailHtml(d.cp)):"");
+    }).join(""):'<div class="empty">'+(nq?"Ничего не найдено.":"Открытых долгов нет.")+'</div>')+'</div>'+
     woHtml+
     oldHtml;
 }
@@ -588,6 +687,35 @@ function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normNam
 const CASH_IN_LABEL={ "Привоз артистов":"приход (билеты/бонусы)","Мелкий ремонт":"приход за ремонт" };
 function cashInLabel(cp){ const k=Object.keys(CASH_IN_LABEL).find(x=>normName(x)===normName(cp)); return k?CASH_IN_LABEL[k]:null; }
 function isWriteoff(cp){ return !!(S.writeoffs && S.writeoffs[normName(cp)]); }
+/* СТАРЫЕ ДОЛГИ (10.09.2026). Просмотрщик брал остаток прямо из настроек (d.left),
+   а касса пересчитывает его от исходной суммы минус фактические погашения. Поэтому
+   закрытый долг (ОФИЦИАНТ Слава) в кассе не показывался, а в просмотрщике висел.
+   Тот же расчёт, что в кассе: orig − погашения (операции kind:"olddebt", приход). */
+function oldDebtPaidFor(cp){
+  const n = normName(cp); let s = 0;
+  for(const e of S.entries){
+    if(e.deleted || e.kind!=="olddebt" || e.type!=="in") continue;
+    const who = e.odCp || String(e.note||"").replace(/^.*?старый долг:\s*/i, "").trim();
+    if(normName(who) !== n) continue;
+    s += e.amount;
+  }
+  return s;
+}
+function oldDebtsAll(){
+  const byCp = {};
+  for(const d of (S.oldDebts||[])){ const n=normName(d.cp); (byCp[n]=byCp[n]||[]).push(d); }
+  const out = [];
+  for(const n in byCp){
+    const rows = byCp[n].slice().sort((a,b)=> String(a.created||"").localeCompare(String(b.created||"")));
+    let paid = oldDebtPaidFor(rows[0].cp);
+    for(const d of rows){
+      const orig = (d.orig===undefined || d.orig===null) ? (d.left||0) : d.orig;
+      const pay = Math.min(paid, orig); paid -= pay;
+      out.push(Object.assign({}, d, {orig, left: Math.max(0, orig - pay)}));
+    }
+  }
+  return out;
+}
 let EXPM=null;
 function expMonthLabel(mk){ const p=mk.split("-"); return MON_NOM[(+p[1])-1]+" "+p[0]; }
 function expShiftMonth(mk,n){ let p=mk.split("-").map(Number),y=p[0],m=p[1]+n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+"-"+String(m).padStart(2,"0"); }
@@ -899,13 +1027,9 @@ function analyticsBodyV(){
   const bars=per.map(p=>{ const barPx=Math.round(p.tot/max*H), karPx=p.tot>0?Math.round(barPx*p.kar/p.tot):0, clubPx=Math.max(0,barPx-karPx); const sn=shortNum(p.tot);
     return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;min-width:0" title="'+esc(p.label)+': '+fmt(p.tot)+'"><div style="font-size:9px;color:var(--cream);white-space:nowrap">'+(p.tot?sn[0]:"")+'</div><div style="width:66%;display:flex;flex-direction:column;justify-content:flex-end;height:'+H+'px"><div style="height:'+clubPx+'px;background:'+CLUB+';border-radius:4px 4px 0 0"></div><div style="height:'+karPx+'px;background:'+KAR+';'+(clubPx?'':'border-radius:4px 4px 0 0')+'"></div></div><div style="font-size:9px;color:var(--ash);white-space:nowrap">'+esc(p.label)+'</div></div>'; }).join("");
   const totKar=per.reduce((s,p)=>s+p.kar,0), totClub=per.reduce((s,p)=>s+p.club,0);
-  const a=artistROI(bizToday().slice(0,7)); let artHtml='';
-  if(a.exp||a.inc){ const prof=a.net<=0;
-    artHtml='<div class="kpi wide" style="border:1px solid var(--gold-dim);margin:0 0 12px"><div class="sect" style="margin:0 0 6px">Артисты · окупаемость за месяц</div>'+
-      '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>Расход на артистов</span><b style="color:var(--out)">−'+fmt(a.exp)+'</b></div>'+
-      '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>Доход от артистов (билеты, спонсоры)</span><b style="color:var(--in)">+'+fmt(a.inc)+'</b></div>'+
-      '<div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--line);margin-top:4px"><b>'+(prof?"Чистый доход (окупились)":"Итого расход (нетто)")+'</b><b style="color:'+(prof?'var(--in)':'var(--out)')+'">'+(prof?"+"+fmt(-a.net):"−"+fmt(a.net))+'</b></div></div>';
-  }
+  // Блок «Артисты · окупаемость» убран 10.09.2026: доход от артиста не отделить
+  // от обычной выручки, и цифра получалась заведомо неверной.
+  const artHtml='';
   return '<div style="border-top:2px solid var(--line);margin:22px 0 12px"></div><div class="sect" style="font-size:15px;color:var(--cream)">Аналитика · выручка</div>'+
     artHtml+
     '<div class="pill-tabs" style="margin:0 0 12px"><button class="'+(mode==="days"?"on":"")+'" onclick="setAnaModeV(\'days\')">Дни</button><button class="'+(mode==="weeks"?"on":"")+'" onclick="setAnaModeV(\'weeks\')">Недели</button><button class="'+(mode==="months"?"on":"")+'" onclick="setAnaModeV(\'months\')">Месяцы</button></div>'+
@@ -928,7 +1052,7 @@ function healthReport(mk,R){
   const blocks=[
     {name:"Себестоимость",sub:"продукты, напитки, алкоголь, сигареты",amt:cogs,p:P(cogs),lo:0,hi:.30,color:"#199e70",hint:"алкоголь высоковат — проверь наценку и недоливы"},
     {name:"Люди и шоу",sub:"ФОТ + резиденты, диджеи, шоу, массовка",amt:labor,p:P(labor),lo:.30,hi:.35,color:"#3987e5",hint:"фикс резидентов привязать к выручке ночи"},
-    {name:"Маркетинг и артисты",sub:"промо + привоз артистов (разовые)",amt:mkt,p:P(mkt),lo:.03,hi:.07,color:"#c94db0",hint:"следи за окупаемостью артистов (блок «Артисты · окупаемость»)"},
+    {name:"Маркетинг и артисты",sub:"промо + привоз артистов (разовые)",amt:mkt,p:P(mkt),lo:.03,hi:.07,color:"#c94db0",hint:"разовые привозы держи в пределах нормы к выручке"},
     {name:"Помещение",sub:"аренда + коммуналка + админ",amt:occ,p:P(occ),lo:.08,hi:.12,color:"#d55181",hint:"коммуналку разобрать по счётчикам"},
     {name:"Прочее и резервы",sub:"налоги, ремонт, невозвратные, прочее",amt:other,p:P(other),lo:.05,hi:.08,color:"#9085e9",hint:"невозвратные почти обнуляемы политикой"}
   ];
