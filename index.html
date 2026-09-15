@@ -7,6 +7,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -999,7 +1000,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 16.09 · сборка 34";
+const APP_VERSION = "v 16.09 · сборка 35";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5240,30 +5241,54 @@ function bkModalEdit(){
 // Список столов для выпадашки: ВСЕ столы, сгруппированные по залам.
 // Сначала свой зал, потом остальные залы этой площадки, потом вторая площадка.
 // Занятые столы помечаются — при выборе занятого приложение предложит пересадку.
+// Малый зал караоке работает только в пятницу и субботу — в остальные дни
+// пересаживать туда нельзя. Возвращает false, если зал на эту дату закрыт.
+function bkZoneOpenOn(zone, dateObj){
+  if(!zone) return true;
+  const v = (BK.data.venues||[]).find(x=>x.id===zone.venue_id);
+  const isKar = !v || v.key === "karaoke";
+  if(isKar && /мал/i.test(String(zone.title||""))) return bkIsWeekend(dateObj);
+  return true;
+}
+// дата, на которую смотрим при подборе столов: поле в форме правки, иначе дата брони
+function bkEditDate(b){
+  const el = document.getElementById("bkm-date");
+  if(el && el.value) return fromIso(el.value);
+  if(b && b.business_date) return fromIso(b.business_date);
+  return BK.date;
+}
+// Список столов для выпадашки: ТОЛЬКО своя площадка, сгруппировано по залам.
+// Клубный стол меняется только на клубный, караоке — только на караоке.
+// Залы, закрытые на выбранную дату (Малый зал в будни), не показываются.
 function bkTableOptions(b){
   const curTable = BK.data.tables.find(x=>x.id===b.table_id);
   const curZone  = curTable ? BK.data.zones.find(z=>z.id===curTable.zone_id) : null;
   const curVenue = curZone ? curZone.venue_id : null;
+  const dateObj  = bkEditDate(b);
 
   const byName = (a,c)=> (a.sort_order||0)-(c.sort_order||0)
     || String(a.name).localeCompare(String(c.name),"ru",{numeric:true});
 
-  // зоны в порядке: своя -> остальные своей площадки -> чужая площадка
-  const zones = (BK.data.zones||[]).slice().sort((a,c)=>{
-    const rank = z => (curZone && z.id===curZone.id) ? 0 : (z.venue_id===curVenue ? 1 : 2);
-    return rank(a)-rank(c) || (a.sort||0)-(c.sort||0)
-      || String(a.title).localeCompare(String(c.title),"ru");
-  });
+  // только залы своей площадки; свой зал первым
+  const zones = (BK.data.zones||[])
+    .filter(z=>{
+      if(curVenue && z.venue_id !== curVenue) return false;        // чужая площадка — нет
+      if(curZone && z.id === curZone.id) return true;              // свой зал всегда в списке
+      return bkZoneOpenOn(z, dateObj);                             // закрытые залы прячем
+    })
+    .slice().sort((a,c)=>{
+      const rank = z => (curZone && z.id===curZone.id) ? 0 : 1;
+      return rank(a)-rank(c) || (a.sort||0)-(c.sort||0)
+        || String(a.title).localeCompare(String(c.title),"ru");
+    });
 
   let html = "";
   zones.forEach(z=>{
     const tables = (BK.data.tables||[]).filter(x=>x.zone_id===z.id).sort(byName);
     if(!tables.length) return;
-    const v = (BK.data.venues||[]).find(x=>x.id===z.venue_id);
-    // зал чужой площадки подписываем, чтобы не пересадить гостя не туда
-    const other = (curVenue && z.venue_id!==curVenue && v);
-    const label = (other ? ((v.key==="club"?"Клуб":"Караоке")+" · ") : "") + (z.title||"");
-    html += `<optgroup label="${label}">` + tables.map(x=>{
+    // свой зал может быть закрыт на эту дату (бронь уже стоит) — подписываем
+    const closed = !bkZoneOpenOn(z, dateObj) ? " · только Пт–Сб" : "";
+    html += `<optgroup label="${(z.title||"")}${closed}">` + tables.map(x=>{
       const occ = bkBookingFor(x.id);
       const busy = occ && occ.id!==b.id ? " — занят" : "";
       const sel  = x.id===b.table_id ? " selected" : "";
@@ -5271,6 +5296,15 @@ function bkTableOptions(b){
     }).join("") + `</optgroup>`;
   });
   return html;
+}
+// сменили дату в форме правки — пересобрать список столов (Малый зал появляется/исчезает)
+function bkEditDateChanged(){
+  const sel = document.getElementById("bkm-table");
+  if(!sel || !bkCurrentBooking) return;
+  const prev = sel.value;
+  sel.innerHTML = bkTableOptions(bkCurrentBooking);
+  if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+  bkEditTableChanged();
 }
 
 // пересчитать депозит под выбранный стол (хостес может поправить сумму вручную)
@@ -5373,6 +5407,8 @@ function bkWireModalForm(editMode){
     if(phoneE) phoneE.onblur=()=>{ const f=bkFmtPhone(phoneE.value); if(f) phoneE.value=f; };
     const tblE=document.getElementById("bkm-table");
     if(tblE) tblE.onchange = bkEditTableChanged;   // сменили стол — пересчитать депозит
+    const dtE=document.getElementById("bkm-date");
+    if(dtE) dtE.onchange = bkEditDateChanged;      // сменили дату — пересобрать список залов
     return;
   }
 
