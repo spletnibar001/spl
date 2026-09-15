@@ -6,6 +6,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -998,7 +999,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 29.08 · сборка 31";
+const APP_VERSION = "v 16.09 · сборка 34";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5126,6 +5127,46 @@ function bkRejectRequest(rid){
 }
 
 // форма новой брони
+// Время прихода по умолчанию в новой брони.
+// База — час открытия площадки на эту дату:
+//   караоке 17:00 каждый день;
+//   клуб 23:00 в будни и 22:00 в пятницу и субботу.
+// Если смена уже идёт, подставляем ближайшие полчаса вперёд (в 00:20 это 00:30).
+// Ночные часы 00:00–04:59 идут ПОСЛЕ вечерних: это та же смена.
+function bkBizMinutes(hhmm){
+  const [h,m] = String(hhmm).split(":").map(Number);
+  const mins = h*60 + m;
+  return (h < 5) ? mins + 24*60 : mins;   // ночь — «позже» вечера
+}
+// площадка стола: karaoke | club
+function bkVenueKeyOfTable(t){
+  try{
+    const z = t ? (BK.data.zones||[]).find(x=>x.id===t.zone_id) : null;
+    const v = z ? (BK.data.venues||[]).find(x=>x.id===z.venue_id) : null;
+    return v ? v.key : (BK.venue || "karaoke");
+  }catch(_){ return BK.venue || "karaoke"; }
+}
+// час открытия площадки на выбранную дату
+function bkOpenTime(venueKey, dateObj){
+  if(venueKey === "club") return bkIsWeekend(dateObj) ? "22:00" : "23:00";
+  return "17:00";   // караоке — каждый день с 17:00
+}
+function bkDefaultTime(t){
+  const BASE = bkOpenTime(bkVenueKeyOfTable(t), BK.date);
+  try{
+    if(bkIso(BK.date) !== bkIso(bkToday())) return BASE;   // бронь не на текущую смену
+    const now = new Date();
+    let h = now.getHours(), m = now.getMinutes();
+    // округляем вверх до получаса
+    if(m === 0) { /* ровно — оставляем */ }
+    else if(m <= 30) m = 30;
+    else { m = 0; h = (h + 1) % 24; }
+    if(h === 5 && now.getHours() < 5) return "04:30";      // конец смены — дальше не предлагаем
+    const cand = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+    return bkBizMinutes(cand) > bkBizMinutes(BASE) ? cand : BASE;
+  }catch(_){ return BASE; }
+}
+
 function bkModalNew(){
   const canEdit = BK.canEdit;
   if(!canEdit) return `<div class="bkm-msg">Этот стол свободен. У вас нет прав на создание брони.</div>`;
@@ -5137,7 +5178,7 @@ function bkModalNew(){
       <div class="bkm-field"><label>Дата брони</label>
         <input id="bkm-date" type="date" value="${dval}"></div>
       <div class="bkm-field"><label>Время прихода</label>
-        <input id="bkm-time" type="time" value="22:00"></div>
+        <input id="bkm-time" type="time" value="${bkDefaultTime(t)}"></div>
     </div>
     <div class="bkm-field"><label>Телефон гостя</label>
       <input id="bkm-phone" type="text" inputmode="numeric" name="bkm-phone-nofill" placeholder="+998 94 063 88 88" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
@@ -5166,7 +5207,8 @@ function bkModalEdit(){
   const b = bkCurrentBooking;
   const dep = b.deposit_amount||0;
   const dval = b.business_date || bkIso(BK.date);
-  const tval = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "22:00";
+  const tval = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})
+    : bkDefaultTime(BK.data.tables.find(x=>x.id===b.table_id));
   const name = (b.guest_name||b.display_name||"").replace(/"/g,"&quot;");
   const phone = b.display_phone||b.phone||"";
   return `
@@ -5195,19 +5237,56 @@ function bkModalEdit(){
     </div>`;
 }
 
-// список столов для выпадашки (та же зона); занятые помечаются
+// Список столов для выпадашки: ВСЕ столы, сгруппированные по залам.
+// Сначала свой зал, потом остальные залы этой площадки, потом вторая площадка.
+// Занятые столы помечаются — при выборе занятого приложение предложит пересадку.
 function bkTableOptions(b){
   const curTable = BK.data.tables.find(x=>x.id===b.table_id);
-  const zoneId = curTable ? curTable.zone_id : null;
-  const tables = BK.data.tables
-    .filter(x=>x.zone_id===zoneId)
-    .sort((a,c)=>(a.sort_order||0)-(c.sort_order||0) || String(a.name).localeCompare(String(c.name),"ru",{numeric:true}));
-  return tables.map(x=>{
-    const occ = bkBookingFor(x.id);
-    const busy = occ && occ.id!==b.id ? " — занят" : "";
-    const sel = x.id===b.table_id ? " selected" : "";
-    return `<option value="${x.id}"${sel}>${x.name}${busy}</option>`;
-  }).join("");
+  const curZone  = curTable ? BK.data.zones.find(z=>z.id===curTable.zone_id) : null;
+  const curVenue = curZone ? curZone.venue_id : null;
+
+  const byName = (a,c)=> (a.sort_order||0)-(c.sort_order||0)
+    || String(a.name).localeCompare(String(c.name),"ru",{numeric:true});
+
+  // зоны в порядке: своя -> остальные своей площадки -> чужая площадка
+  const zones = (BK.data.zones||[]).slice().sort((a,c)=>{
+    const rank = z => (curZone && z.id===curZone.id) ? 0 : (z.venue_id===curVenue ? 1 : 2);
+    return rank(a)-rank(c) || (a.sort||0)-(c.sort||0)
+      || String(a.title).localeCompare(String(c.title),"ru");
+  });
+
+  let html = "";
+  zones.forEach(z=>{
+    const tables = (BK.data.tables||[]).filter(x=>x.zone_id===z.id).sort(byName);
+    if(!tables.length) return;
+    const v = (BK.data.venues||[]).find(x=>x.id===z.venue_id);
+    // зал чужой площадки подписываем, чтобы не пересадить гостя не туда
+    const other = (curVenue && z.venue_id!==curVenue && v);
+    const label = (other ? ((v.key==="club"?"Клуб":"Караоке")+" · ") : "") + (z.title||"");
+    html += `<optgroup label="${label}">` + tables.map(x=>{
+      const occ = bkBookingFor(x.id);
+      const busy = occ && occ.id!==b.id ? " — занят" : "";
+      const sel  = x.id===b.table_id ? " selected" : "";
+      return `<option value="${x.id}"${sel}>${x.name}${busy}</option>`;
+    }).join("") + `</optgroup>`;
+  });
+  return html;
+}
+
+// пересчитать депозит под выбранный стол (хостес может поправить сумму вручную)
+function bkEditTableChanged(){
+  const tableEl = document.getElementById("bkm-table");
+  const depEl   = document.getElementById("bkm-dep");
+  if(!tableEl || !depEl) return;
+  const t = BK.data.tables.find(x=>x.id===parseInt(tableEl.value));
+  if(!t) return;
+  const dateEl = document.getElementById("bkm-date");
+  const timeEl = document.getElementById("bkm-time");
+  const dateObj = (dateEl && dateEl.value) ? fromIso(dateEl.value) : BK.date;
+  const dep = bkCalcDeposit(t, dateObj, timeEl ? timeEl.value : "");
+  depEl.value = dep>0 ? bkFmtMoney(dep) : "0";
+  const z = BK.data.zones.find(x=>x.id===t.zone_id);
+  bkMsg(`Стол ${t.name}${z?" · "+z.title:""} — депозит пересчитан: ${bkFmtMoney(dep)}`, true);
 }
 
 // карточка существующей брони
@@ -5292,6 +5371,8 @@ function bkWireModalForm(editMode){
     if(depE) depE.oninput=function(){ const d=this.value.replace(/[^\d]/g,""); this.value=d?fmtNum(d):""; };
     const phoneE=document.getElementById("bkm-phone");
     if(phoneE) phoneE.onblur=()=>{ const f=bkFmtPhone(phoneE.value); if(f) phoneE.value=f; };
+    const tblE=document.getElementById("bkm-table");
+    if(tblE) tblE.onchange = bkEditTableChanged;   // сменили стол — пересчитать депозит
     return;
   }
 
