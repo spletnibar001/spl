@@ -4,6 +4,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1088,7 +1089,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 29.08 · сборка 3";
+const GUEST_VERSION = "v 16.09 · сборка 4";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -2167,7 +2168,7 @@ function bkfFmtPhoneInput(raw){
 // интервалы времени 30 мин с учётом заведения и дня недели.
 // Караоke: с 18:00. Клуб: вс-чт с 23:00, пт-сб с 22:00. Ночь до 04:30 включительно.
 function bkfTimeSlots(venue, dateIso){
-  let startH = 18; // караоке по умолчанию
+  let startH = 17; // караоке работает каждый день с 17:00
   if(venue === "club"){
     // день недели выбранной бизнес-даты
     let wd = 6; // запас
