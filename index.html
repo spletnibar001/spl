@@ -8,6 +8,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -668,6 +669,29 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .rc-week b{color:var(--gold);font-size:15px}
 #rc-fab.idle{border-color:var(--line);color:var(--muted);background:var(--panel)}
 
+
+/* ===== УСТАВ ПРИ ПЕРВОМ ВХОДЕ ===== */
+#doc-gate{position:fixed;inset:0;z-index:9000;display:none;background:var(--bg);
+  align-items:center;justify-content:center;padding:12px}
+#doc-gate.open{display:flex}
+.dg-card{width:100%;max-width:560px;height:100%;max-height:100%;display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dg-head{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.dg-head h3{font-size:16px;font-weight:800;letter-spacing:.04em;line-height:1.3}
+.dg-head .dg-sub{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
+.dg-body{flex:1;overflow-y:auto;padding:16px 18px;font-size:14.5px;line-height:1.65;
+  white-space:pre-wrap;word-break:break-word;color:var(--text);
+  -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.dg-foot{padding:12px 18px 16px;border-top:1px solid var(--line);background:var(--panel)}
+.dg-hint{font-size:12px;color:var(--gold);margin-bottom:9px;text-align:center;min-height:16px}
+.dg-hint.done{color:var(--muted)}
+#dg-ok{width:100%;padding:15px;border:none;border-radius:11px;font-family:inherit;
+  font-size:15px;font-weight:800;letter-spacing:.06em;cursor:pointer;
+  background:var(--emerald);color:#0c1410}
+#dg-ok:disabled{background:var(--panel2);color:var(--muted);border:1px solid var(--line);cursor:default}
+.dg-progress{height:3px;background:var(--panel2)}
+.dg-progress i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s linear}
 </style>
 </head>
 <body>
@@ -1000,7 +1024,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 16.09 · сборка 35";
+const APP_VERSION = "v 16.09 · сборка 36";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -2418,6 +2442,110 @@ function renderBonList(){
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе бонусов нет</div>`;
 }
 
+
+/* ============================================================
+   УСТАВ ПРИ ПЕРВОМ ВХОДЕ СОТРУДНИКА
+   Текст лежит в базе (таблица staff_docs, миграция staff-docs.sql).
+   Показывается один раз: после «ОЗНАКОМЛЕН» в staff_doc_acks появляется
+   запись «кто и когда». Если поднять version у документа — сотрудники
+   ознакомятся с новой редакцией заново.
+   Текст нельзя выделить и скопировать; кнопка включается, только когда
+   документ пролистан до конца.
+   ============================================================ */
+function docGateEl(){
+  let g = document.getElementById("doc-gate");
+  if(g) return g;
+  g = document.createElement("div");
+  g.id = "doc-gate";
+  g.innerHTML = `<div class="dg-card">
+      <div class="dg-head">
+        <h3 id="dg-title">Устав сотрудника</h3>
+        <div class="dg-sub">Прочитайте документ до конца и подтвердите ознакомление. Это нужно сделать один раз.</div>
+      </div>
+      <div class="dg-progress"><i id="dg-bar"></i></div>
+      <div class="dg-body" id="dg-body"></div>
+      <div class="dg-foot">
+        <div class="dg-hint" id="dg-hint">Пролистайте до конца</div>
+        <button id="dg-ok" disabled>ОЗНАКОМЛЕН</button>
+      </div>
+    </div>`;
+  document.body.appendChild(g);
+  const body = g.querySelector("#dg-body");
+  // текст только для чтения: ни выделить, ни скопировать, ни вызвать меню
+  ["copy","cut","contextmenu","dragstart","selectstart"].forEach(ev=>
+    body.addEventListener(ev, e=>{ e.preventDefault(); return false; }));
+  return g;
+}
+// сотрудник, от чьего имени ставится отметка
+function docGateEmp(){
+  try{
+    const list = (typeof myEmployeeCards==="function" && myEmployeeCards().length)
+      ? myEmployeeCards() : (employees||[]);
+    return list.find(e=>e && !e.archived) || null;
+  }catch(_){ return null; }
+}
+// Показывает устав, если сотрудник его ещё не видел.
+// Возвращает промис, который выполняется после нажатия «ОЗНАКОМЛЕН»
+// (или сразу, если показывать нечего).
+async function docGate(){
+  const emp = docGateEmp();
+  if(!emp) return;
+  let st = null;
+  try{
+    const { data, error } = await sb.rpc("doc_state", { p_employee_id: String(emp.id) });
+    if(error){ console.warn("doc_state", error.message); return; }   // миграции нет — не мешаем работать
+    st = data;
+  }catch(_){ return; }
+  if(!st || !st.need) return;
+
+  const g = docGateEl();
+  document.getElementById("dg-title").textContent = st.title || "Устав сотрудника";
+  const body = document.getElementById("dg-body");
+  body.textContent = st.body || "";            // именно textContent — разметка из базы не исполняется
+  body.scrollTop = 0;
+  const btn  = document.getElementById("dg-ok");
+  const hint = document.getElementById("dg-hint");
+  const bar  = document.getElementById("dg-bar");
+  btn.disabled = true;
+  g.classList.add("open");
+
+  return new Promise(resolve=>{
+    function onScroll(){
+      const max = body.scrollHeight - body.clientHeight;
+      const pct = max <= 4 ? 1 : Math.min(1, body.scrollTop / max);
+      bar.style.width = Math.round(pct*100) + "%";
+      if(pct >= 0.995){
+        btn.disabled = false;
+        hint.textContent = "Документ прочитан";
+        hint.className = "dg-hint done";
+      }
+    }
+    body.addEventListener("scroll", onScroll, {passive:true});
+    setTimeout(onScroll, 60);       // короткий текст без прокрутки — сразу разрешаем
+    btn.onclick = async ()=>{
+      btn.disabled = true;
+      hint.textContent = "Сохраняем…";
+      try{
+        if(typeof ensureToken==="function") await ensureToken();
+        const { data, error } = await sb.rpc("doc_accept", {
+          p_employee_id: String(emp.id), p_name: emp.name || (ME && ME.name) || null
+        });
+        if(error || (data && data.ok===false)){
+          hint.textContent = (error && error.message) || (data && data.error) || "Не удалось сохранить";
+          hint.className = "dg-hint"; btn.disabled = false; return;
+        }
+      }catch(e){
+        hint.textContent = "Нет связи — попробуйте ещё раз";
+        hint.className = "dg-hint"; btn.disabled = false; return;
+      }
+      body.removeEventListener("scroll", onScroll);
+      g.classList.remove("open");
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
+      resolve();
+    };
+  });
+}
+
 /* ================= ЛИЧНЫЙ КАБИНЕТ СОТРУДНИКА (staff) ================= */
 let myCheckins = [];
 async function startStaffCabinet(){
@@ -2428,6 +2556,8 @@ async function startStaffCabinet(){
   viewStart = payWeekStart(businessNow());
   await loadStaff();
   renderStaffCabinet();
+  // устав: показываем один раз при первом входе, дальше — обычная работа
+  try{ await docGate(); }catch(e){ console.warn("docGate", e); }
   // теперь, когда карточка сотрудника загружена, решаем доступ к бронированию
   try{ bkInit(); }catch(e){ console.warn("bkInit(staff)",e); }
   try{ rcInit(); }catch(e){ console.warn("rcInit(staff)",e); }   // челлендж «3 отзыва»
