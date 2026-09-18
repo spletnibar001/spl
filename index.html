@@ -9,6 +9,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -327,6 +328,28 @@ window.__xlsxReady = (function(){
   #staff-cabinet .sc-btn{background:var(--emerald);color:#0c1410;border:none;border-radius:9px;padding:8px 14px;font-weight:800;font-size:12px;font-family:inherit}
   #staff-cabinet .sc-checked{font-size:11px;color:var(--emerald);font-weight:700;text-align:right;white-space:nowrap}
   #staff-cabinet .sc-checked .t{font-size:13px}
+  /* Подтверждение получения зарплаты (18.09.2026): зелёная рамка — подтверждено,
+     красная — сотрудник указал другую сумму. Галочек не используем. */
+  #staff-cabinet .sc-row.ack-ok{border-left:3px solid var(--emerald);background:rgba(16,185,129,.06)}
+  #staff-cabinet .sc-row.ack-bad{border-left:3px solid var(--red);background:rgba(239,68,68,.06)}
+  #staff-cabinet .ack-note{font-size:11px;font-weight:700;margin-top:3px}
+  #staff-cabinet .ack-note.ok{color:var(--emerald)}
+  #staff-cabinet .ack-note.bad{color:var(--red)}
+  #staff-cabinet .ack-box{padding:10px 13px;border-top:1px solid var(--line);background:var(--panel2)}
+  #staff-cabinet .ack-box .t{font-size:11.5px;color:var(--muted);margin-bottom:7px;line-height:1.45}
+  #staff-cabinet .ack-box input{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);font-size:15px;font-family:inherit;font-weight:700;text-align:right}
+  #staff-cabinet .ack-box input.cmt{font-size:13px;font-weight:400;text-align:left;margin-top:7px}
+  #staff-cabinet .ack-box .btns{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+  #staff-cabinet .ack-box .btns button{flex:1;min-width:120px;border:none;border-radius:9px;padding:9px 12px;font-weight:800;font-size:12px;font-family:inherit}
+  #staff-cabinet .ack-box .b-ok{background:var(--emerald);color:#0c1410}
+  #staff-cabinet .ack-box .b-no{background:transparent;color:var(--red);border:1px solid var(--red) !important}
+  #staff-cabinet .ack-box .b-cancel{background:transparent;color:var(--muted);border:1px solid var(--line) !important;flex:0 0 auto;min-width:0}
+  #ack-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;display:none;
+    max-width:86vw;padding:11px 18px;border-radius:12px;font-size:13px;font-weight:700;text-align:center;
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  #ack-toast.ok{border-color:var(--emerald);color:var(--emerald)}
+  #ack-toast.err{border-color:var(--red);color:var(--red)}
   #staff-cabinet .sc-foot{font-size:10px;color:#4a515c;text-align:center;margin-top:18px;line-height:1.5}
   .week-totals{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .wt{flex:1;min-width:140px;background:var(--panel2);border:1px solid var(--line);
@@ -1024,7 +1047,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 16.09 · сборка 36";
+const APP_VERSION = "v 18.09 · сборка 37";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1442,6 +1465,7 @@ function kassaCp(e){ const p=KASSA_PREFIX[e.emp_role]; return p ? (p+" "+e.name)
 function kNorm(s){ return String(s||"").toUpperCase().replace(/[^А-ЯA-ZЁ0-9]/g,""); }
 function weekLabel(ws){ const f=fromIso(ws); return fmtD(f)+"–"+fmtD(addDays(f,6)); }
 let KASSA_PAID = null;   // {normCp: сумма выплат кассы за неделю}; null = касса недоступна → ручной режим отметок
+let ACK_ROWS = [];       // выплаты сотрудника из кассы с отметками подтверждения (для перерисовки строки)
 async function kpCall(action, extra){
   const initData = window.Telegram?.WebApp?.initData || "";
   if(!initData) throw new Error("no initData");
@@ -2844,13 +2868,101 @@ function renderStaffCabinet(cardsArg){
         const kindLbl = NO_RATE_ROLES.includes(c.emp_role) ? "аванс · " : "";
         document.getElementById("sc-adv-sub-"+c.id).textContent = kindLbl+"за "+mLbl+(rows.length?` · ${rows.length} выпл.`:" · выплат не было");
         rows.sort((a,b)=> a.date>b.date ? -1 : a.date<b.date ? 1 : 0);
+        ACK_ROWS = ACK_ROWS.filter(r=>r.cardId!==c.id).concat(rows.map(r=>({...r, cardId:c.id})));
         document.getElementById("sc-adv-list-"+c.id).innerHTML = rows.length
-          ? rows.map(p=>`<div class="sc-row"><div class="l"><div class="d">${fmtD(fromIso(p.date))}</div><div class="s">${p.type==="out"?"выплата":"возврат"}${p.cat?` · ${p.cat.replace("Зар.плата ","").toLowerCase()}`:""}</div></div><div class="r ${p.type==="out"?"g":"rd"}">${p.type==="out"?"":"−"}${fmtNum(p.amount)}</div></div>`).join("")
+          ? rows.map(p=>ackRowHtml(p, c.id)).join("")
           : `<div class="sc-row" style="color:var(--muted)">В этом месяце выплат не было</div>`;
         wrap.style.display = "";
       }catch(_){ /* касса недоступна — блок не показываем */ }
     }
   }
+  /* ===== ПОДТВЕРЖДЕНИЕ ПОЛУЧЕНИЯ ЗАРПЛАТЫ (18.09.2026) =====
+     Сотрудник вписывает сумму, которую получил НА РУКИ, и подтверждает.
+     Совпало с кассой — зелёная рамка и дата. Не совпало — красная и комментарий,
+     владельцу уходит сообщение в Telegram. Пишет только Edge Function.
+     Важно: «выплата» в кассе может быть начислением под удержание (буфер, бой,
+     долг) — тогда на руки 0, и подтверждать нечего. Такие строки помечаем. */
+  function ackRowHtml(p, cardId){
+    const hands = (p.hands===undefined || p.hands===null) ? p.amount : p.hands;
+    const hold  = p.hold || 0;
+    const isOut = p.type==="out";
+    const a = p.ack || null;
+    const cls = a ? (a.status==="ok" ? " ack-ok" : " ack-bad") : "";
+    let sub = isOut ? "выплата" : "возврат";
+    if(p.cat) sub += " · " + String(p.cat).replace("Зар.плата ","").toLowerCase();
+    if(hold>0) sub += hands>0 ? ` · удержано ${fmtNum(hold)}` : ` · целиком удержано (на руки 0)`;
+    let note = "";
+    if(a){
+      const at = a.at ? String(a.at).slice(8,10)+"."+String(a.at).slice(5,7) : "";
+      note = a.status==="ok"
+        ? `<div class="ack-note ok">получение подтверждено${at?" "+at:""}</div>`
+        : `<div class="ack-note bad">вы указали ${fmtNum(a.amount)}${at?" · "+at:""}${a.comment?" · "+esc0(a.comment):""}</div>`;
+    }
+    const canAck = isOut && hands>0 && !a;
+    const btn = canAck
+      ? `<button class="sc-btn" style="padding:6px 11px;font-size:11px" onclick="ackOpen('${p.id}','${cardId}')">Подтвердить</button>`
+      : "";
+    return `<div class="sc-row${cls}" id="ackrow-${p.id}">
+      <div class="l"><div class="d">${fmtD(fromIso(p.date))}${hold>0&&hands>0?` · на руки ${fmtNum(hands)}`:""}</div>
+      <div class="s">${sub}</div>${note}</div>
+      <div class="r ${isOut?"g":"rd"}" style="display:flex;align-items:center;gap:8px">
+        <span>${isOut?"":"−"}${fmtNum(p.amount)}</span>${btn}</div>
+    </div><div id="ackbox-${p.id}"></div>`;
+  }
+  function esc0(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function ackToast(t, ok){
+    let el = document.getElementById("ack-toast");
+    if(!el){ el = document.createElement("div"); el.id = "ack-toast"; document.body.appendChild(el); }
+    el.textContent = t; el.className = ok ? "ok" : "err"; el.style.display = "block";
+    clearTimeout(window._ackT);
+    window._ackT = setTimeout(()=>{ el.style.display = "none"; }, 4500);
+    try{ window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.(ok?"success":"error"); }catch(_){}
+  }
+  window.ackOpen = function(id){
+    const box = document.getElementById("ackbox-"+id);
+    if(!box) return;
+    if(box.innerHTML){ box.innerHTML=""; return; }
+    box.innerHTML = `<div class="ack-box">
+      <div class="t">Впишите сумму, которую получили <b>на руки</b>. Сумму из программы специально не подставляем — так видно, если она не совпадает.</div>
+      <input type="tel" inputmode="numeric" id="ackamt-${id}" placeholder="сколько получили" autocomplete="off"
+        oninput="this.value=this.value.replace(/[^\\d]/g,'').replace(/\\B(?=(\\d{3})+(?!\\d))/g,' ')">
+      <input type="text" class="cmt" id="ackcmt-${id}" placeholder="комментарий (нужен, если сумма не совпала)" autocomplete="off">
+      <div class="btns">
+        <button class="b-ok" onclick="ackSend('${id}',true)">Подтверждаю получение</button>
+        <button class="b-no" onclick="ackSend('${id}',false)">Сумма не совпадает</button>
+        <button class="b-cancel" onclick="ackOpen('${id}')">Отмена</button>
+      </div>
+    </div>`;
+    const el = document.getElementById("ackamt-"+id); if(el) el.focus();
+  };
+  window.ackSend = async function(id, agree){
+    const amtEl = document.getElementById("ackamt-"+id);
+    const cmtEl = document.getElementById("ackcmt-"+id);
+    const amount = parseInt(String(amtEl ? amtEl.value : "").replace(/[^\d]/g,""),10);
+    const comment = (cmtEl ? cmtEl.value : "").trim();
+    if(!isFinite(amount)){ ackToast("Впишите сумму, которую получили"); if(amtEl) amtEl.focus(); return; }
+    if(!agree && !comment){ ackToast("Напишите, что не так — без комментария не отправить"); if(cmtEl) cmtEl.focus(); return; }
+    const btns = document.querySelectorAll("#ackbox-"+id+" button");
+    btns.forEach(b=>b.disabled=true);
+    try{
+      const j = await kpCall("ack_payout", {entry_id:id, amount, agree:!!agree, comment});
+      const row = ACK_ROWS.find(r=>String(r.id)===String(id));
+      if(row) row.ack = {status:j.status, amount, at:new Date().toISOString(), comment};
+      const box = document.getElementById("ackbox-"+id); if(box) box.innerHTML="";
+      if(row){
+        const holder = document.getElementById("ackrow-"+id);
+        if(holder){
+          const tmp = document.createElement("div");
+          tmp.innerHTML = ackRowHtml(row, row.cardId);
+          holder.replaceWith(tmp.firstElementChild);
+        }
+      }
+      ackToast(j.status==="ok" ? "Спасибо, получение подтверждено" : "Отмечено расхождение — руководство уведомлено", j.status==="ok");
+    }catch(e){
+      btns.forEach(b=>b.disabled=false);
+      ackToast("Не удалось отправить: "+(e&&e.message||e));
+    }
+  };
   window.scAdvToggle = function(id){
     const l = document.getElementById("sc-adv-list-"+id);
     const ch = document.getElementById("sc-adv-chev-"+id);
