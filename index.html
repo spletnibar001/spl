@@ -1047,7 +1047,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 18.09 · сборка 37";
+const APP_VERSION = "v 18.09 · сборка 38";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -2882,15 +2882,21 @@ function renderStaffCabinet(cardsArg){
      владельцу уходит сообщение в Telegram. Пишет только Edge Function.
      Важно: «выплата» в кассе может быть начислением под удержание (буфер, бой,
      долг) — тогда на руки 0, и подтверждать нечего. Такие строки помечаем. */
+  /* Подтверждать можно выплаты начиная с этой даты — подтверждение ввели с текущей
+     платёжной недели (среда 16.09.2026), прошлое не переподписываем. Чтобы сдвинуть
+     границу, поменяйте одну дату ниже. */
+  const ACK_FROM = "2026-09-16";
   function ackRowHtml(p, cardId){
     const hands = (p.hands===undefined || p.hands===null) ? p.amount : p.hands;
     const hold  = p.hold || 0;
     const isOut = p.type==="out";
     const a = p.ack || null;
+    const tooOld = String(p.date||"") < ACK_FROM;   // выплата до ввода подтверждений
     const cls = a ? (a.status==="ok" ? " ack-ok" : " ack-bad") : "";
     let sub = isOut ? "выплата" : "возврат";
     if(p.cat) sub += " · " + String(p.cat).replace("Зар.плата ","").toLowerCase();
     if(hold>0) sub += hands>0 ? ` · удержано ${fmtNum(hold)}` : ` · целиком удержано (на руки 0)`;
+    if(isOut && tooOld && !a) sub += " · до ввода подтверждений";
     let note = "";
     if(a){
       const at = a.at ? String(a.at).slice(8,10)+"."+String(a.at).slice(5,7) : "";
@@ -2898,7 +2904,7 @@ function renderStaffCabinet(cardsArg){
         ? `<div class="ack-note ok">получение подтверждено${at?" "+at:""}</div>`
         : `<div class="ack-note bad">вы указали ${fmtNum(a.amount)}${at?" · "+at:""}${a.comment?" · "+esc0(a.comment):""}</div>`;
     }
-    const canAck = isOut && hands>0 && !a;
+    const canAck = isOut && hands>0 && !a && !tooOld;
     const btn = canAck
       ? `<button class="sc-btn" style="padding:6px 11px;font-size:11px" onclick="ackOpen('${p.id}','${cardId}')">Подтвердить</button>`
       : "";
