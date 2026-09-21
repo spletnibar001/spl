@@ -189,7 +189,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v40";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v41";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -296,9 +296,13 @@ function payGroup(cat,payee){ const k=payGroupKey(cat,payee); if(S.bank&&S.bank.
 function groupOfPayment(p){ return (p.group&&EXPENSE_GROUPS.includes(p.group))?p.group:payGroup(p.category,p.payee); }
 function grpBadge(g){ const c=GROUP_COLOR[g]||"#B89A54"; return '<span class="badge" style="border-color:'+c+';color:'+c+'">'+esc(g)+'</span>'; }
 function bankAnchor(){ if(!S.bank) return null; const ch = (S.bank.checks||[]); return ch.length ? ch[ch.length-1] : {date:S.bank.startDate, amount:S.bank.startAmount}; }
-function bankFlows(afterDate){ let uz=0,humo=0,rah=0,qr=0,inkass=0,other=0,ret=0; for(const e of S.entries){ if(e.deleted || e.cat!=="Без.нал" || e.bizDate<=afterDate) continue; const n = normName(e.cp); if(e.type==="in"){ ret += e.amount; continue; } if(n.includes("ИНКАССАЦ")) inkass+=e.amount; else if(n.includes("QR")) qr+=e.amount; else if(n.includes("RAHMAT")||n.includes("РАХМАТ")) rah+=e.amount; else if(n.includes("HUMO")||n.includes("ХУМО")) humo+=e.amount; else if(n.includes("UZCARD")||n.includes("УЗКАРД")) uz+=e.amount; else other+=e.amount; } let pays=0; for(const p of ((S.bank&&S.bank.payments)||[])){ if(p.date>afterDate) pays+=p.amount; } let rcv=0; for(const r of ((S.bank&&S.bank.receipts)||[])){ if(r.date>afterDate) rcv+=r.amount; } const fee = Math.round(uz*0.01)+Math.round(humo*0.01)+Math.round((rah+other)*0.015)+Math.round(qr*0.0065); return {uz,humo,rah,qr,inkass,other,ret,pays,rcv,fee}; }
-function bankBalance(){ const a = bankAnchor(); if(!a) return null; const f = bankFlows(a.date); return a.amount + f.uz + f.humo + f.rah + f.qr + f.other + f.inkass + f.rcv - f.ret - f.pays - f.fee; }
-function bankAgg(entryPred, payPred){ let uz=0,humo=0,rah=0,qr=0,inkass=0,other=0,ret=0; for(const e of S.entries){ if(e.deleted || e.cat!=="Без.нал" || !entryPred(e)) continue; const n=normName(e.cp); if(e.type==="in"){ ret+=e.amount; continue; } if(n.includes("ИНКАССАЦ")) inkass+=e.amount; else if(n.includes("QR")) qr+=e.amount; else if(n.includes("RAHMAT")||n.includes("РАХМАТ")) rah+=e.amount; else if(n.includes("HUMO")||n.includes("ХУМО")) humo+=e.amount; else if(n.includes("UZCARD")||n.includes("УЗКАРД")) uz+=e.amount; else other+=e.amount; } let pays=0; for(const p of ((S.bank&&S.bank.payments)||[])){ if(payPred(p)) pays+=p.amount; } let rcv=0; for(const r of ((S.bank&&S.bank.receipts)||[])){ if(payPred(r)) rcv+=r.amount; } const fee=Math.round(uz*0.01)+Math.round(humo*0.01)+Math.round((rah+other)*0.015)+Math.round(qr*0.0065); const net=uz+humo+rah+qr+other+inkass+rcv - ret - pays - fee; return {uz,humo,rah,qr,inkass,other,ret,pays,rcv,fee,net}; }
+/* Комиссия банка 0,2% за каждый исходящий платёж со счёта — та же, что в кассе.
+   Просмотрщик её не вычитал, и остаток на счёте расходился с кассой на 0,2% от всех
+   платежей с даты последней сверки (21.09.2026: 114 921 070 против 113 577 705). */
+const BANK_PAY_FEE = 0.002;
+function bankFlows(afterDate){ let uz=0,humo=0,rah=0,qr=0,inkass=0,other=0,ret=0,wdrw=0; for(const e of S.entries){ if(e.deleted || e.cat!=="Без.нал" || e.bizDate<=afterDate) continue; const n = normName(e.cp); if(e.type==="in"){ if(e.kind==="bankcash") wdrw += e.amount; else ret += e.amount; continue; } if(n.includes("ИНКАССАЦ")) inkass+=e.amount; else if(n.includes("QR")) qr+=e.amount; else if(n.includes("RAHMAT")||n.includes("РАХМАТ")) rah+=e.amount; else if(n.includes("HUMO")||n.includes("ХУМО")) humo+=e.amount; else if(n.includes("UZCARD")||n.includes("УЗКАРД")) uz+=e.amount; else other+=e.amount; } let pays=0; for(const p of ((S.bank&&S.bank.payments)||[])){ if(p.date>afterDate) pays+=p.amount; } let rcv=0; for(const r of ((S.bank&&S.bank.receipts)||[])){ if(r.date>afterDate) rcv+=r.amount; } const fee = Math.round(uz*0.01)+Math.round(humo*0.01)+Math.round((rah+other)*0.015)+Math.round(qr*0.0065); const payFee = Math.round(pays*BANK_PAY_FEE); return {uz,humo,rah,qr,inkass,other,ret,wdrw,pays,rcv,fee,payFee}; }
+function bankBalance(){ const a = bankAnchor(); if(!a) return null; const f = bankFlows(a.date); return a.amount + f.uz + f.humo + f.rah + f.qr + f.other + f.inkass + f.rcv - f.ret - f.wdrw - f.pays - f.fee - f.payFee; }
+function bankAgg(entryPred, payPred){ let uz=0,humo=0,rah=0,qr=0,inkass=0,other=0,ret=0,wdrw=0; for(const e of S.entries){ if(e.deleted || e.cat!=="Без.нал" || !entryPred(e)) continue; const n=normName(e.cp); if(e.type==="in"){ if(e.kind==="bankcash") wdrw+=e.amount; else ret+=e.amount; continue; } if(n.includes("ИНКАССАЦ")) inkass+=e.amount; else if(n.includes("QR")) qr+=e.amount; else if(n.includes("RAHMAT")||n.includes("РАХМАТ")) rah+=e.amount; else if(n.includes("HUMO")||n.includes("ХУМО")) humo+=e.amount; else if(n.includes("UZCARD")||n.includes("УЗКАРД")) uz+=e.amount; else other+=e.amount; } let pays=0; for(const p of ((S.bank&&S.bank.payments)||[])){ if(payPred(p)) pays+=p.amount; } let rcv=0; for(const r of ((S.bank&&S.bank.receipts)||[])){ if(payPred(r)) rcv+=r.amount; } const fee=Math.round(uz*0.01)+Math.round(humo*0.01)+Math.round((rah+other)*0.015)+Math.round(qr*0.0065); const payFee=Math.round(pays*BANK_PAY_FEE); const net=uz+humo+rah+qr+other+inkass+rcv - ret - wdrw - pays - fee - payFee; return {uz,humo,rah,qr,inkass,other,ret,wdrw,pays,rcv,fee,payFee,net}; }
 function bankDaySummary(iso){ return bankAgg(e=>e.bizDate===iso, p=>p.date===iso); }
 function bankBalanceAsOf(iso){ const a=bankAnchor(); if(!a) return null; if(iso<a.date) return a.amount; const f=bankAgg(e=>e.bizDate>a.date&&e.bizDate<=iso, p=>p.date>a.date&&p.date<=iso); return a.amount+f.net; }
 function latestBizDate(){ let mx=null; for(const e of S.entries){ if(!e.deleted && (!mx || e.bizDate>mx)) mx=e.bizDate; } for(const d in S.days){ if(!mx || d>mx) mx=d; } return mx; }
@@ -509,7 +513,7 @@ function renderBank(){
   const d=SEL||VD;
   const ds=bankDaySummary(d), balEnd=bankBalanceAsOf(d);
   const inSum=ds.uz+ds.humo+ds.rah+ds.qr+ds.inkass+ds.other+ds.rcv;
-  const outSum=ds.pays+ds.fee+ds.ret;
+  const outSum=ds.pays+ds.fee+(ds.payFee||0)+(ds.wdrw||0)+ds.ret;
   const L=(t,v,c)=>'<div class="l"><div>'+t+'</div><b class="'+c+'">'+(c==="in"?"+":"−")+fmt(v)+'</b></div>';
   const dayPays=((S.bank.payments)||[]).filter(p=>p.date===d).slice().reverse();
   const dayRcv=((S.bank.receipts)||[]).filter(r=>r.date===d).slice().reverse();
@@ -524,7 +528,9 @@ function renderBank(){
     '<div class="sect" style="color:var(--out)">Расход за день</div>'+
     '<div class="card-wrap calc">'+
       L('Платежи со счёта',ds.pays,'out')+
-      L('Комиссия за день',ds.fee,'out')+
+      (ds.payFee?L('Комиссия за платежи (0,2%)',ds.payFee,'out'):'')+
+      L('Комиссия терминалов за день',ds.fee,'out')+
+      (ds.wdrw?L('Снятие со счёта в кассу',ds.wdrw,'out'):'')+
       (ds.ret?L('Возвраты по безналу',ds.ret,'out'):'')+
       '<div class="l gold"><div>Итого расход</div><b class="out">−'+fmt(outSum)+'</b></div>'+
     '</div>'+
