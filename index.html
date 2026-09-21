@@ -10,6 +10,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -715,7 +716,57 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 #dg-ok:disabled{background:var(--panel2);color:var(--muted);border:1px solid var(--line);cursor:default}
 .dg-progress{height:3px;background:var(--panel2)}
 .dg-progress i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s linear}
-</style>
+
+  /* ===== ШТРАФЫ, БОНУСЫ И ВЫГОВОРЫ ПО УСТАВУ ===== */
+  .hr-sec{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+    margin:16px 0 9px;padding-top:12px;border-top:1px solid var(--line);font-weight:700}
+  .hr-sec:first-child{border-top:none;padding-top:0;margin-top:0}
+  .hr-card{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:12px 13px;margin-bottom:9px}
+  .hr-card.wait{border-color:var(--gold)}
+  .hr-card.bad{border-color:var(--red);background:rgba(226,92,92,.08)}
+  .hr-card.done{opacity:.8}
+  .hr-top{display:flex;align-items:flex-start;gap:10px}
+  .hr-nm{flex:1;min-width:0}
+  .hr-nm b{display:block;font-size:13.5px;font-weight:700;line-height:1.3}
+  .hr-nm span{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+  .hr-sum{font-size:15px;font-weight:800;color:var(--red);white-space:nowrap}
+  .hr-sum.gd{color:var(--gold)}
+  .hr-foot{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .hr-foot .t{flex:1;min-width:120px;font-size:11.5px;color:var(--muted)}
+  .hr-foot .t b{color:var(--text)}
+  .hr-tag{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:8px;border:1px solid var(--line);
+    color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+  .hr-tag.y{border-color:var(--gold);color:var(--gold)}
+  .hr-tag.r{border-color:var(--red);color:var(--red)}
+  .hr-tag.g{border-color:var(--emerald);color:var(--emerald)}
+  .hr-btn{border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer;
+    padding:8px 12px;border-radius:9px;font-size:11.5px;font-weight:700;white-space:nowrap;font-family:inherit}
+  .hr-btn:hover{color:var(--text)}
+  .hr-btn.y{border-color:var(--gold);background:rgba(217,176,76,.12);color:var(--gold)}
+  .hr-btn.r{border-color:var(--red);background:rgba(226,92,92,.12);color:var(--red)}
+  .hr-btn.g{border-color:var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald)}
+  .hr-btn[disabled]{opacity:.5;cursor:default}
+  .hr-row{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--panel2);margin-bottom:7px}
+  .hr-row .l{flex:1;min-width:0}
+  .hr-row .l b{display:block;font-size:12.5px;font-weight:700}
+  .hr-row .l span{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+  .hr-row .r{font-size:13px;font-weight:800;color:var(--red);white-space:nowrap}
+  .hr-row.hard{border-color:rgba(226,92,92,.45)}
+  .hr-note{margin-top:13px;padding:11px 13px;border-radius:11px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.55}
+  .hr-bars{display:flex;gap:5px;margin-top:9px}
+  .hr-bars i{flex:1;height:8px;border-radius:4px;background:#171a20;border:1px solid var(--line)}
+  .hr-bars i.on{background:var(--emerald);border-color:var(--emerald)}
+  .hr-bars i.bad{background:var(--red);border-color:var(--red)}
+  .hr-gr{border:1px solid var(--red);background:rgba(226,92,92,.10);border-radius:12px;padding:13px;margin-bottom:10px}
+  .hr-gr h4{font-size:13.5px;font-weight:800;color:var(--red);line-height:1.3;margin:0}
+  .hr-gr p{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.5}
+  .hr-scroll{max-height:56vh;overflow:auto;-webkit-overflow-scrolling:touch}
+  .hr-pick{width:100%;padding:8px 10px;border-radius:9px;background:var(--panel2);
+    border:1px solid var(--line);color:var(--text);font-family:inherit;font-size:13px}
+
+  </style>
 </head>
 <body>
 
@@ -895,6 +946,8 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <button class="btn-mini money-only" id="btn-export-pay" style="display:none">⬇ Итоги ЗП</button>
       <button class="btn-mini" id="btn-checkin" style="display:none">✓ Отметить приход</button>
       <button class="btn-mini" id="btn-remove" style="display:none">✕ Убрать из графика</button>
+      <button class="btn-mini" id="btn-hr-shift" style="display:none">⚠ Нарушения смены</button>
+      <button class="btn-mini" id="btn-hr-top" style="display:none">Выговоры и основания</button>
     </h2>
     <div class="grid-wrap">
       <table id="grid">
@@ -955,6 +1008,12 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
     <button class="modal-x" id="pen-close">✕</button>
     <h3 id="pen-title" style="padding-right:44px">Штраф</h3>
     <div class="sub" id="pen-sub"></div>
+    <div class="form-row" style="margin-bottom:10px">
+      <div class="field" style="flex:1;min-width:200px">
+        <label>Пункт устава</label>
+        <select id="pen-rule" class="hr-pick"><option value="">— свой текст —</option></select>
+      </div>
+    </div>
     <div class="form-row">
       <div class="field">
         <label>День</label>
@@ -980,6 +1039,35 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <span class="msg" id="pen-msg" style="margin:0 0 0 6px"></span>
     </div>
     <div class="pen-list" id="pen-list"></div>
+  </div>
+</div>
+
+
+<!-- НАРУШЕНИЯ СМЕНЫ (менеджер смены) -->
+<div class="modal-bg" id="hr-shift-modal">
+  <div class="modal">
+    <button class="modal-x" id="hr-shift-close">✕</button>
+    <h3 style="padding-right:44px">Нарушения смены</h3>
+    <div class="sub" id="hr-shift-sub"></div>
+    <div class="form-row" style="margin:10px 0 4px">
+      <div class="field" style="flex:1">
+        <label>День</label>
+        <select id="hr-shift-date" class="hr-pick"></select>
+      </div>
+    </div>
+    <div class="hr-scroll" id="hr-shift-body"></div>
+    <span class="msg" id="hr-shift-msg"></span>
+  </div>
+</div>
+
+<!-- ВЫГОВОРЫ И ОСНОВАНИЯ (руководство) -->
+<div class="modal-bg" id="hr-top-modal">
+  <div class="modal">
+    <button class="modal-x" id="hr-top-close">✕</button>
+    <h3 style="padding-right:44px">Выговоры и основания</h3>
+    <div class="sub" id="hr-top-sub"></div>
+    <div class="hr-scroll" id="hr-top-body" style="margin-top:10px"></div>
+    <span class="msg" id="hr-top-msg"></span>
   </div>
 </div>
 
@@ -1009,6 +1097,12 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
     <button class="modal-x" id="bon-close">✕</button>
     <h3 id="bon-title" style="padding-right:44px">Бонус</h3>
     <div class="sub" id="bon-sub"></div>
+    <div class="form-row" style="margin-bottom:10px">
+      <div class="field" style="flex:1;min-width:200px">
+        <label>Бонус по уставу</label>
+        <select id="bon-rule" class="hr-pick"><option value="">— свой текст —</option></select>
+      </div>
+    </div>
     <div class="form-row">
       <div class="field">
         <label>День</label>
@@ -1047,7 +1141,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 18.09 · сборка 38";
+const APP_VERSION = "v 20.09 · сборка 39";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1495,7 +1589,7 @@ async function pushPlansToKassa(weekKey){
       if(rr.noPay){                                          // Бар-менеджер (Зоха): оклад с кассы, из табеля — бонусы/штрафы за месяц
         let mb=0,mp=0;
         for(const b of bonRows) if(b.employee_id===e.id && b.bonus_date>=mFrom && b.bonus_date<=mTo) mb+=b.amount;
-        for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=mFrom && p.pen_date<=mTo) mp+=p.amount;
+        for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=mFrom && p.pen_date<=mTo && penApplied(p)) mp+=p.amount;
         if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:mk,period_label:mk,oklad:0,bonus:Math.round(mb),planned:Math.round(mb-mp),status:"confirmed"}});
         continue;
       }
@@ -1539,7 +1633,10 @@ async function togglePayout(empId, kind){
 const rosterOf = ws => rosterRows.filter(r=>r.week_start===ws).map(r=>r.employee_id);
 const shiftOf = (id,ds) => shiftRows.find(s=>s.employee_id===id && s.work_date===ds);
 const hasShift = (id,ds) => { const r = shiftOf(id,ds); return !!r && r.status !== 2; }; // работал
-const penaltiesIn = (id, fromS, toS) => penRows.filter(p=>p.employee_id===id && p.pen_date>=fromS && p.pen_date<=toS);
+// ВСЕ штрафы за период — для списков и журнала
+const penaltiesAllIn = (id, fromS, toS) => penRows.filter(p=>p.employee_id===id && p.pen_date>=fromS && p.pen_date<=toS);
+// в расчёт зарплаты идут только удержанные: по уставу у сотрудника есть 24 часа на объяснение
+const penaltiesIn = (id, fromS, toS) => penaltiesAllIn(id, fromS, toS).filter(p=>typeof penApplied!=="function" || penApplied(p));
 const bonusesIn = (id, fromS, toS) => bonRows.filter(b=>b.employee_id===id && b.bonus_date>=fromS && b.bonus_date<=toS);
 const wvOf = (id,ws) => wvRows.find(w=>w.employee_id===id && w.week_start===ws) || {};
 
@@ -2048,10 +2145,10 @@ function render(){
       }
       let penMark = "", tip = "";
       if(CAP.pen){
-        const dp = penaltiesIn(e.id, ds, ds);
+        const dp = penaltiesAllIn(e.id, ds, ds).filter(p=>p.status!=="cancelled");
         if(dp.length){
           penMark = `<span class="pen-mark"></span>`;
-          tip = `title="${dp.map(p=>"Штраф −"+fmtNum(p.amount)+": "+p.note).join("; ").replace(/"/g,"&quot;")}"`;
+          tip = `title="${dp.map(p=>"Штраф −"+fmtNum(p.amount)+": "+p.note+(penApplied(p)?"":" (на рассмотрении)")).join("; ").replace(/"/g,"&quot;")}"`;
         }
       }
       if(sh && sh.status===2) tip = `title="Неявка — день не оплачивается"`;
@@ -2350,6 +2447,7 @@ function openPenalty(id){
   $("pen-amount").value = fmtNum(DEFAULT_PENALTY);
   $("pen-note").value = "";
   $("pen-by").value = ME.name; // кем поставлен — автоматически из учётки
+  hrFillPenRules(id);          // пункты устава: сумма и формулировка подставляются сами
   renderPenList();
   $("pen-modal").classList.add("open");
 }
@@ -2365,10 +2463,21 @@ async function addPenalty(){
   const note = $("pen-note").value.trim();
   if(!(amount > 0)){ penMsg("Укажите сумму штрафа"); return; }
   if(!note){ penMsg("Примечание обязательно — укажите, за что штраф"); return; }
-  const {error} = await sb.from("penalties").insert({
-    employee_id: penEmpId, pen_date: $("pen-date").value,
-    amount, note, created_by: ME.name
-  });
+  const ruleSel = $("pen-rule");
+  const code = ruleSel && ruleSel.value ? Number(ruleSel.value) : 0;
+  let error = null;
+  if(code){
+    // штраф по пункту устава: код, статус «на рассмотрении», 24 часа на объяснение
+    const res = await hrRpc("hr_pen_add", {p_employee_id:String(penEmpId), p_code:code,
+      p_date:$("pen-date").value, p_by:ME.name, p_amount:amount, p_note:note});
+    if(!res || res.ok === false) error = {message:(res&&res.error)||"Не получилось выписать штраф"};
+  } else {
+    const r = await sb.from("penalties").insert({
+      employee_id: penEmpId, pen_date: $("pen-date").value,
+      amount, note, created_by: ME.name, status: "pending", created_at: new Date().toISOString()
+    });
+    error = r.error;
+  }
   if(error){ penMsg(error.message); return; }
   $("pen-amount").value = fmtNum(DEFAULT_PENALTY); $("pen-note").value = "";
   penMsg("Штраф выписан", true);
@@ -2384,7 +2493,7 @@ async function delPenalty(pid){
 }
 function renderPenList(){
   const wkFrom = iso(viewStart), wkTo = iso(addDays(viewStart,6));
-  const list = penaltiesIn(penEmpId, wkFrom, wkTo).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
+  const list = penaltiesAllIn(penEmpId, wkFrom, wkTo).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
   const tg = Number(ME.tg_id || ME.telegram_id || 0);
   const privileged = CAP.unapprove;
   $("pen-list").innerHTML = list.length
@@ -2396,10 +2505,16 @@ function renderPenList(){
         const delBtn = canDelete
           ? `<button class="pen-del-btn" onclick="delPenalty('${pn.id}')">Удалить штраф</button>`
           : `<span class="by" style="color:var(--muted);font-style:italic">снять может только администратор базы</span>`;
-        return `<div class="pen-row">
+        const st = pn.status || "applied";
+        const stLabel = st==="cancelled" ? `<span class="hr-tag">отменён</span>`
+          : st==="disputed" ? `<span class="hr-tag r">не согласен</span>`
+          : (st==="pending" && !penApplied(pn)) ? `<span class="hr-tag y">на рассмотрении</span>`
+          : `<span class="hr-tag g">удержан</span>`;
+        return `<div class="pen-row"${st==="cancelled"?' style="opacity:.55"':""}>
           <span class="d">${fmtD(fromIso(pn.pen_date))}</span>
           <span class="a">−${fmtNum(pn.amount)}</span>
           <span class="n">${pn.note}</span>
+          ${stLabel}
           <span class="by">выписал(а): ${pn.created_by}</span>
           ${delBtn}
         </div>`;
@@ -2421,6 +2536,7 @@ function openBonus(id){
   $("bon-amount").value = fmtNum(DEFAULT_BONUS);
   $("bon-note").value = "";
   $("bon-by").value = ME.name;
+  hrFillBonRules(id);          // бонусы устава
   renderBonList();
   $("bon-modal").classList.add("open");
 }
@@ -2436,10 +2552,23 @@ async function addBonus(){
   const note = $("bon-note").value.trim();
   if(!(amount > 0)){ bonMsg("Укажите сумму бонуса"); return; }
   if(!note){ bonMsg("Примечание обязательно — укажите, за что бонус"); return; }
-  const {error} = await sb.from("bonuses").insert({
-    employee_id: bonEmpId, bonus_date: $("bon-date").value,
-    amount, note, created_by: ME.name
-  });
+  const bRule = $("bon-rule");
+  const bCode = bRule && bRule.value ? bRule.value : "";
+  let error = null;
+  if(bCode){
+    const ds = $("bon-date").value;
+    const res = await hrRpc("hr_bonus_award", {p_employee_id:String(bonEmpId), p_code:bCode,
+      p_period:(bCode==="best" ? "m"+ds.slice(0,7) : "d"+ds), p_by:ME.name,
+      p_date:ds, p_amount:amount, p_note:note});
+    if(!res || res.ok === false) error = {message:(res&&res.error)||"Не получилось начислить бонус"};
+    else if(res.added === false) error = {message:res.error||"Такой бонус за этот период уже начислен"};
+  } else {
+    const r = await sb.from("bonuses").insert({
+      employee_id: bonEmpId, bonus_date: $("bon-date").value,
+      amount, note, created_by: ME.name
+    });
+    error = r.error;
+  }
   if(error){ bonMsg(error.message); return; }
   $("bon-amount").value = fmtNum(DEFAULT_BONUS); $("bon-note").value = "";
   bonMsg("Бонус начислен", true);
@@ -3009,7 +3138,7 @@ function renderStaffCabinet(cardsArg){
   // штрафы/бонусы — общие по человеку (по всем карточкам)
   const allIds = myCards.map(c=>c.id);
   const bons = bonRows.filter(b=>allIds.includes(b.employee_id) && b.bonus_date>=fromS && b.bonus_date<=toS).sort((a,b)=>a.bonus_date<b.bonus_date?-1:1);
-  const pens = penRows.filter(p=>allIds.includes(p.employee_id) && p.pen_date>=fromS && p.pen_date<=toS).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
+  const pens = penRows.filter(p=>allIds.includes(p.employee_id) && p.pen_date>=fromS && p.pen_date<=toS && penApplied(p)).sort((a,b)=>a.pen_date<b.pen_date?-1:1);
   const bonList = bons.length
     ? bons.map(b=>`<div class="sc-row"><div class="l"><div class="d">${b.note}</div><div class="s">${fmtD(fromIso(b.bonus_date))} · начислил(а): ${b.created_by}</div></div><div class="r gd">+${fmtNum(b.amount)}</div></div>`).join("")
       + `<div class="sc-row tot"><div class="l"><div class="d">Всего бонусов</div></div><div class="r gd">+${fmtNum(grandBon)}</div></div>`
@@ -3071,6 +3200,8 @@ function renderStaffCabinet(cardsArg){
     <div class="sc-sec" id="sc-debts-sec" style="display:none">Мои долги</div>
     <div class="sc-drawer open" id="sc-debts" style="display:none"></div>
 
+    <div id="hr-my"></div>
+
     <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
   `;
   SC_OWN = false;
@@ -3079,6 +3210,7 @@ function renderStaffCabinet(cardsArg){
   scLoadAdvances();
   scLoadBuffer();
   scLoadDebts();
+  try{ hrRenderMy(myCards); }catch(e){ console.warn("hrRenderMy", e); }   // штрафы, выговоры, чистые недели
   const prevBtn = $("sc-wk-prev"), nextBtn = $("sc-wk-next");
   if(prevBtn) prevBtn.addEventListener("click", async ()=>{
     viewStart = addDays(viewStart, -7);
@@ -3801,6 +3933,7 @@ async function startApp(){
   $("btn-curweek").addEventListener("click", async ()=>{
     viewStart = payWeekStart(businessNow()); setCurrentPayWeek(); await refresh();
   });
+  try{ hrWire(); }catch(e){ console.warn("hrWire", e); }   // устав: штрафы, бонусы, выговоры
   // ручная отметка прихода персонала — только администратор, директор, управляющий
   const chkBtn = $("btn-checkin");
   const CHK_ROLES = ["admin","dir","upr"];
@@ -6988,6 +7121,483 @@ async function rcInit(){
 window.rcOpen = rcOpen; window.rcClose = rcClose; window.rcAdd = rcAdd;
 window.rcRemove = rcRemove; window.rcConfirm = rcConfirm; window.rcReject = rcReject;
 window.rcRefresh = rcRefresh;
+
+
+/* ============================================================
+   ШТРАФЫ, БОНУСЫ И ВЫГОВОРЫ ПО УСТАВУ ПЕРСОНАЛА
+   Серверная часть: hr-rules.sql (справочник устава + функции hr_*).
+   Правило устава: штраф не удерживается сразу — у сотрудника есть
+   24 часа на объяснение. Система ничего не решает сама: опоздания
+   и неявки она только предлагает менеджеру, увольнения — руководству.
+   ============================================================ */
+const HR = {
+  pen: [],          // справочник нарушений устава
+  bon: [],          // справочник бонусов устава
+  loaded: false,
+  disputeH: 24,
+  shiftDate: null,
+  my: null          // ответ hr_my_state для личного кабинета
+};
+
+async function hrLoadCharter(){
+  if(HR.loaded) return true;
+  try{
+    const [p, b] = await Promise.all([
+      sb.from("charter_penalties").select("*").eq("active", true).order("code"),
+      sb.from("charter_bonuses").select("*").eq("active", true)
+    ]);
+    if(p.error || b.error) return false;
+    HR.pen = p.data || [];
+    HR.bon = b.data || [];
+    HR.loaded = HR.pen.length > 0;
+    return HR.loaded;
+  }catch(_){ return false; }
+}
+const hrRule    = code => HR.pen.find(r => Number(r.code) === Number(code)) || null;
+const hrBonRule = code => HR.bon.find(r => r.code === code) || null;
+
+/* Считается ли штраф удержанным.
+   Старые штрафы (без status) — как раньше, сразу. */
+function penApplied(p){
+  if(!p) return false;
+  const st = p.status;
+  if(!st) return true;
+  if(st === "cancelled" || st === "disputed") return false;
+  if(st === "applied") return true;
+  const t = p.created_at ? Date.parse(p.created_at) : 0;
+  if(!t) return true;
+  return (Date.now() - t) >= HR.disputeH * 3600 * 1000;
+}
+function hrHoursLeft(p){
+  const t = p && p.created_at ? Date.parse(p.created_at) : 0;
+  if(!t) return 0;
+  return Math.max(0, Math.ceil((t + HR.disputeH*3600*1000 - Date.now())/3600000));
+}
+function hrPenLabel(p){
+  const r = p.rule_code ? hrRule(p.rule_code) : null;
+  return p.note || (r ? r.code + ". " + r.title : "Штраф");
+}
+async function hrRpc(fn, args){
+  try{
+    const {data, error} = await sb.rpc(fn, args||{});
+    if(error) return {ok:false, error:error.message};
+    return data || {ok:true};
+  }catch(e){ return {ok:false, error:String(e && e.message || e)}; }
+}
+const hrEsc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* сумма нарушения для конкретного человека: фикс / смена / половина смены */
+function hrAmountFor(rule, empId, ds){
+  if(!rule) return 0;
+  if(rule.amount_kind === "fixed") return Number(rule.amount)||0;
+  let rate = 0;
+  try{ rate = Number(rateForDate(empId, ds))||0; }catch(_){ rate = 0; }
+  if(rule.amount_kind === "shift")      return rate;
+  if(rule.amount_kind === "half_shift") return Math.round(rate/2);
+  return 0;   // damage / none — сумму вводит руководство
+}
+
+/* ---------- 1. НАРУШЕНИЯ СМЕНЫ (менеджер) ---------- */
+function hrCanShift(){ return !!CAP && !!CAP.pen; }
+function hrCanTop(){ return ["admin","upr","dir"].includes(ME && ME.role); }
+
+async function hrOpenShift(){
+  if(!hrCanShift()) return;
+  if(!await hrLoadCharter()){ showMsg("Справочник устава не загружен — запустите hr-rules.sql"); return; }
+  const todayS = isoBizToday();
+  HR.shiftDate = HR.shiftDate || todayS;
+  $("hr-shift-sub").textContent = "Система предлагает — решает менеджер. Штраф можно оспорить в течение " + HR.disputeH + " часов.";
+  $("hr-shift-date").innerHTML = Array.from({length:7},(_,i)=>addDays(viewStart,i)).map(d=>{
+    const ds = iso(d);
+    return `<option value="${ds}" ${ds===HR.shiftDate?"selected":""}>${DOW[(d.getDay()-3+7)%7]} ${fmtD(d)}</option>`;
+  }).join("");
+  if(!Array.from($("hr-shift-date").options).some(o=>o.selected)){
+    HR.shiftDate = iso(viewStart); $("hr-shift-date").value = HR.shiftDate;
+  }
+  $("hr-shift-date").onchange = e => { HR.shiftDate = e.target.value; hrRenderShift(); };
+  $("hr-shift-modal").classList.add("open");
+  await hrRenderShift();
+}
+function hrCloseShift(){ $("hr-shift-modal").classList.remove("open"); }
+function hrShiftMsg(t, ok){
+  const m = $("hr-shift-msg"); if(!m) return;
+  m.textContent = t || ""; m.className = "msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 4000);
+}
+
+async function hrRenderShift(){
+  const box = $("hr-shift-body"); if(!box) return;
+  const ds = HR.shiftDate;
+  box.innerHTML = `<div class="hr-note">Загружаю…</div>`;
+  const [late, absent] = await Promise.all([
+    hrRpc("hr_late_list",   {p_date: ds}),
+    hrRpc("hr_absent_list", {p_date: ds})
+  ]);
+  const found = []
+    .concat(Array.isArray(late)   ? late   : [])
+    .concat(Array.isArray(absent) ? absent : [])
+    .filter(x => { const e = byId(x.employee_id); return e && penMatch(e); });
+
+  let html = `<div class="hr-sec">Система нашла</div>`;
+  html += found.length ? found.map(x=>{
+    const r = hrRule(x.code);
+    const why = Number(x.code) === 3
+      ? `Неявка проставлена в графике. Сумма считается из ставки.`
+      : `Отметился в ${hrTime(x.checked_at)}, начало смены ${hrTime(x.start_at)}. Допуск 20 минут — опоздание ${x.late_min} мин.`;
+    return `<div class="hr-card wait">
+      <div class="hr-top">
+        <div class="hr-nm"><b>${hrEsc(x.name)} · ${hrEsc(x.role||"")}</b><span>${why}</span></div>
+        <div class="hr-sum">${fmtNum(Number(x.amount)||0)}</div>
+      </div>
+      <div class="hr-foot">
+        <div class="t">пункт ${x.code} устава${r&&r.amount_kind!=="fixed"?" · в размере смены":""}</div>
+        <button class="hr-btn" onclick="hrForgive('${x.employee_id}',${x.code})">Простить</button>
+        <button class="hr-btn y" onclick="hrIssue('${x.employee_id}',${x.code},${Number(x.amount)||0})">Выписать</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="hr-note">Опозданий и неявок в этот день система не нашла.</div>`;
+
+  // список устава — выписать вручную
+  const people = employees.filter(e=>!e.archived && penMatch(e))
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name),"ru"));
+  html += `<div class="hr-sec">Выписать по уставу</div>`;
+  html += `<div class="form-row" style="gap:8px;margin-bottom:10px">
+      <div class="field" style="flex:1;min-width:150px"><label>Сотрудник</label>
+        <select id="hr-emp" class="hr-pick">${people.map(e=>`<option value="${e.id}">${hrEsc(e.name)} · ${hrEsc(e.emp_role)}</option>`).join("")}</select></div>
+    </div>`;
+  const grps = [];
+  for(const r of HR.pen){ if(!grps.includes(r.grp)) grps.push(r.grp); }
+  for(const g of grps){
+    html += `<div style="font-size:11px;color:var(--muted);margin:12px 0 6px">${hrEsc(g)}</div>`;
+    for(const r of HR.pen.filter(x=>x.grp===g)){
+      const sum = r.amount_kind==="fixed" ? fmtNum(r.amount)
+                : r.amount_kind==="shift" ? "смена"
+                : r.amount_kind==="half_shift" ? "½ смены"
+                : r.amount_kind==="damage" ? "ущерб" : "—";
+      const extra = [];
+      if(r.severity==="hard") extra.push("тяжёлое");
+      if(r.extra) extra.push(r.extra);
+      if(r.roles && r.roles.length) extra.push("только: " + r.roles.join(", "));
+      html += `<div class="hr-row${r.severity==="hard"?" hard":""}">
+        <div class="l"><b>${r.code} · ${hrEsc(r.title)}</b>${extra.length?`<span>${hrEsc(extra.join(" · "))}</span>`:""}</div>
+        <div class="r">${sum}</div>
+        <button class="hr-btn" onclick="hrIssuePicked(${r.code})">Выписать</button>
+      </div>`;
+    }
+  }
+  html += `<div class="hr-note">Сумма и формулировка подставляются из устава. У сотрудника есть ${HR.disputeH} часа
+    на объяснение — до этого штраф из зарплаты не удерживается. Если он не согласен,
+    решение принимает руководство.</div>`;
+  box.innerHTML = html;
+}
+function hrTime(ts){
+  if(!ts) return "—";
+  try{
+    return new Date(ts).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Tashkent"});
+  }catch(_){ return "—"; }
+}
+
+/* выписать штраф из предложения системы */
+async function hrIssue(empId, code, amount){
+  const e = byId(empId); if(!e) return;
+  const r = hrRule(code);
+  if(!confirm(`Выписать ${e.name}: «${r?r.title:"нарушение"}» — ${fmtNum(amount)} сум?\n\nУ сотрудника будет ${HR.disputeH} часа на объяснение.`)) return;
+  const res = await hrRpc("hr_pen_add", {p_employee_id:String(empId), p_code:Number(code),
+    p_date:HR.shiftDate, p_by:ME.name, p_amount:Number(amount)||null, p_note:null});
+  if(!res || res.ok === false){ hrShiftMsg((res&&res.error)||"Не получилось выписать штраф"); return; }
+  hrShiftMsg("Штраф выписан", true);
+  await loadAll(); render(); await hrRenderShift();
+}
+/* выписать по выбранному пункту списка устава */
+async function hrIssuePicked(code){
+  const sel = $("hr-emp"); if(!sel || !sel.value){ hrShiftMsg("Выберите сотрудника"); return; }
+  const empId = sel.value, e = byId(empId), r = hrRule(code);
+  if(!e || !r) return;
+  if(r.roles && r.roles.length && !r.roles.includes(e.emp_role)){
+    if(!confirm(`Пункт ${r.code} устава написан для: ${r.roles.join(", ")}.\n${e.name} — ${e.emp_role}. Всё равно выписать?`)) return;
+  }
+  let amount = hrAmountFor(r, empId, HR.shiftDate);
+  if(r.amount_kind === "damage" || (amount <= 0 && r.amount_kind !== "none")){
+    const v = prompt(`${r.code}. ${r.title}\nУкажите сумму в сумах:`, amount? String(amount):"");
+    if(v === null) return;
+    amount = parseNum(v);
+    if(!(amount > 0)){ hrShiftMsg("Нужна сумма штрафа"); return; }
+  }
+  if(!confirm(`Выписать ${e.name}: «${r.title}»${amount?" — "+fmtNum(amount)+" сум":""}?`)) return;
+  const res = await hrRpc("hr_pen_add", {p_employee_id:String(empId), p_code:Number(code),
+    p_date:HR.shiftDate, p_by:ME.name, p_amount:amount||null, p_note:null});
+  if(!res || res.ok === false){ hrShiftMsg((res&&res.error)||"Не получилось выписать штраф"); return; }
+  hrShiftMsg("Штраф выписан", true);
+  await loadAll(); render(); await hrRenderShift();
+}
+/* простить: штраф не выписывается, но система больше не предлагает это нарушение */
+async function hrForgive(empId, code){
+  const e = byId(empId); if(!e) return;
+  if(!confirm(`Простить ${e.name}? Штраф не выписывается, решение сохранится в журнале.`)) return;
+  const res = await hrRpc("hr_forgive", {p_employee_id:String(empId), p_code:Number(code),
+    p_date:HR.shiftDate, p_by:ME.name});
+  if(!res || res.ok === false){ hrShiftMsg((res&&res.error)||"Не получилось"); return; }
+  hrShiftMsg("Прощено", true);
+  await hrRenderShift();
+}
+
+/* ---------- 1a. ПУНКТЫ УСТАВА В ОКНАХ ШТРАФА И БОНУСА ---------- */
+async function hrFillPenRules(empId){
+  const sel = $("pen-rule"); if(!sel) return;
+  if(!await hrLoadCharter()){ sel.parentNode.style.display = "none"; return; }
+  sel.parentNode.style.display = "";
+  const e = byId(empId);
+  const fit = HR.pen.filter(r => !r.roles || !r.roles.length || (e && r.roles.includes(e.emp_role)));
+  sel.innerHTML = `<option value="">— свой текст —</option>` + fit.map(r=>{
+    const sum = r.amount_kind==="fixed" ? fmtNum(r.amount)
+              : r.amount_kind==="shift" ? "смена"
+              : r.amount_kind==="half_shift" ? "½ смены"
+              : r.amount_kind==="damage" ? "ущерб" : "—";
+    return `<option value="${r.code}">${r.code}. ${hrEsc(r.title)} — ${sum}</option>`;
+  }).join("");
+  sel.onchange = () => {
+    const r = hrRule(sel.value);
+    if(!r){ $("pen-note").value = ""; return; }
+    $("pen-note").value = r.code + ". " + r.title;
+    const amt = hrAmountFor(r, empId, $("pen-date").value || isoBizToday());
+    if(amt > 0) $("pen-amount").value = fmtNum(amt);
+  };
+}
+async function hrFillBonRules(empId){
+  const sel = $("bon-rule"); if(!sel) return;
+  if(!await hrLoadCharter()){ sel.parentNode.style.display = "none"; return; }
+  sel.parentNode.style.display = "";
+  // «4 чистые недели» начисляет система, вручную его не выдают
+  const fit = HR.bon.filter(b => b.code !== "clean4");
+  sel.innerHTML = `<option value="">— свой текст —</option>` + fit.map(b=>
+    `<option value="${hrEsc(b.code)}">${hrEsc(b.title)}${b.amount?" — "+fmtNum(b.amount):""}</option>`).join("");
+  sel.onchange = () => {
+    const b = hrBonRule(sel.value);
+    if(!b){ $("bon-note").value = ""; return; }
+    $("bon-note").value = b.title;
+    if(Number(b.amount) > 0) $("bon-amount").value = fmtNum(b.amount);
+  };
+}
+window.hrFillPenRules = hrFillPenRules; window.hrFillBonRules = hrFillBonRules;
+
+/* ---------- 2. ВЫГОВОРЫ И ОСНОВАНИЯ (руководство) ---------- */
+async function hrOpenTop(){
+  if(!hrCanTop()) return;
+  if(!await hrLoadCharter()){ showMsg("Справочник устава не загружен — запустите hr-rules.sql"); return; }
+  $("hr-top-sub").textContent = "Система не увольняет и не выносит выговоры сама — она показывает, что основание по уставу наступило.";
+  $("hr-top-modal").classList.add("open");
+  await hrRenderTop();
+}
+function hrCloseTop(){ $("hr-top-modal").classList.remove("open"); }
+function hrTopMsg(t, ok){
+  const m = $("hr-top-msg"); if(!m) return;
+  m.textContent = t || ""; m.className = "msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 4000);
+}
+async function hrRenderTop(){
+  const box = $("hr-top-body"); if(!box) return;
+  box.innerHTML = `<div class="hr-note">Загружаю…</div>`;
+  const [grounds, rep, disp] = await Promise.all([
+    hrRpc("hr_grounds", {}),
+    sb.from("reprimands").select("*").is("cancelled_at", null).order("issued_at", {ascending:false}),
+    Promise.resolve(penRows.filter(p=>p.status === "disputed"))
+  ]);
+  const gl = Array.isArray(grounds) ? grounds : [];
+  const reps = (rep && rep.data ? rep.data : []).filter(r=>!r.expires_at || Date.parse(r.expires_at) > Date.now());
+
+  let html = "";
+
+  // споры сотрудников
+  html += `<div class="hr-sec">Сотрудник не согласен</div>`;
+  html += disp.length ? disp.map(p=>{
+    const e = byId(p.employee_id);
+    return `<div class="hr-card wait">
+      <div class="hr-top">
+        <div class="hr-nm"><b>${hrEsc(e?e.name:"—")} · ${hrEsc(e?e.emp_role:"")}</b>
+          <span>${hrEsc(hrPenLabel(p))} · ${fmtD(fromIso(p.pen_date))} · выписал(а) ${hrEsc(p.created_by||"—")}</span></div>
+        <div class="hr-sum">${fmtNum(p.amount)}</div>
+      </div>
+      <div class="hr-foot"><div class="t">решение за руководством</div>
+        <button class="hr-btn g" onclick="hrResolve('${p.id}',false)">Отменить штраф</button>
+        <button class="hr-btn r" onclick="hrResolve('${p.id}',true)">Оставить</button></div>
+    </div>`;
+  }).join("") : `<div class="hr-note">Спорных штрафов нет.</div>`;
+
+  // основания для увольнения
+  html += `<div class="hr-sec">Основание по уставу наступило</div>`;
+  html += gl.length ? gl.map(g=>`<div class="hr-gr">
+      <h4>${hrEsc(g.name)}${g.role?" · "+hrEsc(g.role):""}</h4>
+      <p>${hrEsc(g.reason)}${g.count?" · "+g.count:""}</p>
+      <div class="hr-foot">
+        <div class="t">решение за вами: выговор или увольнение</div>
+        <button class="hr-btn r" onclick="hrReprimand('${g.employee_id}',${g.code?g.code:"null"},'${hrEsc(g.reason).replace(/'/g,"&#39;")}')">Вынести выговор</button>
+      </div>
+    </div>`).join("") : `<div class="hr-note">Оснований для увольнения по уставу сейчас нет.</div>`;
+
+  // действующие выговоры
+  html += `<div class="hr-sec">Действующие выговоры</div>`;
+  html += reps.length ? reps.map(r=>`<div class="hr-row">
+      <div class="l"><b>${hrEsc(r.emp_name||"—")}</b>
+        <span>${hrEsc(r.title)} · до ${fmtD(new Date(r.expires_at))} · ${r.ack_at?"ознакомлен "+fmtD(new Date(r.ack_at)):"не ознакомлен"}</span></div>
+      <button class="hr-btn" onclick="hrReprimandCancel(${r.id})">Снять</button>
+    </div>`).join("") : `<div class="hr-note">Действующих выговоров нет.</div>`;
+
+  // выговор вручную
+  html += `<div class="hr-sec">Вынести выговор</div>
+    <div class="form-row" style="gap:8px">
+      <div class="field" style="flex:1;min-width:150px"><label>Сотрудник</label>
+        <select id="hr-top-emp" class="hr-pick">${
+          employees.filter(e=>!e.archived).sort((a,b)=>String(a.name).localeCompare(String(b.name),"ru"))
+            .map(e=>`<option value="${e.id}">${hrEsc(e.name)} · ${hrEsc(e.emp_role)}</option>`).join("")}</select></div>
+    </div>
+    <div class="form-row" style="margin-top:8px"><div class="field" style="flex:1">
+      <label>За что — попадёт в личное дело</label>
+      <input id="hr-top-title" class="hr-pick" type="text" placeholder="Например: повторная грубость гостю"></div></div>
+    <div class="form-row" style="margin-top:8px">
+      <button class="hr-btn r" onclick="hrReprimandManual()">Вынести выговор</button></div>`;
+
+  html += `<div class="hr-note">Выговор денег не стоит, но остаётся в личном деле 6 месяцев.
+    Два действующих выговора — основание для увольнения. Сотрудник подтверждает ознакомление в своём кабинете.</div>`;
+  box.innerHTML = html;
+}
+async function hrResolve(pid, apply){
+  if(!confirm(apply ? "Оставить штраф и удержать из зарплаты?" : "Отменить штраф?")) return;
+  const res = await hrRpc("hr_pen_resolve", {p_id:String(pid), p_apply:!!apply, p_by:ME.name});
+  if(!res || res.ok === false){ hrTopMsg((res&&res.error)||"Не получилось"); return; }
+  hrTopMsg(apply?"Штраф оставлен":"Штраф отменён", true);
+  await loadAll(); render(); await hrRenderTop();
+}
+async function hrReprimand(empId, code, reason){
+  const e = byId(empId); if(!e) return;
+  const title = prompt("Выговор — за что:", reason || "");
+  if(title === null || !title.trim()) return;
+  const res = await hrRpc("hr_reprimand_add", {p_employee_id:String(empId), p_title:title.trim(),
+    p_body:"Основание: " + (reason||title), p_by:ME.name, p_rule_code: code==null?null:Number(code)});
+  if(!res || res.ok === false){ hrTopMsg((res&&res.error)||"Не получилось"); return; }
+  hrTopMsg("Выговор вынесен", true);
+  await hrRenderTop();
+}
+async function hrReprimandManual(){
+  const sel = $("hr-top-emp"), t = $("hr-top-title");
+  if(!sel || !sel.value){ hrTopMsg("Выберите сотрудника"); return; }
+  const title = (t.value||"").trim();
+  if(!title){ hrTopMsg("Укажите, за что выговор"); return; }
+  const e = byId(sel.value);
+  if(!confirm(`Вынести выговор: ${e?e.name:""} — «${title}»?`)) return;
+  const res = await hrRpc("hr_reprimand_add", {p_employee_id:String(sel.value), p_title:title,
+    p_body:null, p_by:ME.name, p_rule_code:null});
+  if(!res || res.ok === false){ hrTopMsg((res&&res.error)||"Не получилось"); return; }
+  t.value = ""; hrTopMsg("Выговор вынесен", true);
+  await hrRenderTop();
+}
+async function hrReprimandCancel(id){
+  if(!confirm("Снять выговор? Он перестанет учитываться как основание.")) return;
+  const res = await hrRpc("hr_reprimand_cancel", {p_id:Number(id), p_by:ME.name});
+  if(!res || res.ok === false){ hrTopMsg((res&&res.error)||"Не получилось"); return; }
+  hrTopMsg("Выговор снят", true);
+  await hrRenderTop();
+}
+
+/* ---------- 3. КАБИНЕТ СОТРУДНИКА ---------- */
+async function hrRenderMy(cards){
+  const box = $("hr-my"); if(!box) return;
+  const ids = (cards||[]).map(c=>c.id).filter(Boolean);
+  if(!ids.length){ box.innerHTML = ""; return; }
+  if(!await hrLoadCharter()){ box.innerHTML = ""; return; }
+  const states = await Promise.all(ids.map(id => hrRpc("hr_my_state", {p_employee_id:String(id)})));
+  const pens = [], reps = [];
+  let clean = null;
+  states.forEach((st, i)=>{
+    if(!st || st.ok === false) return;
+    (st.penalties||[]).forEach(p=>pens.push(p));
+    (st.reprimands||[]).forEach(r=>reps.push(Object.assign({emp_id:ids[i]}, r)));
+    if(st.clean && (!clean || (st.clean.streak||0) > (clean.streak||0))) clean = st.clean;
+  });
+  const pending = pens.filter(p=>p.status === "pending" && !p.applied);
+  const disputed = pens.filter(p=>p.status === "disputed");
+  let html = "";
+
+  if(pending.length){
+    html += `<div class="hr-sec">На рассмотрении</div>` + pending.map(p=>`<div class="hr-card wait">
+      <div class="hr-top">
+        <div class="hr-nm"><b>${hrEsc(p.note||"Штраф")}</b>
+          <span>${fmtD(fromIso(p.date))} · выписал(а) ${hrEsc(p.by||"—")}</span></div>
+        <div class="hr-sum">${fmtNum(p.amount)}</div>
+      </div>
+      <div class="hr-foot"><div class="t">осталось <b>${p.hours_left||0} ч</b> на объяснение</div>
+        <button class="hr-btn r" onclick="hrDispute('${p.id}','${p.employee_id||""}')">Не согласен</button></div>
+    </div>`).join("");
+  }
+  if(disputed.length){
+    html += `<div class="hr-sec">Вы не согласны — решает руководство</div>` + disputed.map(p=>`<div class="hr-card">
+      <div class="hr-top"><div class="hr-nm"><b>${hrEsc(p.note||"Штраф")}</b>
+        <span>${fmtD(fromIso(p.date))} · из зарплаты пока не удержан</span></div>
+        <div class="hr-sum">${fmtNum(p.amount)}</div></div>
+    </div>`).join("");
+  }
+  const active = reps.filter(r=>!r.cancelled_at);
+  if(active.length){
+    html += `<div class="hr-sec">Выговор</div>` + active.map(r=>`<div class="hr-card bad">
+      <div class="hr-top"><div class="hr-nm"><b>${hrEsc(r.title)}</b>
+        <span>${hrEsc(r.body||"")}</span></div></div>
+      <div class="hr-foot"><div class="t">вынес(ла) ${hrEsc(r.by||"—")} · действует до <b>${fmtD(new Date(r.expires_at))}</b></div>
+        ${r.ack_at ? `<span class="hr-tag g">ознакомлен</span>`
+                   : `<button class="hr-btn g" onclick="hrAck(${r.id},'${r.emp_id}')">Ознакомлен</button>`}</div>
+    </div>`).join("");
+  }
+  if(clean){
+    const n = clean.streak||0, t = clean.target||4;
+    const b = hrBonRule("clean4");
+    html += `<div class="hr-sec">Недели без нарушений</div>
+      <div class="hr-card">
+        <div class="hr-top"><div class="hr-nm"><b>${n} из ${t} недель подряд</b>
+          <span>Без опозданий, неявок и штрафов. ${t} недели подряд — бонус ${b?fmtNum(b.amount):"200 000"} сум.</span></div></div>
+        <div class="hr-bars">${Array.from({length:t},(_,i)=>`<i class="${i<n?"on":""}"></i>`).join("")}</div>
+      </div>`;
+  }
+  if(html) html += `<div class="hr-note">Штраф удерживается из зарплаты после того, как пройдут ${HR.disputeH} часа
+    на объяснение. Если вы не согласны — решает руководство. Выговор денег не стоит, но остаётся в личном деле.</div>`;
+  box.innerHTML = html;
+}
+async function hrDispute(pid, empId){
+  if(!empId){
+    const p = penRows.find(x=>String(x.id)===String(pid));
+    empId = p ? p.employee_id : null;
+  }
+  if(!empId) return;
+  if(!confirm("Отправить возражение? Штраф пока не удержат, решение примет руководство.")) return;
+  const res = await hrRpc("hr_pen_dispute", {p_id:String(pid), p_employee_id:String(empId)});
+  if(!res || res.ok === false){ showMsg((res&&res.error)||"Не получилось"); return; }
+  showMsg("Возражение отправлено", true);
+  if(CAP.staff){ await loadStaff(); renderStaffCabinet(); } else { await renderMyCabinetForManager(); }
+}
+async function hrAck(id, empId){
+  const res = await hrRpc("hr_reprimand_ack", {p_id:Number(id), p_employee_id:String(empId)});
+  if(!res || res.ok === false){ showMsg("Не получилось отметить ознакомление"); return; }
+  if(CAP.staff){ await loadStaff(); renderStaffCabinet(); } else { await renderMyCabinetForManager(); }
+}
+
+/* ---------- 4. ПОДКЛЮЧЕНИЕ ---------- */
+function hrWire(){
+  const sBtn = $("btn-hr-shift");
+  if(sBtn && hrCanShift()){
+    sBtn.style.display = "";
+    sBtn.addEventListener("click", hrOpenShift);
+    $("hr-shift-close").addEventListener("click", hrCloseShift);
+    $("hr-shift-modal").addEventListener("click", e=>{ if(e.target===$("hr-shift-modal")) hrCloseShift(); });
+  }
+  const tBtn = $("btn-hr-top");
+  if(tBtn && hrCanTop()){
+    tBtn.style.display = "";
+    tBtn.addEventListener("click", hrOpenTop);
+    $("hr-top-close").addEventListener("click", hrCloseTop);
+    $("hr-top-modal").addEventListener("click", e=>{ if(e.target===$("hr-top-modal")) hrCloseTop(); });
+  }
+}
+window.hrIssue = hrIssue; window.hrIssuePicked = hrIssuePicked; window.hrForgive = hrForgive;
+window.hrResolve = hrResolve; window.hrReprimand = hrReprimand;
+window.hrReprimandManual = hrReprimandManual; window.hrReprimandCancel = hrReprimandCancel;
+window.hrDispute = hrDispute; window.hrAck = hrAck;
 
 </script>
 </body>
