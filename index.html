@@ -767,6 +767,21 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   .hr-pick{width:100%;padding:8px 10px;border-radius:9px;background:var(--panel2);
     border:1px solid var(--line);color:var(--text);font-family:inherit;font-size:13px}
 
+  
+  /* ===== ЛИСТ ОЗНАКОМЛЕНИЯ С УСТАВОМ ===== */
+  .ds-kpis{display:flex;gap:8px;margin-bottom:4px}
+  .ds-kpi{flex:1;border:1px solid var(--line);background:var(--panel2);border-radius:11px;padding:10px 11px}
+  .ds-kpi .n{font-size:20px;font-weight:800;line-height:1.1}
+  .ds-kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+  .ds-kpi.ok .n{color:var(--emerald)} .ds-kpi.warn .n{color:var(--gold)} .ds-kpi.bad .n{color:var(--red)}
+  .ds-sign{border:1px solid rgba(31,191,122,.4);background:rgba(31,191,122,.06);border-radius:12px;padding:13px}
+  .ds-sign.bad{border-color:var(--red);background:rgba(226,92,92,.08)}
+  .ds-sign h4{font-size:13px;font-weight:800;color:var(--emerald);margin:0}
+  .ds-sign.bad h4{color:var(--red)}
+  .ds-sign dl{margin-top:10px;display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:12px}
+  .ds-sign dt{color:var(--muted);white-space:nowrap}
+  .ds-sign dd{text-align:right;font-weight:600;word-break:break-word}
+  .ds-hash{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--violet)}
   </style>
 </head>
 <body>
@@ -949,6 +964,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <button class="btn-mini" id="btn-remove" style="display:none">✕ Убрать из графика</button>
       <button class="btn-mini" id="btn-hr-shift" style="display:none">⚠ Нарушения смены</button>
       <button class="btn-mini" id="btn-hr-top" style="display:none">Выговоры и основания</button>
+      <button class="btn-mini" id="btn-doc-sheet" style="display:none">Лист ознакомления</button>
     </h2>
     <div class="grid-wrap">
       <table id="grid">
@@ -1043,6 +1059,17 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   </div>
 </div>
 
+
+
+<!-- ЛИСТ ОЗНАКОМЛЕНИЯ С УСТАВОМ (руководство) -->
+<div class="modal-bg" id="doc-sheet-modal">
+  <div class="modal">
+    <button class="modal-x" id="doc-sheet-close">✕</button>
+    <h3 style="padding-right:44px">Лист ознакомления с уставом</h3>
+    <div class="sub" id="doc-sheet-sub"></div>
+    <div class="hr-scroll" id="doc-sheet-body" style="margin-top:10px"></div>
+  </div>
+</div>
 
 <!-- НАРУШЕНИЯ СМЕНЫ (менеджер смены) -->
 <div class="modal-bg" id="hr-shift-modal">
@@ -1142,7 +1169,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 22.09 · сборка 40";
+const APP_VERSION = "v 22.09 · сборка 41";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -2682,7 +2709,9 @@ async function docGate(){
       try{
         if(typeof ensureToken==="function") await ensureToken();
         const { data, error } = await sb.rpc("doc_accept", {
-          p_employee_id: String(emp.id), p_name: emp.name || (ME && ME.name) || null
+          p_employee_id: String(emp.id), p_name: emp.name || (ME && ME.name) || null,
+          // чем подписано — попадёт в карточку подписи вместе с отпечатком текста
+          p_device: (typeof docDevice==="function" ? docDevice() : null)
         });
         if(error || (data && data.ok===false)){
           hint.textContent = (error && error.message) || (data && data.error) || "Не удалось сохранить";
@@ -3935,6 +3964,7 @@ async function startApp(){
     viewStart = payWeekStart(businessNow()); setCurrentPayWeek(); await refresh();
   });
   try{ hrWire(); }catch(e){ console.warn("hrWire", e); }   // устав: штрафы, бонусы, выговоры
+  try{ docSheetWire(); }catch(e){ console.warn("docSheetWire", e); }   // лист ознакомления
   // ручная отметка прихода персонала — только администратор, директор, управляющий
   const chkBtn = $("btn-checkin");
   const CHK_ROLES = ["admin","dir","upr"];
@@ -7599,6 +7629,170 @@ window.hrIssue = hrIssue; window.hrIssuePicked = hrIssuePicked; window.hrForgive
 window.hrResolve = hrResolve; window.hrReprimand = hrReprimand;
 window.hrReprimandManual = hrReprimandManual; window.hrReprimandCancel = hrReprimandCancel;
 window.hrDispute = hrDispute; window.hrAck = hrAck;
+
+
+/* ============================================================
+   ЛИСТ ОЗНАКОМЛЕНИЯ С УСТАВОМ (руководство)
+   Серверная часть: ustav-ack.sql (doc_ack_sheet, усиленный doc_accept).
+   Показывает, кто принял действующую редакцию устава, кто подписал
+   старую и кто не открывал её вовсе. По нажатию на строку — карточка
+   подписи с отпечатком текста, под которым человек нажал «ОЗНАКОМЛЕН».
+   ============================================================ */
+const DS = { data: null };
+
+function docSheetCanSee(){ return ["admin","upr","dir"].includes(ME && ME.role); }
+
+// чем подписано: строка для поля «устройство»
+function docDevice(){
+  const parts = [];
+  try{
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if(tg && tg.platform) parts.push("Telegram · " + tg.platform);
+    else parts.push("Браузер");
+    if(typeof TABLET_MODE !== "undefined" && TABLET_MODE) parts.push("планшет");
+    const m = /(iPhone|iPad|Android|Windows|Macintosh|Linux)/.exec(navigator.userAgent||"");
+    if(m) parts.push(m[1]);
+  }catch(_){}
+  return parts.join(" · ").slice(0,120);
+}
+
+function docDT(ts, withSec){
+  if(!ts) return "—";
+  try{
+    const d = new Date(ts);
+    const o = {day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",
+               timeZone:"Asia/Tashkent"};
+    if(withSec) o.second = "2-digit";
+    return d.toLocaleString("ru-RU", o).replace(",", " ·");
+  }catch(_){ return "—"; }
+}
+
+async function docSheetOpen(){
+  if(!docSheetCanSee()) return;
+  $("doc-sheet-modal").classList.add("open");
+  $("doc-sheet-body").innerHTML = `<div class="hr-note">Загружаю…</div>`;
+  const res = await hrRpc("doc_ack_sheet", {});
+  if(!res || res.ok === false){
+    $("doc-sheet-body").innerHTML =
+      `<div class="hr-note">${hrEsc((res && res.error) || "Не удалось получить лист. Проверьте, что запущен ustav-ack.sql.")}</div>`;
+    return;
+  }
+  DS.data = res;
+  docSheetRender();
+}
+function docSheetClose(){ $("doc-sheet-modal").classList.remove("open"); }
+
+function docSheetRender(){
+  const d = DS.data; if(!d) return;
+  const rows = d.rows || [];
+  const signed = rows.filter(r=>r.status === "signed");
+  const old    = rows.filter(r=>r.status === "old");
+  const none   = rows.filter(r=>r.status === "none");
+
+  $("doc-sheet-sub").textContent =
+    `${d.title || "Устав персонала"} · версия ${d.version} · отпечаток ${d.hash || "—"} · ${rows.length} сотрудников`;
+
+  const row = (r, cls, tag, sub) => `<div class="hr-row ${cls}" onclick="docSheetCard('${r.employee_id}')" style="cursor:pointer">
+      <div class="l"><b>${hrEsc(r.name)}${r.role?" · "+hrEsc(r.role):""}</b><span>${sub}</span></div>
+      ${tag}</div>`;
+
+  let html = `<div class="ds-kpis">
+      <div class="ds-kpi ok"><div class="n">${signed.length}</div><div class="l">приняли</div></div>
+      <div class="ds-kpi warn"><div class="n">${old.length}</div><div class="l">старая версия</div></div>
+      <div class="ds-kpi bad"><div class="n">${none.length}</div><div class="l">не открывал</div></div>
+    </div>`;
+
+  if(none.length){
+    html += `<div class="hr-sec">Не приняли — устав не читали</div>`;
+    html += none.map(r=>row(r, "hard", `<span class="hr-tag r">нет подписи</span>`,
+      "кабинет ни разу не открывал(а)")).join("");
+  }
+  if(old.length){
+    html += `<div class="hr-sec">Приняли прежнюю редакцию</div>`;
+    html += old.map(r=>row(r, "", `<span class="hr-tag y">версия ${r.version}</span>`,
+      `${docDT(r.signed_at)} · увидит устав при следующем входе`)).join("");
+  }
+  if(signed.length){
+    html += `<div class="hr-sec">Приняли действующую версию</div>`;
+    html += signed.map(r=>{
+      const bad = r.doc_hash && d.hash && r.doc_hash !== d.hash;
+      const tag = bad ? `<span class="hr-tag r">текст изменён</span>` : `<span class="hr-tag g">подписано</span>`;
+      const sub = docDT(r.signed_at) + (r.device ? " · " + hrEsc(r.device) : "");
+      return row(r, bad ? "hard" : "", tag, sub);
+    }).join("");
+  }
+  html += `<div class="hr-note">Строка появляется в момент нажатия «ОЗНАКОМЛЕН» и больше не меняется.
+    Если текст устава правится, версия растёт — все, кто подписал прежнюю редакцию,
+    переходят в «прежнюю» и читают заново. Нажмите на строку, чтобы увидеть карточку подписи.</div>`;
+  $("doc-sheet-body").innerHTML = html;
+}
+
+function docSheetCard(empId){
+  const d = DS.data; if(!d) return;
+  const r = (d.rows||[]).find(x=>String(x.employee_id) === String(empId));
+  if(!r) return;
+  const cur = (r.history||[]).find(h=>Number(h.version) === Number(d.version));
+  const past = (r.history||[]).filter(h=>Number(h.version) !== Number(d.version))
+    .sort((a,b)=>Number(b.version)-Number(a.version));
+
+  let html = `<div class="hr-foot" style="margin:0 0 12px">
+      <button class="hr-btn" onclick="docSheetRender()">← Назад к списку</button></div>`;
+
+  if(!cur){
+    html += `<div class="hr-card bad"><div class="hr-top"><div class="hr-nm">
+        <b>${hrEsc(r.name)}${r.role?" · "+hrEsc(r.role):""}</b>
+        <span>Действующую редакцию устава (версия ${d.version}) не принимал(а).</span>
+      </div></div></div>`;
+  } else {
+    const bad = cur.doc_hash && d.hash && cur.doc_hash !== d.hash;
+    html += `<div class="ds-sign${bad?" bad":""}">
+      <h4>${bad ? "Текст устава изменён после подписи" : "Устав принят"}</h4>
+      <dl>
+        <dt>Сотрудник</dt><dd>${hrEsc(r.name)}</dd>
+        <dt>Должность</dt><dd>${hrEsc(r.role||"—")}</dd>
+        <dt>Telegram ID</dt><dd>${r.tg_id || "—"}</dd>
+        <dt>Дата и время</dt><dd>${docDT(cur.signed_at, true)}</dd>
+        <dt>Часовой пояс</dt><dd>Asia/Tashkent</dd>
+        <dt>Версия устава</dt><dd>${cur.version}</dd>
+        <dt>Отпечаток текста</dt><dd class="ds-hash">${hrEsc(cur.doc_hash || "не сохранялся")}</dd>
+        <dt>Устройство</dt><dd>${hrEsc(cur.device || "не сохранялось")}</dd>
+        <dt>Как подписан</dt><dd>${cur.source === "preexisting" ? "перенесено при запуске" : "кнопка в кабинете"}</dd>
+      </dl></div>`;
+    if(bad){
+      html += `<div class="hr-note" style="border-color:var(--red);color:var(--text)">
+        Подпись стоит под текстом с отпечатком <b>${hrEsc(cur.doc_hash)}</b>,
+        а сейчас в базе лежит текст с отпечатком <b>${hrEsc(d.hash)}</b>.
+        Текст правили, не подняв версию — подпись относится к прежней редакции.</div>`;
+    }
+    if(!cur.doc_hash){
+      html += `<div class="hr-note">Эта подпись поставлена до того, как появился отпечаток текста.
+        Она подтверждает факт нажатия, но не то, какая именно редакция была на экране.
+        Достраивать её задним числом нельзя.</div>`;
+    }
+  }
+
+  if(past.length){
+    html += `<div class="hr-sec">Прежние редакции</div>`;
+    html += past.map(h=>`<div class="hr-row"><div class="l"><b>Версия ${h.version}</b>
+        <span>${docDT(h.signed_at)}${h.doc_hash?" · отпечаток "+hrEsc(h.doc_hash):" · отпечаток не сохранялся"}</span></div>
+      <span class="hr-tag">в архиве</span></div>`).join("");
+  }
+  html += `<div class="hr-note">Отпечаток текста — контрольная сумма того устава, который был на экране
+    в момент подписи. Если позже текст изменят, не подняв версию, отпечатки разойдутся и это будет видно здесь.</div>`;
+  $("doc-sheet-body").innerHTML = html;
+}
+
+function docSheetWire(){
+  const b = $("btn-doc-sheet");
+  if(b && docSheetCanSee()){
+    b.style.display = "";
+    b.addEventListener("click", docSheetOpen);
+    $("doc-sheet-close").addEventListener("click", docSheetClose);
+    $("doc-sheet-modal").addEventListener("click", e=>{ if(e.target===$("doc-sheet-modal")) docSheetClose(); });
+  }
+}
+window.docSheetOpen = docSheetOpen; window.docSheetRender = docSheetRender;
+window.docSheetCard = docSheetCard;
 
 </script>
 </body>
