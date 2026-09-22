@@ -11,6 +11,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1141,7 +1142,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 20.09 · сборка 39";
+const APP_VERSION = "v 22.09 · сборка 40";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1238,8 +1239,8 @@ const CAPS = {
                 scope:[["*","*"]],
                 approve:true, unapprove:true, archive:false, msg:"team", pen:"all", bonus:"all"},
   dir:         {label:"Директор клуба", money:false,
-                scope:[["*","club"],["Бар-менеджер","both"],["Охрана","both"]],
-                approve:false, unapprove:false, archive:false, msg:"team", pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона (+ охрана — общая)
+                scope:[["*","club"],["Бар-менеджер","both"],["Охрана","*"]],
+                approve:false, unapprove:false, archive:false, msg:"team", pen:"scope", bonus:"scope"},  // штрафы и бонусы: своя зона + вся охрана, в какой бы позиции она ни стояла
   staff:       {label:"Сотрудник", staff:true, money:false, scope:null,
                 approve:false, unapprove:false, archive:false},  // личный кабинет
   phone:       {label:"Обзвон броней", bookingOnly:true, money:false, scope:null,
