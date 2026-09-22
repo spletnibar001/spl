@@ -782,6 +782,60 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   .ds-sign dt{color:var(--muted);white-space:nowrap}
   .ds-sign dd{text-align:right;font-weight:600;word-break:break-word}
   .ds-hash{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--violet)}
+  
+  /* ===== ПЕЧАТНАЯ ФОРМА ЛИСТА ОЗНАКОМЛЕНИЯ ===== */
+  #doc-print{display:none;position:fixed;inset:0;z-index:9000;background:#f2f3f5;overflow:auto}
+  #doc-print.open{display:block}
+  #doc-print .dp-bar{position:sticky;top:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+  #doc-print .dp-hint{font-size:11px;color:var(--muted);flex:1;min-width:160px}
+  #doc-print .dp-page{background:#fff;color:#111;max-width:820px;margin:16px auto 40px;
+    padding:28px 32px 34px;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+  #doc-print .dp-org{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#666}
+  #doc-print h1{font-size:19px;font-weight:700;margin:6px 0 0;color:#111;letter-spacing:0}
+  #doc-print .dp-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:#444}
+  #doc-print .dp-head{border-bottom:2px solid #111;padding-bottom:11px}
+  #doc-print .dp-lead{font-size:12px;color:#333;line-height:1.55;margin:13px 0 14px}
+  #doc-print .dp-tbl{width:100%;border-collapse:collapse;font-size:12px}
+  #doc-print .dp-tbl th{background:#f0f0f0;font-weight:700;text-align:left;
+    border:1px solid #999;padding:7px 8px;color:#111}
+  #doc-print .dp-tbl td{border:1px solid #999;padding:9px 8px;height:30px;color:#111}
+  #doc-print .dp-tbl .c{text-align:center}
+  #doc-print .dp-tbl .sm{font-size:10.5px;color:#444}
+  #doc-print .dp-foot{display:flex;gap:40px;margin-top:26px}
+  #doc-print .dp-sign{flex:1;max-width:260px}
+  #doc-print .dp-sign .ln{display:block;border-bottom:1px solid #111;height:26px}
+  #doc-print .dp-sign i{font-style:normal;font-size:10.5px;color:#666}
+  #doc-print .dp-note{margin-top:18px;font-size:10.5px;color:#555;line-height:1.5}
+  @media print{
+    html, body{background:#fff !important;color:#111 !important}
+    body.printing > *{display:none !important}
+    body.printing > #doc-print{display:block !important;position:static;background:#fff !important;overflow:visible}
+    #doc-print .no-print{display:none !important}
+    #doc-print .dp-page{box-shadow:none;margin:0 auto;max-width:none;width:auto;padding:0 2mm}
+    #doc-print .dp-tbl{font-size:11px}
+    #doc-print .dp-tbl tr{page-break-inside:avoid}
+    #doc-print .dp-tbl thead{display:table-header-group}
+    @page{size:A4 portrait;margin:14mm}
+  }
+  
+  /* ===== ПОЛЕ РУКОПИСНОЙ ПОДПИСИ ===== */
+  .dg-sign{margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+  .dg-sign .cap{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+  .dg-sign .cap b{color:var(--text);font-size:12.5px;font-weight:700}
+  .dg-sign .pad{position:relative;background:#fff;border:1px solid var(--line);border-radius:9px;
+    height:130px;overflow:hidden}
+  .dg-sign .pad.ready{border-color:var(--emerald)}
+  .dg-sign canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .dg-sign .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#aab0ba;font-size:12.5px;pointer-events:none}
+  .dg-sign .pad.ready .ph{display:none}
+  .dg-sign .line{position:absolute;left:14px;right:14px;bottom:26px;border-bottom:1px dashed #c9ced6;pointer-events:none}
+  .dg-sign .row{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .dg-sign .row .t{flex:1;font-size:11px;color:var(--muted);line-height:1.45}
+  .ds-sign img.sg, .dp-tbl img.sg{display:block;max-width:100%;height:auto}
+  .ds-sign .sgbox{margin-top:11px;background:#fff;border-radius:9px;padding:8px;text-align:center}
+  .dp-tbl img.sg{max-height:34px;margin:0 auto}
   </style>
 </head>
 <body>
@@ -1067,6 +1121,10 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
     <button class="modal-x" id="doc-sheet-close">✕</button>
     <h3 style="padding-right:44px">Лист ознакомления с уставом</h3>
     <div class="sub" id="doc-sheet-sub"></div>
+    <div class="hr-foot" style="margin-top:10px">
+      <div class="t"></div>
+      <button class="hr-btn" id="doc-sheet-print">🖨 Печатная форма</button>
+    </div>
     <div class="hr-scroll" id="doc-sheet-body" style="margin-top:10px"></div>
   </div>
 </div>
@@ -1169,7 +1227,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 22.09 · сборка 41";
+const APP_VERSION = "v 22.09 · сборка 43";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -2645,6 +2703,18 @@ function docGateEl(){
       </div>
       <div class="dg-progress"><i id="dg-bar"></i></div>
       <div class="dg-body" id="dg-body"></div>
+      <div class="dg-sign" id="dg-sign" style="display:none">
+        <div class="cap"><b>Распишитесь</b><span>— пальцем по белому полю</span></div>
+        <div class="pad" id="dg-pad">
+          <canvas id="dg-canvas"></canvas>
+          <div class="line"></div>
+          <div class="ph">подпись</div>
+        </div>
+        <div class="row">
+          <div class="t">Подпись сохранится вместе с отметкой об ознакомлении.</div>
+          <button class="hr-btn" type="button" onclick="signClear()">Стереть</button>
+        </div>
+      </div>
       <div class="dg-foot">
         <div class="dg-hint" id="dg-hint">Пролистайте до конца</div>
         <button id="dg-ok" disabled>ОЗНАКОМЛЕН</button>
@@ -2695,12 +2765,31 @@ async function docGate(){
       const max = body.scrollHeight - body.clientHeight;
       const pct = max <= 4 ? 1 : Math.min(1, body.scrollTop / max);
       bar.style.width = Math.round(pct*100) + "%";
-      if(pct >= 0.995){
-        btn.disabled = false;
-        hint.textContent = "Документ прочитан";
-        hint.className = "dg-hint done";
+      if(pct >= 0.995 && !readDone){
+        readDone = true;
+        // текст прочитан — просим подпись, и только потом включаем кнопку
+        const box = document.getElementById("dg-sign");
+        box.style.display = "";
+        hint.textContent = "Распишитесь в поле выше";
+        hint.className = "dg-hint";
+        try{
+          signInit(document.getElementById("dg-canvas"), has=>{
+            document.getElementById("dg-pad").classList.toggle("ready", has);
+            btn.disabled = !has;
+            hint.textContent = has ? "Можно подтверждать" : "Распишитесь в поле выше";
+            hint.className = "dg-hint" + (has ? " done" : "");
+          });
+        }catch(e){
+          // подпись не получилась (старый браузер) — не запираем человека в окне
+          console.warn("signInit", e);
+          box.style.display = "none";
+          btn.disabled = false;
+          hint.textContent = "Документ прочитан";
+          hint.className = "dg-hint done";
+        }
       }
     }
+    let readDone = false;
     body.addEventListener("scroll", onScroll, {passive:true});
     setTimeout(onScroll, 60);       // короткий текст без прокрутки — сразу разрешаем
     btn.onclick = async ()=>{
@@ -2711,7 +2800,8 @@ async function docGate(){
         const { data, error } = await sb.rpc("doc_accept", {
           p_employee_id: String(emp.id), p_name: emp.name || (ME && ME.name) || null,
           // чем подписано — попадёт в карточку подписи вместе с отпечатком текста
-          p_device: (typeof docDevice==="function" ? docDevice() : null)
+          p_device: (typeof docDevice==="function" ? docDevice() : null),
+          p_signature: (typeof signData==="function" ? signData() : null)
         });
         if(error || (data && data.ok===false)){
           hint.textContent = (error && error.message) || (data && data.error) || "Не удалось сохранить";
@@ -7717,7 +7807,8 @@ function docSheetRender(){
     html += signed.map(r=>{
       const bad = r.doc_hash && d.hash && r.doc_hash !== d.hash;
       const tag = bad ? `<span class="hr-tag r">текст изменён</span>` : `<span class="hr-tag g">подписано</span>`;
-      const sub = docDT(r.signed_at) + (r.device ? " · " + hrEsc(r.device) : "");
+      const sub = docDT(r.signed_at) + (r.device ? " · " + hrEsc(r.device) : "")
+        + (r.has_sign ? " · с подписью" : " · без подписи");
       return row(r, bad ? "hard" : "", tag, sub);
     }).join("");
   }
@@ -7758,6 +7849,12 @@ function docSheetCard(empId){
         <dt>Устройство</dt><dd>${hrEsc(cur.device || "не сохранялось")}</dd>
         <dt>Как подписан</dt><dd>${cur.source === "preexisting" ? "перенесено при запуске" : "кнопка в кабинете"}</dd>
       </dl></div>`;
+    if(cur.has_sign){
+      html += `<div class="ds-sign" style="margin-top:10px;border-color:var(--line);background:none">
+        <h4 style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em">Рукописная подпись</h4>
+        <div class="sgbox" id="ds-sig">загружаю…</div></div>`;
+      setTimeout(()=>docLoadSignature(empId, cur.version), 0);
+    }
     if(bad){
       html += `<div class="hr-note" style="border-color:var(--red);color:var(--text)">
         Подпись стоит под текстом с отпечатком <b>${hrEsc(cur.doc_hash)}</b>,
@@ -7782,17 +7879,209 @@ function docSheetCard(empId){
   $("doc-sheet-body").innerHTML = html;
 }
 
+async function docLoadSignature(empId, version){
+  const box = $("ds-sig"); if(!box) return;
+  const res = await hrRpc("doc_signature", {p_employee_id:String(empId), p_version:Number(version)||null});
+  if(!res || res.ok === false || !res.signature){ box.textContent = "подпись не сохранилась"; return; }
+  const img = new Image();
+  img.className = "sg"; img.alt = "подпись";
+  img.style.maxHeight = "90px"; img.style.margin = "0 auto";
+  img.src = res.signature;
+  box.innerHTML = ""; box.appendChild(img);
+}
 function docSheetWire(){
   const b = $("btn-doc-sheet");
   if(b && docSheetCanSee()){
     b.style.display = "";
     b.addEventListener("click", docSheetOpen);
     $("doc-sheet-close").addEventListener("click", docSheetClose);
+    $("doc-sheet-print").addEventListener("click", docPrintSheet);
     $("doc-sheet-modal").addEventListener("click", e=>{ if(e.target===$("doc-sheet-modal")) docSheetClose(); });
   }
 }
 window.docSheetOpen = docSheetOpen; window.docSheetRender = docSheetRender;
 window.docSheetCard = docSheetCard;
+
+
+/* ---------- ПЕЧАТНАЯ ФОРМА ЛИСТА ОЗНАКОМЛЕНИЯ ----------
+   Белый лист А4 со списком сотрудников и графами для росписи от руки.
+   Отметка из программы печатается рядом, поэтому бумажный лист и база
+   сходятся построчно. Открывается поверх приложения; «Печать» вызывает
+   печать браузера (в Telegram лучше открыть программу в браузере). */
+async function docPrintSheet(){
+  let d = DS.data; if(!d) return;
+  // для печати запрашиваем лист вместе с картинками подписей
+  const full = await hrRpc("doc_ack_sheet", {p_code:"ustav", p_with_signatures:true});
+  if(full && full.ok !== false && full.rows) d = full;
+  const rows = (d.rows||[]).slice().sort((a,b)=>
+    String(a.name||"").localeCompare(String(b.name||""),"ru"));
+  const today = new Date().toLocaleDateString("ru-RU",
+    {day:"2-digit",month:"2-digit",year:"numeric",timeZone:"Asia/Tashkent"});
+
+  let box = document.getElementById("doc-print");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "doc-print";
+    document.body.appendChild(box);
+  }
+  const tr = rows.map((r,i)=>{
+    const mark = r.status === "signed"
+        ? docDT(r.signed_at) + " · в. " + r.version
+      : r.status === "old"
+        ? docDT(r.signed_at) + " · в. " + r.version + " (прежняя)"
+        : "—";
+    return `<tr>
+      <td class="c">${i+1}</td>
+      <td>${hrEsc(r.name)}</td>
+      <td>${hrEsc(r.role||"")}</td>
+      <td class="c sm">${hrEsc(mark)}</td>
+      <td class="c">${r.signature ? `<img class="sg" src="${r.signature}" alt="">` : ""}</td>
+      <td></td>
+    </tr>`;
+  }).join("");
+
+  box.innerHTML = `
+    <div class="dp-bar no-print">
+      <button class="hr-btn g" onclick="window.print()">Печать</button>
+      <button class="hr-btn" onclick="docPrintClose()">Закрыть</button>
+      <span class="dp-hint">Если кнопка «Печать» не срабатывает в Telegram,
+        откройте программу в обычном браузере.</span>
+    </div>
+    <div class="dp-page">
+      <div class="dp-head">
+        <div class="dp-org">SPLETNI · караоке и клуб</div>
+        <h1>Лист ознакомления с уставом персонала</h1>
+        <div class="dp-meta">
+          <span>Редакция устава: <b>версия ${d.version}</b></span>
+          <span>Отпечаток текста: <b>${hrEsc(d.hash||"—")}</b></span>
+          <span>Лист сформирован: <b>${today}</b></span>
+        </div>
+      </div>
+      <p class="dp-lead">Настоящим подтверждаю, что ознакомлен(а) с уставом персонала SPLETNI
+        в указанной редакции, содержание мне понятно, с порядком применения штрафов,
+        бонусов и выговоров согласен(на).</p>
+      <table class="dp-tbl">
+        <thead><tr>
+          <th class="c" style="width:32px">№</th>
+          <th style="width:30%">Фамилия, имя</th>
+          <th style="width:20%">Должность</th>
+          <th class="c" style="width:22%">Отметка в программе</th>
+          <th class="c" style="width:16%">Подпись</th>
+          <th style="width:12%">Дата</th>
+        </tr></thead>
+        <tbody>${tr || `<tr><td colspan="6" class="c">Нет сотрудников</td></tr>`}</tbody>
+      </table>
+      <div class="dp-foot">
+        <div class="dp-sign"><span class="ln"></span><i>руководитель</i></div>
+        <div class="dp-sign"><span class="ln"></span><i>дата</i></div>
+      </div>
+      <div class="dp-note">Графа «Отметка в программе» заполнена автоматически: это дата и время,
+        когда сотрудник нажал «ОЗНАКОМЛЕН» в рабочем кабинете, и редакция устава, которую он видел.
+        Прочерк означает, что подписи в программе нет. В графе «Подпись» стоит роспись,
+        сделанная сотрудником на экране; если её нет, строка остаётся пустой под роспись от руки.</div>
+    </div>`;
+  box.classList.add("open");
+  document.body.classList.add("printing");
+}
+function docPrintClose(){
+  const box = document.getElementById("doc-print");
+  if(box) box.classList.remove("open");
+  document.body.classList.remove("printing");
+}
+window.docPrintSheet = docPrintSheet; window.docPrintClose = docPrintClose;
+
+
+/* ---------- РУКОПИСНАЯ ПОДПИСЬ ПОД УСТАВОМ ----------
+   Небольшое поле, в котором сотрудник расписывается пальцем.
+   Картинка обрезается по росчерку и уходит в базу вместе с отметкой
+   «ОЗНАКОМЛЕН», а потом печатается в листе ознакомления. */
+const SIGN = { ctx:null, cv:null, drawn:false, last:null, onChange:null };
+
+function signInit(canvas, onChange){
+  const cv = canvas;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const rect = cv.getBoundingClientRect();
+  cv.width  = Math.max(1, Math.round(rect.width  * dpr));
+  cv.height = Math.max(1, Math.round(rect.height * dpr));
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#111";
+  SIGN.ctx = ctx; SIGN.cv = cv; SIGN.drawn = false; SIGN.last = null;
+  SIGN.onChange = onChange || null;
+
+  const pt = e => {
+    const r = cv.getBoundingClientRect();
+    const t = (e.touches && e.touches[0]) || e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+  const down = e => { e.preventDefault(); SIGN.last = pt(e); };
+  const move = e => {
+    if(!SIGN.last) return;
+    e.preventDefault();
+    const p = pt(e);
+    ctx.beginPath(); ctx.moveTo(SIGN.last.x, SIGN.last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    SIGN.last = p;
+    if(!SIGN.drawn){ SIGN.drawn = true; if(SIGN.onChange) SIGN.onChange(true); }
+  };
+  const up = () => { SIGN.last = null; };
+
+  cv.addEventListener("pointerdown", down);
+  cv.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  // запасной путь для старых WebView без pointer events
+  cv.addEventListener("touchstart", down, {passive:false});
+  cv.addEventListener("touchmove",  move, {passive:false});
+  window.addEventListener("touchend", up);
+  cv.addEventListener("mousedown", down);
+  cv.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", up);
+}
+function signClear(){
+  if(!SIGN.ctx || !SIGN.cv) return;
+  SIGN.ctx.clearRect(0, 0, SIGN.cv.width, SIGN.cv.height);
+  SIGN.drawn = false; SIGN.last = null;
+  if(SIGN.onChange) SIGN.onChange(false);
+}
+function signHas(){ return !!SIGN.drawn; }
+
+/* Обрезаем пустые поля вокруг росчерка и отдаём компактный PNG.
+   Так подпись занимает килобайты, а не мегабайт, и красиво ложится в бланк. */
+function signData(){
+  const cv = SIGN.cv;
+  if(!cv || !SIGN.drawn) return null;
+  try{
+    const ctx = SIGN.ctx;
+    const w = cv.width, h = cv.height;
+    const img = ctx.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for(let y = 0; y < h; y++){
+      for(let x = 0; x < w; x++){
+        if(img[(y*w + x)*4 + 3] > 8){
+          if(x < x0) x0 = x; if(x > x1) x1 = x;
+          if(y < y0) y0 = y; if(y > y1) y1 = y;
+        }
+      }
+    }
+    if(x1 < 0) return null;
+    const pad = 6;
+    x0 = Math.max(0, x0-pad); y0 = Math.max(0, y0-pad);
+    x1 = Math.min(w-1, x1+pad); y1 = Math.min(h-1, y1+pad);
+    const cw = x1-x0+1, ch = y1-y0+1;
+    // ширина не больше 560 точек — этого хватает и для экрана, и для печати
+    const scale = Math.min(1, 560/cw);
+    const out = document.createElement("canvas");
+    out.width  = Math.max(1, Math.round(cw*scale));
+    out.height = Math.max(1, Math.round(ch*scale));
+    const octx = out.getContext("2d");
+    octx.drawImage(cv, x0, y0, cw, ch, 0, 0, out.width, out.height);
+    const url = out.toDataURL("image/png");
+    return (url && url.length < 290000) ? url : null;
+  }catch(_){ return null; }
+}
+window.signClear = signClear;
 
 </script>
 </body>
