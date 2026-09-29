@@ -8165,25 +8165,35 @@ function awSelect(id, role){
 }
 
 function awRender(){
-  const ready = (AW.clean||[]).filter(x => Number(x.streak) >= Number(x.target));
-  const close = (AW.clean||[]).filter(x => Number(x.streak) > 0 && Number(x.streak) < Number(x.target))
-    .sort((a,b)=>Number(b.streak)-Number(a.streak));
-  const b4 = hrBonRule("clean4");
   const best = hrBonRule("best");
 
   let html = "";
 
   /* --- 4 недели без нарушений --- */
+  const all   = AW.clean || [];
+  const noChk = all.filter(x => x.no_checkins);
+  const live  = all.filter(x => !x.no_checkins);
+  const ready = live.filter(x => Number(x.streak) >= Number(x.target));
+  const close = live.filter(x => Number(x.streak) > 0 && Number(x.streak) < Number(x.target))
+    .sort((a,b)=>Number(b.streak)-Number(a.streak));
+  const b4 = hrBonRule("clean4");
+  const sum4 = b4 ? Number(b4.amount) : 200000;
+
   html += `<div class="hr-sec">4 недели без нарушений</div>`;
   if(ready.length){
     html += ready.map(x=>`<div class="hr-card">
       <div class="hr-top">
         <div class="hr-nm"><b>${hrEsc(x.name)} · ${hrEsc(x.role||"")}</b>
-          <span>${x.streak} недели подряд без опозданий, неявок и штрафов</span></div>
-        <div class="hr-sum gd">${fmtNum(b4?b4.amount:200000)}</div>
-      </div></div>`).join("");
-    html += `<div class="hr-foot"><div class="t">${ready.length} ${ready.length===1?"человек набрал":"человека набрали"} норму устава</div>
-      <button class="hr-btn g" onclick="awAwardClean()">Начислить всем</button></div>`;
+          <span>${x.streak} недели подряд без опозданий, неявок и штрафов · ${x.checkins} отметок о приходе</span></div>
+        <div class="hr-sum gd">${fmtNum(sum4)}</div>
+      </div>
+      <div class="hr-foot"><div class="t"></div>
+        <button class="hr-btn g" onclick="awAwardCleanOne('${x.employee_id}')">Наградить</button></div>
+    </div>`).join("");
+    if(ready.length > 1){
+      html += `<div class="hr-foot"><div class="t">${ready.length} набрали норму устава</div>
+        <button class="hr-btn" onclick="awAwardClean()">Начислить всем сразу</button></div>`;
+    }
   } else {
     html += `<div class="hr-note">Сейчас норму устава никто не набрал.</div>`;
   }
@@ -8194,6 +8204,16 @@ function awRender(){
       <div class="hr-bars" style="width:90px;margin:0">${
         Array.from({length:Number(x.target)},(_,i)=>`<i class="${i<Number(x.streak)?"on":""}"></i>`).join("")}</div>
     </div>`).join("");
+  }
+  if(noChk.length){
+    html += `<div class="hr-sec">Нет отметок о приходах</div>`;
+    html += noChk.map(x=>`<div class="hr-row">
+      <div class="l"><b>${hrEsc(x.name)} · ${hrEsc(x.role||"")}</b>
+        <span>ни одной отметки «Я на смене» за период</span></div>
+      <span class="hr-tag">не участвует</span>
+    </div>`).join("");
+    html += `<div class="hr-note">Эти сотрудники не отмечают приход, поэтому проверить опоздания нечем -
+      автоматический бонус им не начисляется. Наградить вручную можно в разделе «Выдать по уставу».</div>`;
   }
 
   /* --- лучший сотрудник месяца: считает система, награждает руководство --- */
@@ -8227,6 +8247,7 @@ function awRender(){
     html += `<div style="font-size:11px;color:var(--muted);margin:14px 0 6px">${role}</div>`;
     html += mine.slice(0,5).map(x=>{
       const why = [];
+      if(x.no_checkins)       why.push("нет отметок о приходах");
       if(Number(x.late))      why.push(`опоздания: ${x.late}`);
       if(Number(x.absent))    why.push(`неявки: ${x.absent}`);
       if(Number(x.penalties)) why.push(`штрафы: ${x.penalties}`);
@@ -8263,12 +8284,27 @@ function awRender(){
   $("hr-aw-body").innerHTML = html;
 }
 
+async function awAwardCleanOne(empId){
+  const e = byId(empId); if(!e) return;
+  const b = hrBonRule("clean4");
+  if(!confirm(`Начислить ${e.name} бонус «4 недели без нарушений» — ${fmtNum(b?b.amount:200000)} сум?`)) return;
+  const res = await hrRpc("hr_clean_check", {p_employee_id:String(empId)});
+  if(!res || res.ok === false){ awMsg((res&&res.error)||"Не получилось"); return; }
+  if(!res.awarded){ awMsg("Бонус за этот период уже начислен или норма не набрана"); }
+  else awMsg("Бонус начислен: " + e.name, true);
+  await loadAll(); render(); await awReload();
+}
+
 async function awAwardClean(){
   if(!confirm("Начислить бонус всем, кто набрал 4 чистые недели?")) return;
   const res = await hrRpc("hr_clean_award_all", {p_by: ME.name});
   if(!res || res.ok === false){ awMsg((res&&res.error)||"Не получилось"); return; }
   awMsg(res.awarded ? `Начислено: ${res.awarded}` : "Никому не начислено", !!res.awarded);
   await loadAll(); render();
+  await awReload();
+}
+
+async function awReload(){
   const [cl, bl] = await Promise.all([hrRpc("hr_clean_all", {}), hrRpc("hr_best_list", {})]);
   AW.clean = Array.isArray(cl) ? cl : [];
   AW.best  = (bl && bl.ok !== false) ? bl : null;
@@ -8320,7 +8356,7 @@ function awWire(){
     $("hr-aw-modal").addEventListener("click", e=>{ if(e.target===$("hr-aw-modal")) awClose(); });
   }
 }
-window.awAwardClean = awAwardClean; window.awAwardBest = awAwardBest;
+window.awAwardClean = awAwardClean; window.awAwardCleanOne = awAwardCleanOne; window.awAwardBest = awAwardBest;
 window.awAwardRule = awAwardRule;
 
 </script>
