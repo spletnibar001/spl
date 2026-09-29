@@ -836,6 +836,10 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   .ds-sign img.sg, .dp-tbl img.sg{display:block;max-width:100%;height:auto}
   .ds-sign .sgbox{margin-top:11px;background:#fff;border-radius:9px;padding:8px;text-align:center}
   .dp-tbl img.sg{max-height:34px;margin:0 auto}
+  
+  /* ===== НАГРАЖДЕНИЯ ПО УСТАВУ ===== */
+  .hr-row .hr-bars{flex:0 0 auto}
+  .hr-row .hr-pick{width:100%}
   </style>
 </head>
 <body>
@@ -1018,6 +1022,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <button class="btn-mini" id="btn-remove" style="display:none">✕ Убрать из графика</button>
       <button class="btn-mini" id="btn-hr-shift" style="display:none">⚠ Нарушения смены</button>
       <button class="btn-mini" id="btn-hr-top" style="display:none">Выговоры и основания</button>
+      <button class="btn-mini" id="btn-hr-aw" style="display:none">★ Награждения по уставу</button>
       <button class="btn-mini" id="btn-doc-sheet" style="display:none">Лист ознакомления</button>
     </h2>
     <div class="grid-wrap">
@@ -1129,6 +1134,18 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   </div>
 </div>
 
+
+<!-- НАГРАЖДЕНИЯ ПО УСТАВУ (руководство) -->
+<div class="modal-bg" id="hr-aw-modal">
+  <div class="modal">
+    <button class="modal-x" id="hr-aw-close">✕</button>
+    <h3 style="padding-right:44px">Награждения по уставу</h3>
+    <div class="sub" id="hr-aw-sub"></div>
+    <div class="hr-scroll" id="hr-aw-body" style="margin-top:10px"></div>
+    <span class="msg" id="hr-aw-msg"></span>
+  </div>
+</div>
+
 <!-- НАРУШЕНИЯ СМЕНЫ (менеджер смены) -->
 <div class="modal-bg" id="hr-shift-modal">
   <div class="modal">
@@ -1227,7 +1244,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 22.09 · сборка 43";
+const APP_VERSION = "v 29.09 · сборка 44";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4055,6 +4072,7 @@ async function startApp(){
   });
   try{ hrWire(); }catch(e){ console.warn("hrWire", e); }   // устав: штрафы, бонусы, выговоры
   try{ docSheetWire(); }catch(e){ console.warn("docSheetWire", e); }   // лист ознакомления
+  try{ awWire(); }catch(e){ console.warn("awWire", e); }   // награждения по уставу
   // ручная отметка прихода персонала — только администратор, директор, управляющий
   const chkBtn = $("btn-checkin");
   const CHK_ROLES = ["admin","dir","upr"];
@@ -8082,6 +8100,228 @@ function signData(){
   }catch(_){ return null; }
 }
 window.signClear = signClear;
+
+
+/* ============================================================
+   НАГРАЖДЕНИЯ ПО УСТАВУ (руководство)
+   Серверная часть: hr-rules.sql + hr-bonuses.sql.
+   Бонус «4 недели без нарушений» считает система; лучшего сотрудника
+   месяца выбирает руководство; остальные бонусы устава выдаются
+   выбором пункта и сотрудника — сумма подставляется из справочника.
+   ============================================================ */
+const AW = { clean: null, best: null, month: null };
+
+function awCanSee(){ return !!(CAP && CAP.bonus); }
+function awMonthKey(d){
+  const x = d || new Date();
+  return "m" + x.getFullYear() + "-" + String(x.getMonth()+1).padStart(2,"0");
+}
+function awMonthName(){
+  try{ return new Date().toLocaleString("ru-RU", {month:"long", year:"numeric"}); }
+  catch(_){ return ""; }
+}
+// уже начисленные бонусы устава за текущий месяц
+function awGiven(code, periodKey){
+  return (bonRows||[]).filter(b => b.rule_code === code && (!periodKey || b.period_key === periodKey));
+}
+
+async function awOpen(){
+  if(!awCanSee()) return;
+  if(!await hrLoadCharter()){ showMsg("Справочник устава не загружен — запустите hr-rules.sql"); return; }
+  AW.month = awMonthKey();
+  $("hr-aw-sub").textContent = "Бонусы устава · " + awMonthName();
+  $("hr-aw-modal").classList.add("open");
+  $("hr-aw-body").innerHTML = `<div class="hr-note">Загружаю…</div>`;
+  const [cl, bl] = await Promise.all([
+    hrRpc("hr_clean_all", {}),
+    hrRpc("hr_best_list", {})
+  ]);
+  AW.clean = Array.isArray(cl) ? cl : [];
+  AW.best  = (bl && bl.ok !== false) ? bl : null;
+  // период — 4 платёжные недели, а не календарный месяц
+  if(AW.best) $("hr-aw-sub").textContent =
+    `Бонусы устава · ${fmtD(fromIso(AW.best.from))} — ${fmtD(fromIso(AW.best.till))} · ${AW.best.weeks} недели`;
+  awRender();
+}
+function awClose(){ $("hr-aw-modal").classList.remove("open"); }
+function awMsg(t, ok){
+  const m = $("hr-aw-msg"); if(!m) return;
+  m.textContent = t || ""; m.className = "msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 4000);
+}
+
+/* список сотрудников, которых этот пользователь вправе премировать */
+function awPeople(role){
+  return (employees||[])
+    .filter(e => !e.archived && bonusMatch(e))
+    .filter(e => !role || e.emp_role === role)
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name),"ru"));
+}
+function awSelect(id, role){
+  const list = awPeople(role);
+  if(!list.length) return `<div class="hr-note" style="margin:0">Нет сотрудников этой должности в вашей зоне</div>`;
+  return `<select id="${id}" class="hr-pick">${
+    list.map(e=>`<option value="${e.id}">${hrEsc(e.name)}${role?"":" · "+hrEsc(e.emp_role)}</option>`).join("")}</select>`;
+}
+
+function awRender(){
+  const ready = (AW.clean||[]).filter(x => Number(x.streak) >= Number(x.target));
+  const close = (AW.clean||[]).filter(x => Number(x.streak) > 0 && Number(x.streak) < Number(x.target))
+    .sort((a,b)=>Number(b.streak)-Number(a.streak));
+  const b4 = hrBonRule("clean4");
+  const best = hrBonRule("best");
+
+  let html = "";
+
+  /* --- 4 недели без нарушений --- */
+  html += `<div class="hr-sec">4 недели без нарушений</div>`;
+  if(ready.length){
+    html += ready.map(x=>`<div class="hr-card">
+      <div class="hr-top">
+        <div class="hr-nm"><b>${hrEsc(x.name)} · ${hrEsc(x.role||"")}</b>
+          <span>${x.streak} недели подряд без опозданий, неявок и штрафов</span></div>
+        <div class="hr-sum gd">${fmtNum(b4?b4.amount:200000)}</div>
+      </div></div>`).join("");
+    html += `<div class="hr-foot"><div class="t">${ready.length} ${ready.length===1?"человек набрал":"человека набрали"} норму устава</div>
+      <button class="hr-btn g" onclick="awAwardClean()">Начислить всем</button></div>`;
+  } else {
+    html += `<div class="hr-note">Сейчас норму устава никто не набрал.</div>`;
+  }
+  if(close.length){
+    html += close.slice(0,8).map(x=>`<div class="hr-row">
+      <div class="l"><b>${hrEsc(x.name)} · ${hrEsc(x.role||"")}</b>
+        <span>${x.streak} из ${x.target} недель</span></div>
+      <div class="hr-bars" style="width:90px;margin:0">${
+        Array.from({length:Number(x.target)},(_,i)=>`<i class="${i<Number(x.streak)?"on":""}"></i>`).join("")}</div>
+    </div>`).join("");
+  }
+
+  /* --- лучший сотрудник месяца: считает система, награждает руководство --- */
+  const given = awGiven("best", AW.month);
+  const B = AW.best;
+  html += `<div class="hr-sec">Лучший сотрудник месяца</div>`;
+  if(B){
+    html += `<div class="hr-note" style="margin:0 0 10px">За 4 платёжные недели:
+      <b>${fmtD(fromIso(B.from))} — ${fmtD(fromIso(B.till))}</b>. Система считает смены, продажи,
+      опоздания и штрафы; выбираете вы.</div>`;
+  }
+  if(given.length){
+    html += given.map(b=>{
+      const e = byId(b.employee_id);
+      return `<div class="hr-card">
+        <div class="hr-top"><div class="hr-nm"><b>${hrEsc(e?e.name:"—")}${e?" · "+hrEsc(e.emp_role):""}</b>
+          <span>${hrEsc(b.note||"")} · начислил(а) ${hrEsc(b.created_by||"—")}</span></div>
+          <div class="hr-sum gd">${fmtNum(b.amount)}</div></div></div>`;
+    }).join("");
+  }
+  const brows = (B && B.rows) ? B.rows : [];
+  for(const role of ["Официант","Бармен","Хостес"]){
+    if(given.some(b=>{ const e = byId(b.employee_id); return e && e.emp_role === role; })) continue;
+    const mine = brows.filter(x => x.role === role)
+      .filter(x => { const e = byId(x.employee_id); return e && bonusMatch(e); });
+    if(!mine.length) continue;
+    // сначала те, кто проходит по уставу; внутри — по шагам, потом по сменам
+    mine.sort((a,b)=> (b.qualified?1:0)-(a.qualified?1:0)
+                   || Number(b.steps)-Number(a.steps)
+                   || Number(b.shifts)-Number(a.shifts));
+    html += `<div style="font-size:11px;color:var(--muted);margin:14px 0 6px">${role}</div>`;
+    html += mine.slice(0,5).map(x=>{
+      const why = [];
+      if(Number(x.late))      why.push(`опоздания: ${x.late}`);
+      if(Number(x.absent))    why.push(`неявки: ${x.absent}`);
+      if(Number(x.penalties)) why.push(`штрафы: ${x.penalties}`);
+      const facts = [`${x.shifts} смен`];
+      if(Number(x.sales) > 0) facts.push(`продажи ${fmtNum(x.sales)}`, `шаги ${fmtNum(x.steps)}`);
+      const tag = x.qualified
+        ? `<span class="hr-tag g">проходит по уставу</span>`
+        : `<span class="hr-tag r">${hrEsc(why.join(" · "))}</span>`;
+      return `<div class="hr-row">
+        <div class="l"><b>${hrEsc(x.name)}</b><span>${hrEsc(facts.join(" · "))}</span></div>
+        ${tag}
+        <button class="hr-btn${x.qualified?" g":""}" onclick="awAwardBest('${x.employee_id}','${hrEsc(role)}')">Наградить</button>
+      </div>`;
+    }).join("");
+  }
+  html += `<div class="hr-note" style="margin-top:10px">За период по одному человеку на должность —
+    повторно система начислить не даст. Продажи берутся из табеля и заполняются вручную,
+    поэтому шаги считаются только у официантов; барменов и хостес система сравнивает
+    по сменам и чистой дисциплине.</div>`;
+
+  /* --- прочие бонусы устава --- */
+  const rest = (HR.bon||[]).filter(b => b.code !== "clean4" && b.code !== "best");
+  html += `<div class="hr-sec">Выдать по уставу</div>`;
+  html += `<div class="form-row" style="margin-bottom:10px"><div class="field" style="flex:1;min-width:150px">
+      <label>Сотрудник</label>${awSelect("aw-emp")}</div></div>`;
+  html += rest.map(b=>`<div class="hr-row">
+      <div class="l"><b>${hrEsc(b.title)}</b>${b.note?`<span>${hrEsc(b.note)}</span>`:""}</div>
+      <div class="r" style="color:var(--gold)">${b.amount?fmtNum(b.amount):"сумма"}</div>
+      <button class="hr-btn" onclick="awAwardRule('${hrEsc(b.code)}')">Наградить</button>
+    </div>`).join("");
+  html += `<div class="hr-note">Сумма подставляется из устава, её можно изменить при начислении.
+    Бонус попадает в зарплату сотрудника той же неделей и виден ему в кабинете.</div>`;
+
+  $("hr-aw-body").innerHTML = html;
+}
+
+async function awAwardClean(){
+  if(!confirm("Начислить бонус всем, кто набрал 4 чистые недели?")) return;
+  const res = await hrRpc("hr_clean_award_all", {p_by: ME.name});
+  if(!res || res.ok === false){ awMsg((res&&res.error)||"Не получилось"); return; }
+  awMsg(res.awarded ? `Начислено: ${res.awarded}` : "Никому не начислено", !!res.awarded);
+  await loadAll(); render();
+  const [cl, bl] = await Promise.all([hrRpc("hr_clean_all", {}), hrRpc("hr_best_list", {})]);
+  AW.clean = Array.isArray(cl) ? cl : [];
+  AW.best  = (bl && bl.ok !== false) ? bl : null;
+  awRender();
+}
+
+async function awAwardBest(empId, role){
+  const e = byId(empId), b = hrBonRule("best");
+  if(!e) return;
+  let amount = b ? Number(b.amount) : 200000;
+  const v = prompt(`Лучший сотрудник месяца — ${e.name} (${role}).\nСумма бонуса, сум:`, fmtNum(amount));
+  if(v === null) return;
+  amount = parseNum(v);
+  if(!(amount > 0)){ awMsg("Укажите сумму"); return; }
+  const res = await hrRpc("hr_bonus_award", {p_employee_id:String(e.id), p_code:"best",
+    p_period:AW.month, p_by:ME.name, p_date:isoBizToday(), p_amount:amount,
+    p_note:`Лучший сотрудник месяца · ${e.emp_role}`});
+  if(!res || res.ok === false){ awMsg((res&&res.error)||"Не получилось"); return; }
+  if(res.added === false){ awMsg(res.error || "За этот период уже начислено"); return; }
+  awMsg("Бонус начислен: " + e.name, true);
+  await loadAll(); render(); awRender();
+}
+
+async function awAwardRule(code){
+  const sel = $("aw-emp");
+  if(!sel || !sel.value){ awMsg("Выберите сотрудника"); return; }
+  const e = byId(sel.value), b = hrBonRule(code);
+  if(!e || !b) return;
+  let amount = Number(b.amount) || 0;
+  const v = prompt(`${b.title}\nСотрудник: ${e.name}\nСумма бонуса, сум:`, amount?fmtNum(amount):"");
+  if(v === null) return;
+  amount = parseNum(v);
+  if(!(amount > 0)){ awMsg("Укажите сумму"); return; }
+  const ds = isoBizToday();
+  const res = await hrRpc("hr_bonus_award", {p_employee_id:String(e.id), p_code:code,
+    p_period:"d"+ds+"-"+e.id, p_by:ME.name, p_date:ds, p_amount:amount, p_note:b.title});
+  if(!res || res.ok === false){ awMsg((res&&res.error)||"Не получилось"); return; }
+  if(res.added === false){ awMsg(res.error || "Такой бонус уже начислен"); return; }
+  awMsg("Бонус начислен: " + e.name, true);
+  await loadAll(); render(); awRender();
+}
+
+function awWire(){
+  const b = $("btn-hr-aw");
+  if(b && awCanSee()){
+    b.style.display = "";
+    b.addEventListener("click", awOpen);
+    $("hr-aw-close").addEventListener("click", awClose);
+    $("hr-aw-modal").addEventListener("click", e=>{ if(e.target===$("hr-aw-modal")) awClose(); });
+  }
+}
+window.awAwardClean = awAwardClean; window.awAwardBest = awAwardBest;
+window.awAwardRule = awAwardRule;
 
 </script>
 </body>
