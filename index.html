@@ -840,6 +840,14 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   /* ===== НАГРАЖДЕНИЯ ПО УСТАВУ ===== */
   .hr-row .hr-bars{flex:0 0 auto}
   .hr-row .hr-pick{width:100%}
+  
+  /* ===== ВРЕМЯ НАЧАЛА СМЕНЫ ===== */
+  .st-times{display:flex;gap:10px;margin-top:10px}
+  .st-times label{flex:1;min-width:0;font-size:11px;color:var(--muted);display:block}
+  .st-times input{margin-top:4px;width:100%;text-align:center;font-size:14px;
+    font-variant-numeric:tabular-nums}
+  .st-times input:not([value=""]){border-color:var(--emerald)}
+  .st-times i{display:block;font-style:normal;font-size:10.5px;color:#5f6773;margin-top:4px;text-align:center}
   </style>
 </head>
 <body>
@@ -1023,6 +1031,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <button class="btn-mini" id="btn-hr-shift" style="display:none">⚠ Нарушения смены</button>
       <button class="btn-mini" id="btn-hr-top" style="display:none">Выговоры и основания</button>
       <button class="btn-mini" id="btn-hr-aw" style="display:none">★ Награждения по уставу</button>
+      <button class="btn-mini" id="btn-hr-st" style="display:none">Время прихода</button>
       <button class="btn-mini" id="btn-doc-sheet" style="display:none">Лист ознакомления</button>
     </h2>
     <div class="grid-wrap">
@@ -1135,6 +1144,18 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 </div>
 
 
+
+<!-- ВРЕМЯ НАЧАЛА СМЕНЫ (руководство) -->
+<div class="modal-bg" id="hr-st-modal">
+  <div class="modal">
+    <button class="modal-x" id="hr-st-close">✕</button>
+    <h3 style="padding-right:44px">Время прихода</h3>
+    <div class="sub" id="hr-st-sub"></div>
+    <div class="hr-scroll" id="hr-st-body" style="margin-top:10px"></div>
+    <span class="msg" id="hr-st-msg"></span>
+  </div>
+</div>
+
 <!-- НАГРАЖДЕНИЯ ПО УСТАВУ (руководство) -->
 <div class="modal-bg" id="hr-aw-modal">
   <div class="modal">
@@ -1244,7 +1265,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 29.09 · сборка 44";
+const APP_VERSION = "v 29.09 · сборка 46";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -2255,9 +2276,9 @@ function render(){
         }
       }
       if(sh && sh.status===2) tip = `title="Неявка — день не оплачивается"`;
-      // отметка прихода (вариант A) — только для работающих, охрана исключена
+      // отметка прихода — для всех, кто работает в этот день (охрана тоже)
       let chkMark = "";
-      if(sh && sh.status!==2 && e.emp_role!=="Охрана"){
+      if(sh && sh.status!==2){
         const ci = checkinRows.find(c=>c.employee_id===e.id && c.work_date===ds);
         if(ci){
           const t = new Date(ci.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
@@ -2951,7 +2972,6 @@ function renderStaffCabinet(cardsArg){
   function cardBlock(me, idx){
     const r = earnedInPeriod(me, fromS, toS);
     const noPay = NO_RATE_ROLES.includes(me.emp_role);
-    const isGuard = me.emp_role === "Охрана";
 
     // строки заработка
     let earnRows = "";
@@ -3023,7 +3043,7 @@ function renderStaffCabinet(cardsArg){
           ? `<span class="sc-badge" style="background:var(--panel2);color:var(--muted)">${PLACES[sh.place].label}</span>` : "";
         if(chk){
           right = `<div class="sc-checked"><div>отмечен</div><div class="t">в ${new Date(chk.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})} ✓</div></div>`;
-        }else if(isToday && !isGuard){
+        }else if(isToday){
           right = `<button class="sc-btn" onclick="staffCheckin('${ds}','${me.id}')">Я на смене</button>`;
         }else{
           right = zalBadge;
@@ -3428,11 +3448,11 @@ function openCheckinModal(){
 }
 function renderCheckinList(ds){
   const weekKey = iso(viewStart);
-  // сотрудники со сменой сегодня (status!=2), охрана не отмечается
+  // сотрудники со сменой сегодня (status!=2) — охрана тоже отмечается
   const list = shiftRows
     .filter(s=>s.work_date===ds && s.status!==2)
     .map(s=>byId(s.employee_id))
-    .filter(e=>e && !e.archived && e.emp_role!=="Охрана")
+    .filter(e=>e && !e.archived)
     // без дублей карточек
     .filter((e,i,arr)=>arr.findIndex(x=>x.id===e.id)===i)
     .sort((a,b)=>a.name.localeCompare(b.name,"ru"));
@@ -4073,6 +4093,7 @@ async function startApp(){
   try{ hrWire(); }catch(e){ console.warn("hrWire", e); }   // устав: штрафы, бонусы, выговоры
   try{ docSheetWire(); }catch(e){ console.warn("docSheetWire", e); }   // лист ознакомления
   try{ awWire(); }catch(e){ console.warn("awWire", e); }   // награждения по уставу
+  try{ stWire(); }catch(e){ console.warn("stWire", e); }   // время начала смены
   // ручная отметка прихода персонала — только администратор, директор, управляющий
   const chkBtn = $("btn-checkin");
   const CHK_ROLES = ["admin","dir","upr"];
@@ -8358,6 +8379,122 @@ function awWire(){
 }
 window.awAwardClean = awAwardClean; window.awAwardCleanOne = awAwardCleanOne; window.awAwardBest = awAwardBest;
 window.awAwardRule = awAwardRule;
+
+
+/* ============================================================
+   ВРЕМЯ НАЧАЛА СМЕНЫ (руководство)
+   Серверная часть: hr-start-time.sql.
+   До сих пор опоздание считалось от часа открытия зала. Кухня и охрана
+   заступают раньше — здесь для каждой должности и площадки задаётся
+   своё время. Пустое поле — расчёт по открытию зала, как раньше.
+   ============================================================ */
+const ST = { data: null };
+
+function stCanSee(){ return ["admin","upr","dir"].includes(ME && ME.role); }
+const stPosName = p => p === "club" ? "Клуб" : p === "karaoke" ? "Караоке" : "Общие";
+const stHHMM = t => t ? String(t).slice(0,5) : "";
+
+async function stOpen(){
+  if(!stCanSee()) return;
+  $("hr-st-modal").classList.add("open");
+  $("hr-st-body").innerHTML = `<div class="hr-note">Загружаю…</div>`;
+  const res = await hrRpc("hr_start_list", {});
+  if(!res || res.ok === false){
+    $("hr-st-body").innerHTML =
+      `<div class="hr-note">${hrEsc((res && res.error) || "Не удалось получить список. Проверьте, что запущен hr-start-time.sql.")}</div>`;
+    return;
+  }
+  ST.data = res;
+  stRender();
+}
+function stClose(){ $("hr-st-modal").classList.remove("open"); }
+function stMsg(t, ok){
+  const m = $("hr-st-msg"); if(!m) return;
+  m.textContent = t || ""; m.className = "msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 4000);
+}
+
+function stRender(){
+  const d = ST.data; if(!d) return;
+  $("hr-st-sub").textContent =
+    "Во сколько ждём человека на смене. Пустое поле — считаем по открытию зала, как раньше.";
+
+  let html = `<div class="hr-card">
+      <div class="hr-top"><div class="hr-nm"><b>Допуск на опоздание</b>
+        <span>Сколько минут после начала смены ещё не считается опозданием. По уставу 20.</span></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="st-grace" class="hr-pick" type="number" min="0" max="180"
+                 value="${Number(d.grace)||20}" style="width:70px;text-align:center">
+          <span style="font-size:11px;color:var(--muted)">мин</span>
+        </div></div>
+      <div class="hr-foot"><div class="t"></div>
+        <button class="hr-btn g" onclick="stSaveGrace()">Сохранить</button></div>
+    </div>`;
+
+  html += `<div class="hr-sec">Начало смены</div>`;
+  html += (d.rows||[]).map((r,i)=>`<div class="hr-card" id="st-row-${i}">
+      <div class="hr-top"><div class="hr-nm">
+        <b>${hrEsc(r.role)} · ${stPosName(r.pos)}</b>
+        <span>${r.people} ${r.people===1?"человек":"чел."}${
+          r.updated_by ? " · настроил(а) " + hrEsc(r.updated_by) : ""}</span></div></div>
+      <div class="st-times">
+        <label>Будни
+          <input type="time" class="hr-pick" id="st-wd-${i}" value="${stHHMM(r.weekday)}"
+                 placeholder="${stHHMM(r.default_weekday)}">
+          <i>по залу ${stHHMM(r.default_weekday)}</i></label>
+        <label>Пт и Сб
+          <input type="time" class="hr-pick" id="st-we-${i}" value="${stHHMM(r.weekend)}"
+                 placeholder="${stHHMM(r.default_weekend)}">
+          <i>по залу ${stHHMM(r.default_weekend)}</i></label>
+      </div>
+      <div class="hr-foot"><div class="t"></div>
+        <button class="hr-btn" onclick="stClear(${i})">Очистить</button>
+        <button class="hr-btn g" onclick="stSave(${i})">Сохранить</button></div>
+    </div>`).join("");
+
+  html += `<div class="hr-note">Время действует на всех сотрудников этой должности на этой площадке.
+    Опоздания, чистые недели и рейтинг лучшего сотрудника пересчитываются сразу —
+    задним числом тоже, поэтому меняйте осознанно.</div>`;
+  $("hr-st-body").innerHTML = html;
+}
+
+async function stSave(i){
+  const d = ST.data; if(!d) return;
+  const r = (d.rows||[])[i]; if(!r) return;
+  const wd = ($("st-wd-"+i)||{}).value || "";
+  const we = ($("st-we-"+i)||{}).value || "";
+  const res = await hrRpc("hr_start_set", {p_role:r.role, p_pos:r.pos,
+    p_weekday:wd, p_weekend:we, p_by:ME.name});
+  if(!res || res.ok === false){ stMsg((res&&res.error)||"Не получилось"); return; }
+  r.weekday = res.weekday; r.weekend = res.weekend; r.updated_by = ME.name;
+  stMsg(`${r.role} · ${stPosName(r.pos)}: сохранено`, true);
+}
+async function stClear(i){
+  const d = ST.data; if(!d) return;
+  const r = (d.rows||[])[i]; if(!r) return;
+  if(!confirm(`Вернуть ${r.role} · ${stPosName(r.pos)} расчёт по открытию зала?`)) return;
+  const el1 = $("st-wd-"+i), el2 = $("st-we-"+i);
+  if(el1) el1.value = ""; if(el2) el2.value = "";
+  await stSave(i);
+}
+async function stSaveGrace(){
+  const v = parseInt(($("st-grace")||{}).value, 10);
+  const res = await hrRpc("hr_grace_set", {p_minutes:isNaN(v)?null:v, p_by:ME.name});
+  if(!res || res.ok === false){ stMsg((res&&res.error)||"Не получилось"); return; }
+  if(ST.data) ST.data.grace = res.grace;
+  stMsg("Допуск сохранён: " + res.grace + " мин", true);
+}
+
+function stWire(){
+  const b = $("btn-hr-st");
+  if(b && stCanSee()){
+    b.style.display = "";
+    b.addEventListener("click", stOpen);
+    $("hr-st-close").addEventListener("click", stClose);
+    $("hr-st-modal").addEventListener("click", e=>{ if(e.target===$("hr-st-modal")) stClose(); });
+  }
+}
+window.stSave = stSave; window.stClear = stClear; window.stSaveGrace = stSaveGrace;
 
 </script>
 </body>
