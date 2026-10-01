@@ -145,6 +145,7 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
 .cd.empty{visibility:hidden}
 .cd.today{background:#ff3b30;color:#fff;font-weight:700}
 .calnote{text-align:center;color:#8e8e93;font-size:12.5px;margin-top:14px}
+input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.6);opacity:.85;cursor:pointer}
 </style></head>
 <body>
 
@@ -189,7 +190,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v41";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v43";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -287,8 +288,8 @@ const DEBT_AGE_1=10, DEBT_AGE_2=20, DEBT_AGE_3=30;
 function debtAgeDays(dateIso){ const t=Date.parse(dateIso+"T12:00:00"); if(!t) return 0; return Math.floor((Date.now()-t)/86400000); }
 function agingBadge(dateIso){ if(!dateIso) return ""; const d=debtAgeDays(dateIso); const col=d>=DEBT_AGE_3?"var(--out)":d>=DEBT_AGE_2?"var(--warn)":d>=DEBT_AGE_1?"var(--gold)":null; if(!col) return ""; return '<span class="badge" style="border-color:'+col+';color:'+col+'">'+d+' дн</span>'; }
 // группы расходов безнала (как в кассе на ПК)
-const EXPENSE_GROUPS=["Продукты","Напитки","Алкоголь","Сигареты","Хозтовары","Административные","Коммунальные","Реклама","Налоги"];
-const GROUP_COLOR={"Продукты":"#8FD49B","Напитки":"#5EC8C8","Алкоголь":"#E8A34A","Сигареты":"#9EA97F","Хозтовары":"#C8A2E8","Административные":"#B89A54","Коммунальные":"#7FB0E8","Реклама":"#E88FC0","Налоги":"#E8735A"};
+const EXPENSE_GROUPS=["Продукты","Кальяны","Напитки","Алкоголь","Сигареты","Хозтовары","Административные","Коммунальные","Реклама","Налоги"];
+const GROUP_COLOR={"Продукты":"#8FD49B","Кальяны":"#6b8ea3","Напитки":"#5EC8C8","Алкоголь":"#E8A34A","Сигареты":"#9EA97F","Хозтовары":"#C8A2E8","Административные":"#B89A54","Коммунальные":"#7FB0E8","Реклама":"#E88FC0","Налоги":"#E8735A"};
 const GROUP_BY_BANKCAT={"Поставщики":"Продукты","Электричество":"Коммунальные","Газ":"Коммунальные","Вода":"Коммунальные","Вывоз мусора":"Коммунальные","Интернет · связь":"Коммунальные","Налоги ЗП (ИНПС · НДФЛ · соц.)":"Налоги","НДС":"Налоги","Прочее":"Административные"};
 const DEFAULT_SUPPLIERS=["SAPHIR DISTRIBUTION","UNION BEVERAGE TRADE","BEER PLANET","GRAND CRU"];
 function payGroupKey(cat,payee){ return payee?("who:"+normName(payee)):("cat:"+cat); }
@@ -485,13 +486,70 @@ function jrnRank(e){
   if(cat === "Без.нал") return 1;
   return 2;
 }
+/* ===== СКЛЕЙКА «ВЫПЛАТА + УДЕРЖАНИЯ» В ЖУРНАЛЕ (01.10.2026) =====
+   Касса пишет начисление и встречный взнос отдельными записями: буфер и бой должны
+   попасть в свои остатки, а наличные не должны измениться дважды. В журнале это
+   читалось как «−20 000 · +20 000 · −1 130 000». Записи одной выдачи (один человек,
+   один бизнес-день) сводим в одну строку: крупно — сколько ушло из кассы на руки,
+   мелко — из чего это вышло. По тапу раскрывается в исходные записи. */
+const BUFFER_CAT_V = "Буфер персонала", BOY_CAT_V = "Бой посуды";
+const GROUP_BUFFER_V = { "ГОУ-ГОУ": ["ГОУ-ГОУ Катя","ГОУ-ГОУ Настя","ГОУ-ГОУ Сабина"] };
+function vGroupOf(cp){ const n=normName(cp); for(const k in GROUP_BUFFER_V){ if(GROUP_BUFFER_V[k].some(m=>normName(m)===n)) return k; } return ""; }
+function vPackKey(e){ return normName(vGroupOf(e&&e.cp) || (e&&e.cp) || "") + "|" + String(e&&e.bizDate||""); }
+function vHoldKind(e){
+  if(!e || e.type!=="in") return "";
+  if(e.cat===BUFFER_CAT_V) return "буфер";
+  if(e.cat===BOY_CAT_V) return "бой";
+  if(e.kind==="repay" && /удержание долга из ЗП/i.test(e.note||"")) return "долг";
+  if(e.kind==="olddebt") return "старый долг";
+  return "";
+}
+const _vOpen = {};
+function vPackBoxId(k){ return "vpk_" + String(k).replace(/[^A-Za-zА-Яа-я0-9]/g,"_"); }
+function vPackToggle(k){ _vOpen[k] = !_vOpen[k]; renderKassa(); }
+function vPacks(list){
+  const by = {}, order = [];
+  for(const e of list){ const k = vPackKey(e); if(!by[k]){ by[k]=[]; order.push(k); } by[k].push(e); }
+  const out = [];
+  for(const k of order){
+    const g = by[k];
+    const pays  = g.filter(e=>e.type==="out" && SAL_CATS.includes(e.cat));
+    const holds = g.filter(e=>vHoldKind(e));
+    if(pays.length && holds.length && (pays.length+holds.length)===g.length) out.push({pack:true, key:k, items:g, pays, holds});
+    else for(const e of g) out.push({pack:false, e});
+  }
+  return out;
+}
+function vPackRowHtml(p){
+  const gross = p.pays.reduce((a,e)=>a+e.amount,0);
+  const held  = p.holds.reduce((a,e)=>a+e.amount,0);
+  const hands = gross - held;
+  const e0 = p.pays[0];
+  const notes = {}; for(const e of p.pays) notes[String(e.note||"")] = 1;
+  const nk = Object.keys(notes);
+  const note = nk.length===1 ? nk[0] : (p.pays.length + " выплаты за разные периоды");
+  const parts = {};
+  for(const h of p.holds){ const k = vHoldKind(h); parts[k] = (parts[k]||0) + h.amount; }
+  const detail = Object.keys(parts).map(k=>k+" "+fmt(parts[k])).join(" − ");
+  const open = !!_vOpen[p.key];
+  const sub = [e0.cat, note, e0.time, e0.by].filter(Boolean).join(" · ");
+  return '<div class="row r-out" style="border-left-color:var(--gold-dim);cursor:pointer" onclick="vPackToggle(\''+escAttr(p.key)+'\')">'+
+      '<div class="who">'+esc(e0.cp)+'<small>'+esc(sub)+'</small>'+
+        '<small style="color:var(--cream);margin-top:4px">начислено <b>'+fmt(gross)+'</b> − '+esc(detail)+
+        (hands>0 ? ' → на руки <b style="color:var(--gold)">'+fmt(hands)+'</b>' : ' · <b style="color:var(--gold)">на руки 0, удержано целиком</b>')+'</small></div>'+
+      '<div style="text-align:right"><div class="amt out">'+(hands>0?"−"+fmt(hands):"0")+'</div>'+
+        '<div style="font-size:10.5px;color:var(--ash);margin-top:3px">'+p.items.length+' '+plural(p.items.length,"запись","записи","записей")+' '+(open?"▴":"▾")+'</div></div></div>'+
+    '<div id="'+vPackBoxId(p.key)+'" style="display:'+(open?"block":"none")+';margin:-2px 0 2px 12px;padding-left:8px;border-left:2px solid var(--line)">'+
+      '<div class="rows">'+p.items.map(rowHtml).join("")+'</div></div>';
+}
+function vPackedHtml(list){ return vPacks(list).map(x => x.pack ? vPackRowHtml(x) : rowHtml(x.e)).join(""); }
 function renderKassa(){
   const d=SEL||VD;
   const es=dayEntries(d).slice().reverse().sort((a,b)=>jrnRank(a)-jrnRank(b));
   const inn=dayInAll(d), out=daySpendBreakdown(d).total, closed=S.days[d]&&S.days[d].closed;
   let html=dayNavHtml()+
     '<div class="dayhead" style="justify-content:center;padding-top:0"><span class="dsum">прих. <span class="in">+'+fmt(inn)+'</span> · расх. <span class="out">−'+fmt(out)+'</span>'+(closed?' <span class="locked">закрыт</span>':'')+'</span></div>';
-  html += es.length ? '<div class="rows">'+es.map(rowHtml).join("")+'</div>' : '<div class="empty">Нет операций за этот день.</div>';
+  html += es.length ? '<div class="rows">'+vPackedHtml(es)+'</div>' : '<div class="empty">Нет операций за этот день.</div>';
   document.getElementById("tab-kassa").innerHTML=html;
 }
 /* рамка-дата со стрелками (как в кассе): по умолчанию свежий день, кнопка «сегодня» */
@@ -685,9 +743,9 @@ function openDebtsTab(k){ debtKind=k; renderDebts(); setTab("debts"); }
 /* ===== экран расходов кассы (админ) ===== */
 const MON_NOM=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const GHEX={g1:"#3987e5",g2:"#d95926",g3:"#199e70",g4:"#c98500",g5:"#d55181",g6:"#008300",g7:"#9085e9"};
-const GHEXN={"ФОТ":"#3987e5","ШОУ":"#7E57C2","Продукты":"#d95926","Напитки":"#008fb0","Алкоголь":"#199e70","Сигареты":"#6f7d45","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Хозтовары":"#8a6bb5","Реклама":"#e0559c","Ремонт":"#b6873b","Маркетинг и артисты":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
+const GHEXN={"ФОТ":"#3987e5","ШОУ":"#7E57C2","Продукты":"#d95926","Кальяны":"#6b8ea3","Напитки":"#008fb0","Алкоголь":"#199e70","Сигареты":"#6f7d45","Налоги":"#c98500","Административные":"#d55181","Коммунальные":"#008300","Хозтовары":"#8a6bb5","Реклама":"#e0559c","Ремонт":"#b6873b","Маркетинг и артисты":"#c94db0","Комплименты и подарки":"#5ec8c8","Невозвратные":"#a23b3b","Прочее":"#9085e9"};
 const EXP_EXCLUDE=new Set(["Без.нал","Излишки и недостачи","Остатки нала","Чистая выручка","ЗАЛОГ","Буфер персонала","Бой посуды"]);
-const CASH_GROUP_CP={ "Кальяны":"Продукты","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и артисты","ТАРГЕТ ЯНДЕКС":"Реклама","ТАРГЕТ ИНСТАГРАММ":"Реклама","Маркетинг":"Маркетинг и артисты","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и артисты","МАССОВКА Счет":"Маркетинг и артисты","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и артисты","Доставка":"Прочее" };
+const CASH_GROUP_CP={ "Кальяны":"Кальяны","Интернет":"Коммунальные","День Рождения сотрудникам":"Комплименты и подарки","Комплимент Караоке":"Комплименты и подарки","Комплимент Клуб":"Комплименты и подарки","Привоз артистов":"Маркетинг и артисты","ТАРГЕТ ЯНДЕКС":"Реклама","ТАРГЕТ ИНСТАГРАММ":"Реклама","Маркетинг":"Маркетинг и артисты","ХЛОПУШКИ, ФЕЙЕРВЕРКИ, ХЕЙЗЕР":"Маркетинг и артисты","МАССОВКА Счет":"Маркетинг и артисты","МАССОВКА ЕЖЕНЕДЕЛЬНЫЙ ПРОЦЕНТ":"Маркетинг и артисты","Доставка":"Прочее" };
 const CASH_GROUP_CAT={ "Закуп":"Продукты","Ремонт":"Ремонт","АРЕНДА":"Административные","Административный расход":"Административные","Маркетинг":"Маркетинг и артисты","АТМОСФЕРА":"Маркетинг и артисты" };
 function cashGroupOf(cat,cp){ const k=Object.keys(CASH_GROUP_CP).find(x=>normName(x)===normName(cp)); if(k) return CASH_GROUP_CP[k]; if(normName(cp).includes("МАГАЗИН")) return "Прочее"; if(CASH_GROUP_CAT[cat]) return CASH_GROUP_CAT[cat]; return "Прочее"; }
 const CASH_IN_LABEL={ "Привоз артистов":"приход (билеты/бонусы)","Мелкий ремонт":"приход за ремонт" };
@@ -886,21 +944,22 @@ function expReport(mk){
   // kind "offset" — зачёт заказов в зарплату: денег не выходило, в ФОТ не идёт (как в кассе)
   for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="offset"||!SAL_CATS.includes(e.cat)||!inM(entryMonthKey(e))) continue;
     const v=e.cat==="Зар.плата КАРАОКЕ"?"Караоке":(e.cat==="Зар.плата КЛУБ"?"Клуб":"Общий");
-    if(isShowRole(e.cp)){ show[v]+=e.amount; if(!showP[e.cp])showP[e.cp]={n:e.cp,a:0,cnt:0}; showP[e.cp].a+=e.amount; showP[e.cp].cnt++; }
-    else { fot[v]+=e.amount; if(!fotP[e.cp])fotP[e.cp]={n:e.cp,a:0,cnt:0}; fotP[e.cp].a+=e.amount; fotP[e.cp].cnt++; } }
+    const _op={d:e.bizDate,note:e.note||"",a:e.amount,src:(e.method==="card"?"карта":"нал")};
+    if(isShowRole(e.cp)){ show[v]+=e.amount; if(!showP[e.cp])showP[e.cp]={n:e.cp,a:0,cnt:0,ops:[]}; showP[e.cp].a+=e.amount; showP[e.cp].cnt++; showP[e.cp].ops.push(_op); }
+    else { fot[v]+=e.amount; if(!fotP[e.cp])fotP[e.cp]={n:e.cp,a:0,cnt:0,ops:[]}; fotP[e.cp].a+=e.amount; fotP[e.cp].cnt++; fotP[e.cp].ops.push(_op); } }
   const fotTotal=fot.Караоке+fot.Клуб+fot.Общий;
   const showTotal=show.Караоке+show.Клуб+show.Общий;
   const gs={},gi={}; EXPENSE_GROUPS.forEach(g=>{gs[g]=0;gi[g]={};});
-  for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(payMonthKey(p))) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0}; gi[g][k].a+=p.amount; gi[g][k].cnt++; }
+  for(const p of ((S.bank&&S.bank.payments)||[])){ if(!inM(payMonthKey(p))) continue; const g=groupOfPayment(p); if(!(g in gs)){gs[g]=0;gi[g]={};} gs[g]+=p.amount; const k=p.payee||p.category||"платёж"; if(!gi[g][k])gi[g][k]={n:k,a:0,cnt:0,ops:[]}; gi[g][k].a+=p.amount; gi[g][k].cnt++; gi[g][k].ops.push({d:p.date,note:p.note||p.category||"",a:p.amount,src:"счёт"}); }
   // касса-расходы по группам (маршрут через cashGroupOf) — как в кассе
   const cgs={},cgi={};
   for(const e of S.entries){
     if(e.deleted||e.kind==="cardfix"||!inM(entryMonthKey(e))) continue;
     if(SAL_CATS.includes(e.cat)||DEBT_CATS.includes(e.cat)||EXP_EXCLUDE.has(e.cat)||e.cat==="Невозвратные") continue;
     const g=cashGroupOf(e.cat,e.cp); if(!cgi[g]){cgs[g]=0;cgi[g]={};}
-    const k=e.cp||e.cat; if(!cgi[g][k])cgi[g][k]={n:k,a:0,cnt:0,inA:0};
-    if(e.type==="out"){ cgs[g]+=e.amount; cgi[g][k].a+=e.amount; cgi[g][k].cnt++; }
-    else if(e.type==="in"){ cgi[g][k].inA+=e.amount; }
+    const k=e.cp||e.cat; if(!cgi[g][k])cgi[g][k]={n:k,a:0,cnt:0,inA:0,ops:[]};
+    if(e.type==="out"){ cgs[g]+=e.amount; cgi[g][k].a+=e.amount; cgi[g][k].cnt++; cgi[g][k].ops.push({d:e.bizDate,note:e.note||e.cat||"",a:e.amount,src:(e.method==="card"?"карта":"нал")}); }
+    else if(e.type==="in"){ cgi[g][k].inA+=e.amount; cgi[g][k].ops.push({d:e.bizDate,note:e.note||"приход",a:-e.amount,src:"приход"}); }
   }
   // Невозвратные: статья «Невозвратные» + списанные гостевые долги (как в кассе)
   const _staffSet=debtStaffSet();
@@ -909,7 +968,7 @@ function expReport(mk){
     if(e.deleted||e.type!=="out"||e.kind==="cardfix"||!inM(entryMonthKey(e))) continue;
     const isCat=e.cat==="Невозвратные"; const isWoGuest=DEBT_CATS.includes(e.cat) && !_staffSet.has(normName(e.cp)) && isWriteoff(e.cp);
     if(!isCat&&!isWoGuest) continue;
-    nevoz+=e.amount; const k=e.cp||e.cat; if(!nevozI[k])nevozI[k]={n:k,a:0,cnt:0}; nevozI[k].a+=e.amount; nevozI[k].cnt++;
+    nevoz+=e.amount; const k=e.cp||e.cat; if(!nevozI[k])nevozI[k]={n:k,a:0,cnt:0,ops:[]}; nevozI[k].a+=e.amount; nevozI[k].cnt++; nevozI[k].ops.push({d:e.bizDate,note:e.note||e.cat||"",a:e.amount,src:"списание"});
   }
   let nal=0,card=0;
   for(const e of S.entries){ if(e.deleted||e.type!=="out"||e.kind==="cardfix"||e.kind==="offset"||!inM(entryMonthKey(e))) continue; const fc=SAL_CATS.includes(e.cat); const other=!fc&&!DEBT_CATS.includes(e.cat)&&!EXP_EXCLUDE.has(e.cat); if(!fc&&!other) continue; if(e.method==="card")card+=e.amount; else nal+=e.amount; }
@@ -917,12 +976,13 @@ function expReport(mk){
   let revKar=0,revClub=0;
   for(const e of S.entries){ if(e.deleted||e.cat!=="Чистая выручка"||!inM(e.bizDate)) continue; const s=e.type==="in"?1:-1; if(normName(e.cp)===normName("Касса КАРАОКЕ"))revKar+=s*e.amount; else if(normName(e.cp)===normName("Касса КЛУБ"))revClub+=s*e.amount; }
   const items=o=>Object.values(o).sort((a,b)=>b.a-a.a);
-  const merge=(g)=>{ const m={}; for(const it of Object.values(gi[g]||{})) m[it.n]={n:it.n,a:it.a,cnt:it.cnt,inA:0}; for(const it of Object.values(cgi[g]||{})){ if(!m[it.n])m[it.n]={n:it.n,a:0,cnt:0,inA:0}; m[it.n].a+=it.a; m[it.n].cnt+=it.cnt; m[it.n].inA+=it.inA||0; } return items(m); };
+  const merge=(g)=>{ const m={}; for(const it of Object.values(gi[g]||{})) m[it.n]={n:it.n,a:it.a,cnt:it.cnt,inA:0,ops:(it.ops||[]).slice()}; for(const it of Object.values(cgi[g]||{})){ if(!m[it.n])m[it.n]={n:it.n,a:0,cnt:0,inA:0,ops:[]}; m[it.n].a+=it.a; m[it.n].cnt+=it.cnt; m[it.n].inA+=it.inA||0; m[it.n].ops=(m[it.n].ops||[]).concat(it.ops||[]); } return items(m); };
   const gAmt=(g)=>(gs[g]||0)+(cgs[g]||0); const G=n=>GHEXN[n]||"#9085e9";
   const groups=[
     {name:"ФОТ",hex:G("ФОТ"),amt:fotTotal,fot:fot,people:items(fotP)},
     {name:"ШОУ",hex:G("ШОУ"),amt:showTotal,fot:show,people:items(showP)},
     {name:"Продукты",hex:G("Продукты"),amt:gAmt("Продукты"),items:merge("Продукты")},
+    {name:"Кальяны",hex:G("Кальяны"),amt:gAmt("Кальяны"),items:merge("Кальяны")},
     {name:"Напитки",hex:G("Напитки"),amt:gAmt("Напитки"),items:merge("Напитки")},
     {name:"Алкоголь",hex:G("Алкоголь"),amt:gAmt("Алкоголь"),items:merge("Алкоголь")},
     {name:"Сигареты",hex:G("Сигареты"),amt:gAmt("Сигареты"),items:merge("Сигареты")},
@@ -1048,7 +1108,7 @@ function pctRu(p){ return (Math.round(p*1000)/10).toString().replace(".",",")+"%
 function healthReport(mk,R){
   R=R||expReport(mk); const rev=(R.revKar||0)+(R.revClub||0);
   const g={}; for(const x of R.groups) g[x.name]=x.amt||0;
-  const cogs=(g["Продукты"]||0)+(g["Напитки"]||0)+(g["Алкоголь"]||0)+(g["Сигареты"]||0);   // всё, что перепродаётся
+  const cogs=(g["Продукты"]||0)+(g["Кальяны"]||0)+(g["Напитки"]||0)+(g["Алкоголь"]||0)+(g["Сигареты"]||0);   // всё, что перепродаётся
   const labor=(g["ФОТ"]||0)+(g["ШОУ"]||0);
   const mkt=(g["Маркетинг и артисты"]||0)+(g["Реклама"]||0);
   const occ=(g["Административные"]||0)+(g["Коммунальные"]||0);
@@ -1056,7 +1116,7 @@ function healthReport(mk,R){
   const total=R.total||(cogs+labor+mkt+occ+other), prime=cogs+labor, net=rev-total;
   const P=a=>rev>0?a/rev:0;
   const blocks=[
-    {name:"Себестоимость",sub:"продукты, напитки, алкоголь, сигареты",amt:cogs,p:P(cogs),lo:0,hi:.30,color:"#199e70",hint:"алкоголь высоковат — проверь наценку и недоливы"},
+    {name:"Себестоимость",sub:"продукты, кальяны, напитки, алкоголь, сигареты",amt:cogs,p:P(cogs),lo:0,hi:.30,color:"#199e70",hint:"алкоголь высоковат — проверь наценку и недоливы"},
     {name:"Люди и шоу",sub:"ФОТ + резиденты, диджеи, шоу, массовка",amt:labor,p:P(labor),lo:.30,hi:.35,color:"#3987e5",hint:"фикс резидентов привязать к выручке ночи"},
     {name:"Маркетинг и артисты",sub:"промо + привоз артистов (разовые)",amt:mkt,p:P(mkt),lo:.03,hi:.07,color:"#c94db0",hint:"разовые привозы держи в пределах нормы к выручке"},
     {name:"Помещение",sub:"аренда + коммуналка + админ",amt:occ,p:P(occ),lo:.08,hi:.12,color:"#d55181",hint:"коммуналку разобрать по счётчикам"},
@@ -1109,6 +1169,26 @@ function healthSectionV(mk,R){
     '</div>'+
     '<div class="kpi wide" style="text-align:left;padding:4px 16px">'+rows+'</div>'+diag;
 }
+/* Детали по получателю в «Расходах» (01.10.2026): раньше было видно только
+   «ГОУ-ГОУ · 35 выплат» одной суммой. По тапу раскрываем сами операции. */
+const _expOpen = {};
+function expRowId(k){ return "exi_" + String(k).replace(/[^A-Za-zА-Яа-я0-9]/g,"_"); }
+function expToggle(k){ _expOpen[k]=!_expOpen[k]; const el=document.getElementById(expRowId(k)); if(el) el.style.display=_expOpen[k]?"block":"none"; const c=document.getElementById(expRowId(k)+"_c"); if(c) c.textContent=_expOpen[k]?"▾":"▸"; }
+function expOpsHtml(ops){
+  const list=(ops||[]).slice().sort((a,b)=>String(b.d).localeCompare(String(a.d)));
+  if(!list.length) return '<div style="font-size:11.5px;color:var(--ash);padding:4px 0">Деталей нет.</div>';
+  return list.map(o=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
+    '<span style="color:var(--cream)">'+esc(String(o.d||"").slice(8,10)+"."+String(o.d||"").slice(5,7))+
+      '<span style="color:var(--ash)"> · '+esc(o.src||"")+(o.note?" · "+esc(o.note):"")+'</span></span>'+
+    '<b style="color:'+(o.a<0?"var(--in)":"var(--cream)")+';white-space:nowrap">'+(o.a<0?"+":"")+fmt(Math.abs(o.a))+'</b></div>').join("");
+}
+function expItemRow(gname, it, cntLbl){
+  const key = gname+"|"+it.n, has=(it.ops||[]).length>0;
+  return '<div class="drow"'+(has?' style="cursor:pointer" onclick="expToggle(\''+escAttr(key)+'\')"':'')+'>'+
+      '<span class="nm">'+(has?'<span id="'+expRowId(key)+'_c" style="color:var(--gold-dim);margin-right:5px">▸</span>':'')+esc(it.n)+
+      (it.cnt>1?'<span class="cnt">'+it.cnt+' '+cntLbl+'</span>':'')+'</span><b>'+fmt(it.a)+'</b></div>'+
+    (has?'<div id="'+expRowId(key)+'" style="display:'+(_expOpen[key]?"block":"none")+';margin:0 0 6px 14px;padding-left:8px;border-left:2px solid var(--line)">'+expOpsHtml(it.ops)+'</div>':'');
+}
 function renderExpenses(){
   const box=document.getElementById("tab-expenses"); if(!box) return;
   if(!EXPM) EXPM=(VD||bizToday()).slice(0,7);
@@ -1136,8 +1216,8 @@ function renderExpenses(){
       const pct=Math.round(g.amt/R.total*100);
       let detail='';
       if(g.fot){ const gp=a=>g.amt>0?Math.round(a/g.amt*100):0; detail+='<div class="fotsplit"><div class="fc"><div class="k">Караоке</div><div class="a">'+fmt(g.fot.Караоке)+'</div><div class="k">'+gp(g.fot.Караоке)+'%</div></div><div class="fc"><div class="k">Клуб</div><div class="a">'+fmt(g.fot.Клуб)+'</div><div class="k">'+gp(g.fot.Клуб)+'%</div></div><div class="fc"><div class="k">Общий</div><div class="a">'+fmt(g.fot.Общий)+'</div><div class="k">'+gp(g.fot.Общий)+'%</div></div></div>';
-        detail+=g.people.length?('<div class="subhdr">по сотрудникам</div>'+g.people.map(p=>'<div class="drow"><span class="nm">'+esc(p.n)+(p.cnt>1?'<span class="cnt">'+p.cnt+' вып.</span>':'')+'</span><b>'+fmt(p.a)+'</b></div>').join("")):''; }
-      else { detail+='<div class="subhdr">получатели · за месяц</div>'+(g.items.length?g.items.map(it=>{ const inLbl=(it.inA>0)?cashInLabel(it.n):null; return '<div class="drow"><span class="nm">'+esc(it.n)+(it.cnt>1?'<span class="cnt">'+it.cnt+' плат.</span>':'')+'</span><b>'+fmt(it.a)+'</b></div>'+(inLbl?'<div class="drow" style="opacity:.85"><span class="nm" style="padding-left:12px;color:var(--in)">↳ '+esc(inLbl)+'</span><b style="color:var(--in)">+'+fmt(it.inA)+'</b></div>':''); }).join(""):'<div class="drow"><span class="nm">детализации нет</span></div>'); }
+        detail+=g.people.length?('<div class="subhdr">по сотрудникам</div>'+g.people.map(p=>expItemRow(g.name,p,"вып.")).join("")):''; }
+      else { detail+='<div class="subhdr">получатели · за месяц · нажмите для деталей</div>'+(g.items.length?g.items.map(it=>{ const inLbl=(it.inA>0)?cashInLabel(it.n):null; return expItemRow(g.name,it,"плат.")+(inLbl?'<div class="drow" style="opacity:.85"><span class="nm" style="padding-left:12px;color:var(--in)">↳ '+esc(inLbl)+'</span><b style="color:var(--in)">+'+fmt(it.inA)+'</b></div>':''); }).join(""):'<div class="drow"><span class="nm">детализации нет</span></div>'); }
       html+='<div class="grp" id="exg'+i+'"><div class="grp-top" onclick="document.getElementById(\'exg'+i+'\').classList.toggle(\'open\')"><span class="chev">▸</span><span class="gdot" style="background:'+g.hex+'"></span><span class="grp-name">'+g.name+'</span><span class="grp-pct">'+pct+'%</span><span class="grp-amt">'+fmt(g.amt)+'</span></div><div class="gtrack"><span style="width:'+Math.round(g.amt/max*100)+'%;background:'+g.hex+'"></span></div><div class="gdetail">'+detail+'</div></div>';
     });
     html+='</div>';
