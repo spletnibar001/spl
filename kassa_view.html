@@ -190,7 +190,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v43";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v45";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -310,7 +310,7 @@ function latestBizDate(){ let mx=null; for(const e of S.entries){ if(!e.deleted 
 /* ===CALC_END=== */
 
 /* ==== строки БД -> вид приложения (по meta, без ключей) ==== */
-function rowToEntry(r){ const m=r.meta||{}; const e={id:r.id,bizDate:r.biz_date,cat:(m.cat||""),cp:(m.cp||""),type:r.type,amount:Number(r.amount),note:r.note||"",orderNo:r.order_no||"",by:r.created_by||"",ts:r.created_at||undefined}; if(r.method)e.method=r.method; if(r.kind)e.kind=r.kind; if(m.time)e.time=m.time; if(r.deleted)e.deleted=true; if(m.backdated)e.backdated=m.backdated; if(m.venue)e.venue=m.venue; return e; }
+function rowToEntry(r){ const m=r.meta||{}; const e={id:r.id,bizDate:r.biz_date,cat:(m.cat||""),cp:(m.cp||""),type:r.type,amount:Number(r.amount),note:r.note||"",orderNo:r.order_no||"",by:r.created_by||"",ts:r.created_at||undefined}; if(r.method)e.method=r.method; if(r.kind)e.kind=r.kind; if(m.time)e.time=m.time; if(r.deleted)e.deleted=true; if(m.backdated)e.backdated=m.backdated; if(m.venue)e.venue=m.venue; if(m.photo)e.photo=m.photo; if(m.photoItem)e.photoItem=m.photoItem; if(m.hasPhoto)e.hasPhoto=true; if(m.hasItem)e.hasItem=true; return e; }
 function rowToDay(r){ const d={closed:!!r.closed}; if(r.fact!=null)d.fact=Number(r.fact); if(r.card_fact!=null)d.cardFact=Number(r.card_fact); if(r.closed_by)d.by=r.closed_by; if(r.closed_at)d.closedAt=r.closed_at; return d; }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
@@ -475,7 +475,8 @@ function renderSummary(){
 function methodBadge(e){ if(e.cat==="Без.нал"||e.cat==="Излишки и недостачи"||DEBT_CATS.includes(e.cat)) return ""; return e.method==="card"?'<span class="badge card">КАРТА</span>':'<span class="badge cash">НАЛ</span>'; }
 function rowHtml(e){
   const parts=[e.cat]; if(e.orderNo)parts.push("счёт №"+e.orderNo); if(e.note)parts.push(e.note); if(e.time)parts.push(e.time); if(e.by)parts.push(e.by);
-  return '<div class="row '+(e.type==="in"?"r-in":"r-out")+'"><div class="who">'+esc(e.cp)+methodBadge(e)+'<small>'+esc(parts.join(" · "))+'</small></div>'+
+  return '<div class="row '+(e.type==="in"?"r-in":"r-out")+'"><div class="who">'+esc(e.cp)+methodBadge(e)+'<small>'+esc(parts.join(" · "))+'</small>'+
+    ((typeof rcptBtns==="function")?rcptBtns(e):"")+'</div>'+
     '<div class="amt '+e.type+'">'+(e.type==="in"?"+":"−")+fmt(e.amount)+'</div></div>';
 }
 /* Порядок журнала — как в кассе (v38): сначала выручка клуба и караоке,
@@ -485,6 +486,66 @@ function jrnRank(e){
   if(cat === "Чистая выручка") return 0;
   if(cat === "Без.нал") return 1;
   return 2;
+}
+/* ===== ЧЕКИ И ЗАЛОГИ (01.10.2026) =====
+   Фото лежат в приватном бакете. Клиент не получает ни ключей, ни пути: кнопка
+   просит у kassa-view короткую подписанную ссылку (5 минут) по id операции,
+   функция сама находит путь в записи. Доступно только роли admin. */
+const RCPT_CSS = "border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:11px;color:var(--gold-dim);background:var(--panel);white-space:nowrap";
+function canSeeReceipts(){ return ROLE==="admin" || ROLE==="upr" || ROLE==="dir"; }   // кому показывать кнопки чеков
+function hasPhoto(e){ return !!(e && (e.photo || e.hasPhoto)); }
+function hasItem(e){ return !!(e && (e.photoItem || e.hasItem)); }
+function rcptBtns(e){
+  if(!canSeeReceipts() || !e) return "";
+  let h = "";
+  if(hasPhoto(e)) h += '<button style="'+RCPT_CSS+'" onclick="event.stopPropagation();vReceipt(\''+escAttr(e.id)+'\',\'photo\')">📷 чек</button>';
+  if(hasItem(e))  h += '<button style="'+RCPT_CSS+';margin-left:6px" onclick="event.stopPropagation();vReceipt(\''+escAttr(e.id)+'\',\'item\')">📦 залог</button>';
+  return h ? '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+h+'</div>' : "";
+}
+function rcptClose(){ const o=document.getElementById("rcptOverlay"); if(o) o.style.display="none"; }
+function rcptShow(inner){
+  let o=document.getElementById("rcptOverlay");
+  if(!o){
+    o=document.createElement("div"); o.id="rcptOverlay";
+    o.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(6,5,3,.94);display:none;align-items:center;justify-content:center;padding:14px";
+    o.onclick=function(ev){ if(ev.target===o) rcptClose(); };
+    document.body.appendChild(o);
+  }
+  o.innerHTML='<div style="max-width:min(96vw,620px);width:100%;max-height:92vh;overflow:auto;text-align:center">'+inner+
+    '<button onclick="rcptClose()" style="margin-top:12px;border:1px solid var(--gold-dim);color:var(--gold);background:var(--panel);border-radius:10px;padding:9px 20px;font-size:13px">Закрыть</button></div>';
+  o.style.display="flex";
+}
+async function vReceipt(entryId, which){
+  if(!canSeeReceipts()) return;
+  rcptShow('<div style="color:var(--ash);font-size:13px;padding:30px">загружаю…</div>');
+  try{
+    const tg = window.Telegram && window.Telegram.WebApp;
+    const r = await fetch(FN_URL, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ initData: (tg && tg.initData) || "", action:"receipt_url", entry_id: entryId, which: which }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){
+      rcptShow('<div style="color:var(--out);font-size:13px;padding:24px">Не удалось получить фото'+(j && j.error?': '+esc(j.error):'')+
+        '<div style="color:var(--ash);font-size:11.5px;margin-top:8px">Если функция kassa-view ещё не обновлена, фото пока недоступно.</div></div>');
+      return;
+    }
+    if(!j.url){ rcptShow('<div style="color:var(--ash);font-size:13px;padding:24px">Фото по этой операции не выгружено.</div>'); return; }
+    rcptShow('<img src="'+j.url+'" alt="" style="max-width:100%;border-radius:12px;border:1px solid var(--line)">'+
+      '<div style="color:var(--ash);font-size:11px;margin-top:8px">ссылка действует 5 минут</div>');
+    try{ fetch(FN_ACCESS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({op:"log",who:viewerWho(),role:ROLE,source:"receipt:"+which})}).catch(function(){}); }catch(e){}
+  }catch(e){
+    rcptShow('<div style="color:var(--out);font-size:13px;padding:24px">Нет связи с сервером.</div>');
+  }
+}
+// долговые операции человека с фото — для раскрытия в «Долгах»
+function debtPhotoRows(cp, orderNo){
+  const out = [];
+  for(const e of S.entries){
+    if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue;
+    if(orderNo && String(e.orderNo||"")!==String(orderNo)) continue;
+    if(!hasPhoto(e) && !hasItem(e)) continue;
+    out.push(e);
+  }
+  return out.sort((a,b)=>String(a.bizDate).localeCompare(String(b.bizDate)));
 }
 /* ===== СКЛЕЙКА «ВЫПЛАТА + УДЕРЖАНИЯ» В ЖУРНАЛЕ (01.10.2026) =====
    Касса пишет начисление и встречный взнос отдельными записями: буфер и бой должны
@@ -626,9 +687,13 @@ function detailBox(key, inner){
 function accDetailHtml(cp){
   const accs = openDebts(cp);
   if(!accs.length) return '<div style="font-size:11.5px;color:var(--ash);padding:4px 0">Нет открытых счетов.</div>';
-  return accs.map(o=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
-    '<span style="color:var(--cream)">счёт №'+esc(o.orderNo)+' <span style="color:var(--ash)">· '+esc(o.date)+(o.venue?" · "+esc(o.venue):"")+'</span></span>'+
-    '<b style="font-family:var(--mono);color:var(--out)">−'+fmt(o.left)+'</b></div>').join("");
+  return accs.map(o=>{
+    const ph = (typeof debtPhotoRows==="function") ? debtPhotoRows(cp, o.orderNo) : [];
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
+      '<span style="color:var(--cream)">счёт №'+esc(o.orderNo)+' <span style="color:var(--ash)">· '+esc(o.date)+(o.venue?" · "+esc(o.venue):"")+'</span></span>'+
+      '<b style="font-family:var(--mono);color:var(--out)">−'+fmt(o.left)+'</b></div>'+
+      ph.map(e=>'<div style="padding:0 0 6px 10px">'+((typeof rcptBtns==="function")?rcptBtns(e):"")+'</div>').join("");
+  }).join("");
 }
 // операции по статье «Невозвратные» за этот месяц
 function nevozDetailHtml(cp, mk){
