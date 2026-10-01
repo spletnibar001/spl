@@ -885,6 +885,25 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   #bs-tip{position:absolute;display:none;z-index:9500;background:#0f1216;color:var(--text);
     border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:11.5px;
     pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.5);max-width:220px;line-height:1.45}
+  
+  /* окна с таблицами на компьютере шире и выше: на телефоне всё как было */
+  @media(min-width:760px){
+    #bk-st-modal .modal, #hr-aw-modal .modal, #doc-sheet-modal .modal,
+    #hr-st-modal .modal, #hr-top-modal .modal, #hr-shift-modal .modal{max-width:920px}
+    #bk-st-modal .hr-scroll, #hr-aw-modal .hr-scroll, #doc-sheet-modal .hr-scroll,
+    #hr-st-modal .hr-scroll, #hr-top-modal .hr-scroll, #hr-shift-modal .hr-scroll{max-height:74vh}
+    /* на широком экране карта тянется во всю ширину, клетки равные */
+    .bs-heat{width:100%;table-layout:fixed;font-size:11px}
+    .bs-heat th:first-child{width:38px}
+    .bs-cell{width:auto;height:30px;line-height:28px}
+  }
+  @media(min-width:1200px){
+    #bk-st-modal .modal{max-width:1120px}
+  }
+  .bs-chip.dl{flex:0 0 auto;border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.12)}
+  .bs-gv{text-align:right;font-size:15px;font-weight:800;color:var(--gold);white-space:nowrap;
+    font-variant-numeric:tabular-nums}
+  .bs-gv i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);font-weight:600;margin-top:2px}
   </style>
 </head>
 <body>
@@ -1314,7 +1333,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 30.09 · сборка 48";
+const APP_VERSION = "v 01.10 · сборка 50";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -8554,7 +8573,7 @@ window.stSave = stSave; window.stClear = stClear; window.stSaveGrace = stSaveGra
    посадки, а если её не было, по времени брони. Длительность
    считается только там, где нажали «Гости ушли».
    ============================================================ */
-const BS = { data: null, days: 90 };
+const BS = { data: null, guests: null, days: 90 };
 // час с одним знаком после запятой: 4 -> «4,0»
 const bsH = v => (v==null || v==="") ? "—" : Number(v).toFixed(1).replace(".", ",");
 
@@ -8586,6 +8605,9 @@ async function bsLoad(){
     return;
   }
   BS.data = res;
+  // база гостей грузится следом: она тяжелее и нужна не всегда
+  const g = await hrRpc("bk_guests", {p_from: res.from, p_to: res.till, p_limit: 200});
+  BS.guests = (g && g.ok !== false) ? g : null;
   bsRender();
 }
 function bsSetDays(d){ BS.days = d; bsLoad(); }
@@ -8620,6 +8642,7 @@ function bsRender(){
 
   let html = `<div class="bs-chips">
       ${[30,90,180].map(n=>`<button class="bs-chip${BS.days===n?" on":""}" onclick="bsSetDays(${n})">${n} дней</button>`).join("")}
+      <button class="bs-chip dl" onclick="bsExport()" title="Скачать таблицу для Excel">⬇ CSV</button>
     </div>`;
 
   /* --- главные числа --- */
@@ -8630,6 +8653,12 @@ function bsRender(){
       <div class="bs-kpi"><div class="n">${q.avg_hours ? bsH(q.avg_hours) : "—"}</div><div class="l">часов в среднем</div></div>
     </div>`;
 
+  const tooLong = Number(q.too_long)||0;
+  if(tooLong){
+    html += `<div class="hr-note">${tooLong} ${tooLong===1?"посадка":"посадок"} длиннее
+      ${q.max_hours} ч не учтены в средних и в часах занятости — это почти всегда забытая кнопка
+      «Гости ушли», а не гость, просидевший полсмены.</div>`;
+  }
   if(pct < 70){
     html += `<div class="hr-note" style="border-color:var(--gold)">
       «Гости ушли» нажали только в ${pct}% посадок (${fmtNum(q.finished||0)} из ${fmtNum(q.seated||0)}).
@@ -8714,8 +8743,120 @@ function bsRender(){
     }).join("");
   }
 
+  /* --- база гостей --- */
+  const G = BS.guests;
+  if(G && (G.rows||[]).length){
+    const grows = G.rows;
+    html += `<div class="hr-sec">Гости</div>`;
+    html += `<div class="hr-note" style="margin:0 0 10px">Всего гостей за период: <b>${fmtNum(G.total||0)}</b>.
+      Ниже ${Math.min(grows.length, 30)} самых частых; полный список — в выгрузке.</div>`;
+    html += grows.slice(0,30).map(r=>{
+      const where = [];
+      if(Number(r.karaoke)) where.push(`караоке ${r.karaoke}`);
+      if(Number(r.club))    where.push(`клуб ${r.club}`);
+      const sits = [r.zone, r.table].filter(Boolean).join(" · ");
+      return `<div class="bs-row">
+        <div class="l"><b>${hrEsc(r.name)}</b><span>${hrEsc(r.phone||"")}${
+          sits ? " · чаще сидит: " + hrEsc(sits) : ""} · компания ${r.avg_party||"—"} · последний раз ${
+          r.last ? fmtD(fromIso(r.last)) : "—"}</span></div>
+        <div class="bs-gv">${r.visits}<i>${hrEsc(where.join(" · "))}</i></div>
+      </div>`;
+    }).join("");
+  }
+
   $("bk-st-body").innerHTML = html;
 }
+
+/* ---------- выгрузка в CSV ----------
+   Один файл с четырьмя блоками: итоги, часы прихода, столы, длительность.
+   Разделитель — точка с запятой, в начале BOM: так Excel открывает
+   кириллицу и числа без плясок с импортом. */
+function bsCsvCell(v){
+  if(v === null || v === undefined) return "";
+  const t = String(v).replace(/"/g, '""');
+  return /[";\n]/.test(t) ? `"${t}"` : t;
+}
+function bsExport(){
+  const d = BS.data; if(!d){ return; }
+  const q = d.quality || {};
+  const rows = [];
+  const push = (...cells) => rows.push(cells.map(bsCsvCell).join(";"));
+
+  push("Аналитика броней SPLETNI");
+  push("период", fmtD(fromIso(d.from)) + " — " + fmtD(fromIso(d.till)));
+  push("выгружено", new Date().toLocaleString("ru-RU", {timeZone:"Asia/Tashkent"}));
+  push("");
+  push("ИТОГИ");
+  push("броней", q.total||0);
+  push("отменено", q.cancelled||0);
+  push("посадок", q.seated||0);
+  push("закрыто кнопкой «Гости ушли»", q.finished||0);
+  push("гостей", q.guests||0);
+  push("средняя длительность, ч", q.avg_hours==null?"":String(q.avg_hours).replace(".",","));
+  push("не учтено как незакрытые", q.too_long||0);
+  push("отсечка, ч", q.max_hours||"");
+  push("");
+
+  push("ЧАСЫ ПРИХОДА");
+  push("день недели", "час", "посадок", "гостей");
+  for(const dow of [1,2,3,4,5,6,0]){
+    for(const hr of BS_HOURS){
+      const c = (d.heat||[]).find(x=>Number(x.dow)===dow && Number(x.hour)===hr);
+      if(!c) continue;
+      push(BS_DOW[dow], String(hr).padStart(2,"0")+":00", c.n, c.guests);
+    }
+  }
+  push("");
+
+  push("СТОЛЫ И КАБИНКИ");
+  push("площадка","зона","стол","мест","броней","посадок","закрыто",
+       "средние часы","всего часов","средний депозит");
+  for(const t of (d.tables||[])){
+    push(t.venue, t.zone, t.name, t.capacity, t.bookings, t.seated, t.finished,
+         t.avg_hours==null?"":String(t.avg_hours).replace(".",","),
+         t.total_hours==null?"":String(t.total_hours).replace(".",","),
+         t.avg_deposit||"");
+  }
+  push("");
+
+  push("СКОЛЬКО ДЕРЖАТ СТОЛ");
+  push("зона","закрытых посадок","до 1,5 ч","1,5-3 ч","больше 3 ч","средние часы","максимум");
+  for(const z of (d.duration||[])){
+    push(z.zone, z.closed, z.short, z.mid, z.long,
+         z.avg==null?"":String(z.avg).replace(".",","),
+         z.max==null?"":String(z.max).replace(".",","));
+  }
+
+  const GX = BS.guests;
+  if(GX && (GX.rows||[]).length){
+    push("");
+    push("ГОСТИ");
+    push("имя","телефон","визитов","гостей всего","средняя компания","караоке","клуб",
+         "любимая зона","любимый стол","первый визит","последний визит",
+         "оплачено депозитов","визиты до программы");
+    for(const r of GX.rows){
+      push(r.name, r.phone, r.visits, r.guests,
+           r.avg_party==null?"":String(r.avg_party).replace(".",","),
+           r.karaoke, r.club, r.zone||"", r.table||"",
+           r.first||"", r.last||"", r.deposit||0, r.base||0);
+    }
+  }
+
+  const name = `analitika-broney_${d.from}_${d.till}.csv`;
+  const blob = new Blob(["\ufeff" + rows.join("\r\n")], {type:"text/csv;charset=utf-8"});
+  try{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+  }catch(e){
+    // в Telegram скачивание может не сработать — открываем файл отдельной вкладкой
+    try{ window.open(URL.createObjectURL(blob), "_blank"); }
+    catch(_){ alert("Не удалось скачать. Откройте программу в обычном браузере."); }
+  }
+}
+window.bsExport = bsExport;
 
 function bsWire(){
   const b = $("btn-bk-stats");
