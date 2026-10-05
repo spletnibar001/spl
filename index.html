@@ -909,6 +909,9 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   .btn-toggle{border:1px solid var(--line);background:var(--panel2);color:var(--muted);
     padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;width:100%}
   .btn-toggle.on{border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.12)}
+  
+  #staff-cabinet .sc-foot .sc-ver{display:inline-block;margin-top:6px;padding:3px 9px;border-radius:8px;
+    border:1px solid var(--line);color:var(--muted);font-size:10px;letter-spacing:.05em}
   </style>
 </head>
 <body>
@@ -1346,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 05.10 · сборка 51";
+const APP_VERSION = "v 05.10 · сборка 52";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -3474,7 +3477,8 @@ function renderStaffCabinet(cardsArg){
 
     <div id="hr-my"></div>
 
-    <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.</div>
+    <div class="sc-foot">Только просмотр. Расчёт и график ведёт руководство.<br>Кнопка «Я на смене» доступна в день смены.
+      <br><span class="sc-ver">${APP_VERSION}</span></div>
   `;
   SC_OWN = false;
   // навигация по неделям
