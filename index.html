@@ -904,6 +904,11 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   .bs-gv{text-align:right;font-size:15px;font-weight:800;color:var(--gold);white-space:nowrap;
     font-variant-numeric:tabular-nums}
   .bs-gv i{display:block;font-style:normal;font-size:10.5px;color:var(--muted);font-weight:600;margin-top:2px}
+  
+  /* переключатель в карточке сотрудника: включено — зелёная рамка, без галочек */
+  .btn-toggle{border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+    padding:9px 12px;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;width:100%}
+  .btn-toggle.on{border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.12)}
   </style>
 </head>
 <body>
@@ -1028,6 +1033,14 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <div class="field money-only">
         <label>Ставка в Пн, сум</label>
         <input id="f-rate-mon" type="text" inputmode="numeric" placeholder="—">
+      </div>
+      <div class="field money-only" id="f-rate-club-wrap" style="display:none">
+        <label>Ставка в клубе, сум</label>
+        <input id="f-rate-club" type="text" inputmode="numeric" placeholder="как обычная">
+      </div>
+      <div class="field" id="f-cabin-wrap" style="display:none">
+        <label>Бонус за кабинки</label>
+        <button type="button" id="f-cabin-off" class="btn-toggle">Начисляется</button>
       </div>
       <div class="field" id="f-tg-wrap" style="display:none">
         <label>Telegram ID (для кабинета)</label>
@@ -1333,7 +1346,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 01.10 · сборка 50";
+const APP_VERSION = "v 05.10 · сборка 51";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1377,8 +1390,10 @@ const PLACES = {
   small: {label:"Малый зал",   short:"МЗ", limit:2, soft:false},
   letka: {label:"Летка",       short:"Л",  limit:2, soft:false},
   cabin: {label:"Кабинки",     short:"К",  limit:1, soft:false},
+  // смена в клубе: оплачивается по клубной ставке, если она задана в карточке
+  club:  {label:"Клуб",        short:"КЛ", limit:2, soft:true},
 };
-const PLACE_COLORS = {big:"#1fbf7a", mid:"#e2a06b", small:"#4ea6e2", letka:"#d9b04c", cabin:"#b79aee"};
+const PLACE_COLORS = {big:"#1fbf7a", mid:"#e2a06b", small:"#4ea6e2", letka:"#d9b04c", cabin:"#b79aee", club:"#e25c5c"};
 /* какие места доступны должности (только караоке).
    d — день (Date); для бармена Малый зал доступен только в пятницу/субботу */
 function placesFor(e, d){
@@ -1389,7 +1404,7 @@ function placesFor(e, d){
   if(e.emp_role === "Бармен")
     return weekend ? ["big","small"] : ["big"];            // МЗ только в пт/сб
   if(e.emp_role === "Звукооператор")
-    return weekend ? ["big","small"] : ["big"];            // звук: БЗ всегда, МЗ только пт/сб
+    return ["big","mid","small","club"];                   // звук: любой зал караоке или смена в клубе
   return null;
 }
 /* место по умолчанию при первой отметке смены */
@@ -1423,7 +1438,7 @@ const CAPS = {
                 approve:false, unapprove:false, archive:false,
                 pen:[["Повар","*"]]},  // штрафы: только повара
   sound:       {label:"Ст. звукооператор", money:false, ownCabinet:true,
-                scope:[["Звукооператор","*"]],
+                scope:[["Звукооператор","*"],["Свето-оператор","*"]],
                 approve:false, unapprove:false, archive:false,
                 pen:false},  // ставит смены звукооператорам, включая себя
   upr:         {label:"Управляющий", money:true,
@@ -1468,6 +1483,9 @@ let posFilter = "all", viewStart = null, editId = null;
 /* ================= даты и числа ================= */
 // выключен ли автобонус за кабинки у сотрудника на неделе (weekly_values.cabin_off)
 function cabinOffFor(empId, weekKey){
+  // выключен навсегда в карточке сотрудника (employees.cabin_bonus_off)
+  const e = (employees||[]).find(x=>x.id===empId);
+  if(e && e.cabin_bonus_off) return true;
   return wvRows.some(w=>w.employee_id===empId && w.week_start===weekKey && w.cabin_off);
 }
 function payWeekStart(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
@@ -1837,10 +1855,17 @@ function rateEntryFor(empId, dateS){
   const rs = rates.filter(r=>r.employee_id===empId).sort((a,b)=>a.from_date<b.from_date?-1:1);
   let cur = rs[0] || {rate:0, monday_rate:null};
   for(const r of rs){ if(r.from_date <= dateS) cur = r; else break; }
-  return {rate: cur.rate||0, mondayRate: cur.monday_rate ?? null};
+  return {rate: cur.rate||0, mondayRate: cur.monday_rate ?? null,
+          clubRate: cur.club_rate ?? null};
 }
 function rateForDate(empId, dateS){
   const en = rateEntryFor(empId, dateS);
+  // смена в клубе оплачивается по клубной ставке, если она задана в карточке;
+  // не задана — платим обычную, как было
+  try{
+    const sh = shiftOf(empId, dateS);
+    if(sh && sh.place === "club" && en.clubRate != null) return en.clubRate;
+  }catch(_){}
   if(en.mondayRate!=null && fromIso(dateS).getDay()===1) return en.mondayRate;
   return en.rate;
 }
@@ -1990,14 +2015,31 @@ function applyRoleDefaults(){
   $("f-rate").disabled = noRate;
   const monAllowed = role==="Бармен" && !noRate;
   $("f-rate-mon").disabled = !monAllowed;
+  // клубная ставка и бонус за кабинки — только у звукооператоров
+  const isSound = role === SOUND_BIG;
+  const rcWrap = $("f-rate-club-wrap"); if(rcWrap) rcWrap.style.display = isSound ? "" : "none";
+  const cbWrap = $("f-cabin-wrap");     if(cbWrap) cbWrap.style.display = isSound && isOwner() ? "" : "none";
   if(noRate){
     $("f-rate").value = "";
     $("fix-note").textContent = ($("fix-note").textContent ? $("fix-note").textContent + " · " : "") + "фикс. оклад 2 р/мес";
   }
   if(editId) return;
+  if($("f-rate-club")) $("f-rate-club").value = "";
+  setCabinToggle(false);
   if(!noRate && DEFAULT_RATES[role]!=null) $("f-rate").value = fmtNum(DEFAULT_RATES[role]);
   $("f-rate-mon").value = monAllowed && DEFAULT_MON_RATES[role]!=null ? fmtNum(DEFAULT_MON_RATES[role]) : "";
 }
+/* переключатель «бонус за кабинки»: зелёный = начисляется */
+let cabinOffState = false;
+function setCabinToggle(off){
+  cabinOffState = !!off;
+  const b = $("f-cabin-off"); if(!b) return;
+  b.textContent = cabinOffState ? "Выключен" : "Начисляется";
+  b.classList.toggle("on", !cabinOffState);
+}
+function toggleCabinOff(){ setCabinToggle(!cabinOffState); }
+window.toggleCabinOff = toggleCabinOff;
+
 function onNamePick(){
   const name = $("f-name").value.trim().toLowerCase();
   const e = employees.find(x=>!x.archived && x.name.toLowerCase()===name);
@@ -2008,7 +2050,9 @@ function onNamePick(){
     const en = rateEntryFor(e.id, iso(viewStart));
     $("f-rate").value = fmtNum(en.rate);
     $("f-rate-mon").value = en.mondayRate!=null ? fmtNum(en.mondayRate) : "";
+    if($("f-rate-club")) $("f-rate-club").value = en.clubRate!=null ? fmtNum(en.clubRate) : "";
   }
+  setCabinToggle(!!e.cabin_bonus_off);
 }
 function showMsg(t, ok){
   const m = $("form-msg");
@@ -2023,11 +2067,13 @@ async function addOrSaveEmployee(){
   const name = $("f-name").value.trim();
   const pos = FIXED_POS[role] || $("f-pos").value;
   const noRate = NO_RATE_ROLES.includes(role);
-  let rate = null, mondayRate = null;
+  let rate = null, mondayRate = null, clubRate = null;
   if(CAP.money){
     rate = noRate ? 0 : parseNum($("f-rate").value);
     const monRaw = $("f-rate-mon").value.trim();
     mondayRate = (noRate || role!=="Бармен" || monRaw==="") ? null : parseNum(monRaw);
+    const clubRaw = ($("f-rate-club") && $("f-rate-club").value.trim()) || "";
+    clubRate = (role!==SOUND_BIG || clubRaw==="") ? null : parseNum(clubRaw);
     if(!noRate && !(rate>=0)){ showMsg("Укажите ставку за смену"); return; }
   }
   if(!name){ showMsg("Укажите имя и фамилию"); return; }
@@ -2043,13 +2089,14 @@ async function addOrSaveEmployee(){
     const tgRaw = $("f-tg").value.trim();
     const upd = {name, emp_role:role, pos};
     if($("f-tg-wrap").style.display !== "none") upd.telegram_id = tgRaw ? parseNum(tgRaw) : null;
+    if($("f-cabin-wrap") && $("f-cabin-wrap").style.display !== "none") upd.cabin_bonus_off = cabinOffState;
     const {error} = await sb.from("employees").update(upd).eq("id",editId);
     if(error){ showMsg(error.message); return; }
     if(CAP.money){
       const cur = rateEntryFor(editId, weekKey);
-      if(cur.rate!==rate || (cur.mondayRate??null)!==mondayRate){
+      if(cur.rate!==rate || (cur.mondayRate??null)!==mondayRate || (cur.clubRate??null)!==clubRate){
         await sb.from("emp_rates").upsert(
-          {employee_id:editId, from_date:weekKey, rate, monday_rate:mondayRate},
+          {employee_id:editId, from_date:weekKey, rate, monday_rate:mondayRate, club_rate:clubRate},
           {onConflict:"employee_id,from_date"});
         showMsg(`Сохранено. Новая ставка действует с недели ${fmtD(viewStart)}`, true);
       }else showMsg("Сотрудник обновлён", true);
@@ -4132,7 +4179,10 @@ async function startApp(){
   fillRoles(); setCurrentPayWeek(); applyRoleDefaults();
 
   $("f-role").addEventListener("change", applyRoleDefaults);
-  if(CAP.money){ attachThousands($("f-rate")); attachThousands($("f-rate-mon")); }
+  if(CAP.money){ attachThousands($("f-rate")); attachThousands($("f-rate-mon"));
+                 if($("f-rate-club")) attachThousands($("f-rate-club")); }
+  const cbBtn = $("f-cabin-off");
+  if(cbBtn) cbBtn.addEventListener("click", toggleCabinOff);
   $("f-name").addEventListener("change", onNamePick);
   $("f-name").addEventListener("input", onNamePick);
   $("btn-add").addEventListener("click", addOrSaveEmployee);
