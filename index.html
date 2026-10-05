@@ -1349,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 05.10 · сборка 53";
+const APP_VERSION = "v 05.10 · сборка 54";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1809,10 +1809,20 @@ async function pushPlansToKassa(weekKey){
         const months = [...new Set([weekKey.slice(0,7), wkTo.slice(0,7)])];
         for(const m of months){
           const f = m+"-01", t = m+"-31";
-          let mb=0,mp=0;
-          for(const b of bonRows) if(b.employee_id===e.id && b.bonus_date>=f && b.bonus_date<=t) mb+=b.amount;
-          for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=f && p.pen_date<=t && penApplied(p)) mp+=p.amount;
-          if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:m,period_label:m,oklad:0,bonus:Math.round(mb),penalty:Math.round(mp),planned:Math.round(mb-mp),status:"confirmed"}});
+          let mb=0,mp=0; const items=[];
+          for(const b of bonRows) if(b.employee_id===e.id && b.bonus_date>=f && b.bonus_date<=t){
+            mb+=b.amount; items.push({t:"b", d:b.bonus_date, a:Math.round(b.amount), n:String(b.note||""), by:String(b.created_by||"")});
+          }
+          for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=f && p.pen_date<=t && penApplied(p)){
+            mp+=p.amount; items.push({t:"p", d:p.pen_date, a:Math.round(p.amount), n:String(p.note||""), by:String(p.created_by||"")});
+          }
+          items.sort((x,y)=>String(x.d).localeCompare(String(y.d)));
+          /* Расшифровку (дата, за что, кто поставил) кладём в period_label как JSON:
+             отдельного поля в payroll_plan нет, а это поле у месячных планов не
+             используется. Касса читает items и показывает детали по тапу; если там
+             не JSON — показывает текст как раньше (05.10.2026). */
+          const label = JSON.stringify({label:m, items}).slice(0, 4000);
+          if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:m,period_label:label,oklad:0,bonus:Math.round(mb),penalty:Math.round(mp),planned:Math.round(mb-mp),status:"confirmed"}});
         }
         continue;
       }
