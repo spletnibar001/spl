@@ -1349,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 05.10 · сборка 54";
+const APP_VERSION = "v 06.10 · сборка 56";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -3765,14 +3765,26 @@ async function pickPlace(pl){
   if(!placeCtx) return;
   const {empId, ds} = placeCtx;
   const e = byId(empId);
+  // показать причину, если база отказала (права или ограничение на поле)
+  const shiftFail = (res, what) => {
+    if(res && res.error){
+      showMsg("Не удалось " + what + ": " + res.error.message);
+      closePlace();
+      return true;
+    }
+    return false;
+  };
   if(pl === "__clear"){
-    await sb.from("shifts").delete().eq("employee_id",empId).eq("work_date",ds);
+    const r = await sb.from("shifts").delete().eq("employee_id",empId).eq("work_date",ds);
+    if(shiftFail(r, "убрать смену")) return;
     closePlace(); await refresh(); return;
   }
   if(pl === "__absent"){
     const sh = shiftOf(empId, ds);
-    if(sh) await sb.from("shifts").update({status:2}).eq("employee_id",empId).eq("work_date",ds);
-    else await sb.from("shifts").insert({employee_id:empId, work_date:ds, status:2});
+    const r = sh
+      ? await sb.from("shifts").update({status:2}).eq("employee_id",empId).eq("work_date",ds)
+      : await sb.from("shifts").insert({employee_id:empId, work_date:ds, status:2});
+    if(shiftFail(r, "отметить неявку")) return;
     closePlace(); await refresh(); return;
   }
   const P = PLACES[pl];
@@ -3793,8 +3805,10 @@ async function pickPlace(pl){
     }
   }
   const sh = shiftOf(empId, ds);
-  if(sh) await sb.from("shifts").update({status:1, place:pl}).eq("employee_id",empId).eq("work_date",ds);
-  else   await sb.from("shifts").insert({employee_id:empId, work_date:ds, status:1, place:pl});
+  const r = sh
+    ? await sb.from("shifts").update({status:1, place:pl}).eq("employee_id",empId).eq("work_date",ds)
+    : await sb.from("shifts").insert({employee_id:empId, work_date:ds, status:1, place:pl});
+  if(shiftFail(r, "поставить смену")) return;
   closePlace(); await refresh();
 }
 
@@ -4331,6 +4345,9 @@ const BK = {
   canEdit: false,
   // показывать ли иконку звонка (только роль phone)
   canCall: false,
+  // видит ли пользователь суммы депозитов. Звукооператору брони нужны,
+  // чтобы понимать посадку, а деньги — не его дело.
+  seeMoney: true,
   waiterPlaces: null,  // зал(ы) официанта на дату; null=без ограничения, "club_all", [] или ['big',...]
   // роль доступа: 'manage' (полный), 'hostess' (полный), 'waiter' (только свой зал, просмотр), null
   bkRole: null,
@@ -4418,6 +4435,12 @@ function bkInit(){
   if(acc && acc.booking){
     BK.bkRole = "manage";
     BK.canEdit = !!acc.canEdit;
+  } else if(role === "sound"){
+    // старший звукооператор: видит брони обоих заведений, ничего не меняет,
+    // суммы депозитов не показываем
+    BK.bkRole = "view";
+    BK.canEdit = false;
+    BK.seeMoney = false;
   } else if(role === "phone"){
     // роль обзвона: оба заведения, может ставить/снимать, видит иконку звонка
     BK.bkRole = "phone";
@@ -5135,11 +5158,11 @@ function bkBookingList(title){
     // ⭐ — кандидат челленджа «3 отзыва» (новый гость своей площадки с телефоном в брони)
     const star = (typeof rcIsCandidateBooking==="function" && rcIsCandidateBooking(b))
       ? `<span class="rc-star" title="Кандидат на отзыв">⭐</span> ` : "";
-    const dep = b.deposit_amount>0 ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
+    const dep = (BK.seeMoney && b.deposit_amount>0) ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
     // караоке: оплату не отслеживаем. Клуб: показываем только «✓ оплачено» после оплаты,
     // метку «не оплачено» не показываем нигде.
     const isKar = b.venue_key === "karaoke";
-    const pay = (!isKar && b.deposit_amount>0 && b.is_paid) ? '<span class="paid-tag">✓ оплачено</span>' : "";
+    const pay = (BK.seeMoney && !isKar && b.deposit_amount>0 && b.is_paid) ? '<span class="paid-tag">✓ оплачено</span>' : "";
     const phone = b.display_phone? " · "+bkFmtPhone(b.display_phone) : "";
     // автор брони — только в виде "Сетка"
     const author = (BK.view==="grid" && b.created_by_name) ? `<div class="bl-meta" style="opacity:.8">поставил: ${b.created_by_name}</div>` : "";
@@ -6043,7 +6066,9 @@ function bkModalExisting(){
     }
   }
   // блок депозита: редактируемое поле, если есть право и не оплачен
-  const depBlock = (canEdit && !b.is_paid)
+  const depBlock = !BK.seeMoney
+    ? ""
+    : (canEdit && !b.is_paid)
     ? `<div class="bkm-field"><label>Депозит, сум <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· можно изменить</span></label>
          <div style="display:flex;gap:8px">
            <input id="bkm-dep" type="text" inputmode="numeric" value="${bkFmtMoney(dep)}" style="flex:1">
