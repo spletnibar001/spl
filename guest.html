@@ -386,6 +386,8 @@ textarea.bk-input{resize:vertical;min-height:48px}
 <div id="app">
   <!-- ГЛАВНАЯ -->
   <div class="section active" id="sec-home"></div>
+  <!-- ПЕСНИ (очередь караоке, pesni.js) -->
+  <div class="section" id="sec-songs"></div>
   <!-- ЗАЛЫ -->
   <div class="section" id="sec-zones"></div>
   <!-- МЕНЮ -->
@@ -1089,7 +1091,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 16.09 · сборка 4";
+const GUEST_VERSION = "v 07.10 · сборка 5";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1110,6 +1112,7 @@ const T = {
   karaoke: {ru:"Караоке", uz:"Karaoke", en:"Karaoke", kz:"Караоке", kg:"Караоке", tj:"Караоке", cn:"卡拉OK"},
   club: {ru:"Клуб", uz:"Klub", en:"Club", kz:"Клуб", kg:"Клуб", tj:"Клуб", cn:"夜店"},
   tagline: {ru:"Первый музыкальный мультикомплекс", uz:"Birinchi musiqiy multikompleks", en:"The first music multicomplex", kz:"Бірінші музыкалық кешен", kg:"Биринчи музыкалык комплекс", tj:"Маҷмааи якуми мусиқӣ", cn:"首个音乐综合空间"},
+  nav_songs: {ru:"Песни", uz:"Qo'shiqlar", en:"Songs", kz:"Әндер", kg:"Ырлар", tj:"Сурудҳо", cn:"歌曲"},
   nav_home: {ru:"Главная", uz:"Asosiy", en:"Home", kz:"Басты бет", kg:"Башкы бет", tj:"Асосӣ", cn:"主页"},
   nav_zones: {ru:"Залы", uz:"Zallar", en:"Halls", kz:"Залдар", kg:"Залдар", tj:"Толорҳо", cn:"大厅"},
   nav_menu: {ru:"Меню", uz:"Menyu", en:"Menu", kz:"Мәзір", kg:"Меню", tj:"Меню", cn:"菜单"},
@@ -1251,6 +1254,7 @@ const KEYHOLE = '<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" 
 
 // иконки навигации
 const IC = {
+  mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>',
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
   zones:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>',
   menu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
@@ -2634,6 +2638,7 @@ function mybkMarkSeen(b){
 // ============ НАВИГАЦИЯ ============
 const NAV = [
   {id:"home", key:"nav_home", ic:"home"},
+  {id:"songs", key:"nav_songs", ic:"mic"},
   {id:"zones", key:"nav_zones", ic:"zones"},
   {id:"menu", key:"nav_menu", ic:"menu"},
   {id:"dress", key:"nav_dress", ic:"dress"},
@@ -2642,19 +2647,20 @@ const NAV = [
 let CUR = "home";
 function renderNav(){
   const nb = document.getElementById("navbar");
-  nb.innerHTML = NAV.map(n=>`<button data-go="${n.id}" class="${CUR===n.id?'active':''}">${IC[n.ic]}<span>${t(n.key)}</span></button>`).join("");
+  nb.innerHTML = NAV.filter(n=>n.id!=="songs" || window.SONGS_VISIBLE).map(n=>`<button data-go="${n.id}" class="${CUR===n.id?'active':''}">${IC[n.ic]}<span>${t(n.key)}</span></button>`).join("");
   nb.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
 function go(id){
   CUR = id;
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-  const map = {home:"sec-home",zones:"sec-zones",menu:"sec-menu",book:"sec-book",dress:"sec-dress",location:"sec-location",contacts:"sec-contacts"};
+  const map = {home:"sec-home",songs:"sec-songs",zones:"sec-zones",menu:"sec-menu",book:"sec-book",dress:"sec-dress",location:"sec-location",contacts:"sec-contacts"};
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
   if(id==="book"){ if(typeof ZONE_VENUE!=="undefined" && ZONE_VENUE){ BK_STATE.venue=ZONE_VENUE; } renderBook(true); if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); }   // бронь — под выбранное заведение
   if(id==="home") mybkRefresh();       // обновить баннер статуса брони на главной
   if(id==="zones") renderZones();     // перерисовать под выбранное заведение (ZONE_VENUE)
+  if(id==="songs"){ if(window.PesniOpen) window.PesniOpen(); } else if(window.PesniClose) window.PesniClose();
 }
 
 // ============ ПЕРЕРИСОВКА ВСЕГО (при смене языка/заведения) ============
@@ -2687,6 +2693,11 @@ try{ const tg=window.Telegram&&window.Telegram.WebApp; if(tg){ tg.ready(); tg.ex
 
 renderAll();
 
+</script>
+<script src="pesni.js?v=3"></script>
+<script>
+// «Песни»: тестовый режим - вкладка только у тестовых аккаунтов; открыть сразу по ?tab=songs или приглашению startapp=stol-КОД
+if(window.PesniInit) window.PesniInit();
 </script>
 </body>
 </html>

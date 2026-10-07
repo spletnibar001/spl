@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SPLETNI · Звук</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#14161a; --panel:#1c1f25; --panel2:#22262e; --line:#2e333d;
+  --text:#e8eaee; --muted:#8b93a1; --emerald:#1fbf7a; --gold:#d9b04c; --red:#e25c5c; --pink:#ff8fb0;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:1500px;margin:0 auto;padding:10px 12px 40px}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.top h1{margin:0;font-size:17px;font-weight:800;letter-spacing:.06em}
+.top h1 span{color:var(--emerald)}
+.top .sub{color:var(--muted);font-size:12.5px}
+.top .sp{flex:1}
+.stats{display:flex;gap:16px}
+.stats div{font-size:11.5px;color:var(--muted);line-height:1.15}
+.stats b{display:block;font-size:20px;color:var(--text);font-variant-numeric:tabular-nums}
+.btn{height:38px;padding:0 14px;border:1px solid var(--line);background:var(--panel);border-radius:10px;font-weight:700;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.on{border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.12)}
+.btn.off{border-color:var(--red);color:var(--red);background:rgba(226,92,92,.10)}
+.btn.main{border-color:var(--emerald);background:rgba(31,191,122,.16);color:var(--text)}
+.btn.gold{border-color:var(--gold);color:var(--gold)}
+.btn[disabled]{opacity:.35;cursor:default}
+a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.views{display:none;gap:6px;margin-bottom:10px}
+.views button{flex:1;height:40px;border:1px solid var(--line);background:var(--panel);border-radius:10px;color:var(--muted);font-weight:700}
+.views button.on{border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.10)}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,1fr);gap:12px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.lbl small{letter-spacing:0;text-transform:none;font-weight:600}
+.now{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 16px;align-items:center}
+.bignum{font-size:56px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1}
+.now .tt b{display:block;font-size:19px;font-weight:800}
+.now .tt span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;border:1px solid var(--line);color:var(--muted);white-space:nowrap;margin-top:6px}
+.pill.on{border-color:var(--emerald);color:var(--emerald)}
+.pill.wait{border-color:var(--gold);color:var(--gold)}
+.prog{grid-column:1/-1;height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin-top:10px}
+.prog i{display:block;height:100%;width:0;background:var(--gold)}
+.over{grid-column:1/-1;color:var(--gold);font-weight:700;font-size:13px;margin-top:6px}
+.acts2{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
+.acts2 .btn{min-height:46px;height:auto;font-size:15px;white-space:normal;line-height:1.2;padding:6px 14px}
+.now .tt{min-width:0}
+.now .tt .pill{white-space:normal}
+.nextnum{grid-column:1/-1;font-size:13px;color:var(--muted);margin-top:8px}
+.nextnum b{color:var(--gold);font-size:16px}
+.sk-info{font-size:12.5px;color:var(--muted);padding:10px 2px 4px;line-height:1.4}
+.sk-info b{color:var(--text)}
+.sk-info.used{color:var(--gold)}
+.round-h{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 2px 6px}
+.round-h small{letter-spacing:0;text-transform:none;font-weight:600;color:var(--emerald);margin-left:6px}
+#queue{container-type:inline-size}
+.q-row{display:grid;grid-template-columns:34px 26px 92px 5.6em minmax(0,1fr) 64px auto;grid-template-areas:"g p tb num t wt a";gap:10px;align-items:center;padding:7px 8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:6px}
+.q-row.mine-new{border-color:rgba(31,191,122,.6)}
+.grip{grid-area:g;width:34px;height:42px;border:0;background:transparent;color:var(--muted);cursor:grab;touch-action:none;display:grid;place-items:center;border-radius:8px}
+.grip:hover,.grip:focus-visible{color:var(--text);background:var(--panel2);outline:none}
+.pos{grid-area:p;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.tb{grid-area:tb;min-width:0}
+.tbtn{display:block;border:0;background:none;padding:0 0 2px;font-weight:800;font-size:15px;text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:2px;line-height:1.3}
+.tb small{display:block;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;font-size:10.5px;font-weight:800;color:var(--gold);border:1px solid var(--gold);border-radius:5px;padding:0 5px;margin-top:2px}
+.num{grid-area:num;font-size:22px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+.q-t{grid-area:t;min-width:0}
+.q-t b{display:block;font-weight:800;overflow-wrap:anywhere}
+.q-t span{display:block;color:var(--muted);font-size:12.5px}
+.wt{grid-area:wt;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.q-acts{grid-area:a;display:flex;gap:4px}
+.q-acts button{height:34px;min-width:34px;padding:0 9px;border:1px solid var(--line);background:transparent;border-radius:8px;color:var(--muted);font-weight:700;font-size:13px}
+.q-acts button:hover{color:var(--text);border-color:var(--muted)}
+.q-acts button.skb:hover{color:var(--gold);border-color:var(--gold)}
+.q-acts button[disabled]{opacity:.3;cursor:default}
+.q-acts button[disabled]:hover{color:var(--muted);border-color:var(--line)}
+.q-row.dragging{position:fixed;z-index:80;border-color:var(--gold);box-shadow:0 14px 34px rgba(0,0,0,.55)}
+.q-ph{border:1.5px dashed var(--gold);border-radius:12px;background:rgba(217,176,76,.06);margin-bottom:6px}
+@container (max-width:720px){
+  .q-row{grid-template-columns:34px 24px 88px 5.4em minmax(0,1fr);grid-template-areas:"g p tb num t" "g p wt a a";row-gap:6px}
+  .wt::before{content:"ждёт "}
+}
+@container (max-width:460px){
+  .q-row{grid-template-columns:30px minmax(0,1fr) auto;grid-template-areas:"g tb num" "g t wt" "g a a";row-gap:4px;padding:8px 6px}
+  .pos{display:none}
+  .grip{width:30px}
+  .q-acts{flex-wrap:wrap}
+}
+.empty{text-align:center;color:var(--muted);padding:24px 10px;line-height:1.5}
+.empty b{display:block;color:var(--text);font-size:15px}
+.scr{position:relative;aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;place-items:center;text-align:center;container-type:inline-size}
+.scr .idle{color:#555c66;font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:clamp(10px,4cqw,16px)}
+.scr .idle small{display:block;letter-spacing:0;text-transform:none;font-weight:600;margin-top:4px;font-size:clamp(9px,3cqw,13px)}
+.scr .g small{display:block;color:var(--gold);font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:clamp(8px,3cqw,13px)}
+.scr .g b{display:block;font-size:clamp(14px,7cqw,34px);font-weight:900;line-height:1.1}
+.scr .g b.nm{color:var(--gold)}
+.scr .g em{display:block;font-style:normal;color:#cfd3da;font-size:clamp(9px,3cqw,13px);margin-top:4px}
+.scr .q{width:100%;padding:0 7%;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6%;align-items:center}
+.scr .q small{color:var(--gold);font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:clamp(8px,2.8cqw,12px)}
+.scr .q ol{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:3px}
+.scr .q li{font-size:clamp(10px,3.6cqw,17px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scr .q li b{color:var(--gold);margin-right:8px}
+.scr .qr{width:clamp(50px,22cqw,120px);aspect-ratio:1;background:#fff;border-radius:6px;display:grid;place-items:center;color:#000;font-size:10px;font-weight:800}
+.note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+.form{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:8px;margin-top:10px}
+.form input,.form select{height:40px;border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:0 10px;min-width:0}
+.form input:focus,.form select:focus{outline:none;border-color:var(--emerald)}
+.segm{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.segm button{flex:1;height:38px;border:0;background:transparent;color:var(--muted);font-weight:700}
+.segm button.on{background:rgba(31,191,122,.14);color:var(--emerald);box-shadow:inset 0 0 0 1px var(--emerald)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.row2:first-child{border-top:0}
+.row2 b{display:block;font-weight:700}
+.row2 span{display:block;color:var(--muted);font-size:12.5px}
+.row2.live b{color:var(--emerald)}
+.row2.done{opacity:.6}
+.err{color:var(--red);font-size:12.5px;margin-top:6px}
+.tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+.tc{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:8px 10px;text-align:left;min-height:74px}
+.tc .n{font-size:20px;font-weight:900;display:flex;gap:6px;align-items:baseline}
+.tc .n small{font-size:10px;color:var(--gold);font-weight:800}
+.tc .w{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc .c{font-size:11.5px;color:var(--muted)}
+.tc.seated{border-color:rgba(31,191,122,.5)}
+.tc.full .c b{color:var(--gold)}
+.tc.idle{opacity:.55;cursor:default}
+.lk{display:inline-flex;align-items:center;gap:4px;font-weight:800;color:var(--text)}
+.ll-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-bottom:10px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.ll-now{font-size:13px;color:var(--muted)}
+.ll-now b{color:var(--text);font-size:16px}
+.ll-now .lk svg{width:15px;height:15px}
+.pc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left;padding:8px 10px;margin-top:6px;border:1px solid var(--line);background:var(--panel2);border-radius:10px}
+.pc.on{border-color:var(--emerald);background:rgba(31,191,122,.10);box-shadow:inset 0 0 0 1px var(--emerald)}
+.pc b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc span{display:block;color:var(--muted);font-size:12px}
+.pbar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--bg);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--pink)}
+.pc.win{border-color:var(--gold)}
+.scr .p{width:100%;padding:0 6%;text-align:left}
+.scr .p small{color:var(--gold);font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:clamp(8px,2.6cqw,12px)}
+.scr .p .r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;margin-top:5px;font-size:clamp(9px,3cqw,15px);font-weight:700}
+.scr .p .r span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scr .p .r i{grid-column:1/-1;height:4px;border-radius:2px;background:var(--pink);display:block}
+.scr .lkov{position:absolute;right:3%;bottom:5%;background:rgba(0,0,0,.6);border:1px solid rgba(255,143,176,.5);border-radius:10px;padding:4px 8px;text-align:right}
+.scr .lkov b{display:block;color:var(--pink);font-size:clamp(11px,4.5cqw,22px);font-weight:900}
+.scr .lkov small{display:block;color:#d7dbe2;font-size:clamp(7px,2.2cqw,11px)}
+.lk svg{width:14px;height:14px;color:var(--pink);fill:currentColor}
+.modal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:14px}
+.modal[hidden]{display:none}
+.modal-in{width:min(620px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.modal-in h3{margin:0;font-size:18px}
+.modal-in p{margin:4px 0 8px;color:var(--muted);font-size:13px}
+.m-list{overflow:auto;min-height:0;flex:1}
+.m-row{display:grid;grid-template-columns:5.2em minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.m-row .num{font-size:16px}
+.m-row .num,.m-row .q-t{grid-area:auto}
+.now .tt .pill{display:inline-block;width:auto}
+.row2 span span{display:inline}
+.gc{font-size:13.5px;color:var(--muted);margin:2px 0}
+.gc b{color:var(--text)}
+.sub-lbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px}
+.search input{width:100%;height:42px;border:1px solid var(--gold);background:var(--bg);border-radius:10px;padding:0 12px;margin:4px 0}
+.tg-msg{background:#1f2a36;border-radius:14px 14px 14px 4px;padding:12px 14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;overflow:auto}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;background:#e8eaee;color:#14161a;padding:10px 16px;border-radius:12px;font-weight:700;display:none;max-width:92vw;text-align:center}
+#auth{padding:60px 20px;text-align:center;color:var(--muted);line-height:1.6}
+#auth b{color:var(--text);font-size:16px}
+.side{display:grid;gap:12px}
+@media (max-width:899px){
+  .grid{grid-template-columns:1fr}
+  .views{display:flex}
+  .grid[data-v="queue"] .side{display:none}
+  .grid[data-v="screen"] .main-col{display:none}
+  .grid[data-v="screen"] .side .tbl-card{display:none}
+  .grid[data-v="tables"] .main-col{display:none}
+  .grid[data-v="tables"] .side > :not(.tbl-card){display:none}
+  .bignum{font-size:40px}
+  .wrap{padding:10px 10px 40px}
+  .stats{gap:10px}
+}
+</style>
+</head>
+<body>
+<div id="auth"><b>Очередь песен</b><br><span id="auth-msg">Вход…</span></div>
+<div class="wrap" id="app" hidden>
+  <div class="top">
+    <a class="back" href="index.html">← Табель</a>
+    <div><h1>ОЧЕРЕДЬ <span>ПЕСЕН</span></h1><div class="sub" id="sub">Большой зал</div></div>
+    <div class="stats" id="stats"></div>
+    <div class="sp"></div>
+    <button type="button" class="btn" id="openBtn">Приём заявок</button>
+    <button type="button" class="btn gold" id="testBtn" hidden>Тестовый режим</button>
+    <button type="button" class="btn" id="repBtn">Отчёт за вечер</button>
+  </div>
+  <div class="views" id="views" role="tablist">
+    <button type="button" data-v="queue" class="on">Очередь</button>
+    <button type="button" data-v="screen">Экран</button>
+    <button type="button" data-v="tables">Столы</button>
+  </div>
+  <div class="grid" id="grid" data-v="queue">
+    <div class="main-col">
+      <div class="card" id="now"></div>
+      <div class="sk-info" id="skinfo"></div>
+      <div id="queue"></div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <div class="lbl">Экран зала <small>Resolume</small></div>
+        <div class="scr" id="scr"></div>
+        <div class="note">Между песнями экран сам показывает «Дальше поют» и QR. Поздравление ставит только звукооператор.</div>
+        <div class="lbl" style="margin-top:14px">Поздравление на экране</div>
+        <div class="form">
+          <input id="bdName" maxlength="30" placeholder="Имя именинника" autocomplete="off" aria-label="Имя именинника">
+          <select id="bdTable" aria-label="Стол"><option value="">Без стола</option></select>
+        </div>
+        <div class="form" style="grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)">
+          <div class="segm" id="bdDur" role="group" aria-label="Сколько держать"><button type="button" data-v="30" class="on">30 сек</button><button type="button" data-v="45">45 сек</button></div>
+          <button type="button" class="btn gold" id="bdGo">Показать на экране</button>
+        </div>
+        <div id="bdErr"></div>
+        <div id="scrList" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Лайки и голосование <small>лайки гостей из мини-аппа</small></div>
+        <div id="likesNow"></div>
+        <div id="votes"></div>
+        <div class="lbl" style="margin-top:14px">Голосование на экране</div>
+        <div id="poll"></div>
+      </div>
+      <div class="card tbl-card">
+        <div class="lbl">Столы зала <small>нажмите - что любит петь, добавить песню</small></div>
+        <div class="tables" id="tables"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="tModal" hidden>
+  <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="tH">
+    <h3 id="tH"></h3><p id="tP"></p>
+    <div id="tCard"></div>
+    <div class="sub-lbl">Найти песню</div>
+    <div class="search"><input id="tq" type="search" placeholder="Название, исполнитель или номер" autocomplete="off" aria-label="Поиск песни"></div>
+    <div class="m-list" id="tList"></div>
+    <button type="button" class="btn" id="tClose" style="margin-top:10px;flex:none">Закрыть</button>
+  </div>
+</div>
+<div class="modal" id="xModal" hidden>
+  <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="xH">
+    <h3 id="xH">Тестовый режим</h3>
+    <p>Пока он включён, вкладку «Песни» в гостевом приложении видят и заказывают только тестовые Telegram-аккаунты, бот пишет только им, а планшет звука открывается руководству и тестировщикам.</p>
+    <div class="m-list" id="xBody"></div>
+    <button type="button" class="btn" id="xClose" style="margin-top:10px;flex:none">Закрыть</button>
+  </div>
+</div>
+<div class="modal" id="rModal" hidden>
+  <div class="modal-in" role="dialog" aria-modal="true" aria-label="Отчёт за вечер">
+    <h3>Отчёт за вечер</h3><p>Так он придёт владельцу в Telegram в 05:00. Сейчас - промежуточный.</p>
+    <div class="tg-msg" id="rBody"></div>
+    <button type="button" class="btn" id="rClose" style="margin-top:12px;flex:none">Закрыть</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* SPLETNI · планшет звукооператора · сборка 1 · 06.10.2026
+   Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; данные: rpc song_call */
+"use strict";
+const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const ZVUK_VERSION = "сборка 3";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) ? b : c; };
+const mmss = d => Math.floor(d / 60) + ":" + String(Math.max(0, d) % 60).padStart(2, "0");
+const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+const GRIP = '<svg viewBox="0 0 12 20" width="12" height="20" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="4" r="1.7"/><circle cx="9" cy="4" r="1.7"/><circle cx="3" cy="10" r="1.7"/><circle cx="9" cy="10" r="1.7"/><circle cx="3" cy="16" r="1.7"/><circle cx="9" cy="16" r="1.7"/></g></svg>';
+const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3l-1.3-1.2C6 14.9 3 12.2 3 8.8 3 6.1 5.1 4 7.8 4c1.5 0 3 .7 4.2 1.9C13.2 4.7 14.7 4 16.2 4 18.9 4 21 6.1 21 8.8c0 3.4-3 6.1-7.7 10.3z"/></svg>';
+const ERR = { poll_few: "Отметьте хотя бы 2 исполнения", poll_running: "Голосование уже идёт", skip_used: "Вне очереди в этом круге уже было", bad_name: "Напишите имя именинника", no_likes: "Пока нет лайков", bad_args: "Не хватает данных", network: "Нет связи с сервером" };
+
+let TOKEN = null, ST = null, OFFSET = 0, drag = null, busy = false, lastFlush = 0, CAT = null, oTable = null, prevQueueIds = new Set();
+
+function toast(m){ const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 3000); }
+
+async function fnCall(body){
+  try{
+    const r = await fetch(SB_URL + "/functions/v1/songs", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify(body) });
+    let d = {}; try{ d = await r.json(); }catch(_){}
+    if (!r.ok && !d.error) d.error = "http_" + r.status;
+    return d;
+  }catch(e){ return { error: "network" }; }
+}
+async function login(){
+  const tg = window.Telegram && window.Telegram.WebApp;
+  let initData = tg && tg.initData;
+  if (!initData){ try{ initData = sessionStorage.getItem("spl_initData") || ""; }catch(_){} }
+  if (!initData){ $("#auth-msg").innerHTML = "Откройте очередь песен из табеля в Telegram (кнопка «Песни»)."; return false; }
+  const d = await fnCall({ action: "login", app: "staff", initData });
+  if (!d.token){
+    $("#auth-msg").innerHTML = d.error === "not_staff" ? "Доступ только для звукооператоров и руководства." : d.error === "test_mode" ? "Очередь песен пока в тестовом режиме: планшет звука открыт руководству и тестовым аккаунтам." : ("Не удалось войти: " + esc(d.error || "ошибка"));
+    return false;
+  }
+  TOKEN = d.token;
+  try{ sessionStorage.setItem("zvuk_token", TOKEN); }catch(_){}
+  return true;
+}
+async function api(action, args, retry){
+  if (!TOKEN && !(await login())) return { error: "auth" };
+  let d;
+  try{
+    const r = await fetch(SB_URL + "/rest/v1/rpc/song_call", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON },
+      body: JSON.stringify({ p_token: TOKEN, p_action: action, p_args: args || {} }) });
+    d = await r.json();
+    if (!r.ok) d = { error: (d && d.message) || ("http_" + r.status) };
+  }catch(e){ d = { error: "network" }; }
+  if (d && d.error === "auth" && !retry){ TOKEN = null; return api(action, args, true); }
+  return d || {};
+}
+function apply(d){
+  if (d && d.error === "test_mode" && !d.queue){ $("#app").hidden = true; $("#auth").hidden = false; $("#auth-msg").textContent = "Очередь песен в тестовом режиме: доступ у руководства и тестовых аккаунтов."; return; }
+  if (!d || d.error && !d.queue){ if (d && d.error) toast(ERR[d.error] || ("Ошибка: " + d.error)); return; }
+  if (d.error) toast(ERR[d.error] || ("Ошибка: " + d.error));
+  ST = d; OFFSET = new Date(d.now).getTime() - Date.now();
+  if (d.outbox_due && Date.now() - lastFlush > 8000){ lastFlush = Date.now(); fnCall({ action: "flush", token: TOKEN }); }
+  if (!drag) render();
+}
+async function act(action, args){
+  if (busy) return; busy = true;
+  try{ apply(await api(action, args)); } finally { busy = false; }
+}
+async function poll(){ if (document.hidden || drag || busy) return; apply(await api("state")); }
+
+/* ---------- отрисовка ---------- */
+function render(){
+  const s = ST; if (!s) return;
+  const tw = new Set(s.queue.map(q => q.table_no)).size;
+  $("#sub").textContent = "Большой зал · круг " + s.cur_round + " · " + ZVUK_VERSION;
+  $("#stats").innerHTML = "<div><b>" + s.queue.length + "</b>в очереди</div><div><b>" + tw + "</b>столов ждут</div><div><b>" + s.done_count + "</b>за смену</div>";
+  const ob = $("#openBtn"); ob.textContent = s.open ? "Приём заявок открыт" : "Приём заявок закрыт"; ob.className = "btn " + (s.open ? "on" : "off");
+  const tb = $("#testBtn"), admin = ["admin", "upr"].includes(s.me_role);
+  tb.hidden = !(s.test_mode || admin);
+  tb.textContent = s.test_mode ? "ТЕСТ: песни видят только тестовые аккаунты" : "Песни открыты всем гостям";
+  tb.className = "btn " + (s.test_mode ? "gold" : "on"); tb.disabled = !admin;
+  renderNow(); renderQueue(); renderScreen(); renderScrList(); renderVotes(); renderTables();
+}
+/* ---------- тестовый режим (только admin / upr) ---------- */
+function renderTest(x){
+  if (!x || x.error){ $("#xBody").innerHTML = '<div class="err">' + esc((x && x.error) || "ошибка") + "</div>"; return; }
+  const ids = new Set((x.testers || []).map(t => String(t.tg)));
+  let h = '<div class="row2"><div><b>' + (x.test_mode ? "Сейчас: тестовый режим" : "Сейчас: открыто всем гостям") + "</b><span>" +
+    (x.test_mode ? "Гости без доступа вкладку «Песни» не видят" : "Вкладка «Песни» у всех гостей") + '</span></div><button type="button" class="btn ' + (x.test_mode ? "on" : "gold") + '" data-xmode="' + (x.test_mode ? "0" : "1") + '">' +
+    (x.test_mode ? "Открыть всем гостям" : "Вернуть тестовый режим") + "</button></div>";
+  h += '<div class="sub-lbl">Тестовые аккаунты</div>';
+  h += (x.testers || []).map(t => '<div class="row2"><div><b>' + esc(t.name) + "</b><span>Telegram ID " + t.tg + (String(t.tg) === String(x.me) ? " · это вы" : "") + '</span></div><button type="button" class="btn" data-xdel="' + t.tg + '" aria-label="Убрать из тестовых">×</button></div>').join("") || '<div class="note">Пока никого</div>';
+  if (!ids.has(String(x.me))) h += '<button type="button" class="btn main" data-xme="1" style="width:100%;margin-top:8px">Добавить меня (этот Telegram)</button>';
+  h += '<div class="sub-lbl">Добавить сотрудника</div><div class="form" style="grid-template-columns:minmax(0,1fr) auto"><select id="xStaff" aria-label="Сотрудник"><option value="">Выберите…</option>' +
+    (x.staff || []).filter(t => !ids.has(String(t.tg))).map(t => '<option value="' + t.tg + '">' + esc(t.name) + "</option>").join("") + '</select><button type="button" class="btn" data-xadd="staff">Добавить</button></div>';
+  h += '<div class="sub-lbl">Или по Telegram ID</div><div class="form" style="grid-template-columns:minmax(0,1fr) auto"><input id="xTg" inputmode="numeric" placeholder="Например 123456789" autocomplete="off" aria-label="Telegram ID"><button type="button" class="btn" data-xadd="tg">Добавить</button></div>' +
+    '<div class="note">Telegram ID гостя можно узнать, если он напишет боту @userinfobot. Один и тот же Telegram - и в табеле, и в гостевом приложении.</div>';
+  $("#xBody").innerHTML = h;
+}
+async function testAct(action, args){ const x = await api(action, args); renderTest(x); poll(); }
+function renderNow(){
+  const p = ST.playing, nx = ST.queue[0];
+  if (p){
+    $("#now").innerHTML = '<div class="lbl">Сейчас играет</div><div class="now"><div class="bignum">' + p.n + '</div><div class="tt"><b>' + esc(p.t) + "</b><span>" + esc(p.a) + " · " + mmss(p.d) + "</span><span>Стол " + p.table_no + " · " + esc(p.by || "") + " · круг " + p.round + "</span>" +
+      (ST.ast_mode === "auto" ? '<span class="pill on">Номер ушёл в AST-250</span>' : '<span class="pill wait">Наберите номер на пульте</span>') + "</div>" +
+      '<div class="prog"><i id="prog"></i></div><div class="over" id="over" hidden>Песня закончилась - запускайте следующую</div>' +
+      (nx ? '<div class="nextnum">Следующая: <b>' + nx.n + "</b> · стол " + nx.table_no + " · " + esc(nx.t) + "</div>" : "") +
+      '<div class="acts2"><button type="button" class="btn main" data-op="next">' + (nx ? "Спета - запустить следующую" : "Спета") + '</button><button type="button" class="btn" data-op="skipped">Пропустить</button></div></div>';
+    tick();
+  } else {
+    $("#now").innerHTML = '<div class="lbl">Сейчас играет</div><div class="now"><div class="tt" style="grid-column:1/-1"><b>Ничего</b><span>' + (nx ? "Есть заявки - можно запускать" : "Ждём заявок от гостей") + "</span></div>" +
+      (nx ? '<div class="nextnum">Первая: <b>' + nx.n + "</b> · стол " + nx.table_no + " · " + esc(nx.t) + '</div><div class="acts2" style="grid-template-columns:1fr"><button type="button" class="btn main" data-op="start">Запустить первую</button></div>' : "") + "</div>";
+  }
+}
+function tick(){
+  const p = ST && ST.playing; if (!p) return;
+  const el = (Date.now() + OFFSET - new Date(p.started_at).getTime()) / 1000;
+  const pr = $("#prog"); if (pr) pr.style.width = Math.min(100, el / p.d * 100) + "%";
+  const ov = $("#over"); if (ov) ov.hidden = el < p.d;
+}
+function renderQueue(){
+  const s = ST, su = s.skip_used;
+  const fg = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.grip : null;
+  $("#skinfo").className = "sk-info" + (su ? " used" : "");
+  $("#skinfo").innerHTML = s.queue.length ? (su ? "Вне очереди в круге " + s.cur_round + ": <b>стол " + su.table_no + " · «" + esc(su.t) + "»</b>. Следующая - в круге " + (s.cur_round + 1)
+    : "Вне очереди в круге " + s.cur_round + ": <b>свободно</b> · одна песня на круг") : "";
+  let h = "", last = null;
+  const ids = new Set();
+  s.queue.forEach((q, i) => {
+    ids.add(q.id);
+    if (q.round !== last){ last = q.round; h += '<div class="round-h" data-round="' + q.round + '">Круг ' + q.round + (q.round === s.cur_round ? "<small>идёт сейчас</small>" : "") + "</div>"; }
+    const wait = Math.max(0, Math.round((Date.now() + OFFSET - new Date(q.at).getTime()) / 60000));
+    const fresh = prevQueueIds.size && !prevQueueIds.has(q.id);
+    h += '<div class="q-row' + (fresh ? " mine-new" : "") + '" data-id="' + q.id + '"><button type="button" class="grip" data-grip="' + q.id + '" aria-label="Перетащить: стол ' + q.table_no + ", " + esc(q.t) + '. Стрелки вверх и вниз сдвигают">' + GRIP + "</button>" +
+      '<span class="pos">' + (i + 1) + '</span><div class="tb"><button type="button" class="tbtn" data-tcard="' + q.table_no + '">Стол ' + q.table_no + "</button>" + (q.skip ? '<span class="tag">вне очереди</span>' : "") + "<small>" + esc(q.by || "") + "</small></div>" +
+      '<span class="num">' + q.n + '</span><div class="q-t"><b>' + esc(q.t) + "</b><span>" + esc(q.a) + " · " + mmss(q.d) + '</span></div><span class="wt">' + wait + " мин</span>" +
+      '<div class="q-acts">' + (i > 0 ? '<button type="button" class="skb" data-sk="' + q.id + '"' + (su && su.id !== q.id ? ' disabled aria-label="Вне очереди: в этом круге уже было"' : "") + ">Вне очереди</button>" : "") +
+      '<button type="button" data-later="' + q.id + '">+ круг</button><button type="button" data-del="' + q.id + '" aria-label="Убрать песню">×</button></div></div>';
+  });
+  prevQueueIds = ids;
+  $("#queue").innerHTML = h || '<div class="empty"><b>Очередь пуста</b>Заявки гостей появятся здесь сами</div>';
+  if (fg){ const g = $('#queue [data-grip="' + fg + '"]'); if (g) g.focus(); }
+}
+function renderScreen(){
+  const sc = ST.screen, live = sc.live, el = $("#scr");
+  if (live && live.kind === "greet"){
+    el.innerHTML = '<div class="g"><small>SPLETNI поздравляет</small><b>С днём рождения,</b><b class="nm">' + esc(live.name) + "!</b>" + (live.table_no ? "<em>стол " + live.table_no + "</em>" : "") + "</div>";
+  } else if (live && live.kind === "poll" && ST.poll){
+    const c = ST.poll.candidates || [], mx = Math.max(1, ...c.map(x => x.likes));
+    el.innerHTML = '<div class="p"><small>' + esc(ST.poll.title) + ' · лайк в приложении</small>' + c.map(x => '<div class="r"><span>Стол ' + x.table_no + " · " + esc(x.t) + "</span><span>&#9829; " + x.likes + '</span><i style="width:' + Math.round(x.likes / mx * 100) + '%"></i></div>').join("") + "</div>";
+  } else if (live && live.kind === "vote"){
+    el.innerHTML = '<div class="g"><small>' + esc(live.name || "Голос вечера") + '</small><b class="nm">«' + esc(live.title) + "»</b><em>стол " + live.table_no + " · " + live.likes + " " + plural(live.likes, "лайк", "лайка", "лайков") + " от гостей зала</em></div>";
+  } else {
+    const p = ST.playing, between = !p || (Date.now() + OFFSET - new Date(p.started_at).getTime()) / 1000 >= p.d;
+    if (between){
+      const nx = ST.queue.slice(0, 3);
+      el.innerHTML = '<div class="q"><div><small>Дальше поют</small>' + (nx.length ? "<ol>" + nx.map(q => "<li><b>Стол " + q.table_no + "</b>" + esc(q.t) + "</li>").join("") + "</ol>" : "<ol><li>Заказывайте песни в Telegram</li></ol>") + '</div><div class="qr">QR</div></div>';
+    } else el.innerHTML = '<div class="idle">Идёт караоке<small>«' + esc(p.t) + "» · стол " + p.table_no + "</small></div>" +
+      (ST.likes_live ? '<div class="lkov"><b>&#9829; ' + (p.likes || 0) + "</b>" + (p.by_table || []).slice(0, 3).map(x => "<small>стол " + x.table_no + " · " + x.likes + "</small>").join("") + "</div>" : "");
+  }
+}
+function renderScrList(){
+  const sc = ST.screen; let h = "";
+  const tag = x => x.kind === "vote" ? esc(x.name || "Голос вечера") + " · стол " + x.table_no : x.kind === "poll" ? "Голосование: " + esc(x.name || "") : esc(x.name) + (x.table_no ? " · стол " + x.table_no : "");
+  if (sc.live) h += '<div class="row2 live"><div><b>Сейчас на экране: ' + tag(sc.live) + '</b><span>осталось <span id="scrLeft">' + sc.live.left + "</span> с из " + sc.live.dur + '</span></div><button type="button" class="btn" data-scrstop="1">Убрать</button></div>';
+  h += sc.queued.map((x, i) => '<div class="row2"><div><b>' + (i + 1) + ". " + tag(x) + "</b><span>ждёт очереди · " + x.dur + ' сек</span></div><button type="button" class="btn" data-scrdel="' + x.id + '" aria-label="Убрать из очереди экрана">×</button></div>').join("");
+  h += sc.shown.map(x => '<div class="row2 done"><div><b>' + tag(x) + "</b><span>показано в " + x.at + " · " + x.dur + " сек</span></div><span></span></div>").join("");
+  $("#scrList").innerHTML = h;
+  $("#bdGo").textContent = sc.live ? "Поставить в очередь экрана" : "Показать на экране";
+  const sel = $("#bdTable");
+  if (document.activeElement !== sel){
+    const v = sel.value;
+    const opts = '<option value="">Без стола</option>' + ST.tables.filter(t => t.status === "seated").map(t => '<option value="' + t.table_no + '">Стол ' + t.table_no + " · " + esc(t.name || "") + "</option>").join("");
+    if (sel.dataset.h !== opts){ sel.innerHTML = opts; sel.dataset.h = opts; sel.value = [...sel.options].some(o => o.value === v) ? v : ""; }
+  }
+}
+let pollSel = new Set(), pollDur = 120;
+function renderLikesNow(){
+  const p = ST.playing;
+  const now = p ? '<div class="ll-now">Поёт стол ' + p.table_no + ': <span class="lk">' + HEART + "<b>" + (p.likes || 0) + "</b></span>" + ((p.by_table || []).length ? " · " + p.by_table.slice(0, 4).map(x => "стол " + x.table_no + " - " + x.likes).join(", ") : "") + "</div>" : '<div class="ll-now">Сейчас никто не поёт</div>';
+  $("#likesNow").innerHTML = '<div class="ll-row">' + now + '<button type="button" class="btn ' + (ST.likes_live ? "on" : "") + '" id="llBtn" aria-pressed="' + !!ST.likes_live + '">Лайки поющему на экране: ' + (ST.likes_live ? "вкл" : "выкл") + "</button></div>";
+}
+function renderPoll(){
+  const pl = ST.poll, el = $("#poll");
+  if (pl){
+    const c = pl.candidates || [], mx = Math.max(1, ...c.map(x => x.likes)), best = Math.max(...c.map(x => x.likes));
+    el.innerHTML = '<div class="note" style="margin-top:0">' + (pl.status === "live" ? "Идёт на экране · осталось <b id=\"pollLeft\">" + pl.left + "</b> с" : "Ждёт очереди экрана · " + pl.dur + " сек") + ". Гости ставят лайк в мини-аппе.</div>" +
+      c.map(x => '<div class="pc' + (x.likes === best && best > 0 ? " win" : "") + '"><div><b>Стол ' + x.table_no + " · " + esc(x.t) + "</b><span>" + esc(x.a) + '</span></div><span class="lk">' + HEART + x.likes + '</span><div class="pbar"><i style="width:' + Math.round(x.likes / mx * 100) + '%"></i></div></div>').join("") +
+      '<button type="button" class="btn gold" id="pollStop" style="width:100%;margin-top:10px">Завершить и показать победителя</button>';
+    return;
+  }
+  const perfs = ST.perfs || [];
+  const ids = new Set(perfs.map(x => x.id)); pollSel.forEach(id => { if (!ids.has(id)) pollSel.delete(id); });
+  if (perfs.length < 2){ el.innerHTML = '<div class="note" style="margin-top:0">Голосование можно провести, когда споют хотя бы две песни.</div>'; return; }
+  el.innerHTML = '<div class="note" style="margin-top:0">Отметьте 2-6 исполнений - они выйдут на экран с живыми лайками, гости голосуют лайком в приложении. В конце на экране - победитель.</div>' +
+    perfs.map(x => '<button type="button" class="pc' + (pollSel.has(x.id) ? " on" : "") + '" data-pc="' + x.id + '" aria-pressed="' + pollSel.has(x.id) + '"><div><b>Стол ' + x.table_no + " · " + esc(x.t) + "</b><span>" + (x.status === "playing" ? "поёт сейчас" : x.at) + " · " + esc(x.a) + '</span></div><span class="lk">' + HEART + x.likes + "</span></button>").join("") +
+    '<div class="form" style="grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)"><div class="segm" id="pollDur" role="group" aria-label="Сколько длится">' +
+    [60, 120, 180].map(d => '<button type="button" data-d="' + d + '" class="' + (pollDur === d ? "on" : "") + '">' + d / 60 + " мин</button>").join("") +
+    '</div><button type="button" class="btn gold" id="pollGo"' + (pollSel.size < 2 ? " disabled" : "") + ">Начать голосование" + (pollSel.size ? " (" + pollSel.size + ")" : "") + "</button></div>";
+}
+function renderVotes(){
+  renderLikesNow(); renderPoll();
+  const top = ST.likes_top || [];
+  $("#votes").innerHTML = top.length ? top.map((x, i) => '<div class="row2' + (i === 0 ? " live" : "") + '"><div><b>' + (i + 1) + ". Стол " + x.table_no + " · " + esc(x.t) + "</b><span>" + esc(x.a) + '</span></div><span class="lk">' + HEART + x.likes + "</span></div>").join("") +
+    '<button type="button" class="btn gold" id="voteShow" style="width:100%;margin-top:8px">Лидера на экран · 30 сек</button>'
+    : '<div class="note">Гости ставят лайк песне в мини-аппе - прямо пока её поют. Лидер по лайкам - голос вечера.</div>';
+}
+function renderTables(){
+  $("#tables").innerHTML = ST.tables.map(t => {
+    const corner = t.corner ? "<small>УГЛ</small>" : "";
+    if (!t.booking_id) return '<div class="tc idle"><div class="n">' + t.table_no + corner + '</div><div class="w">свободен</div><div class="c">' + (t.next ? esc(t.next) : "&nbsp;") + "</div></div>";
+    return '<button type="button" class="tc' + (t.status === "seated" ? " seated" : "") + (t.pending >= t.limit ? " full" : "") + '" data-t="' + t.table_no + '"><div class="n">' + t.table_no + corner + '</div><div class="w">' + esc(t.name || "") + '</div><div class="c">' +
+      (t.status === "seated" ? "в очереди <b>" + t.pending + "/" + t.limit + "</b>" : "ожидаем к " + esc(t.arrive || "")) + "</div></button>";
+  }).join("");
+}
+
+/* ---------- карточка стола + добавить песню ---------- */
+async function loadCat(){
+  if (CAT) return;
+  try{
+    const j = await (await fetch("pesni/songs.json", { cache: "force-cache" })).json();
+    const s = j.s, N = s.length / 5; CAT = { N, s, A: j.a, hay: new Array(N) };
+    for (let i = 0, k = 0; i < N; i++, k += 5) CAT.hay[i] = norm(s[k + 1] + " " + j.a[s[k + 2]]) + " " + s[k];
+  }catch(e){ CAT = null; $("#tList").innerHTML = '<div class="empty">Каталог не загрузился</div>'; }
+}
+function rowAdd(n, t, a, d){ return '<div class="m-row"><span class="num">' + n + '</span><div class="q-t"><b>' + esc(t) + "</b><span>" + esc(a) + (d ? " · " + mmss(d) : "") + '</span></div><button type="button" class="btn" data-addn="' + n + '" data-t="' + esc(t) + '" data-a="' + esc(a) + '" data-d="' + (d || 240) + '">Добавить</button></div>'; }
+function renderTList(){
+  if (!CAT){ $("#tList").innerHTML = '<div class="empty">Загружаем каталог…</div>'; return; }
+  const q = norm($("#tq").value);
+  if (!q){ $("#tList").innerHTML = '<div class="note">Введите название, исполнителя или номер</div>'; return; }
+  const toks = q.split(" "), out = [];
+  for (let i = 0; i < CAT.N && out.length < 50; i++) if (toks.every(t => CAT.hay[i].includes(t))) out.push(i);
+  $("#tList").innerHTML = out.map(i => { const k = i * 5; return rowAdd(CAT.s[k], CAT.s[k + 1], CAT.A[CAT.s[k + 2]], CAT.s[k + 3]); }).join("") || '<div class="empty">Ничего не нашлось</div>';
+}
+async function openTable(t){
+  oTable = t;
+  const info = (ST.tables || []).find(x => x.table_no === t) || {};
+  $("#tH").textContent = "Стол " + t + (info.name ? " · " + info.name : "");
+  $("#tP").textContent = info.booking_id ? ("В очереди " + (info.pending || 0) + " из " + info.limit + ((info.pending || 0) >= info.limit ? ". Лимит достигнут, но звукооператор может добавить сверх него" : "")) : "Стол свободен";
+  $("#tCard").innerHTML = '<div class="note">Загрузка…</div>';
+  $("#tq").value = ""; $("#tModal").hidden = false; renderTList();
+  setTimeout(() => $("#tq").focus(), 50);
+  loadCat().then(renderTList);
+  const c = await api("card", { table_no: t });
+  if (c.error || c.empty){ $("#tCard").innerHTML = ""; return; }
+  let h = '<div class="gc">' + (c.visits ? "<b>был " + c.visits + " " + plural(c.visits, "раз", "раза", "раз") + "</b>" + (c.last ? " · последний раз " + c.last : "") : "<b>Впервые в SPLETNI</b> · истории пока нет") + "</div>";
+  if ((c.artists || []).length) h += '<div class="gc">Любит: ' + c.artists.map(esc).join(", ") + "</div>";
+  const list = []; const seen = new Set();
+  (c.past || []).concat(c.favs || []).forEach(x => { if (!seen.has(x[0]) && list.length < 5){ seen.add(x[0]); list.push(x); } });
+  if (list.length) h += '<div class="sub-lbl">Пел раньше и избранное</div>' + list.map(x => rowAdd(x[0], x[1], x[2], x[3])).join("");
+  $("#tCard").innerHTML = h;
+}
+function addFromBtn(b){
+  act("add", { table_no: oTable, n: +b.dataset.addn, t: b.dataset.t, a: b.dataset.a, d: +b.dataset.d }).then(() => toast("Добавлено на стол " + oTable));
+  $("#tModal").hidden = true;
+}
+
+/* ---------- события ---------- */
+$("#now").addEventListener("click", e => {
+  const b = e.target.closest("[data-op]"); if (!b) return;
+  if (b.dataset.op === "start") act("start");
+  else if (b.dataset.op === "skipped") act("next", { result: "skipped" });
+  else act("next");
+});
+$("#queue").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.classList.contains("grip") || b.disabled) return;
+  const d = b.dataset;
+  if (d.tcard) openTable(+d.tcard);
+  else if (d.sk) act("skip", { id: +d.sk });
+  else if (d.later) act("later", { id: +d.later });
+  else if (d.del){ if (confirm("Убрать песню из очереди?")) act("remove", { id: +d.del }); }
+});
+$("#openBtn").addEventListener("click", () => { if (!ST) return; if (ST.open && !confirm("Закрыть приём заявок? Гости не смогут ставить новые песни, пока не откроете.")) return; act("open", { open: !ST.open }); });
+$("#testBtn").addEventListener("click", async () => { $("#xModal").hidden = false; $("#xBody").innerHTML = '<div class="note">Загрузка…</div>'; renderTest(await api("test_info")); });
+$("#xModal").addEventListener("click", e => {
+  if (e.target.id === "xModal" || e.target.id === "xClose"){ $("#xModal").hidden = true; return; }
+  const m = e.target.closest("[data-xmode]");
+  if (m){ const on = m.dataset.xmode === "1"; if (!on && !confirm("Открыть «Песни» всем гостям? Вкладка появится у всех в гостевом приложении, бот начнёт писать гостям.")) return; testAct("test_mode", { on }); return; }
+  const d = e.target.closest("[data-xdel]"); if (d){ testAct("test_del", { tg: +d.dataset.xdel }); return; }
+  if (e.target.closest("[data-xme]")){ testAct("test_add", { me: true }); return; }
+  const a = e.target.closest("[data-xadd]");
+  if (a){ const v = a.dataset.xadd === "staff" ? $("#xStaff").value : ($("#xTg").value || "").replace(/\D/g, ""); if (!v){ toast("Выберите сотрудника или введите Telegram ID"); return; } testAct("test_add", { tg: +v }); }
+});
+$("#repBtn").addEventListener("click", async () => { const r = await api("report"); $("#rBody").textContent = r.text || r.error || ""; $("#rModal").hidden = false; });
+$("#rClose").addEventListener("click", () => $("#rModal").hidden = true);
+$("#bdDur").addEventListener("click", e => { const x = e.target.closest("[data-v]"); if (x) $("#bdDur").querySelectorAll("button").forEach(y => y.classList.toggle("on", y === x)); });
+$("#bdGo").addEventListener("click", () => {
+  const n = $("#bdName").value.trim();
+  if (n.length < 2){ $("#bdErr").innerHTML = '<div class="err">Напишите имя именинника</div>'; $("#bdName").focus(); return; }
+  $("#bdErr").innerHTML = "";
+  act("greet", { name: n, table_no: $("#bdTable").value ? +$("#bdTable").value : null, dur: +$("#bdDur .on").dataset.v }).then(() => { $("#bdName").value = ""; });
+});
+$("#bdName").addEventListener("keydown", e => { if (e.key === "Enter") $("#bdGo").click(); });
+$("#scrList").addEventListener("click", e => {
+  if (e.target.closest("[data-scrstop]")){ act("screen_stop"); return; }
+  const d = e.target.closest("[data-scrdel]"); if (d) act("screen_del", { id: +d.dataset.scrdel });
+});
+$("#votes").addEventListener("click", e => { if (e.target.closest("#voteShow")) act("vote_show"); });
+$("#likesNow").addEventListener("click", e => { if (e.target.closest("#llBtn")) act("likes_live", { on: !ST.likes_live }); });
+$("#poll").addEventListener("click", e => {
+  const pc = e.target.closest("[data-pc]");
+  if (pc){ const id = +pc.dataset.pc; if (pollSel.has(id)) pollSel.delete(id); else if (pollSel.size < 6) pollSel.add(id); else toast("Не больше 6 исполнений"); renderPoll(); return; }
+  const d = e.target.closest("[data-d]"); if (d){ pollDur = +d.dataset.d; renderPoll(); return; }
+  if (e.target.closest("#pollGo")){ const order = (ST.perfs || []).map(x => x.id).filter(id => pollSel.has(id)); act("poll_start", { ids: order, dur: pollDur }).then(() => { pollSel.clear(); renderPoll(); }); return; }
+  if (e.target.closest("#pollStop")){ if (confirm("Завершить голосование и показать победителя?")) act("poll_stop"); }
+});
+$("#tables").addEventListener("click", e => { const c = e.target.closest("[data-t]"); if (c) openTable(+c.dataset.t); });
+$("#tq").addEventListener("input", () => { clearTimeout(renderTList.t); renderTList.t = setTimeout(renderTList, 120); });
+$("#tModal").addEventListener("click", e => {
+  if (e.target.id === "tModal" || e.target.id === "tClose"){ $("#tModal").hidden = true; return; }
+  const b = e.target.closest("[data-addn]"); if (b) addFromBtn(b);
+});
+$("#views").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (!b) return; $("#grid").dataset.v = b.dataset.v; $("#views").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
+addEventListener("keydown", e => { if (e.key === "Escape"){ $("#tModal").hidden = true; $("#rModal").hidden = true; $("#xModal").hidden = true; } });
+
+/* ---------- перетаскивание плиток (мышь, палец, стрелки) ---------- */
+const QE = $("#queue");
+QE.addEventListener("pointerdown", e => {
+  if (e.button > 0) return;
+  const row = e.target.closest(".q-row"); if (!row) return;
+  const g = e.target.closest(".grip");
+  if (!g && (e.pointerType !== "mouse" || e.target.closest("button"))) return;
+  e.preventDefault();
+  const r = row.getBoundingClientRect();
+  const ph = document.createElement("div"); ph.className = "q-ph"; ph.style.height = r.height + "px"; row.after(ph);
+  Object.assign(row.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px" });
+  row.classList.add("dragging");
+  drag = { id: +row.dataset.id, row, ph, off: e.clientY - r.top, moved: false };
+  try{ (g || row).setPointerCapture(e.pointerId); }catch(_){}
+});
+addEventListener("pointermove", e => {
+  if (!drag) return;
+  drag.moved = true;
+  drag.row.style.top = (e.clientY - drag.off) + "px";
+  const rows = [...QE.querySelectorAll(".q-row:not(.dragging)")];
+  let before = null;
+  for (const el of rows){ const b = el.getBoundingClientRect(); if (e.clientY < b.top + b.height / 2){ before = el; break; } }
+  if (before){ let p = before; const prev = before.previousElementSibling; if (prev && prev.classList.contains("round-h")) p = prev; if (drag.ph.nextElementSibling !== p) p.before(drag.ph); }
+  else if (rows.length){ const l = rows[rows.length - 1]; if (l.nextElementSibling !== drag.ph) l.after(drag.ph); }
+  if (e.clientY < 60) scrollBy(0, -14); else if (e.clientY > innerHeight - 50) scrollBy(0, 14);
+});
+function endDrag(){
+  if (!drag) return;
+  const d = drag; drag = null;
+  let el = d.ph.previousElementSibling, after = null, round = null;
+  while (el){ if (el.classList.contains("q-row") && after === null && !el.classList.contains("dragging")) after = +el.dataset.id; if (el.classList.contains("round-h")){ round = +el.dataset.round; break; } el = el.previousElementSibling; }
+  // заголовок круга мог остаться после плейсхолдера: тогда круг берём у следующей плитки
+  if (round === null){ const nx = d.ph.nextElementSibling; round = nx && nx.classList.contains("round-h") ? +nx.dataset.round : (ST.queue[0] ? ST.queue[0].round : ST.cur_round); }
+  d.row.classList.remove("dragging"); d.row.removeAttribute("style"); d.ph.remove();
+  if (!d.moved){ render(); return; }
+  const cur = ST.queue.findIndex(q => q.id === d.id);
+  const prevId = cur > 0 ? ST.queue[cur - 1].id : null;
+  if (after === prevId && round === ST.queue[cur].round){ render(); return; }
+  act("move", { id: d.id, after_id: after, round });
+}
+addEventListener("pointerup", endDrag); addEventListener("pointercancel", endDrag);
+QE.addEventListener("keydown", e => {
+  const g = e.target.closest(".grip"); if (!g || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+  e.preventDefault();
+  const id = +g.dataset.grip, i = ST.queue.findIndex(q => q.id === id); if (i < 0) return;
+  if (e.key === "ArrowUp" && i > 0){ const tgt = ST.queue[i - 1]; act("move", { id, after_id: i >= 2 ? ST.queue[i - 2].id : null, round: tgt.round }); }
+  if (e.key === "ArrowDown" && i < ST.queue.length - 1){ const tgt = ST.queue[i + 1]; act("move", { id, after_id: tgt.id, round: tgt.round }); }
+});
+
+/* ---------- запуск ---------- */
+(async function(){
+  try{ const tg = window.Telegram && window.Telegram.WebApp; if (tg){ tg.ready(); tg.expand(); } }catch(_){}
+  try{ TOKEN = sessionStorage.getItem("zvuk_token"); }catch(_){}
+  if (!TOKEN && !(await login())) return;
+  let d = await api("state");
+  if (d.error === "auth"){ $("#auth-msg").textContent = "Не удалось войти"; return; }
+  if (d.error === "test_mode"){ apply(d); return; }
+  $("#auth").hidden = true; $("#app").hidden = false;
+  apply(d);
+  setInterval(poll, 3000);
+  setInterval(() => {
+    tick();
+    const sl = $("#scrLeft");
+    if (sl && ST && ST.screen.live){ const left = Math.max(0, +sl.textContent - 1); sl.textContent = left; if (left === 0) poll(); }
+    const plf = $("#pollLeft"); if (plf){ plf.textContent = Math.max(0, +plf.textContent - 1); }
+    if (ST && ST.playing && !drag) renderScreen();
+  }, 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+})();
+</script>
+</body>
+</html>

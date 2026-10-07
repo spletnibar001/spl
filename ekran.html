@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPLETNI · экран зала</title>
+<style>
+/* Экран зала в браузере: запасной вариант к Resolume и проверка без Resolume.
+   Открыть на компьютере караоке: ekran.html?key=КЛЮЧ_АГЕНТА  (F11 - во весь экран) */
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+body.transparent{background:transparent}
+#s{position:fixed;inset:0;display:grid;place-items:center;text-align:center;container-type:size}
+.g small{display:block;color:#d9b04c;font-weight:800;letter-spacing:.18em;text-transform:uppercase;font-size:4.2cqh}
+.g b{display:block;font-size:11cqh;font-weight:900;line-height:1.08}
+.g b.nm{color:#d9b04c;font-size:13cqh}
+.g em{display:block;font-style:normal;color:#d7dbe2;font-size:4.4cqh;margin-top:1.5cqh}
+.q{width:100%;box-sizing:border-box;padding:0 7cqw;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6cqw;align-items:center}
+.q small{color:#d9b04c;font-weight:800;letter-spacing:.18em;text-transform:uppercase;font-size:4.2cqh}
+.q ol{margin:2cqh 0 0;padding:0;list-style:none;display:grid;gap:1.4cqh}
+.q li{font-size:7.2cqh;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q li b{color:#d9b04c;margin-right:3cqh}
+.qr{background:#fff;padding:2cqh;border-radius:2cqh;text-align:center}
+.qr canvas,.qr img{display:block;width:34cqh !important;height:34cqh !important}
+.qr span{display:block;color:#111;font-weight:800;font-size:2.6cqh;margin-top:1cqh}
+.idle{color:#3b4048;font-weight:800;letter-spacing:.2em;text-transform:uppercase;font-size:4cqh}
+#conf{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+#conf i{position:absolute;top:-4vh;width:1.1vh;height:2.2vh;border-radius:2px;animation:fall linear infinite;opacity:.9}
+@keyframes fall{to{transform:translateY(112vh) rotate(540deg)}}
+#err{position:fixed;left:10px;bottom:8px;color:#e25c5c;font-size:13px}
+.p{width:100%;box-sizing:border-box;padding:0 6cqw;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5cqw;align-items:center;text-align:left}
+.p small{color:#d9b04c;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:3.8cqh}
+.p h2{margin:1cqh 0 3cqh;font-size:7cqh;font-weight:900;line-height:1.1}
+.p .r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.6cqh 3cqh;margin-bottom:2.2cqh;font-size:5cqh;font-weight:800}
+.p .r span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p .r span b{color:#d9b04c;margin-right:2cqh}
+.p .r em{font-style:normal;color:#ff8fb0}
+.p .r i{grid-column:1/-1;display:block;height:1.4cqh;border-radius:1cqh;background:linear-gradient(90deg,#ff6f9a,#ff8fb0);transition:width .6s}
+.p .r.win em{color:#d9b04c}
+.p .r.win i{background:linear-gradient(90deg,#d9b04c,#f0cf6e)}
+.p .t{font-size:3.6cqh;color:#d7dbe2;margin-top:1cqh}
+#lk{position:fixed;right:3vw;bottom:5vh;text-align:right;display:none;background:rgba(0,0,0,.55);border:2px solid rgba(255,143,176,.6);border-radius:2vh;padding:1.4vh 2.4vh}
+#lk b{display:block;color:#ff8fb0;font-size:8vh;font-weight:900;line-height:1}
+#lk small{display:block;color:#e8eaee;font-size:2.6vh;font-weight:700;margin-top:.6vh}
+#lk.pop b{animation:pop .5s}
+@keyframes pop{40%{transform:scale(1.25)}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div id="conf"></div>
+<div id="s"><div class="idle">SPLETNI</div></div>
+<div id="lk"></div>
+<div id="err"></div>
+<script>
+"use strict";
+const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const Q = new URLSearchParams(location.search);
+const KEY = Q.get("key") || "";
+const QR_DEFAULT = "https://karaoketashkent.uz/pesni/";
+if (Q.get("bg") === "transparent") document.body.classList.add("transparent");
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) ? b : c; };
+const COLORS = ["#d9b04c", "#1fbf7a", "#ff6fae", "#f4eff7", "#6fb8ff"];
+let last = "";
+function confetti(on){
+  const c = document.getElementById("conf");
+  if (!on){ c.innerHTML = ""; return; }
+  let h = ""; for (let k = 0; k < 36; k++) h += '<i style="left:' + (k * 2.8 + Math.random() * 2).toFixed(1) + "%;background:" + COLORS[k % 5] + ";animation-duration:" + (3 + Math.random() * 2.5).toFixed(2) + "s;animation-delay:" + (-Math.random() * 4).toFixed(2) + 's"></i>';
+  c.innerHTML = h;
+}
+let lastLikes = -1;
+function likesOverlay(st){
+  // лайки поющему: маленькая плашка в углу, пока идёт песня (если звукооператор включил)
+  const box = document.getElementById("lk");
+  if (st.mode !== "song" || !st.likes_live || !st.playing){ box.style.display = "none"; lastLikes = -1; return; }
+  const n = st.playing.likes || 0;
+  box.innerHTML = "<b>&#9829; " + n + "</b>" + (st.playing.by_table || []).slice(0, 4).map(x => "<small>стол " + x.table_no + " · " + x.likes + "</small>").join("");
+  box.style.display = "block";
+  if (lastLikes >= 0 && n > lastLikes){ box.classList.remove("pop"); void box.offsetWidth; box.classList.add("pop"); }
+  lastLikes = n;
+}
+function draw(st){
+  const el = document.getElementById("s");
+  likesOverlay(st);
+  const pl = st.item && st.item.poll;
+  const key = st.mode + "|" + (st.item ? st.item.id : "") + "|" + (st.mode === "between" ? JSON.stringify(st.next) : "") + "|" + (st.playing ? st.playing.id : "") +
+    "|" + (pl ? pl.candidates.map(c => c.likes).join(",") + "|" + Math.ceil((st.item.left || 0) / 5) : "");
+  if (key === last) return; last = key;
+  if (st.mode === "greet"){
+    confetti(true);
+    el.innerHTML = '<div class="g"><small>SPLETNI поздравляет</small><b>С днём рождения,</b><b class="nm">' + esc(st.item.name) + "!</b>" + (st.item.table_no ? "<em>стол " + st.item.table_no + "</em>" : "") + "</div>";
+  } else if (st.mode === "poll" && pl){
+    confetti(false);
+    const c = pl.candidates || [], mx = Math.max(1, ...c.map(x => x.likes)), best = Math.max(...c.map(x => x.likes));
+    el.innerHTML = '<div class="p"><div><small>Голосование · ставьте лайк в приложении SPLETNI</small><h2>' + esc(pl.title) + "</h2>" +
+      c.map(x => '<div class="r' + (x.likes === best && best > 0 ? " win" : "") + '"><span><b>Стол ' + x.table_no + "</b>" + esc(x.t) + "</span><em>&#9829; " + x.likes + '</em><i style="width:' + Math.max(2, Math.round(x.likes / mx * 100)) + '%"></i></div>').join("") +
+      '<div class="t">осталось ~' + Math.max(0, st.item.left || 0) + ' сек</div></div><div class="qr"><div id="qr"></div><span>Голосовать</span></div></div>';
+    try{ new QRCode(document.getElementById("qr"), { text: st.qr_url || QR_DEFAULT, width: 512, height: 512, correctLevel: QRCode.CorrectLevel.M }); }catch(_){}
+  } else if (st.mode === "vote"){
+    confetti(true);
+    el.innerHTML = '<div class="g"><small>' + esc(st.item.name || "Голос вечера") + '</small><b class="nm">«' + esc(st.item.title) + "»</b><em>" + esc(st.item.artist || "") + " · стол " + st.item.table_no + "</em><em>" + st.item.likes + " " + plural(st.item.likes, "лайк", "лайка", "лайков") + " от гостей зала</em></div>";
+  } else if (st.mode === "between"){
+    confetti(false);
+    const nx = st.next || [];
+    el.innerHTML = '<div class="q"><div><small>Дальше поют</small><ol>' + (nx.length ? nx.map(q => "<li><b>Стол " + q.table_no + "</b>" + esc(q.t) + "</li>").join("") : "<li>Заказывайте песни в Telegram</li>") + '</ol></div><div class="qr"><div id="qr"></div><span>Песни и очередь</span></div></div>';
+    try{ new QRCode(document.getElementById("qr"), { text: st.qr_url || QR_DEFAULT, width: 512, height: 512, correctLevel: QRCode.CorrectLevel.M }); }catch(_){}
+  } else {
+    confetti(false);
+    el.innerHTML = Q.get("song") === "show" && st.playing ? '<div class="idle">«' + esc(st.playing.t) + "» · стол " + st.playing.table_no + "</div>" : "";
+  }
+}
+async function poll(){
+  if (!KEY){ document.getElementById("err").textContent = "Нет ключа: откройте ekran.html?key=КЛЮЧ (select agent_key from song_settings)"; return; }
+  try{
+    const r = await fetch(SB_URL + "/rest/v1/rpc/song_agent", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON },
+      body: JSON.stringify({ p_key: KEY, p_action: "poll", p_args: {} }) });
+    const st = await r.json();
+    if (st.error){ document.getElementById("err").textContent = "Ошибка: " + st.error; return; }
+    document.getElementById("err").textContent = "";
+    draw(st);
+  }catch(e){ document.getElementById("err").textContent = "Нет связи"; }
+}
+poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>

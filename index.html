@@ -594,6 +594,8 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 
 
   /* ===== МОДУЛЬ БАР-КОНТРОЛЯ ===== */
+  #songs-fab{position:fixed;left:14px;bottom:14px;z-index:70;background:var(--gold);color:#16130a;
+    border:none;border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
   #bar-fab{position:fixed;right:14px;bottom:14px;z-index:70;background:var(--emerald);color:#0c1410;
     border:none;border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
   #bar-screen{position:fixed;inset:0;z-index:80;background:var(--bg,#10141a);overflow-y:auto;display:none;padding:14px}
@@ -1349,7 +1351,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 07.10 · сборка 58";
+const APP_VERSION = "v 07.10 · сборка 59";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1620,6 +1622,7 @@ async function authorize(){
     document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) refreshToken(); });
     startApp();
     initBarModule().catch(()=>{});   // бар-контроль: кнопка для барменов и руководства
+    initSongsModule();               // очередь песен: кнопка для звукооператоров и руководства
   }catch(e){
     $("auth-spinner").style.display="none";
     $("auth-status").innerHTML = "<b style='color:var(--red)'>"+e.message+"</b>";
@@ -6671,6 +6674,40 @@ async function barApi(action, payload){
   return d;
 }
 function barFmt(n,dig){ return (n==null)?"—":Number(n).toLocaleString("ru-RU",{maximumFractionDigits:dig==null?2:dig}); }
+
+/* ===== ОЧЕРЕДЬ ПЕСЕН (zvuk.html): кнопка для звукооператоров и руководства ===== */
+function initSongsModule(){
+  if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;
+  let tries = 0;
+  const check = () => {
+    if(document.getElementById("songs-fab")) return;
+    const role = ME && ME.role;
+    const lead = ["admin","upr","sound","manager"].includes(role);
+    const sound = (typeof bkMyEmpRole==="function") && bkMyEmpRole()==="Звукооператор";
+    if(!lead && !sound){ if(++tries < 10) setTimeout(check, 1000); return; }   // карточка сотрудника грузится не сразу
+    const show = () => {
+      if(document.getElementById("songs-fab")) return;
+      const b = document.createElement("button");
+      b.id = "songs-fab"; b.textContent = "🎤 Песни";
+      b.addEventListener("click", () => {
+        try{ sessionStorage.setItem("spl_initData", (window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initData)||""); }catch(_){}
+        location.href = "zvuk.html";
+      });
+      document.body.appendChild(b);
+    };
+    // тестовый режим очереди песен: кнопка только у тех, кого пускают (admin / upr и тестовые аккаунты)
+    const H = {"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:"Bearer "+SUPABASE_ANON_KEY};
+    fetch(SUPABASE_URL+"/rest/v1/rpc/song_flags", {method:"POST", headers:H, body:"{}"})
+      .then(r=>r.json()).then(f=>{
+        if(f && f.test_mode===false){ show(); return; }
+        const initData = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData;
+        if(!f || !initData) return;
+        return fetch(SUPABASE_URL+"/functions/v1/songs", {method:"POST", headers:H, body:JSON.stringify({action:"login", app:"staff", initData})})
+          .then(r=>r.json()).then(d=>{ if(d && d.token){ try{ sessionStorage.setItem("zvuk_token", d.token); }catch(_){} show(); } });
+      }).catch(()=>{});
+  };
+  check();
+}
 
 async function initBarModule(){
   if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;     // планшет хостес — без бара
