@@ -200,7 +200,9 @@ async function loadCat(){
   if (PS.cat || PS.catLoading) return;
   PS.catLoading = true;
   try{
-    const r = await fetch("pesni/songs.json", { cache: "force-cache" });
+    // каталог: pesni/songs.json, запасной путь - songs.json рядом с guest.html
+    let r = await fetch("pesni/songs.json", { cache: "force-cache" }).catch(() => null);
+    if (!r || !r.ok) r = await fetch("songs.json", { cache: "force-cache" });
     const j = await r.json();
     const s = j.s, N = s.length / 5, A = j.a;
     const cat = { N, n: new Int32Array(N), t: new Array(N), a: new Int32Array(N), d: new Int16Array(N), dt: new Int32Array(N), A, hay: new Array(N), v: j.v };

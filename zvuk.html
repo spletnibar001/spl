@@ -487,7 +487,9 @@ function renderTables(){
 async function loadCat(){
   if (CAT) return;
   try{
-    const j = await (await fetch("pesni/songs.json", { cache: "force-cache" })).json();
+    let r = await fetch("pesni/songs.json", { cache: "force-cache" }).catch(() => null);
+    if (!r || !r.ok) r = await fetch("songs.json", { cache: "force-cache" });   // запасной путь - songs.json рядом
+    const j = await r.json();
     const s = j.s, N = s.length / 5; CAT = { N, s, A: j.a, hay: new Array(N) };
     for (let i = 0, k = 0; i < N; i++, k += 5) CAT.hay[i] = norm(s[k + 1] + " " + j.a[s[k + 2]]) + " " + s[k];
   }catch(e){ CAT = null; $("#tList").innerHTML = '<div class="empty">Каталог не загрузился</div>'; }
