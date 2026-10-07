@@ -190,7 +190,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v45";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v46";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -537,15 +537,29 @@ async function vReceipt(entryId, which){
   }
 }
 // долговые операции человека с фото — для раскрытия в «Долгах»
+/* 06.10.2026: имя сравнивалось строкой — запись, где контрагент записан с другим
+   регистром или точкой, выпадала, и чек «терялся». Плюс раньше показывались только
+   чеки открытых счетов: закрытые счета, погашения и записи без номера счёта чеков
+   не отдавали вовсе. Теперь orderNo необязателен — пустой значит «все операции». */
 function debtPhotoRows(cp, orderNo){
-  const out = [];
+  const n = normName(cp), out = [];
   for(const e of S.entries){
-    if(e.deleted || !DEBT_CATS.includes(e.cat) || e.cp!==cp) continue;
-    if(orderNo && String(e.orderNo||"")!==String(orderNo)) continue;
+    if(e.deleted || !DEBT_CATS.includes(e.cat) || normName(e.cp)!==n) continue;
+    if(orderNo!=null && String(orderNo)!=="" && String(e.orderNo||"")!==String(orderNo)) continue;
     if(!hasPhoto(e) && !hasItem(e)) continue;
     out.push(e);
   }
-  return out.sort((a,b)=>String(a.bizDate).localeCompare(String(b.bizDate)));
+  return out.sort((a,b)=>String(a.bizDate+(a.ts||"")).localeCompare(String(b.bizDate+(b.ts||""))));
+}
+// строка операции с чеком — дата, примечание, сумма и кнопки
+function rcptOpRow(e){
+  const isOut = e.type==="out";
+  return '<div style="padding:4px 0 2px">'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px">'+
+        '<span style="color:var(--cream)">'+esc(e.bizDate)+(e.orderNo?' <span style="color:var(--ash)">· счёт №'+esc(e.orderNo)+'</span>':'')+
+          (e.note?' <span style="color:var(--ash)">· '+esc(e.note)+'</span>':'')+'</span>'+
+        '<b style="font-family:var(--mono);color:'+(isOut?'var(--out)':'var(--in)')+'">'+(isOut?"−":"+")+fmt(e.amount)+'</b>'+
+      '</div>'+((typeof rcptBtns==="function")?rcptBtns(e):"")+'</div>';
 }
 /* ===== СКЛЕЙКА «ВЫПЛАТА + УДЕРЖАНИЯ» В ЖУРНАЛЕ (01.10.2026) =====
    Касса пишет начисление и встречный взнос отдельными записями: буфер и бой должны
@@ -686,14 +700,29 @@ function detailBox(key, inner){
 // список открытых счетов человека
 function accDetailHtml(cp){
   const accs = openDebts(cp);
-  if(!accs.length) return '<div style="font-size:11.5px;color:var(--ash);padding:4px 0">Нет открытых счетов.</div>';
-  return accs.map(o=>{
-    const ph = (typeof debtPhotoRows==="function") ? debtPhotoRows(cp, o.orderNo) : [];
-    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
-      '<span style="color:var(--cream)">счёт №'+esc(o.orderNo)+' <span style="color:var(--ash)">· '+esc(o.date)+(o.venue?" · "+esc(o.venue):"")+'</span></span>'+
-      '<b style="font-family:var(--mono);color:var(--out)">−'+fmt(o.left)+'</b></div>'+
-      ph.map(e=>'<div style="padding:0 0 6px 10px">'+((typeof rcptBtns==="function")?rcptBtns(e):"")+'</div>').join("");
-  }).join("");
+  const used = new Set();
+  let h = "";
+  if(accs.length){
+    h += accs.map(o=>{
+      const ph = (typeof debtPhotoRows==="function") ? debtPhotoRows(cp, o.orderNo) : [];
+      ph.forEach(e=>used.add(e.id));
+      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px">'+
+        '<span style="color:var(--cream)">счёт №'+esc(o.orderNo)+' <span style="color:var(--ash)">· '+esc(o.date)+(o.venue?" · "+esc(o.venue):"")+'</span></span>'+
+        '<b style="font-family:var(--mono);color:var(--out)">−'+fmt(o.left)+'</b></div>'+
+        ph.map(e=>'<div style="padding:0 0 6px 10px">'+((typeof rcptBtns==="function")?rcptBtns(e):"")+'</div>').join("");
+    }).join("");
+  } else {
+    h += '<div style="font-size:11.5px;color:var(--ash);padding:4px 0">Нет открытых счетов.</div>';
+  }
+  // чеки по закрытым счетам, погашениям и записям без номера — раньше их не было видно
+  if(canSeeReceipts()){
+    const rest = ((typeof debtPhotoRows==="function") ? debtPhotoRows(cp, "") : []).filter(e=>!used.has(e.id));
+    if(rest.length){
+      h += '<div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-dim);margin:8px 0 2px">Другие операции с чеками · '+rest.length+'</div>'+
+           rest.map(rcptOpRow).join("");
+    }
+  }
+  return h;
 }
 // операции по статье «Невозвратные» за этот месяц
 function nevozDetailHtml(cp, mk){
@@ -1316,12 +1345,17 @@ function renderSalary(){
     '</div>'+
     (s.orderDebt>0?'<div class="sect">Общий долг (заказы + аванс)</div><div class="kpi wide"><div class="t">Всего за мной</div><div class="v" style="color:var(--warn)">'+fmt(s.orderDebt)+'</div><div class="s">накопительно по всем месяцам</div></div>':'')+
     (()=>{ // выплаты по датам — от последней (сверху) к первой, как в кассе
-      const mvs=S.entries.filter(e=>!e.deleted && SAL_CATS.includes(e.cat) && String(e.bizDate).slice(0,7)===mk)
+      /* 06.10.2026: месяц берём из примечания — остаток за сентябрь, выданный 1 октября,
+         раньше попадал в октябрь и давал минус на всю сумму. */
+      const mvs=S.entries.filter(e=>!e.deleted && SAL_CATS.includes(e.cat) && entryMonthKey(e)===mk)
         .sort((a,b)=>(b.bizDate+(b.ts||"")).localeCompare(a.bizDate+(a.ts||"")));
       let o='<div class="sect">Выплаты по датам</div>';
       if(!mvs.length) return o+'<div class="empty">Выплат за месяц нет.</div>';
       return o+'<div class="rows">'+mvs.map(e=>{ const isOut=e.type==="out"; const lbl=e.kind==="advance"?"Аванс":(isOut?"Зарплата":"Возврат");
-        return '<div class="row '+(isOut?"r-out":"r-in")+'"><div class="who">'+lbl+'<small>'+esc(e.bizDate)+(e.time?' · '+esc(e.time):'')+(e.method==="card"?' · карта':' · нал')+(e.note?' · '+esc(e.note):'')+'</small></div><div class="amt '+(isOut?"out":"in")+'">'+(isOut?"−":"+")+fmt(e.amount)+'</div></div>'; }).join("")+'</div>';
+        const late = String(e.bizDate).slice(0,7)!==mk;
+        return '<div class="row '+(isOut?"r-out":"r-in")+'"><div class="who">'+lbl+
+          (late?' <span style="border:1px solid var(--gold-dim);color:var(--gold-dim);border-radius:6px;padding:1px 6px;font-size:9.5px;letter-spacing:.05em;white-space:nowrap">ПРОВЕДЕНО '+esc(e.bizDate)+'</span>':'')+
+          '<small>'+esc(e.bizDate)+(e.time?' · '+esc(e.time):'')+(e.method==="card"?' · карта':' · нал')+(e.note?' · '+esc(e.note):'')+'</small></div><div class="amt '+(isOut?"out":"in")+'">'+(isOut?"−":"+")+fmt(e.amount)+'</div></div>'; }).join("")+'</div>';
     })();
 }
 
