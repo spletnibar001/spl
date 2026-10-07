@@ -8,7 +8,7 @@
 <style>
 :root{
   --bg:#14161a; --panel:#1c1f25; --panel2:#22262e; --line:#2e333d;
-  --text:#e8eaee; --muted:#8b93a1; --emerald:#1fbf7a; --gold:#d9b04c; --red:#e25c5c; --pink:#ff8fb0;
+  --text:#e8eaee; --muted:#8b93a1; --emerald:#1fbf7a; --gold:#d9b04c; --red:#e25c5c; --pink:#ff8fb0; --orange:#f0a050;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px}
@@ -168,6 +168,35 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
 .search input{width:100%;height:42px;border:1px solid var(--gold);background:var(--bg);border-radius:10px;padding:0 12px;margin:4px 0}
 .tg-msg{background:#1f2a36;border-radius:14px 14px 14px 4px;padding:12px 14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;overflow:auto}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;background:#e8eaee;color:#14161a;padding:10px 16px;border-radius:12px;font-weight:700;display:none;max-width:92vw;text-align:center}
+/* сборка 4: пожелания, повтор, AST, «стол не пел», подборки, «не нашли» */
+.q-t .tags{display:block;margin-top:2px}
+.wtag{display:inline-block;font-size:10.5px;font-weight:800;color:var(--emerald);border:1px solid var(--emerald);border-radius:5px;padding:0 5px;margin:2px 4px 0 0}
+.rtag{display:inline-block;font-size:10.5px;font-weight:800;color:var(--orange);border:1px dashed var(--orange);border-radius:5px;padding:0 5px;margin:2px 4px 0 0}
+.atag{display:inline-block;font-size:10.5px;font-weight:800;color:var(--bg);background:var(--emerald);border-radius:5px;padding:1px 6px;margin:2px 4px 0 0}
+.silent-note{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 2px;padding:9px 11px;border:1px solid var(--orange);border-radius:12px;background:rgba(240,160,80,.07);font-size:13px;color:var(--text)}
+.silent-note b{color:var(--orange)}
+.silent-note button{height:30px;padding:0 10px;border:1px solid var(--orange);background:transparent;border-radius:8px;color:var(--orange);font-weight:800;font-size:12.5px}
+.tc.silent{border-color:var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}
+.tc .sl{color:var(--orange);font-weight:800}
+.m-row .rep{display:block;color:var(--orange);font-size:11.5px;font-weight:700}
+.c-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.c-row:first-child{border-top:0}
+.c-row b{display:block;font-weight:800}
+.c-row span{display:block;color:var(--muted);font-size:12.5px}
+.c-it{display:grid;grid-template-columns:5em minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.c-it .num{font-size:16px;grid-area:auto}
+.c-it .q-t{grid-area:auto}
+.q-t .tags span,.now .tt span.wtag{display:inline-block;width:auto;font-size:10.5px;margin-top:2px}
+.q-t .tags .wtag,.now .tt .wtag{color:var(--emerald)}
+.q-t .tags .rtag{color:var(--orange)}
+.q-t .tags .atag{color:var(--bg)}
+.c-it .ia{display:flex;gap:4px}
+.c-it .ia button{height:32px;min-width:32px;border:1px solid var(--line);background:transparent;border-radius:8px;color:var(--muted);font-weight:800}
+.ms-row{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+.ms-row:first-child{border-top:0}
+.ms-row i{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums}
+.ms-row b{font-weight:800;overflow-wrap:anywhere}
+.ms-row span{color:var(--muted);font-size:12.5px;white-space:nowrap}
 #auth{padding:60px 20px;text-align:center;color:var(--muted);line-height:1.6}
 #auth b{color:var(--text);font-size:16px}
 .side{display:grid;gap:12px}
@@ -195,6 +224,8 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
     <div class="sp"></div>
     <button type="button" class="btn" id="openBtn">Приём заявок</button>
     <button type="button" class="btn gold" id="testBtn" hidden>Тестовый режим</button>
+    <button type="button" class="btn" id="collBtn">Подборки</button>
+    <button type="button" class="btn" id="missBtn">Искали и не нашли</button>
     <button type="button" class="btn" id="repBtn">Отчёт за вечер</button>
   </div>
   <div class="views" id="views" role="tablist">
@@ -206,6 +237,7 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
     <div class="main-col">
       <div class="card" id="now"></div>
       <div class="sk-info" id="skinfo"></div>
+      <div id="idle"></div>
       <div id="queue"></div>
     </div>
     <div class="side">
@@ -265,15 +297,36 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
     <button type="button" class="btn" id="rClose" style="margin-top:12px;flex:none">Закрыть</button>
   </div>
 </div>
+<div class="modal" id="cModal" hidden>
+  <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="cH">
+    <h3 id="cH">Подборки для гостей</h3>
+    <p>Гости видят подборки в каталоге над поиском, по порядку. Пустые и спрятанные - не видят.</p>
+    <div class="m-list" id="cBody"></div>
+    <button type="button" class="btn" id="cClose" style="margin-top:10px;flex:none">Закрыть</button>
+  </div>
+</div>
+<div class="modal" id="mModal" hidden>
+  <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="mH">
+    <h3 id="mH">Искали и не нашли</h3>
+    <p>Гости искали в каталоге и ничего не нашли - самые частые запросы стоит докупить в AST-250. По понедельникам в 12:00 этот список за неделю приходит ботом.</p>
+    <div class="segm" id="mDays" role="group" aria-label="За сколько дней" style="margin-bottom:8px"><button type="button" data-d="7" class="on">7 дней</button><button type="button" data-d="30">30 дней</button><button type="button" data-d="90">90 дней</button></div>
+    <div class="m-list" id="mBody"></div>
+    <button type="button" class="btn" id="mClose" style="margin-top:10px;flex:none">Закрыть</button>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
-/* SPLETNI · планшет звукооператора · сборка 1 · 06.10.2026
+/* SPLETNI · планшет звукооператора · сборка 4 · 07.10.2026
+   (пожелания гостей, повтор песни, «стол не пел», подборки, «искали и не нашли», AST-250)
    Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; данные: rpc song_call */
 "use strict";
 const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
-const ZVUK_VERSION = "сборка 3";
+const ZVUK_VERSION = "сборка 4";
+const WISH = { duet: "дуэт", lower: "тон ниже", higher: "тон выше", female: "женская версия", male: "мужская версия" };
+const wishTags = w => (w || []).map(x => '<span class="wtag">' + esc(WISH[x] || x) + "</span>").join("");
+const minFmt = m => m < 60 ? m + " мин" : Math.floor(m / 60) + " ч " + String(m % 60).padStart(2, "0") + " мин";
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) ? b : c; };
@@ -281,7 +334,7 @@ const mmss = d => Math.floor(d / 60) + ":" + String(Math.max(0, d) % 60).padStar
 const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const GRIP = '<svg viewBox="0 0 12 20" width="12" height="20" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="4" r="1.7"/><circle cx="9" cy="4" r="1.7"/><circle cx="3" cy="10" r="1.7"/><circle cx="9" cy="10" r="1.7"/><circle cx="3" cy="16" r="1.7"/><circle cx="9" cy="16" r="1.7"/></g></svg>';
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3l-1.3-1.2C6 14.9 3 12.2 3 8.8 3 6.1 5.1 4 7.8 4c1.5 0 3 .7 4.2 1.9C13.2 4.7 14.7 4 16.2 4 18.9 4 21 6.1 21 8.8c0 3.4-3 6.1-7.7 10.3z"/></svg>';
-const ERR = { poll_few: "Отметьте хотя бы 2 исполнения", poll_running: "Голосование уже идёт", skip_used: "Вне очереди в этом круге уже было", bad_name: "Напишите имя именинника", no_likes: "Пока нет лайков", bad_args: "Не хватает данных", network: "Нет связи с сервером" };
+const ERR = { bad_title: "Название - хотя бы 2 буквы", coll_full: "В подборке уже 100 песен", poll_few: "Отметьте хотя бы 2 исполнения", poll_running: "Голосование уже идёт", skip_used: "Вне очереди в этом круге уже было", bad_name: "Напишите имя именинника", no_likes: "Пока нет лайков", bad_args: "Не хватает данных", network: "Нет связи с сервером" };
 
 let TOKEN = null, ST = null, OFFSET = 0, drag = null, busy = false, lastFlush = 0, CAT = null, oTable = null, prevQueueIds = new Set();
 
@@ -371,9 +424,10 @@ function renderNow(){
   const p = ST.playing, nx = ST.queue[0];
   if (p){
     $("#now").innerHTML = '<div class="lbl">Сейчас играет</div><div class="now"><div class="bignum">' + p.n + '</div><div class="tt"><b>' + esc(p.t) + "</b><span>" + esc(p.a) + " · " + mmss(p.d) + "</span><span>Стол " + p.table_no + " · " + esc(p.by || "") + " · круг " + p.round + "</span>" +
-      (ST.ast_mode === "auto" ? '<span class="pill on">Номер ушёл в AST-250</span>' : '<span class="pill wait">Наберите номер на пульте</span>') + "</div>" +
+      ((p.wish || []).length ? "<span>Пожелание гостя: " + wishTags(p.wish) + "</span>" : "") +
+      (ST.ast_mode === "auto" && p.ast_sent ? '<span class="pill on">Номер в пульте AST-250</span>' : ST.ast_mode === "auto" ? '<span class="pill wait">Номер ещё не ушёл в пульт - наберите вручную</span>' : '<span class="pill wait">Наберите номер на пульте</span>') + "</div>" +
       '<div class="prog"><i id="prog"></i></div><div class="over" id="over" hidden>Песня закончилась - запускайте следующую</div>' +
-      (nx ? '<div class="nextnum">Следующая: <b>' + nx.n + "</b> · стол " + nx.table_no + " · " + esc(nx.t) + "</div>" : "") +
+      (nx ? '<div class="nextnum">Следующая: <b>' + nx.n + "</b> · стол " + nx.table_no + " · " + esc(nx.t) + ((nx.wish || []).length ? " · " + nx.wish.map(w => esc(WISH[w] || w)).join(", ") : "") + "</div>" : "") +
       '<div class="acts2"><button type="button" class="btn main" data-op="next">' + (nx ? "Спета - запустить следующую" : "Спета") + '</button><button type="button" class="btn" data-op="skipped">Пропустить</button></div></div>';
     tick();
   } else {
@@ -402,12 +456,17 @@ function renderQueue(){
     const fresh = prevQueueIds.size && !prevQueueIds.has(q.id);
     h += '<div class="q-row' + (fresh ? " mine-new" : "") + '" data-id="' + q.id + '"><button type="button" class="grip" data-grip="' + q.id + '" aria-label="Перетащить: стол ' + q.table_no + ", " + esc(q.t) + '. Стрелки вверх и вниз сдвигают">' + GRIP + "</button>" +
       '<span class="pos">' + (i + 1) + '</span><div class="tb"><button type="button" class="tbtn" data-tcard="' + q.table_no + '">Стол ' + q.table_no + "</button>" + (q.skip ? '<span class="tag">вне очереди</span>' : "") + "<small>" + esc(q.by || "") + "</small></div>" +
-      '<span class="num">' + q.n + '</span><div class="q-t"><b>' + esc(q.t) + "</b><span>" + esc(q.a) + " · " + mmss(q.d) + '</span></div><span class="wt">' + wait + " мин</span>" +
+      '<span class="num">' + q.n + '</span><div class="q-t"><b>' + esc(q.t) + "</b><span>" + esc(q.a) + " · " + mmss(q.d) + "</span>" +
+      (((q.wish || []).length || q.rep || (s.ast_mode === "auto" && q.ast_sent)) ? '<span class="tags">' + wishTags(q.wish) + (q.rep ? '<span class="rtag">повтор: ' + esc(q.rep) + "</span>" : "") + (s.ast_mode === "auto" && q.ast_sent ? '<span class="atag">в пульте</span>' : "") + "</span>" : "") +
+      '</div><span class="wt">' + wait + " мин</span>" +
       '<div class="q-acts">' + (i > 0 ? '<button type="button" class="skb" data-sk="' + q.id + '"' + (su && su.id !== q.id ? ' disabled aria-label="Вне очереди: в этом круге уже было"' : "") + ">Вне очереди</button>" : "") +
       '<button type="button" data-later="' + q.id + '">+ круг</button><button type="button" data-del="' + q.id + '" aria-label="Убрать песню">×</button></div></div>';
   });
   prevQueueIds = ids;
   $("#queue").innerHTML = h || '<div class="empty"><b>Очередь пуста</b>Заявки гостей появятся здесь сами</div>';
+  // «стол не пел»: сидят дольше idle_min минут и не заказали ни одной песни
+  const idle = silentTables();
+  $("#idle").innerHTML = idle.length ? '<div class="silent-note"><b>Не пели ' + ST.idle_min + '+ мин:</b>' + idle.map(t => '<button type="button" data-tcard="' + t.table_no + '">стол ' + t.table_no + " · " + minFmt(t.seated_min) + "</button>").join("") + '<span style="color:var(--muted)">подойдите, предложите песню</span></div>' : "";
   if (fg){ const g = $('#queue [data-grip="' + fg + '"]'); if (g) g.focus(); }
 }
 function renderScreen(){
@@ -474,12 +533,18 @@ function renderVotes(){
     '<button type="button" class="btn gold" id="voteShow" style="width:100%;margin-top:8px">Лидера на экран · 30 сек</button>'
     : '<div class="note">Гости ставят лайк песне в мини-аппе - прямо пока её поют. Лидер по лайкам - голос вечера.</div>';
 }
+function silentTables(){
+  return (ST.tables || []).filter(t => t.status === "seated" && !t.songs && t.seated_min != null && t.seated_min >= (ST.idle_min || 45))
+    .sort((a, b) => b.seated_min - a.seated_min);
+}
 function renderTables(){
+  const silent = new Set(silentTables().map(t => t.table_no));
   $("#tables").innerHTML = ST.tables.map(t => {
     const corner = t.corner ? "<small>УГЛ</small>" : "";
     if (!t.booking_id) return '<div class="tc idle"><div class="n">' + t.table_no + corner + '</div><div class="w">свободен</div><div class="c">' + (t.next ? esc(t.next) : "&nbsp;") + "</div></div>";
-    return '<button type="button" class="tc' + (t.status === "seated" ? " seated" : "") + (t.pending >= t.limit ? " full" : "") + '" data-t="' + t.table_no + '"><div class="n">' + t.table_no + corner + '</div><div class="w">' + esc(t.name || "") + '</div><div class="c">' +
-      (t.status === "seated" ? "в очереди <b>" + t.pending + "/" + t.limit + "</b>" : "ожидаем к " + esc(t.arrive || "")) + "</div></button>";
+    const sl = silent.has(t.table_no);
+    return '<button type="button" class="tc' + (t.status === "seated" ? " seated" : "") + (sl ? " silent" : "") + (t.pending >= t.limit ? " full" : "") + '" data-t="' + t.table_no + '"><div class="n">' + t.table_no + corner + '</div><div class="w">' + esc(t.name || "") + '</div><div class="c">' +
+      (sl ? '<span class="sl">не пел ' + minFmt(t.seated_min) + "</span>" : t.status === "seated" ? "в очереди <b>" + t.pending + "/" + t.limit + "</b>" : "ожидаем к " + esc(t.arrive || "")) + "</div></button>";
   }).join("");
 }
 
@@ -494,13 +559,19 @@ async function loadCat(){
     for (let i = 0, k = 0; i < N; i++, k += 5) CAT.hay[i] = norm(s[k + 1] + " " + j.a[s[k + 2]]) + " " + s[k];
   }catch(e){ CAT = null; $("#tList").innerHTML = '<div class="empty">Каталог не загрузился</div>'; }
 }
-function rowAdd(n, t, a, d){ return '<div class="m-row"><span class="num">' + n + '</span><div class="q-t"><b>' + esc(t) + "</b><span>" + esc(a) + (d ? " · " + mmss(d) : "") + '</span></div><button type="button" class="btn" data-addn="' + n + '" data-t="' + esc(t) + '" data-a="' + esc(a) + '" data-d="' + (d || 240) + '">Добавить</button></div>'; }
+function repOf(n){ const r = ST && ST.tonight && ST.tonight[String(n)]; return !r ? "" : r.s === "q" ? "уже в очереди · стол " + r.t : "сегодня пели" + (r.at ? " в " + r.at : "") + " · стол " + r.t; }
+function rowAdd(n, t, a, d, btn){ const rep = repOf(n); return '<div class="m-row"><span class="num">' + n + '</span><div class="q-t"><b>' + esc(t) + "</b><span>" + esc(a) + (d ? " · " + mmss(d) : "") + "</span>" + (rep ? '<span class="rep">' + esc(rep) + "</span>" : "") + '</div><button type="button" class="btn" data-' + (btn || "addn") + '="' + n + '" data-t="' + esc(t) + '" data-a="' + esc(a) + '" data-d="' + (d || 240) + '">Добавить</button></div>'; }
+function catSearch(q, max){
+  const toks = norm(q).split(" ").filter(Boolean), out = [];
+  if (!CAT || !toks.length) return out;
+  for (let i = 0; i < CAT.N && out.length < (max || 50); i++) if (toks.every(t => CAT.hay[i].includes(t))) out.push(i);
+  return out;
+}
 function renderTList(){
   if (!CAT){ $("#tList").innerHTML = '<div class="empty">Загружаем каталог…</div>'; return; }
   const q = norm($("#tq").value);
   if (!q){ $("#tList").innerHTML = '<div class="note">Введите название, исполнителя или номер</div>'; return; }
-  const toks = q.split(" "), out = [];
-  for (let i = 0; i < CAT.N && out.length < 50; i++) if (toks.every(t => CAT.hay[i].includes(t))) out.push(i);
+  const out = catSearch(q, 50);
   $("#tList").innerHTML = out.map(i => { const k = i * 5; return rowAdd(CAT.s[k], CAT.s[k + 1], CAT.A[CAT.s[k + 2]], CAT.s[k + 3]); }).join("") || '<div class="empty">Ничего не нашлось</div>';
 }
 async function openTable(t){
@@ -533,6 +604,7 @@ $("#now").addEventListener("click", e => {
   else if (b.dataset.op === "skipped") act("next", { result: "skipped" });
   else act("next");
 });
+$("#idle").addEventListener("click", e => { const b = e.target.closest("[data-tcard]"); if (b) openTable(+b.dataset.tcard); });
 $("#queue").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || b.classList.contains("grip") || b.disabled) return;
   const d = b.dataset;
@@ -582,7 +654,81 @@ $("#tModal").addEventListener("click", e => {
   const b = e.target.closest("[data-addn]"); if (b) addFromBtn(b);
 });
 $("#views").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (!b) return; $("#grid").dataset.v = b.dataset.v; $("#views").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
-addEventListener("keydown", e => { if (e.key === "Escape"){ $("#tModal").hidden = true; $("#rModal").hidden = true; $("#xModal").hidden = true; } });
+addEventListener("keydown", e => { if (e.key === "Escape"){ $("#tModal").hidden = true; $("#rModal").hidden = true; $("#xModal").hidden = true; $("#cModal").hidden = true; $("#mModal").hidden = true; } });
+
+/* ---------- подборки для каталога гостей ---------- */
+let COLLS = [], cOpen = null, cQ = "";
+function renderColls(){
+  const b = $("#cBody");
+  const cl = COLLS.find(x => x.id === cOpen);
+  if (!cl){
+    cOpen = null;
+    b.innerHTML = (COLLS.length ? COLLS.map(x => '<div class="c-row"><div><b>' + esc(x.title) + "</b><span>" + x.songs.length + " " + plural(x.songs.length, "песня", "песни", "песен") + " · " +
+        (!x.active ? "спрятана" : x.songs.length ? "видят гости" : "пустая - гости не видят") + '</span></div><button type="button" class="btn' + (x.active && x.songs.length ? " on" : "") + '" data-copen="' + x.id + '">Открыть</button></div>').join("")
+      : '<div class="note">Подборок пока нет</div>') +
+      '<div class="sub-lbl">Новая подборка</div><div class="form" style="grid-template-columns:minmax(0,1fr) auto"><input id="cNew" maxlength="40" placeholder="Например: Хиты 90-х" autocomplete="off" aria-label="Название новой подборки"><button type="button" class="btn main" data-cnew="1">Создать</button></div>';
+    return;
+  }
+  let h = '<button type="button" class="btn" data-cback="1" style="margin-bottom:8px">← Все подборки</button>' +
+    '<div class="form" style="grid-template-columns:minmax(0,1fr) auto;margin-top:0"><input id="cTitle" maxlength="40" value="' + esc(cl.title) + '" aria-label="Название подборки"><button type="button" class="btn" data-crename="1">Переименовать</button></div>' +
+    '<div class="form" style="grid-template-columns:minmax(0,1fr) auto"><button type="button" class="btn ' + (cl.active ? "on" : "") + '" data-cactive="1" aria-pressed="' + cl.active + '">' + (cl.active ? "Видят гости" : "Спрятана от гостей") + '</button><button type="button" class="btn" data-cdel="1">Удалить подборку</button></div>' +
+    '<div class="sub-lbl">Песни · ' + cl.songs.length + "</div>";
+  h += cl.songs.length ? cl.songs.map((x, i) => '<div class="c-it"><span class="num">' + x[0] + '</span><div class="q-t"><b>' + esc(x[1]) + "</b><span>" + esc(x[2]) + '</span></div><div class="ia">' +
+      '<button type="button" data-cmv="' + x[0] + '" data-dir="-1" aria-label="Выше"' + (i === 0 ? " disabled" : "") + ">↑</button>" +
+      '<button type="button" data-cmv="' + x[0] + '" data-dir="1" aria-label="Ниже"' + (i === cl.songs.length - 1 ? " disabled" : "") + ">↓</button>" +
+      '<button type="button" data-crm="' + x[0] + '" aria-label="Убрать из подборки">×</button></div></div>').join("") : '<div class="note">Пока пусто - найдите песни ниже и добавьте</div>';
+  h += '<div class="sub-lbl">Добавить песню</div><div class="search"><input id="cq" type="search" placeholder="Название, исполнитель или номер" autocomplete="off" value="' + esc(cQ) + '" aria-label="Поиск песни для подборки"></div><div id="cRes"></div>';
+  b.innerHTML = h;
+  renderCRes();
+}
+function renderCRes(){
+  const el = $("#cRes"); if (!el) return;
+  if (!CAT){ el.innerHTML = '<div class="note">Загружаем каталог…</div>'; return; }
+  if (!norm(cQ)){ el.innerHTML = ""; return; }
+  const cl = COLLS.find(x => x.id === cOpen), have = new Set(cl ? cl.songs.map(x => x[0]) : []);
+  const out = catSearch(cQ, 30).filter(i => !have.has(CAT.s[i * 5]));
+  el.innerHTML = out.map(i => { const k = i * 5; return rowAdd(CAT.s[k], CAT.s[k + 1], CAT.A[CAT.s[k + 2]], CAT.s[k + 3], "caddn"); }).join("") || '<div class="note">Ничего не нашлось</div>';
+}
+async function collAct(action, args){
+  const d = await api(action, args || {});
+  if (d.error && !d.colls){ toast(ERR[d.error] || ("Ошибка: " + d.error)); return; }
+  if (d.error) toast(ERR[d.error] || ("Ошибка: " + d.error));
+  COLLS = d.colls || [];
+  if (d.open) cOpen = d.open;
+  renderColls();
+}
+$("#collBtn").addEventListener("click", () => { $("#cModal").hidden = false; cOpen = null; cQ = ""; $("#cBody").innerHTML = '<div class="note">Загрузка…</div>'; loadCat().then(renderCRes); collAct("colls"); });
+$("#cModal").addEventListener("click", e => {
+  const t = e.target;
+  if (t.id === "cModal" || t.id === "cClose"){ $("#cModal").hidden = true; return; }
+  const o = t.closest("[data-copen]"); if (o){ cOpen = +o.dataset.copen; cQ = ""; renderColls(); return; }
+  if (t.closest("[data-cback]")){ cOpen = null; renderColls(); return; }
+  if (t.closest("[data-cnew]")){ const v = $("#cNew").value.trim(); if (v.length < 2){ toast(ERR.bad_title); return; } collAct("coll_save", { title: v }); return; }
+  if (t.closest("[data-crename]")){ collAct("coll_save", { id: cOpen, title: $("#cTitle").value.trim() }).then(() => toast("Сохранено")); return; }
+  if (t.closest("[data-cactive]")){ const cl = COLLS.find(x => x.id === cOpen); collAct("coll_active", { id: cOpen, on: !(cl && cl.active) }); return; }
+  if (t.closest("[data-cdel]")){ const cl = COLLS.find(x => x.id === cOpen); if (confirm("Удалить подборку «" + (cl ? cl.title : "") + "»?")){ const id = cOpen; cOpen = null; collAct("coll_del", { id }); } return; }
+  const mv = t.closest("[data-cmv]"); if (mv && !mv.disabled){ collAct("coll_move", { id: cOpen, n: +mv.dataset.cmv, dir: +mv.dataset.dir }); return; }
+  const rm = t.closest("[data-crm]"); if (rm){ collAct("coll_rm", { id: cOpen, n: +rm.dataset.crm }); return; }
+  const ad = t.closest("[data-caddn]"); if (ad){ collAct("coll_add", { id: cOpen, n: +ad.dataset.caddn, t: ad.dataset.t, a: ad.dataset.a, d: +ad.dataset.d }).then(() => toast("Добавлено в подборку")); }
+});
+$("#cModal").addEventListener("input", e => { if (e.target.id === "cq"){ cQ = e.target.value; clearTimeout(renderCRes.t); renderCRes.t = setTimeout(renderCRes, 120); } });
+$("#cModal").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "cNew") $("#cModal [data-cnew]").click(); });
+
+/* ---------- «искали и не нашли» ---------- */
+let missDays = 7;
+async function loadMisses(){
+  $("#mBody").innerHTML = '<div class="note">Загрузка…</div>';
+  const d = await api("misses", { days: missDays });
+  if (d.error){ $("#mBody").innerHTML = '<div class="err">' + esc(ERR[d.error] || d.error) + "</div>"; return; }
+  const m = d.misses || [];
+  $("#mBody").innerHTML = m.length ? m.map((x, i) => '<div class="ms-row"><i>' + (i + 1) + "</i><b>«" + esc(x.q) + "»</b><span>" + x.n + " " + plural(x.n, "гость", "гостя", "гостей") + " · " + esc(x.last) + "</span></div>").join("")
+    : '<div class="note">За ' + missDays + " " + plural(missDays, "день", "дня", "дней") + " гости всё находили</div>";
+}
+$("#missBtn").addEventListener("click", () => { $("#mModal").hidden = false; loadMisses(); });
+$("#mModal").addEventListener("click", e => {
+  if (e.target.id === "mModal" || e.target.id === "mClose"){ $("#mModal").hidden = true; return; }
+  const d = e.target.closest("[data-d]"); if (d){ missDays = +d.dataset.d; $("#mDays").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === d)); loadMisses(); }
+});
 
 /* ---------- перетаскивание плиток (мышь, палец, стрелки) ---------- */
 const QE = $("#queue");
