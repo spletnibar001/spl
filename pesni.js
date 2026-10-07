@@ -1,7 +1,7 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
-   Сборка 3 · 07.10.2026 (тестовый режим, голосование на экране)
+   Сборка 4 · 07.10.2026 (вкладка «История»: что и когда спето)
    - каталог AST-250 (pesni/songs.json), поиск, топ недели, новинки
-   - избранное и «Я пел в SPLETNI»
+   - избранное и «История» (что и когда спето)
    - «Мой стол»: заказ на свой стол, когда хостес отметила «гость сел»;
      примерное время, что поют в зале, лайки («Голос вечера»), друзья за столом
    Вход: подпись Telegram -> Edge Function songs (login) -> токен сессии;
@@ -51,7 +51,12 @@ const CSS = `
 .sg-h h2{margin:0;font-size:22px;font-weight:800}
 .sg-h span{font-size:12px;color:var(--muted)}
 .sg-tabs{display:flex;gap:6px;margin-bottom:12px}
-.sg-tabs button{flex:1;position:relative;padding:10px 6px;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:11px;font-size:13px;font-weight:700}
+.sg-tabs button{flex:1 1 0;min-width:0;position:relative;padding:10px 2px;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:11px;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:370px){.sg-tabs{gap:4px}.sg-tabs button{font-size:11.5px;padding:9px 1px}}
+.sg-hday{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:16px 0 4px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+.sg-hday b{font-size:14px}
+.sg-hday span{font-size:12px;color:var(--muted);white-space:nowrap}
+.sg-hsum{font-size:12.5px;color:var(--muted);margin:0 0 6px}
 .sg-tabs button.on{border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.10)}
 .sg-badge{position:absolute;top:-6px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold);color:#111;font-size:11px;font-weight:800;line-height:18px}
 .sg-search{position:relative;margin-bottom:10px}
@@ -300,19 +305,31 @@ function renderList(){ const el = document.getElementById("sg-list"); if (el) el
 
 function scrFav(){
   const me = PS.me || {};
-  let h = '<div class="sg-chips"><button type="button" class="' + (PS.fmode === "fav" ? "on" : "") + '" data-fm="fav">Избранное (' + (me.favs || []).length + ')</button><button type="button" class="' + (PS.fmode === "hist" ? "on" : "") + '" data-fm="hist">Я пел в SPLETNI</button></div>';
-  if (PS.fmode === "fav"){
-    h += orderNote();
-    h += (me.favs || []).length ? (me.favs.map(f => songRow(f[0], f[1], f[2], f[3])).join("")) : '<div class="sg-empty"><b>Пока пусто</b>Отмечайте песни звёздочкой в каталоге - соберите список дома, а в зале заказывайте в одно касание</div>';
-  } else {
-    const hist = me.history || [];
-    if (!hist.length) h += '<div class="sg-empty"><b>Здесь будут спетые песни</b>' + (me.reg ? "Всё, что вы спели в SPLETNI, сохранится тут" : "Поделитесь номером во вкладке «Мой стол» - и мы покажем песни ваших прошлых визитов") + "</div>";
-    hist.forEach(v => {
-      const dt = new Date(v.date + "T12:00:00");
-      h += '<div class="sg-day">' + dt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + " <span>· стол " + v.table_no + "</span></div>";
-      h += v.songs.map(x => songRow(x[0], x[1], x[2], x[3])).join("");
-    });
-  }
+  let h = orderNote();
+  h += (me.favs || []).length ? (me.favs.map(f => songRow(f[0], f[1], f[2], f[3])).join("")) : '<div class="sg-empty"><b>Пока пусто</b>Отмечайте песни звёздочкой в каталоге - соберите список дома, а в зале заказывайте в одно касание</div>';
+  return h;
+}
+// История: что пел гость и когда - по вечерам, у каждой песни время и лайки зала
+function histDay(d){
+  const dt = new Date(d + "T12:00:00"), now = new Date();
+  const biz = new Date(now.getTime() - 5 * 3600e3);   // вечер до 05:00 - ещё «сегодня»
+  const key = x => x.getFullYear() + "-" + x.getMonth() + "-" + x.getDate();
+  const y = new Date(biz.getTime() - 864e5);
+  const opt = { day: "numeric", month: "long", weekday: "short" };
+  if (dt.getFullYear() !== biz.getFullYear()) opt.year = "numeric";
+  const txt = dt.toLocaleDateString("ru-RU", opt);
+  return key(dt) === key(biz) ? "Сегодня, " + txt : key(dt) === key(y) ? "Вчера, " + txt : txt;
+}
+function scrHist(){
+  const me = PS.me || {};
+  const hist = me.history || [];
+  if (!hist.length) return '<div class="sg-empty"><b>Здесь будет ваша история</b>' + (me.reg ? "Что и когда вы спели в SPLETNI - появится тут после первой песни" : "Поделитесь номером во вкладке «Мой стол» - и мы покажем, что вы пели в прошлые визиты") + "</div>";
+  const total = hist.reduce((s, v) => s + v.songs.length, 0);
+  let h = '<div class="sg-hsum">' + total + " " + plural(total, "песня", "песни", "песен") + " за " + hist.length + " " + plural(hist.length, "вечер", "вечера", "вечеров") + (hist.length >= 20 ? " (последние)" : "") + "</div>";
+  hist.forEach(v => {
+    h += '<div class="sg-hday"><b>' + histDay(v.date) + "</b><span>стол " + v.table_no + " · " + v.songs.length + " " + plural(v.songs.length, "песня", "песни", "песен") + "</span></div>";
+    h += v.songs.map(x => songRow(x[0], x[1], x[2], 0, (x[4] ? " · в " + x[4] : "") + (x[5] ? " · ♥ " + x[5] : ""))).join("");
+  });
   return h;
 }
 function likeBtn(x){
@@ -382,7 +399,7 @@ function scrTable(){
     (tb.role === "owner" ? '<button type="button" class="sg-x" data-unm="' + m.id + '" aria-label="Убрать из-за стола">×</button>' : "<span></span>") + "</div>").join("");
   h += "</div>";
   if (tb.role === "owner"){
-    h += '<div class="sg-sec">Добавить друга за стол</div><div style="font-size:13px;color:var(--muted);line-height:1.45">Друг сможет заказывать песни на ваш стол - в общий лимит стола (' + tb.limit + '). Доступ до конца вечера.</div>' +
+    h += '<div class="sg-sec">Добавить друга за стол</div><div style="font-size:13px;color:var(--muted);line-height:1.45">Друг сможет заказывать песни на ваш стол - в общий лимит стола (' + tb.limit + ' ' + plural(tb.limit, "песня", "песни", "песен") + '). Доступ до конца вечера.</div>' +
       '<div class="sg-in"><input id="sg-fphone" type="tel" inputmode="numeric" placeholder="Номер друга: 93 555 56 78" autocomplete="off" aria-label="Номер друга"><button type="button" id="sg-fadd">Добавить</button></div><div id="sg-fmsg"></div>' +
       '<button type="button" class="sg-btn ghost" id="sg-link">Код для друга</button><div id="sg-linkbox"></div>';
   } else {
@@ -415,11 +432,12 @@ function render(){
   const qn = PS.me ? (PS.me.mine || []).filter(x => x.status === "queued").length : 0;
   const active = document.activeElement && document.activeElement.id;
   const keepScroll = window.scrollY;
-  let body = PS.tab === "cat" ? scrCat() : PS.tab === "fav" ? scrFav() : scrTable();
+  let body = PS.tab === "cat" ? scrCat() : PS.tab === "fav" ? scrFav() : PS.tab === "hist" ? scrHist() : scrTable();
   const head = '<div class="sg-h"><h2>Песни</h2><span>Большой зал · AST-250</span></div>' +
     '<div class="sg-tabs" role="tablist">' +
     '<button type="button" data-tab="cat" class="' + (PS.tab === "cat" ? "on" : "") + '">Каталог</button>' +
     '<button type="button" data-tab="fav" class="' + (PS.tab === "fav" ? "on" : "") + '">Избранное</button>' +
+    '<button type="button" data-tab="hist" class="' + (PS.tab === "hist" ? "on" : "") + '">История</button>' +
     '<button type="button" data-tab="table" class="' + (PS.tab === "table" ? "on" : "") + '">Мой стол' + (tb && qn ? '<span class="sg-badge">' + qn + "</span>" : "") + "</button></div>" +
     '<div id="sg-pb">' + pollBanner() + "</div>";
   // при поиске не трогаем поле ввода - перерисовываем только список
@@ -496,7 +514,6 @@ function onClick(e){
   const t = e.target;
   const tabB = t.closest("[data-tab]"); if (tabB && tabB.closest(".sg-tabs")){ PS.tab = tabB.dataset.tab; render(); window.scrollTo(0, 0); if (PS.tab === "cat") loadCat(); return; }
   const m = t.closest("[data-mode]"); if (m){ PS.mode = m.dataset.mode; PS.limit = 60; if (PS.mode !== "all") PS.q = ""; const i = document.getElementById("sg-q"); if (i && PS.mode !== "all") i.value = ""; document.querySelectorAll("#sec-songs [data-mode]").forEach(b => b.classList.toggle("on", b === m)); renderList(); return; }
-  const fm = t.closest("[data-fm]"); if (fm){ PS.fmode = fm.dataset.fm; render(); return; }
   const more = t.closest("[data-more]"); if (more){ PS.limit += 60; renderList(); return; }
   const f = t.closest("[data-fav]"); if (f){ toggleFav(+f.dataset.fav); return; }
   const a = t.closest("[data-add]"); if (a && !a.disabled){ a.disabled = true; addSong(+a.dataset.add); return; }
