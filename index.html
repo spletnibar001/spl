@@ -1349,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 06.10 · сборка 57";
+const APP_VERSION = "v 07.10 · сборка 58";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4273,20 +4273,36 @@ async function startApp(){
   }
   $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
   $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
-  $("btn-approve").addEventListener("click", async ()=>{
-    const weekKey = iso(viewStart);
-    if(isApproved(weekKey)){
-      if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
-      if(!confirm("Снять утверждение недели?")) return;
-      const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
-      if(error) showMsg(error.message);
-    }else{
-      if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
-      const {error} = await sb.from("approvals").insert({week_start:weekKey});
-      if(error) showMsg(error.message);
-      else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
+  /* УТВЕРЖДЕНИЕ НЕДЕЛИ (07.10.2026).
+     Было insert — если строка за неделю уже есть в БД (а в локальном списке её нет,
+     например утвердили с другого устройства), приходило «duplicate key value violates
+     unique constraint "approvals_pkey"». Плюс первое нажатие ничего видимого не делало:
+     запрос шёл долго, кнопка оставалась активной, и по второму нажатию уходил второй
+     запрос. Теперь upsert (повторное утверждение безвредно) и блокировка на время работы. */
+  $("btn-approve").addEventListener("click", async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.dataset.busy==="1") return;
+    btn.dataset.busy="1"; btn.disabled=true;
+    const label0 = btn.textContent;
+    try{
+      const weekKey = iso(viewStart);
+      if(isApproved(weekKey)){
+        if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
+        if(!confirm("Снять утверждение недели?")) return;
+        const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
+        if(error) showMsg(error.message);
+      }else{
+        if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
+        btn.textContent = "утверждаю…";
+        const {error} = await sb.from("approvals").upsert({week_start:weekKey},{onConflict:"week_start"});
+        if(error) showMsg(error.message);
+        else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
+      }
+      await refresh();
+    } finally {
+      btn.dataset.busy="0"; btn.disabled=false;
+      if(btn.textContent==="утверждаю…") btn.textContent = label0;
     }
-    await refresh();
   });
   $("pen-add").addEventListener("click", addPenalty);
   $("pen-close").addEventListener("click", closePenalty);
