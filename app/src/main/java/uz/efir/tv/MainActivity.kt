@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         private const val SWITCH_DELAY_MS = 350L
         private const val DIAL_DELAY_MS = 1_500L
         private const val BACK_EXIT_MS = 2_000L
+        private const val OK_LONG_MS = 700L
         private const val PAGE = 8
     }
 
@@ -102,6 +103,10 @@ class MainActivity : AppCompatActivity() {
     private val retryRunnable = Runnable { current?.let { startPlayback(it) } }
     private val switchRunnable = Runnable { commitSwitch() }
     private val dialRunnable = Runnable { commitDial() }
+    private val okLongRunnable = Runnable {
+        okLongHandled = true
+        current?.let { toggleFavorite(it) }
+    }
 
     // ---------- Жизненный цикл ----------
 
@@ -118,7 +123,9 @@ class MainActivity : AppCompatActivity() {
             openSetup(finishSelf = true)
             return
         }
-        loadFromCache(resetChannel = false, refreshAfter = true)
+        // Сразу после настройки плейлист только что скачан - второй раз не грузим
+        val justLoaded = intent?.getBooleanExtra(EXTRA_RELOAD, false) == true
+        loadFromCache(resetChannel = false, refreshAfter = !justLoaded)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -797,12 +804,13 @@ class MainActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                 if (down) {
                     if (event.repeatCount == 0) {
+                        // Удержание OK определяем по таймеру: не все пульты повторяют нажатие
                         okLongHandled = false
-                    } else if (!okLongHandled && (event.isLongPress || event.repeatCount >= 8)) {
-                        okLongHandled = true
-                        current?.let { toggleFavorite(it) }
+                        handler.removeCallbacks(okLongRunnable)
+                        handler.postDelayed(okLongRunnable, OK_LONG_MS)
                     }
                 } else if (up) {
+                    handler.removeCallbacks(okLongRunnable)
                     when {
                         okLongHandled -> okLongHandled = false
                         dial.isNotEmpty() -> commitDial()
