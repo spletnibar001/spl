@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
         private const val PANEL_IDLE_MS = 30_000L
         private const val SWITCH_DELAY_MS = 350L
         private const val DIAL_DELAY_MS = 2_000L
-        private const val BACK_EXIT_MS = 2_000L
+        private const val BACK_EXIT_MS = 3_000L
         private const val OK_LONG_MS = 700L
         private const val PAGE = 8
         private const val PANEL_WIDTH_DP = 440

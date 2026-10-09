@@ -35,7 +35,7 @@ shot 01-setup 8
 # «Телефон» отправляет ссылку на телевизор
 adb forward tcp:8080 tcp:8080
 curl -s -m 10 http://127.0.0.1:8080/ -o "$OUT/phone-page.html"
-echo "url post: $(curl -s -m 10 -X POST -d 'url=http://10.0.2.2:8000/test.m3u' http://127.0.0.1:8080/url)"
+echo "url post: $(curl -s -m 10 -X POST -d 'url=http://10.0.2.2:8000/test.m3u' http://127.0.0.1:8080/url)" | tee -a "$OUT/checks.txt"
 shot 02-start-osd 3
 shot 03-playing 10
 
@@ -99,7 +99,7 @@ shot 21-settings 1
 key KEYCODE_DPAD_DOWN
 key KEYCODE_DPAD_CENTER
 shot 22-change-setup 5
-echo "file post: $(curl -s -m 20 -X POST --data-binary @"$HERE/file-cp1251.m3u" -H 'Content-Type: application/octet-stream' http://127.0.0.1:8080/file)"
+echo "file post: $(curl -s -m 20 -X POST --data-binary @"$HERE/file-cp1251.m3u" -H 'Content-Type: application/octet-stream' http://127.0.0.1:8080/file)" | tee -a "$OUT/checks.txt"
 shot 23-file-playing 10
 key KEYCODE_DPAD_CENTER
 shot 24-file-list 2
@@ -108,13 +108,14 @@ key KEYCODE_BACK
 # Выход двойным НАЗАД и перезапуск: должен сразу включиться последний канал
 key KEYCODE_BACK
 shot 25-back-once 0.3
-key KEYCODE_BACK
+key KEYCODE_BACK KEYCODE_BACK
 shot 26-exited 2
+echo "pid after exit: $(adb shell pidof uz.efir.tv) top: $(adb shell dumpsys activity activities | grep -m1 -E 'mResumedActivity|topResumedActivity')" | tee -a "$OUT/checks.txt"
 adb shell am start -n uz.efir.tv/.MainActivity
 shot 27-relaunch-osd 2
 shot 28-relaunch 8
 
-echo "pid after relaunch: $(adb shell pidof uz.efir.tv)"
+echo "pid after relaunch: $(adb shell pidof uz.efir.tv)" | tee -a "$OUT/checks.txt"
 adb logcat -d -v brief > "$OUT/logcat-full.txt"
 grep -E "AndroidRuntime|FATAL|ExoPlayerImplInternal|uz.efir.tv" "$OUT/logcat-full.txt" | tail -300 > "$OUT/logcat.txt"
 kill "$HTTP_PID" 2>/dev/null
