@@ -682,7 +682,8 @@ class MainActivity : AppCompatActivity() {
         }
         val i = index.coerceIn(0, count - 1)
         val manager = b.channelList.layoutManager as LinearLayoutManager
-        manager.scrollToPositionWithOffset(i, dp(110))
+        // Над выбранной строкой оставляем две целые строки, без обрезанных краёв
+        manager.scrollToPositionWithOffset(i, minOf(i, 2) * dp(45))
         b.channelList.post { requestRowFocus(i, 30) }
     }
 

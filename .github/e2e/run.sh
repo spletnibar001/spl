@@ -84,6 +84,8 @@ key KEYCODE_DPAD_UP
 shot 17-search-focus 1
 timeout 30 adb shell input text "yurt"
 shot 18-search-typed 2
+# НАЗАД прячет клавиатуру, дальше вниз - к результатам
+key KEYCODE_BACK
 key KEYCODE_DPAD_DOWN
 shot 19-search-result-focus 1
 key KEYCODE_DPAD_CENTER
