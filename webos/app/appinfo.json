@@ -1,0 +1,16 @@
+{
+  "id": "uz.efir.tv",
+  "version": "1.0.0",
+  "vendor": "SPLETNI",
+  "type": "web",
+  "main": "index.html",
+  "title": "ЭФИР",
+  "icon": "img/icon.png",
+  "largeIcon": "img/largeIcon.png",
+  "splashBackground": "img/splash.png",
+  "bgColor": "#0B0D12",
+  "iconColor": "#0B0D12",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "transparent": false
+}

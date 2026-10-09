@@ -1,0 +1,6 @@
+{
+  "name": "uz.efir.tv.service",
+  "version": "1.0.0",
+  "description": "EFIR: playlist download and phone link receiver",
+  "main": "service.js"
+}

@@ -1,0 +1,197 @@
+/* ЭФИР для webOS. Размеры в rem: 1rem = 10dp макета 960x540 (на 1920x1080 это 20px). */
+
+@font-face { font-family: "Golos"; font-weight: 400; src: url("../fonts/golos_regular.ttf") format("truetype"); }
+@font-face { font-family: "Golos"; font-weight: 500; src: url("../fonts/golos_medium.ttf") format("truetype"); }
+@font-face { font-family: "Golos"; font-weight: 600; src: url("../fonts/golos_semibold.ttf") format("truetype"); }
+@font-face { font-family: "Unbounded"; font-weight: 600; src: url("../fonts/unbounded_semibold.ttf") format("truetype"); }
+@font-face { font-family: "Unbounded"; font-weight: 700; src: url("../fonts/unbounded_bold.ttf") format("truetype"); }
+@font-face { font-family: "PlexMono"; font-weight: 500; src: url("../fonts/plex_mono_medium.ttf") format("truetype"); }
+@font-face { font-family: "PlexMono"; font-weight: 600; src: url("../fonts/plex_mono_semibold.ttf") format("truetype"); }
+
+html { font-size: 1.0416667vw; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000000; }
+body {
+  font-family: "Golos", sans-serif;
+  font-weight: 400;
+  color: #EEF0F4;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+* { box-sizing: border-box; }
+.hidden { display: none !important; }
+.mono { font-family: "PlexMono", monospace; }
+.muted { color: #8A92A4; }
+
+#video {
+  position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+  background: #000000; object-fit: contain;
+}
+
+/* ---------- Сообщения ---------- */
+.bubble { background: rgba(11, 13, 18, 0.9); border-radius: 1.2rem; color: #EEF0F4; font-weight: 500; }
+.center-box {
+  position: fixed; left: 50%; top: 50%;
+  -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%);
+  text-align: center; z-index: 5;
+}
+.center-box.shifted { margin-left: 22rem; }
+.spinner {
+  width: 5.2rem; height: 5.2rem; margin: 0 auto;
+  border: 0.5rem solid rgba(242, 169, 59, 0.25); border-top-color: #F2A93B; border-radius: 50%;
+  -webkit-animation: spin 0.9s linear infinite; animation: spin 0.9s linear infinite;
+}
+@-webkit-keyframes spin { to { -webkit-transform: rotate(360deg); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.status { display: inline-block; margin-top: 1.4rem; padding: 1rem 1.8rem; font-size: 1.7rem; white-space: nowrap; }
+.dial {
+  position: fixed; top: 3rem; right: 4rem; z-index: 6;
+  min-width: 9.6rem; padding: 0.6rem 2rem; text-align: center;
+  font-family: "PlexMono", monospace; font-weight: 600; font-size: 4.4rem; color: #F2A93B;
+}
+.toast {
+  position: fixed; top: 3rem; left: 0; right: 0; z-index: 20;
+  display: table; margin: 0 auto;
+  max-width: 48rem; padding: 1.1rem 2rem; font-size: 1.6rem; text-align: center;
+}
+.toast.shifted { left: 44rem; }
+
+/* ---------- Строка канала при переключении ---------- */
+.osd {
+  position: fixed; left: 3.6rem; right: 3.6rem; bottom: 3rem; height: 9.6rem; z-index: 4;
+  background: rgba(11, 13, 18, 0.9); border-radius: 1.6rem;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  padding: 0 2.7rem 0 2.4rem;
+}
+.osd-number {
+  min-width: 7.2rem; text-align: right; line-height: 1;
+  font-family: "PlexMono", monospace; font-weight: 600; font-size: 4.4rem; color: #F2A93B;
+}
+.osd-badge {
+  position: relative; width: 5.7rem; height: 5.7rem; margin-left: 2rem; -webkit-flex-shrink: 0; flex-shrink: 0;
+  background: #232A38; border-radius: 1.3rem; overflow: hidden;
+}
+.initials {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.6rem; color: #EEF0F4;
+}
+.logo { position: absolute; left: 10%; top: 10%; width: 80%; height: 80%; object-fit: contain; }
+.osd-text { -webkit-flex: 1; flex: 1; min-width: 0; margin-left: 1.8rem; }
+.osd-name { font-weight: 600; font-size: 2.8rem; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.osd-group { margin-top: 0.4rem; font-size: 1.6rem; color: #9AA1B2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.osd-fav { width: 2.5rem; height: 2.5rem; margin: 0 1.8rem 0 1.6rem; fill: #F2A93B; stroke: #F2A93B; stroke-width: 1.6; stroke-linejoin: round; }
+.osd-clock { font-family: "PlexMono", monospace; font-weight: 500; font-size: 2.5rem; color: #C9CEDA; }
+
+/* ---------- Список поверх видео ---------- */
+.panel {
+  position: fixed; left: 0; top: 0; bottom: 0; width: 44rem; z-index: 8;
+  background: rgba(11, 13, 18, 0.95);
+  padding: 2.7rem 1.8rem 1.8rem 3rem;
+  display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column;
+}
+.tabs-row { height: 3.4rem; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; padding: 0 0.4rem; }
+.chev { width: 1.6rem; height: 1.6rem; fill: none; stroke: #7C8496; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.tabs-window { -webkit-flex: 1; flex: 1; height: 100%; overflow: hidden; margin: 0 1rem; position: relative; }
+.tabs { position: absolute; left: 0; top: 0; height: 100%; white-space: nowrap; -webkit-transition: -webkit-transform 0.15s; transition: transform 0.15s; }
+.tab {
+  display: inline-block; height: 100%; margin-right: 1.8rem; vertical-align: top;
+  font-size: 1.5rem; color: #8A92A4; line-height: 3.1rem; border-bottom: 0.3rem solid transparent;
+}
+.tab.active { color: #EEF0F4; font-weight: 600; border-bottom-color: #F2A93B; }
+.search {
+  height: 4rem; margin-top: 1.4rem; margin-bottom: 0.4rem; border-radius: 1rem;
+  background: #12151D; border: 0.1rem solid #2E3546;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; padding: 0 1.2rem;
+}
+.search.focused { border: 0.2rem solid #F2A93B; padding: 0 1.1rem; }
+.search-icon { width: 1.8rem; height: 1.8rem; fill: none; stroke: #8A92A4; stroke-width: 2; stroke-linecap: round; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.search input {
+  -webkit-flex: 1; flex: 1; min-width: 0; margin-left: 1rem; border: none; outline: none; background: transparent;
+  font-family: "Golos", sans-serif; font-size: 1.5rem; color: #EEF0F4;
+}
+.search input::-webkit-input-placeholder { color: #8A92A4; }
+.list { -webkit-flex: 1; flex: 1; overflow: hidden; position: relative; padding-top: 0.2rem; }
+.row {
+  height: 4.2rem; margin-top: 0.3rem; border-radius: 1rem; padding: 0 1.2rem 0 1rem;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  color: #EEF0F4;
+}
+.row.focused { background: #F2A93B; color: #0B0D12; }
+.row .num { width: 3.4rem; text-align: right; font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.4rem; color: #8A92A4; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.row .num.blank { visibility: hidden; }
+.row.focused .num { color: #2B1E08; }
+.row .badge {
+  position: relative; width: 3rem; height: 3rem; margin-left: 1.2rem; border-radius: 0.8rem; overflow: hidden;
+  background: #232A38; -webkit-flex-shrink: 0; flex-shrink: 0;
+}
+.row.focused .badge { background: rgba(11, 13, 18, 0.16); }
+.row .badge .initials { font-size: 1rem; color: inherit; }
+.row.focused .badge .initials { color: #0B0D12; }
+.row .name { -webkit-flex: 1; flex: 1; min-width: 0; margin-left: 1.2rem; font-weight: 500; font-size: 1.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.playing .name, .row.playing .num { color: #F2A93B; }
+.row.focused.playing .name { color: #0B0D12; }
+.row.focused.playing .num { color: #2B1E08; }
+.row .bars { width: 1.8rem; height: 1.8rem; margin-left: 0.8rem; fill: none; stroke: #F2A93B; stroke-width: 2.4; stroke-linecap: round; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.row.focused .bars { stroke: #0B0D12; }
+.row .star { width: 1.5rem; height: 1.5rem; margin-left: 0.8rem; fill: #8A92A4; stroke: #8A92A4; stroke-width: 1.6; stroke-linejoin: round; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.row.focused .star { fill: #0B0D12; stroke: #0B0D12; }
+.empty { position: absolute; left: 3rem; right: 1.8rem; top: 14rem; text-align: center; font-size: 1.5rem; color: #9AA1B2; padding: 0 1.2rem; }
+.hints { margin-top: 0.8rem; padding-left: 0.4rem; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; white-space: nowrap; }
+.keycap { border: 0.1rem solid #3A4254; border-radius: 0.5rem; padding: 0.1rem 0.6rem; font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.1rem; color: #C9CEDA; }
+.hint { margin: 0 1.4rem 0 0.6rem; font-size: 1.2rem; color: #8A92A4; }
+.hint.last { margin-right: 0; }
+
+/* ---------- Меню канала ---------- */
+.menu-shade {
+  position: fixed; left: 0; top: 0; bottom: 0; width: 44rem; z-index: 9;
+  background: rgba(11, 13, 18, 0.7);
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.menu-card { width: 34rem; padding: 1.4rem; border-radius: 1.6rem; background: #12151D; border: 0.1rem solid #2E3546; }
+.menu-title { padding: 0 1rem 0.8rem; font-weight: 600; font-size: 1.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-item {
+  height: 4.2rem; margin-top: 0.4rem; padding: 0 1.2rem; border-radius: 1rem;
+  font-weight: 500; font-size: 1.6rem; line-height: 4.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.menu-item.focused { background: #F2A93B; color: #0B0D12; }
+
+/* ---------- Подключение плейлиста ---------- */
+.setup { position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 30; background: #0B0D12; padding: 4.2rem 7.2rem 3.6rem; }
+.brand { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 2.1rem; letter-spacing: 0.04em; }
+.dot { width: 0.9rem; height: 0.9rem; margin-right: 0.8rem; border-radius: 50%; background: #F2A93B; }
+.setup h1 { margin: 3.4rem 0 0; font-family: "Unbounded", sans-serif; font-weight: 600; font-size: 3.2rem; line-height: 1.15; }
+.setup .sub { margin: 1rem 0 0; font-size: 1.7rem; color: #9AA1B2; }
+.setup-row { margin-top: 3.4rem; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.card {
+  -webkit-flex: 1; flex: 1; padding: 2.2rem; border-radius: 1.8rem; background: #12151D; border: 0.15rem solid #6B5222;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+}
+.qr {
+  width: 16.2rem; height: 16.2rem; padding: 0.6rem; border-radius: 1rem; background: #FFFFFF; -webkit-flex-shrink: 0; flex-shrink: 0;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  color: #5D6578; font-size: 1.3rem; text-align: center;
+}
+.qr svg { width: 100%; height: 100%; display: block; }
+.card-text { -webkit-flex: 1; flex: 1; margin-left: 2.4rem; }
+.card-title { font-weight: 600; font-size: 2rem; }
+.card-desc { margin-top: 1rem; font-size: 1.5rem; line-height: 1.3; color: #C9CEDA; }
+#serverAddress { margin-top: 1.2rem; font-size: 1.3rem; }
+.remote { width: 30rem; margin-left: 3.6rem; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.label { display: block; font-size: 1.5rem; color: #9AA1B2; }
+.field {
+  display: block; width: 100%; height: 4.8rem; margin-top: 1rem; padding: 0 1.4rem; border-radius: 1rem; outline: none;
+  background: #12151D; border: 0.1rem solid #2E3546; color: #EEF0F4;
+  font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.5rem;
+}
+.field::-webkit-input-placeholder { color: #8A92A4; }
+.field.focused { border: 0.2rem solid #F2A93B; padding: 0 1.3rem; }
+.button {
+  height: 4.8rem; margin-top: 1rem; border-radius: 1.1rem; background: #262D3C; color: #EEF0F4;
+  font-weight: 600; font-size: 1.7rem; line-height: 4.8rem; text-align: center;
+}
+.button.focused { background: #F2A93B; color: #0B0D12; }
+.setup-status { margin-top: 2.2rem; font-weight: 500; font-size: 1.6rem; color: #C9CEDA; }
+.setup-status.error { color: #F2A93B; }

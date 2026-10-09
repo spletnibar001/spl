@@ -50,6 +50,16 @@ jobs:
           cat apk-info.md
           cat apk-info.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Test webOS service
+        run: node webos/test/service-test.js
+
+      - name: Package webOS app
+        run: |
+          mkdir -p webos-dist
+          npx --yes -p @webos-tools/cli@3.2.6 ares-package webos/app webos/service -o webos-dist
+          cp webos-dist/*.ipk efir-webos.ipk
+          ls -la efir-webos.ipk
+
       - name: Keep APK for the emulator check
         uses: actions/upload-artifact@v4
         with:
@@ -63,7 +73,7 @@ jobs:
         run: |
           VERSION="1.0.${GITHUB_RUN_NUMBER}"
           {
-            echo "Версия $VERSION. Скачать: efir.apk ниже, установить на телевизор поверх прежней версии."
+            echo "Версия $VERSION. Android TV - efir.apk, LG webOS - efir-webos.ipk (установка в режиме разработчика, см. webos/README.md)."
             echo
             echo "<details><summary>Проверка сборки</summary>"
             echo
@@ -72,7 +82,7 @@ jobs:
             echo "</details>"
           } > notes.md
           gh release delete efir-tv --yes --cleanup-tag || true
-          gh release create efir-tv efir.apk \
+          gh release create efir-tv efir.apk efir-webos.ipk \
             --target "$GITHUB_SHA" \
             --title "ЭФИР для Android TV $VERSION" \
             --notes-file notes.md \

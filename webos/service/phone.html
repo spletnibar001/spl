@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ЭФИР - плейлист</title>
+<style>
+:root{--ink:#0B0D12;--card:#151922;--line:#2E3546;--text:#EEF0F4;--muted:#9AA1B2;--accent:#F2A93B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:28px 20px 40px;max-width:520px;margin-inline:auto}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.06em;font-size:18px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+h1{font-size:26px;line-height:1.2;margin:28px 0 8px}
+p{color:var(--muted);margin:0 0 24px}
+label.title{display:block;font-size:14px;color:var(--muted);margin-bottom:8px}
+input[type=url]{width:100%;height:52px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:16px;padding:0 14px}
+input[type=url]:focus{outline:none;border-color:var(--accent)}
+button,.file{display:flex;align-items:center;justify-content:center;width:100%;height:52px;border-radius:12px;border:0;font:inherit;font-size:17px;font-weight:600;margin-top:12px;cursor:pointer}
+button{background:var(--accent);color:#0B0D12}
+.file{background:var(--card);color:var(--text);border:1px solid var(--line)}
+.or{color:var(--muted);text-align:center;margin:24px 0 4px;font-size:14px}
+#msg{margin-top:22px;padding:14px 16px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:none}
+#msg.ok{border-color:var(--accent)}
+input[type=file]{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="logo"><span class="dot"></span>ЭФИР</div>
+<h1>Плейлист для телевизора</h1>
+<p>Вставьте ссылку на M3U - телевизор загрузит каналы сам. Телефон и телевизор должны быть в одной сети Wi-Fi.</p>
+
+<form id="form">
+  <label class="title" for="url">Ссылка на плейлист</label>
+  <input id="url" name="url" type="url" inputmode="url" placeholder="http://" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+  <button type="submit">Отправить на телевизор</button>
+</form>
+
+<div class="or">или</div>
+<label class="file" for="file">Выбрать файл .m3u</label>
+<input id="file" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/x-mpegurl,application/vnd.apple.mpegurl,text/plain">
+
+<div id="msg" role="status"></div>
+
+<script>
+var msg = document.getElementById('msg');
+function show(text, ok) {
+  msg.textContent = text;
+  msg.className = ok ? 'ok' : '';
+  msg.style.display = 'block';
+}
+function send(path, body, type) {
+  return fetch(path, { method: 'POST', headers: { 'Content-Type': type }, body: body })
+    .then(function (r) { return r.text(); });
+}
+document.getElementById('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var url = document.getElementById('url').value.trim();
+  if (!url) return;
+  show('Отправляю...', false);
+  send('/url', 'url=' + encodeURIComponent(url), 'application/x-www-form-urlencoded')
+    .then(function (t) {
+      if (t === 'OK') show('Готово - смотрите на телевизор', true);
+      else show('Телевизор не принял ссылку', false);
+    })
+    .catch(function () { show('Нет связи с телевизором. Проверьте, что телефон в той же сети Wi-Fi', false); });
+});
+document.getElementById('file').addEventListener('change', function () {
+  var file = this.files && this.files[0];
+  if (!file) return;
+  show('Отправляю файл...', false);
+  var reader = new FileReader();
+  reader.onload = function () {
+    send('/file', reader.result, 'application/octet-stream')
+      .then(function (t) {
+        if (t === 'OK') show('Готово - смотрите на телевизор', true);
+        else show('В файле не нашлось каналов', false);
+      })
+      .catch(function () { show('Нет связи с телевизором', false); });
+  };
+  reader.onerror = function () { show('Не удалось прочитать файл', false); };
+  reader.readAsArrayBuffer(file);
+});
+</script>
+</body>
+</html>

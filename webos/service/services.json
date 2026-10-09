@@ -1,0 +1,10 @@
+{
+  "id": "uz.efir.tv.service",
+  "description": "EFIR: playlist download and phone link receiver",
+  "services": [
+    {
+      "name": "uz.efir.tv.service",
+      "description": "EFIR: playlist download and phone link receiver"
+    }
+  ]
+}

@@ -55,3 +55,7 @@ APK подписан отдельным ключом этого приложен
 
 Kotlin, minSdk 21, Media3/ExoPlayer 1.4.1, Coil для логотипов, ZXing для QR.
 Шрифты Golos Text, Unbounded и IBM Plex Mono - под лицензией OFL (папка `licenses`).
+
+## LG webOS
+
+Версия для телевизоров LG лежит в папке `webos/` - установка и отличия описаны в `webos/README.md`.

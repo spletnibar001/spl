@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ЭФИР</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<video id="video" autoplay></video>
+
+<div id="centerBox" class="center-box">
+  <div id="spinner" class="spinner hidden"></div>
+  <div id="status" class="bubble status hidden"></div>
+</div>
+
+<div id="dial" class="bubble dial hidden"></div>
+
+<div id="osd" class="osd hidden">
+  <div id="osdNumber" class="osd-number"></div>
+  <div class="osd-badge">
+    <div id="osdInitials" class="initials"></div>
+    <img id="osdLogo" class="logo" alt="">
+  </div>
+  <div class="osd-text">
+    <div id="osdName" class="osd-name"></div>
+    <div id="osdGroup" class="osd-group"></div>
+  </div>
+  <svg id="osdFav" class="osd-fav hidden" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg>
+  <div id="osdClock" class="osd-clock"></div>
+</div>
+
+<div id="panel" class="panel hidden">
+  <div class="tabs-row">
+    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    <div class="tabs-window"><div id="tabs" class="tabs"></div></div>
+    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </div>
+  <div id="searchBox" class="search">
+    <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    <input id="searchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Поиск по названию или номеру">
+  </div>
+  <div id="list" class="list"></div>
+  <div id="emptyText" class="empty hidden"></div>
+  <div class="hints">
+    <span class="keycap">OK</span><span class="hint">смотреть</span>
+    <span class="keycap">◀ ▶</span><span class="hint">группы</span>
+    <span class="keycap">удерж. OK</span><span class="hint last">меню</span>
+  </div>
+</div>
+
+<div id="menu" class="menu-shade hidden">
+  <div class="menu-card">
+    <div id="menuTitle" class="menu-title"></div>
+    <div id="menuItems"></div>
+  </div>
+</div>
+
+<div id="setup" class="setup hidden">
+  <div class="brand"><span class="dot"></span>ЭФИР</div>
+  <h1>Подключите плейлист</h1>
+  <p class="sub">Один раз - дальше каналы включаются сразу</p>
+  <div class="setup-row">
+    <div class="card">
+      <div id="qr" class="qr"></div>
+      <div class="card-text">
+        <div class="card-title">С телефона</div>
+        <div class="card-desc">Наведите камеру на код и вставьте ссылку на M3U или выберите файл - так быстрее, чем набирать пультом</div>
+        <div id="serverAddress" class="mono muted"></div>
+      </div>
+    </div>
+    <div class="remote">
+      <label for="urlInput" class="label">Или пультом</label>
+      <input id="urlInput" class="field" type="url" autocomplete="off" spellcheck="false" placeholder="http://">
+      <div id="loadBtn" class="button">Загрузить</div>
+    </div>
+  </div>
+  <div id="setupStatus" class="setup-status hidden"></div>
+</div>
+
+<div id="toast" class="bubble toast hidden"></div>
+
+<script src="lib/qrcode.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
