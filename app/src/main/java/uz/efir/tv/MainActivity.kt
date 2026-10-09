@@ -63,10 +63,11 @@ class MainActivity : AppCompatActivity() {
         private const val TOAST_MS = 2_500L
         private const val PANEL_IDLE_MS = 30_000L
         private const val SWITCH_DELAY_MS = 350L
-        private const val DIAL_DELAY_MS = 1_500L
+        private const val DIAL_DELAY_MS = 2_000L
         private const val BACK_EXIT_MS = 2_000L
         private const val OK_LONG_MS = 700L
         private const val PAGE = 8
+        private const val PANEL_WIDTH_DP = 440
     }
 
     private lateinit var b: ActivityMainBinding
@@ -301,6 +302,10 @@ class MainActivity : AppCompatActivity() {
                 .build(),
             true
         )
+        // Субтитры, встроенные в поток, по умолчанию не показываем
+        p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            .build()
         p.addListener(playerListener)
         p.playWhenReady = true
         b.playerView.player = p
@@ -500,6 +505,10 @@ class MainActivity : AppCompatActivity() {
         b.channelList.layoutManager = LinearLayoutManager(this)
         b.channelList.adapter = adapter
         b.channelList.itemAnimator = null
+        // Сам список фокус не держит - только его строки, иначе фокус «пропадает»
+        b.channelList.isFocusable = false
+        b.channelList.isFocusableInTouchMode = false
+        b.channelList.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         b.searchInput.doAfterTextChanged {
             if (!suppressSearch && b.panel.visibility == View.VISIBLE) refreshRows()
         }
@@ -610,6 +619,7 @@ class MainActivity : AppCompatActivity() {
             val last = tabs.indexOf(store.lastTab ?: TAB_ALL)
             tabIndex = if (last >= 0 && tabs[last] != TAB_SETTINGS) last else tabs.indexOf(TAB_ALL)
         }
+        shiftOverlays(panelOpen = true)
         b.panel.visibility = View.VISIBLE
         b.panel.alpha = 0f
         b.panel.animate().alpha(1f).setDuration(120).start()
@@ -624,7 +634,15 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacks(panelIdleRunnable)
         hideKeyboard()
         b.panel.visibility = View.GONE
+        shiftOverlays(panelOpen = false)
         clearSearch()
+    }
+
+    /** Пока открыт список, сообщения и индикатор загрузки - по центру видимой части видео. */
+    private fun shiftOverlays(panelOpen: Boolean) {
+        val shift = if (panelOpen) dp(PANEL_WIDTH_DP) / 2f else 0f
+        b.centerBox.translationX = shift
+        b.toast.translationX = shift
     }
 
     private fun clearSearch() {
@@ -665,15 +683,18 @@ class MainActivity : AppCompatActivity() {
         val i = index.coerceIn(0, count - 1)
         val manager = b.channelList.layoutManager as LinearLayoutManager
         manager.scrollToPositionWithOffset(i, dp(110))
-        b.channelList.post { requestRowFocus(i, 4) }
+        b.channelList.post { requestRowFocus(i, 30) }
     }
 
+    /** Ждём, пока список разложится (на медленных приставках это заметно дольше кадра), и ставим фокус на строку. */
     private fun requestRowFocus(index: Int, attempts: Int) {
+        if (b.panel.visibility != View.VISIBLE) return
         val holder = b.channelList.findViewHolderForAdapterPosition(index)
-        when {
-            holder != null -> holder.itemView.requestFocus()
-            attempts > 0 -> b.channelList.postDelayed({ requestRowFocus(index, attempts - 1) }, 40)
-            else -> b.channelList.requestFocus()
+        if (holder != null && holder.itemView.requestFocus()) return
+        if (attempts > 0) {
+            b.channelList.postDelayed({ requestRowFocus(index, attempts - 1) }, 50)
+        } else {
+            b.channelList.getChildAt(0)?.requestFocus() ?: b.searchInput.requestFocus()
         }
     }
 
