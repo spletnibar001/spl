@@ -156,6 +156,7 @@
                 <Button
                     android:id="@+id/loadButton"
                     android:layout_width="match_parent"
+                    android:nextFocusDown="@+id/codeInput"
                     android:layout_height="48dp"
                     android:layout_marginTop="10dp"
                     android:background="@drawable/bg_button"
@@ -185,6 +186,8 @@
                     <EditText
                         android:id="@+id/codeInput"
                         android:layout_width="0dp"
+                        android:nextFocusUp="@+id/loadButton"
+                        android:nextFocusRight="@+id/codeButton"
                         android:layout_height="48dp"
                         android:layout_weight="1"
                         android:background="@drawable/bg_field"
@@ -206,6 +209,8 @@
                     <Button
                         android:id="@+id/codeButton"
                         android:layout_width="110dp"
+                        android:nextFocusUp="@+id/loadButton"
+                        android:nextFocusLeft="@+id/codeInput"
                         android:layout_height="48dp"
                         android:layout_marginStart="10dp"
                         android:background="@drawable/bg_button"
