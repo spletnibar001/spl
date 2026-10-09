@@ -605,6 +605,11 @@ class MainActivity : AppCompatActivity() {
         if (channels.isEmpty()) return
         if (pendingIndex >= 0) commitSwitch()
         hideOsd()
+        if (tabs.getOrNull(tabIndex) == TAB_SETTINGS) {
+            // Настройки нужны редко - список всегда открывается с каналами
+            val last = tabs.indexOf(store.lastTab ?: TAB_ALL)
+            tabIndex = if (last >= 0 && tabs[last] != TAB_SETTINGS) last else tabs.indexOf(TAB_ALL)
+        }
         b.panel.visibility = View.VISIBLE
         b.panel.alpha = 0f
         b.panel.animate().alpha(1f).setDuration(120).start()

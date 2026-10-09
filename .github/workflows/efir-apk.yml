@@ -38,7 +38,7 @@ jobs:
           {
             echo "## APK"
             echo '```'
-            "$BT/aapt2" dump badging efir.apk | grep -E "^(package|sdkVersion|targetSdkVersion|application-label|launchable-activity|leanback-launchable-activity|uses-permission|uses-feature)" || true
+            "$BT/aapt2" dump badging efir.apk | grep -E "^(package|minSdkVersion|sdkVersion|targetSdkVersion|application-label:|launchable-activity|leanback-launchable-activity|uses-permission|uses-feature)" || true
             echo "size: $(stat -c %s efir.apk) bytes"
             "$BT/apksigner" verify --print-certs efir.apk | grep -E "Signer #1 certificate (DN|SHA-256)" || true
             echo '```'
@@ -49,6 +49,13 @@ jobs:
           } > apk-info.md
           cat apk-info.md
           cat apk-info.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep APK for the emulator check
+        uses: actions/upload-artifact@v4
+        with:
+          name: efir-apk
+          path: efir.apk
+          retention-days: 7
 
       - name: Publish release
         env:
@@ -70,3 +77,46 @@ jobs:
             --title "ЭФИР для Android TV $VERSION" \
             --notes-file notes.md \
             --latest=false
+
+  emulator-check:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: efir-apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install ffmpeg
+        continue-on-error: true
+        run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+
+      - name: Run on Android TV emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash .github/e2e/run.sh
+
+      - name: Publish screenshots (draft, not public)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" -q '.[] | select(.draft and .name=="EFIR e2e shots") | .id'); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
+          ls shots || exit 0
+          gh release create efir-tv-shots shots/* --draft --title "EFIR e2e shots" --notes "Автопроверка на эмуляторе Android TV, сборка ${GITHUB_RUN_NUMBER}"
