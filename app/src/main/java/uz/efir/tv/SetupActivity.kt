@@ -47,8 +47,33 @@ class SetupActivity : AppCompatActivity() {
             }
         }
 
+        b.codeButton.setOnClickListener { openTransfiles(b.codeInput.text.toString()) }
+        b.codeInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE ||
+                actionId == EditorInfo.IME_ACTION_NEXT
+            ) {
+                hideKeyboard()
+                b.codeButton.requestFocus()
+                openTransfiles(b.codeInput.text.toString())
+                true
+            } else {
+                false
+            }
+        }
+
         startServer()
         b.urlInput.requestFocus()
+    }
+
+    /** Код с transfiles.ru: дальше страница сайта с капчей внутри приложения. */
+    private fun openTransfiles(input: String) {
+        val code = TransfilesCode.codeFrom(input)
+        if (code == null) {
+            showStatus(getString(R.string.setup_code_error), true)
+            return
+        }
+        b.setupStatus.visibility = View.GONE
+        startActivity(Intent(this, TransfilesActivity::class.java).putExtra(TransfilesActivity.EXTRA_CODE, code))
     }
 
     override fun onDestroy() {
@@ -96,6 +121,11 @@ class SetupActivity : AppCompatActivity() {
 
     private fun loadUrl(input: String) {
         if (busy) return
+        // Ссылка на transfiles - это страница с капчей, а не сам файл
+        if (TransfilesCode.codeFromLink(input) != null) {
+            openTransfiles(input)
+            return
+        }
         val url = PlaylistLoader.normalize(input)
         if (url.isEmpty()) {
             showStatus(getString(R.string.setup_error_empty), true)

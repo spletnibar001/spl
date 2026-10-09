@@ -32,8 +32,9 @@ data class Channel(
     }
 }
 
-/** Строка в списке: канал или действие из вкладки «Настройки». */
+/** Строка в списке: канал, действие из вкладки «Настройки» или скрытый канал/группа для возврата. */
 sealed class Row {
     data class Ch(val channel: Channel) : Row()
     data class Action(val id: Int, val title: String) : Row()
+    data class Restore(val key: String, val isGroup: Boolean, val title: String) : Row()
 }

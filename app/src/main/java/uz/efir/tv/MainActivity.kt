@@ -58,6 +58,8 @@ class MainActivity : AppCompatActivity() {
 
         private const val ACTION_REFRESH = 1
         private const val ACTION_CHANGE = 2
+        private const val ACTION_HIDDEN = 3
+        private const val ACTION_UNHIDE_ALL = 4
 
         private const val OSD_MS = 3_500L
         private const val TOAST_MS = 2_500L
@@ -88,6 +90,14 @@ class MainActivity : AppCompatActivity() {
     private var tabs: List<String> = emptyList()
     private var tabIndex = 0
     private var suppressSearch = false
+    private var hiddenMode = false
+
+    private var menuChannel: Channel? = null
+    private var menuReturnPosition = 0
+
+    /** Каналы без скрытых - именно они видны в списке и листаются ▲▼. */
+    private val visibleChannels: List<Channel>
+        get() = channels.filter { !store.isHidden(it) }
 
     private var pendingScope: List<Channel> = emptyList()
     private var pendingIndex = -1
@@ -418,7 +428,7 @@ class MainActivity : AppCompatActivity() {
             var scope = channelsOf(store.lastTab)
             var index = scope.indexOfFirst { it.key == current?.key }
             if (index < 0) {
-                scope = channels
+                scope = visibleChannels
                 index = scope.indexOfFirst { it.key == current?.key }
             }
             pendingScope = scope
@@ -455,7 +465,7 @@ class MainActivity : AppCompatActivity() {
         dial.setLength(0)
         b.dial.visibility = View.GONE
         if (number == null) return
-        val target = channels.firstOrNull { it.number == number }
+        val target = visibleChannels.firstOrNull { it.number == number }
         if (target == null) {
             showToast(getString(R.string.no_channel, number))
             return
@@ -474,13 +484,12 @@ class MainActivity : AppCompatActivity() {
         b.dial.visibility = View.GONE
     }
 
-    private fun toggleFavorite(channel: Channel) {
+    private fun toggleFavorite(channel: Channel, position: Int = focusedPosition()) {
         val added = store.toggleFavorite(channel)
         showToast(getString(if (added) R.string.fav_added else R.string.fav_removed, channel.name))
         if (b.panel.visibility == View.VISIBLE) {
             val onFavTab = tabs.getOrNull(tabIndex) == TAB_FAV && b.searchInput.text.isNullOrEmpty()
             if (onFavTab) {
-                val position = focusedPosition()
                 refreshRows()
                 focusRow(position)
             } else {
@@ -517,12 +526,95 @@ class MainActivity : AppCompatActivity() {
             focusRow(0)
             true
         }
+        setupActionMenu()
+    }
+
+    // ---------- Меню канала: избранное и скрытие ----------
+
+    private fun setupActionMenu() {
+        // Фокус не уходит из меню на строки под ним
+        b.actionFav.nextFocusUpId = b.actionFav.id
+        b.actionFav.nextFocusDownId = b.actionHide.id
+        b.actionHide.nextFocusUpId = b.actionFav.id
+        b.actionHideGroup.nextFocusUpId = b.actionHide.id
+        b.actionHideGroup.nextFocusDownId = b.actionHideGroup.id
+
+        b.actionFav.setOnClickListener {
+            val channel = menuChannel ?: return@setOnClickListener
+            val position = menuReturnPosition
+            closeActionMenu()
+            toggleFavorite(channel, position)
+            focusRow(position)
+        }
+        b.actionHide.setOnClickListener {
+            val channel = menuChannel ?: return@setOnClickListener
+            val position = menuReturnPosition
+            closeActionMenu()
+            store.hideChannel(channel)
+            showToast(getString(R.string.hidden_channel, channel.name))
+            afterHiddenChanged(position)
+        }
+        b.actionHideGroup.setOnClickListener {
+            val channel = menuChannel ?: return@setOnClickListener
+            val group = channel.group ?: return@setOnClickListener
+            val position = menuReturnPosition
+            closeActionMenu()
+            store.hideGroup(group)
+            showToast(getString(R.string.hidden_group, group))
+            afterHiddenChanged(position)
+        }
+    }
+
+    private fun openActionMenu(channel: Channel) {
+        menuChannel = channel
+        menuReturnPosition = focusedPosition()
+        b.actionTitle.text = channel.name
+        b.actionFav.setText(if (store.isFavorite(channel)) R.string.menu_unfav else R.string.menu_fav)
+        val group = channel.group
+        if (group.isNullOrBlank()) {
+            b.actionHideGroup.visibility = View.GONE
+            b.actionHide.nextFocusDownId = b.actionHide.id
+        } else {
+            b.actionHideGroup.visibility = View.VISIBLE
+            b.actionHideGroup.text = getString(R.string.menu_hide_group, group)
+            b.actionHide.nextFocusDownId = b.actionHideGroup.id
+        }
+        b.actionMenu.visibility = View.VISIBLE
+        b.actionFav.requestFocus()
+    }
+
+    private fun closeActionMenu() {
+        b.actionMenu.visibility = View.GONE
+        menuChannel = null
+    }
+
+    private fun afterHiddenChanged(position: Int) {
+        buildTabs()
+        refreshRows()
+        focusRow(position)
+    }
+
+    private fun handleMenuKey(event: KeyEvent): Boolean {
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_MENU -> {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    val position = menuReturnPosition
+                    closeActionMenu()
+                    focusRow(position)
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_CHANNEL_DOWN,
+            KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_PAGE_DOWN -> return true
+        }
+        return false
     }
 
     private fun buildTabs() {
         val previous = tabs.getOrNull(tabIndex) ?: store.lastTab
         val groups = LinkedHashSet<String>()
-        for (c in channels) {
+        for (c in visibleChannels) {
             c.group?.let { groups.add(it) }
         }
         tabs = listOf(TAB_FAV, TAB_ALL) + groups + listOf(TAB_SETTINGS)
@@ -537,10 +629,13 @@ class MainActivity : AppCompatActivity() {
         else -> tab
     }
 
-    private fun channelsOf(tab: String?): List<Channel> = when (tab) {
-        TAB_FAV -> channels.filter { store.isFavorite(it) }
-        null, TAB_ALL, TAB_SETTINGS -> channels
-        else -> channels.filter { it.group == tab }
+    private fun channelsOf(tab: String?): List<Channel> {
+        val visible = visibleChannels
+        return when (tab) {
+            TAB_FAV -> visible.filter { store.isFavorite(it) }
+            null, TAB_ALL, TAB_SETTINGS -> visible
+            else -> visible.filter { it.group == tab }
+        }
     }
 
     private fun renderTabs() {
@@ -588,15 +683,30 @@ class MainActivity : AppCompatActivity() {
         val rows: List<Row> = when {
             query.isNotEmpty() -> {
                 val digits = query.all { it.isDigit() }
-                channels.filter { c ->
+                visibleChannels.filter { c ->
                     (digits && c.number.toString().startsWith(query)) ||
                         c.name.contains(query, ignoreCase = true)
                 }.map { Row.Ch(it) }
             }
-            tab == TAB_SETTINGS -> listOf(
-                Row.Action(ACTION_REFRESH, getString(R.string.action_refresh)),
-                Row.Action(ACTION_CHANGE, getString(R.string.action_change))
-            )
+            tab == TAB_SETTINGS && hiddenMode -> {
+                val list = ArrayList<Row>()
+                list.add(Row.Action(ACTION_UNHIDE_ALL, getString(R.string.action_unhide_all)))
+                for (group in store.hiddenGroupList()) {
+                    list.add(Row.Restore(group, true, getString(R.string.restore_group, group)))
+                }
+                for (key in store.hiddenChannelList()) {
+                    list.add(Row.Restore(key, false, key))
+                }
+                list
+            }
+            tab == TAB_SETTINGS -> {
+                val list = ArrayList<Row>()
+                list.add(Row.Action(ACTION_REFRESH, getString(R.string.action_refresh)))
+                list.add(Row.Action(ACTION_CHANGE, getString(R.string.action_change)))
+                val hidden = store.hiddenCount()
+                if (hidden > 0) list.add(Row.Action(ACTION_HIDDEN, getString(R.string.action_hidden, hidden)))
+                list
+            }
             else -> channelsOf(tab).map { Row.Ch(it) }
         }
         adapter.submit(rows)
@@ -614,6 +724,7 @@ class MainActivity : AppCompatActivity() {
         if (channels.isEmpty()) return
         if (pendingIndex >= 0) commitSwitch()
         hideOsd()
+        hiddenMode = false
         if (tabs.getOrNull(tabIndex) == TAB_SETTINGS) {
             // Настройки нужны редко - список всегда открывается с каналами
             val last = tabs.indexOf(store.lastTab ?: TAB_ALL)
@@ -633,6 +744,8 @@ class MainActivity : AppCompatActivity() {
         if (b.panel.visibility != View.VISIBLE) return
         handler.removeCallbacks(panelIdleRunnable)
         hideKeyboard()
+        closeActionMenu()
+        hiddenMode = false
         b.panel.visibility = View.GONE
         shiftOverlays(panelOpen = false)
         clearSearch()
@@ -668,6 +781,7 @@ class MainActivity : AppCompatActivity() {
     private fun switchTab(delta: Int) {
         if (tabs.isEmpty()) return
         tabIndex = (tabIndex + delta + tabs.size) % tabs.size
+        hiddenMode = false
         clearSearch()
         refreshRows()
         val index = adapter.indexOfChannel(current?.key)
@@ -727,20 +841,39 @@ class MainActivity : AppCompatActivity() {
                 closePanel()
                 if (sameAndPlaying) showOsd(channel) else play(channel, showInfo = true)
             }
-            is Row.Action -> {
-                if (row.id == ACTION_REFRESH) {
+            is Row.Action -> when (row.id) {
+                ACTION_REFRESH -> {
                     closePanel()
                     refresh(userInitiated = true)
-                } else if (row.id == ACTION_CHANGE) {
+                }
+                ACTION_CHANGE -> {
                     closePanel()
                     openSetup(finishSelf = false)
                 }
+                ACTION_HIDDEN -> {
+                    hiddenMode = true
+                    refreshRows()
+                    focusRow(0)
+                }
+                ACTION_UNHIDE_ALL -> {
+                    store.unhideAll()
+                    showToast(getString(R.string.restored_all))
+                    hiddenMode = false
+                    afterHiddenChanged(0)
+                }
+            }
+            is Row.Restore -> {
+                val position = focusedPosition()
+                if (row.isGroup) store.unhideGroup(row.key) else store.unhideChannel(row.key)
+                showToast(getString(R.string.restored, row.key))
+                if (store.hiddenCount() == 0) hiddenMode = false
+                afterHiddenChanged(position)
             }
         }
     }
 
     private fun onRowLongClick(row: Row) {
-        if (row is Row.Ch) toggleFavorite(row.channel)
+        if (row is Row.Ch) openActionMenu(row.channel)
     }
 
     private fun hideKeyboard() {
@@ -755,7 +888,7 @@ class MainActivity : AppCompatActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val handled = if (b.panel.visibility == View.VISIBLE) {
             if (event.action == KeyEvent.ACTION_DOWN) bumpPanelTimer()
-            handlePanelKey(event)
+            if (b.actionMenu.visibility == View.VISIBLE) handleMenuKey(event) else handlePanelKey(event)
         } else {
             handleWatchKey(event)
         }
@@ -781,6 +914,11 @@ class MainActivity : AppCompatActivity() {
                         refreshRows()
                         val index = adapter.indexOfChannel(current?.key)
                         focusRow(if (index >= 0) index else 0)
+                    } else if (hiddenMode) {
+                        // Из списка скрытых - обратно к настройкам
+                        hiddenMode = false
+                        refreshRows()
+                        focusRow(2)
                     } else {
                         closePanel()
                     }
@@ -788,7 +926,7 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_MENU -> {
-                if (down && event.repeatCount == 0) focusedChannel()?.let { toggleFavorite(it) }
+                if (up) focusedChannel()?.let { openActionMenu(it) }
                 return true
             }
             KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP -> {

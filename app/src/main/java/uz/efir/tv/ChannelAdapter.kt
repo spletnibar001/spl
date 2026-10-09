@@ -38,6 +38,7 @@ class ChannelAdapter(
     override fun getItemId(position: Int): Long = when (val row = rows[position]) {
         is Row.Ch -> row.channel.number.toLong()
         is Row.Action -> -row.id.toLong()
+        is Row.Restore -> 1_000_000_000L + (row.key.hashCode().toLong() and 0x7FFFFFFFL) * 2 + (if (row.isGroup) 1 else 0)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
@@ -68,19 +69,23 @@ class ChannelAdapter(
                 b.playing.visibility = if (playing) View.VISIBLE else View.GONE
                 b.fav.visibility = if (isFavorite(c)) View.VISIBLE else View.GONE
             }
-            is Row.Action -> {
-                b.number.visibility = View.INVISIBLE
-                b.badge.visibility = View.GONE
-                b.name.text = row.title
-                b.name.setTextColor(AppCompatResources.getColorStateList(ctx, R.color.row_text))
-                b.playing.visibility = View.GONE
-                b.fav.visibility = View.GONE
-            }
+            is Row.Action -> bindPlain(b, row.title)
+            is Row.Restore -> bindPlain(b, row.title)
         }
         holder.itemView.setOnClickListener { onClick(row) }
         holder.itemView.setOnLongClickListener {
             onLongClick(row)
             true
         }
+    }
+
+    private fun bindPlain(b: ItemChannelBinding, title: String) {
+        val ctx = b.root.context
+        b.number.visibility = View.INVISIBLE
+        b.badge.visibility = View.GONE
+        b.name.text = title
+        b.name.setTextColor(AppCompatResources.getColorStateList(ctx, R.color.row_text))
+        b.playing.visibility = View.GONE
+        b.fav.visibility = View.GONE
     }
 }

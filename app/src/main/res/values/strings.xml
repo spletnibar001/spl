@@ -25,10 +25,10 @@
     <string name="tab_settings">Настройки</string>
     <string name="search_hint">Поиск по названию или номеру</string>
     <string name="empty_search">Ничего не найдено</string>
-    <string name="empty_fav">Пока пусто. Удерживайте OK на канале, чтобы добавить</string>
+    <string name="empty_fav">Пока пусто. Удерживайте OK на канале и выберите «В избранное»</string>
     <string name="hint_ok">смотреть</string>
     <string name="hint_groups">группы</string>
-    <string name="hint_fav">в избранное</string>
+    <string name="hint_menu">меню</string>
     <string name="key_ok">OK</string>
     <string name="key_groups">◀ ▶</string>
     <string name="key_hold_ok">удерж. OK</string>
@@ -45,5 +45,30 @@
     <string name="refreshing">Обновляю плейлист…</string>
     <string name="refreshed">Плейлист обновлён: %1$d каналов</string>
     <string name="refresh_failed">Не удалось обновить - работает сохранённый список</string>
-    <string name="local_playlist">Плейлист загружен с телефона - обновить можно только им же</string>
+    <string name="local_playlist">Плейлист загружен файлом - чтобы обновить, загрузите его заново через «Сменить плейлист»</string>
+    <!-- Меню канала и скрытые -->
+    <string name="menu_fav">В избранное</string>
+    <string name="menu_unfav">Убрать из избранного</string>
+    <string name="menu_hide">Скрыть канал</string>
+    <string name="menu_hide_group">Скрыть группу «%1$s»</string>
+    <string name="hidden_channel">«%1$s» скрыт - вернуть можно в Настройках</string>
+    <string name="hidden_group">Группа «%1$s» скрыта - вернуть можно в Настройках</string>
+    <string name="action_hidden">Скрытые: %1$d</string>
+    <string name="action_unhide_all">Вернуть все</string>
+    <string name="restore_group">Группа «%1$s»</string>
+    <string name="restored">«%1$s» снова в списке</string>
+    <string name="restored_all">Все скрытые каналы возвращены</string>
+
+    <!-- transfiles.ru -->
+    <string name="setup_code_label">Или код с transfiles.ru</string>
+    <string name="setup_code_hint">5 символов</string>
+    <string name="setup_code_button">Скачать</string>
+    <string name="setup_code_error">Введите символы после transfiles.ru/ - например abc12</string>
+    <string name="tf_title">transfiles.ru/%1$s</string>
+    <string name="tf_hint">Сайт просит ввести символы с картинки: стрелками выберите поле, OK - клавиатура. Потом нажмите на странице кнопку скачивания - плейлист загрузится сам</string>
+    <string name="tf_downloading">Скачиваю плейлист…</string>
+    <string name="tf_checking">Читаю каналы…</string>
+    <string name="tf_error_download">Не удалось скачать файл - попробуйте ещё раз</string>
+    <string name="tf_error_page">Страница не открылась - проверьте код и интернет</string>
+    <string name="tf_no_webview">На этом телевизоре нет встроенного браузера (Android System WebView), поэтому transfiles недоступен</string>
 </resources>
