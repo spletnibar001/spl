@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="42dp"
+    android:layout_marginTop="3dp"
+    android:background="@drawable/bg_row"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:longClickable="true"
+    android:orientation="horizontal"
+    android:paddingStart="10dp"
+    android:paddingEnd="12dp">
+
+    <TextView
+        android:id="@+id/number"
+        android:layout_width="34dp"
+        android:layout_height="wrap_content"
+        android:duplicateParentState="true"
+        android:fontFamily="@font/plex_mono_medium"
+        android:gravity="end"
+        android:maxLines="1"
+        android:textColor="@color/row_number"
+        android:textSize="14sp" />
+
+    <FrameLayout
+        android:id="@+id/badge"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="12dp"
+        android:background="@drawable/bg_badge_row"
+        android:duplicateParentState="true">
+
+        <TextView
+            android:id="@+id/initials"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:duplicateParentState="true"
+            android:fontFamily="@font/unbounded_bold"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="@color/row_text"
+            android:textSize="10sp" />
+
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:duplicateParentState="true"
+            android:padding="3dp"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:duplicateParentState="true"
+        android:ellipsize="end"
+        android:fontFamily="@font/golos_medium"
+        android:maxLines="1"
+        android:textColor="@color/row_text"
+        android:textSize="17sp" />
+
+    <ImageView
+        android:id="@+id/playing"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@null"
+        android:duplicateParentState="true"
+        android:src="@drawable/ic_bars"
+        android:visibility="gone"
+        app:tint="@color/row_text_playing" />
+
+    <ImageView
+        android:id="@+id/fav"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@null"
+        android:duplicateParentState="true"
+        android:src="@drawable/ic_star"
+        android:visibility="gone"
+        app:tint="@color/row_icon_muted" />
+</LinearLayout>

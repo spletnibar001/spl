@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ink">#0B0D12</color>
+    <color name="card">#12151D</color>
+    <color name="panel">#F20B0D12</color>
+    <color name="osd">#E60B0D12</color>
+    <color name="badge">#232A38</color>
+    <color name="button">#262D3C</color>
+    <color name="line">#2E3546</color>
+    <color name="keycap_line">#3A4254</color>
+    <color name="text">#EEF0F4</color>
+    <color name="light">#C9CEDA</color>
+    <color name="muted">#8A92A4</color>
+    <color name="muted2">#9AA1B2</color>
+    <color name="accent">#F2A93B</color>
+    <color name="accent_dim">#6B5222</color>
+    <color name="on_accent">#0B0D12</color>
+    <color name="number_on_accent">#2B1E08</color>
+    <color name="badge_on_accent">#290B0D12</color>
+</resources>

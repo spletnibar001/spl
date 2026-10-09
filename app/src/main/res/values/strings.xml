@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ЭФИР</string>
+
+    <!-- Первый запуск -->
+    <string name="setup_title">Подключите плейлист</string>
+    <string name="setup_subtitle">Один раз - дальше каналы включаются сразу</string>
+    <string name="setup_phone_title">С телефона</string>
+    <string name="setup_phone_text">Наведите камеру на код и вставьте ссылку на M3U - так быстрее, чем набирать пультом</string>
+    <string name="setup_browser">или в браузере: %1$s</string>
+    <string name="setup_no_network">Нет сети - подключите телевизор к Wi-Fi</string>
+    <string name="setup_remote">Или пультом</string>
+    <string name="setup_hint">http://</string>
+    <string name="setup_load">Загрузить</string>
+    <string name="setup_loading">Загружаю плейлист…</string>
+    <string name="setup_received">Ссылка получена, загружаю…</string>
+    <string name="setup_file_received">Файл получен, читаю каналы…</string>
+    <string name="setup_error_empty">Вставьте ссылку на плейлист</string>
+    <string name="setup_error_load">Плейлист не загрузился. Проверьте ссылку и интернет</string>
+    <string name="setup_error_parse">В плейлисте не нашлось каналов</string>
+
+    <!-- Список -->
+    <string name="tab_fav">Избранное</string>
+    <string name="tab_all">Все</string>
+    <string name="tab_settings">Настройки</string>
+    <string name="search_hint">Поиск по названию или номеру</string>
+    <string name="empty_search">Ничего не найдено</string>
+    <string name="empty_fav">Пока пусто. Удерживайте OK на канале, чтобы добавить</string>
+    <string name="hint_ok">смотреть</string>
+    <string name="hint_groups">группы</string>
+    <string name="hint_fav">в избранное</string>
+    <string name="key_ok">OK</string>
+    <string name="key_groups">◀ ▶</string>
+    <string name="key_hold_ok">удерж. OK</string>
+    <string name="action_refresh">Обновить плейлист</string>
+    <string name="action_change">Сменить плейлист</string>
+
+    <!-- Сообщения -->
+    <string name="fav_added">«%1$s» в избранном</string>
+    <string name="fav_removed">«%1$s» убран из избранного</string>
+    <string name="no_channel">Канала %1$d нет</string>
+    <string name="press_back_again">Нажмите НАЗАД ещё раз, чтобы выйти</string>
+    <string name="status_connecting">Подключение…</string>
+    <string name="status_unavailable">Канал не отвечает - пробую снова</string>
+    <string name="refreshing">Обновляю плейлист…</string>
+    <string name="refreshed">Плейлист обновлён: %1$d каналов</string>
+    <string name="refresh_failed">Не удалось обновить - работает сохранённый список</string>
+    <string name="local_playlist">Плейлист загружен с телефона - обновить можно только им же</string>
+</resources>
