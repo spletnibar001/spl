@@ -594,8 +594,6 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 
 
   /* ===== МОДУЛЬ БАР-КОНТРОЛЯ ===== */
-  #songs-fab{position:fixed;left:14px;bottom:14px;z-index:70;background:var(--gold);color:#16130a;
-    border:none;border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
   #bar-fab{position:fixed;right:14px;bottom:14px;z-index:70;background:var(--emerald);color:#0c1410;
     border:none;border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
   #bar-screen{position:fixed;inset:0;z-index:80;background:var(--bg,#10141a);overflow-y:auto;display:none;padding:14px}
@@ -1351,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 07.10 · сборка 59";
+const APP_VERSION = "v 14.10 · сборка 59";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1622,7 +1620,6 @@ async function authorize(){
     document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) refreshToken(); });
     startApp();
     initBarModule().catch(()=>{});   // бар-контроль: кнопка для барменов и руководства
-    initSongsModule();               // очередь песен: кнопка для звукооператоров и руководства
   }catch(e){
     $("auth-spinner").style.display="none";
     $("auth-status").innerHTML = "<b style='color:var(--red)'>"+e.message+"</b>";
@@ -4276,36 +4273,20 @@ async function startApp(){
   }
   $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
   $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
-  /* УТВЕРЖДЕНИЕ НЕДЕЛИ (07.10.2026).
-     Было insert — если строка за неделю уже есть в БД (а в локальном списке её нет,
-     например утвердили с другого устройства), приходило «duplicate key value violates
-     unique constraint "approvals_pkey"». Плюс первое нажатие ничего видимого не делало:
-     запрос шёл долго, кнопка оставалась активной, и по второму нажатию уходил второй
-     запрос. Теперь upsert (повторное утверждение безвредно) и блокировка на время работы. */
-  $("btn-approve").addEventListener("click", async (ev)=>{
-    const btn = ev.currentTarget;
-    if(btn.dataset.busy==="1") return;
-    btn.dataset.busy="1"; btn.disabled=true;
-    const label0 = btn.textContent;
-    try{
-      const weekKey = iso(viewStart);
-      if(isApproved(weekKey)){
-        if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
-        if(!confirm("Снять утверждение недели?")) return;
-        const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
-        if(error) showMsg(error.message);
-      }else{
-        if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
-        btn.textContent = "утверждаю…";
-        const {error} = await sb.from("approvals").upsert({week_start:weekKey},{onConflict:"week_start"});
-        if(error) showMsg(error.message);
-        else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
-      }
-      await refresh();
-    } finally {
-      btn.dataset.busy="0"; btn.disabled=false;
-      if(btn.textContent==="утверждаю…") btn.textContent = label0;
+  $("btn-approve").addEventListener("click", async ()=>{
+    const weekKey = iso(viewStart);
+    if(isApproved(weekKey)){
+      if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
+      if(!confirm("Снять утверждение недели?")) return;
+      const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
+      if(error) showMsg(error.message);
+    }else{
+      if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
+      const {error} = await sb.from("approvals").insert({week_start:weekKey});
+      if(error) showMsg(error.message);
+      else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
     }
+    await refresh();
   });
   $("pen-add").addEventListener("click", addPenalty);
   $("pen-close").addEventListener("click", closePenalty);
@@ -6675,40 +6656,6 @@ async function barApi(action, payload){
 }
 function barFmt(n,dig){ return (n==null)?"—":Number(n).toLocaleString("ru-RU",{maximumFractionDigits:dig==null?2:dig}); }
 
-/* ===== ОЧЕРЕДЬ ПЕСЕН (zvuk.html): кнопка для звукооператоров и руководства ===== */
-function initSongsModule(){
-  if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;
-  let tries = 0;
-  const check = () => {
-    if(document.getElementById("songs-fab")) return;
-    const role = ME && ME.role;
-    const lead = ["admin","upr","sound","manager"].includes(role);
-    const sound = (typeof bkMyEmpRole==="function") && bkMyEmpRole()==="Звукооператор";
-    if(!lead && !sound){ if(++tries < 10) setTimeout(check, 1000); return; }   // карточка сотрудника грузится не сразу
-    const show = () => {
-      if(document.getElementById("songs-fab")) return;
-      const b = document.createElement("button");
-      b.id = "songs-fab"; b.textContent = "🎤 Песни";
-      b.addEventListener("click", () => {
-        try{ sessionStorage.setItem("spl_initData", (window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initData)||""); }catch(_){}
-        location.href = "zvuk.html";
-      });
-      document.body.appendChild(b);
-    };
-    // тестовый режим очереди песен: кнопка только у тех, кого пускают (admin / upr и тестовые аккаунты)
-    const H = {"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:"Bearer "+SUPABASE_ANON_KEY};
-    fetch(SUPABASE_URL+"/rest/v1/rpc/song_flags", {method:"POST", headers:H, body:"{}"})
-      .then(r=>r.json()).then(f=>{
-        if(f && f.test_mode===false){ show(); return; }
-        const initData = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData;
-        if(!f || !initData) return;
-        return fetch(SUPABASE_URL+"/functions/v1/songs", {method:"POST", headers:H, body:JSON.stringify({action:"login", app:"staff", initData})})
-          .then(r=>r.json()).then(d=>{ if(d && d.token){ try{ sessionStorage.setItem("zvuk_token", d.token); }catch(_){} show(); } });
-      }).catch(()=>{});
-  };
-  check();
-}
-
 async function initBarModule(){
   if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;     // планшет хостес — без бара
   try{ BAR.st = await barApi("state",{}); }catch(_){ return; }
@@ -7116,6 +7063,9 @@ const RC = {
 
 function rcDate(){ try{ return isoBizToday(); }catch(_){ return bkIso(bkToday()); } }
 function rcVenueRu(v){ return v==="club" ? "Клуб" : "Караоке"; }
+// Подтверждать отзыв («Видел отзыв») может только администратор TMR.
+// Остальное руководство панель видит, но кнопок подтверждения у них нет.
+function rcCanConfirm(){ try{ return isOwner(); }catch(_){ return false; } }
 
 // площадки, которые подтверждает руководитель
 function rcMgrVenues(){
@@ -7322,7 +7272,7 @@ function rcBodyHostess(){
       <button class="rc-btn gh" onclick="rcRemove('${i.id}')">убрать</button>
     </div>`).join("");
   const okRows = okItems.map(i=>`<div class="rc-row ok">
-      <div class="rc-nm"><b>${(i.guest_name||"Гость").replace(/</g,"&lt;")}</b><span>подтвердил(а): ${i.confirmed_by||"менеджер"}</span></div>
+      <div class="rc-nm"><b>${(i.guest_name||"Гость").replace(/</g,"&lt;")}</b><span>подтвердил(а): ${i.confirmed_by||"администратор"}</span></div>
       <span class="rc-tag ok">принят</span>
     </div>`).join("");
 
@@ -7334,14 +7284,15 @@ function rcBodyHostess(){
     </div>
     <div class="rc-prog">${slots}</div>
     ${okRows ? `<div class="rc-sec">Принято</div>${okRows}` : ""}
-    ${waitRows ? `<div class="rc-sec">На проверке у менеджера</div>${waitRows}` : ""}
+    ${waitRows ? `<div class="rc-sec">На проверке у администратора</div>${waitRows}` : ""}
     <div class="rc-sec">Новые гости смены ⭐</div>
     ${candRows}
     <div class="rc-msg" id="rc-msg"></div>
     <div class="rc-week">За неделю принято отзывов: <b>${RC.myWeek||0}</b></div>
     <div class="rc-note">Просим отзыв только у новых гостей - тех, кто у нас впервые (⭐ в списке броней).
-      Отметили «Отзыв оставлен» - покажите отзыв менеджеру смены с экрана, он подтвердит.
-      Три подтверждённых отзыва до 05:00 - бонус 100 000 сум в зарплату за эту смену.</div>`;
+      Отметили «Отзыв оставлен» - покажите отзыв администратору с экрана, он подтвердит.
+      Отзывы отмечаем в свою смену, администратор подтверждает их в течение суток.
+      Три подтверждённых отзыва - бонус 100 000 сум в зарплату за эту смену.</div>`;
 }
 
 /* ----- экран менеджера ----- */
@@ -7383,9 +7334,18 @@ function rcBodyManager(){
   RC.list.forEach(c=>{
     const items = (c.items||[]).filter(i=>i.status!=="rejected");
     const conf = c.confirmed||0, target = c.target||3;
+    let dl = "";
+    if(c.deadline){
+      try{ dl = new Date(c.deadline).toLocaleString("ru-RU",
+        {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}); }catch(_){}
+    }
+    const shiftLbl = c.past
+      ? `прошлая смена${c.business_date?" "+fmtD(fromIso(String(c.business_date))):""}${dl?` · подтвердить до ${dl}`:""}`
+      : "";
     html += `<div class="rc-mgr-h">
         <div><div class="n">${(c.name||"Хостес").replace(/</g,"&lt;")}</div>
-          <div class="v">${rcVenueRu(c.venue)} · отзыв на ${c.platform_ru}</div></div>
+          <div class="v">${rcVenueRu(c.venue)} · отзыв на ${c.platform_ru}${
+            shiftLbl?`<br>${hrEsc(shiftLbl)}`:""}</div></div>
         <div class="p ${c.status==="done"?"ok":""}">${conf}/${target}</div>
       </div>`;
     if(!items.length){
@@ -7398,6 +7358,10 @@ function rcBodyManager(){
           return `<div class="rc-row ok"><div class="rc-nm"><b>${nm}</b><span>${sub}</span></div>
             <span class="rc-tag ok">принят</span></div>`;
         }
+        if(!rcCanConfirm()){
+          return `<div class="rc-row wait"><div class="rc-nm"><b>${nm}</b><span>${sub||"ждёт проверки"}</span></div>
+            <span class="rc-tag">ждёт администратора</span></div>`;
+        }
         return `<div class="rc-row wait"><div class="rc-nm"><b>${nm}</b><span>${sub||"ждёт проверки"}</span></div>
           <button class="rc-btn gr" onclick="rcConfirm('${i.id}')">✓ Видел отзыв</button>
           <button class="rc-btn gh" onclick="rcReject('${i.id}')">нет</button></div>`;
@@ -7405,8 +7369,11 @@ function rcBodyManager(){
     }
   });
   return html + `<div class="rc-msg" id="rc-msg"></div>
-    <div class="rc-note">Хостес показывает отзыв с экрана телефона гостя. Третий подтверждённый отзыв
-      автоматически начисляет ей бонус 100 000 сум с примечанием «Челлендж: 3 отзыва».</div>`;
+    <div class="rc-note">${rcCanConfirm()
+      ? `Хостес показывает отзыв с экрана телефона гостя. Третий подтверждённый отзыв
+         автоматически начисляет ей бонус 100 000 сум с примечанием «Челлендж: 3 отзыва».`
+      : `Подтверждает отзывы только администратор. Здесь видно, сколько отзывов заявлено
+         и сколько уже принято.`}</div>`;
 }
 
 async function rcSetTab(t){
@@ -7434,7 +7401,7 @@ async function rcAdd(bookingId){
     if(data && data.ok===false){ rcMsg(data.error||"Не получилось"); RC.busy=false; return; }
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.("success");
     await rcLoadHostess(); rcFab(); rcRender();
-    rcMsg("Отмечено. Покажите отзыв менеджеру смены", true);
+    rcMsg("Отмечено. Покажите отзыв администратору", true);
   } finally { RC.busy = false; }
 }
 async function rcRemove(itemId){
@@ -8389,6 +8356,10 @@ async function awOpen(){
   ]);
   AW.clean = Array.isArray(cl) ? cl : [];
   AW.best  = (bl && bl.ok !== false) ? bl : null;
+  // Ключ периода считает база: блок из 4 платёжных недель. Календарный
+  // месяц не годится — блок и месяц не совпадают, и бонус можно было
+  // выдать дважды почти за те же недели.
+  if(AW.best && AW.best.period_key) AW.month = AW.best.period_key;
   // период — 4 платёжные недели, а не календарный месяц
   if(AW.best) $("hr-aw-sub").textContent =
     `Бонусы устава · ${fmtD(fromIso(AW.best.from))} — ${fmtD(fromIso(AW.best.till))} · ${AW.best.weeks} недели`;
@@ -8447,6 +8418,19 @@ function awRender(){
     }
   } else {
     html += `<div class="hr-note">Сейчас норму устава никто не набрал.</div>`;
+  }
+  // уже получили бонус: показываем, с какой недели пошёл новый отсчёт
+  const paid = live.filter(x => !Number(x.streak) && x.paid_to);
+  if(paid.length){
+    html += paid.map(x=>{
+      let nextS = "";
+      try{ nextS = fmtD(addDays(fromIso(String(x.paid_to)), 7)); }catch(_){}
+      return `<div class="hr-row">
+        <div class="l"><b>${hrEsc(x.name)} · ${hrEsc(x.role||"")}</b>
+          <span>бонус за период выплачен${nextS?` · новый отсчёт с ${nextS}`:""}</span></div>
+        <span class="hr-tag g">выплачен</span>
+      </div>`;
+    }).join("");
   }
   if(close.length){
     html += close.slice(0,8).map(x=>`<div class="hr-row">
