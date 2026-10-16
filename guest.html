@@ -256,6 +256,34 @@ button{font-family:inherit;cursor:pointer}
 .zone-book-btn svg{width:17px;height:17px}
 .zone-note{font-size:11px;color:var(--gold);margin-top:-4px;margin-bottom:10px;font-weight:600}
 
+/* ВОПРОСЫ И ОТВЕТЫ */
+.faq-switch{display:flex;gap:8px;margin-bottom:14px}
+.faq-switch button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  border-radius:11px;padding:10px;font-size:13px;font-weight:800;font-family:inherit}
+.faq-switch button.on{border-color:var(--emerald);color:var(--emerald);background:var(--panel2)}
+.faq-item{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:8px;overflow:hidden}
+.faq-item summary{list-style:none;cursor:pointer;padding:13px 14px;font-size:14px;font-weight:700;
+  display:flex;align-items:center;gap:10px}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:"+";margin-left:auto;color:var(--emerald);font-size:19px;font-weight:700;line-height:1}
+.faq-item[open] summary::after{content:"–"}
+.faq-item[open] summary{color:var(--emerald)}
+.faq-a{padding:0 14px 14px;font-size:13.5px;line-height:1.6;color:var(--muted)}
+.faq-a b{color:var(--text)}
+.faq-dep{width:100%;border-collapse:collapse;margin-top:9px;font-size:13px}
+.faq-dep td{padding:6px 0;border-top:1px solid var(--line);color:var(--text)}
+.faq-dep td:first-child{color:var(--muted)}
+.faq-dep td+td{text-align:right;font-weight:700;white-space:nowrap;padding-left:12px}
+.faq-dep th+th{padding-left:12px}
+.faq-dep th{padding:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);font-weight:700;text-align:right}
+.faq-dep th:first-child{text-align:left}
+.faq-dep-z td{color:var(--emerald);font-weight:700;padding-top:11px;font-size:12px;
+  text-transform:uppercase;letter-spacing:.05em}
+.faq-dep-t{padding-left:12px!important}
+.faq-link{display:inline-block;margin-top:9px;color:var(--emerald);font-weight:700;
+  border:none;background:none;padding:0;font-size:13.5px;font-family:inherit;cursor:pointer}
+
 /* НИЖНЯЯ НАВИГАЦИЯ */
 #navbar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(13,15,18,.95);
   backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto}
@@ -397,6 +425,8 @@ textarea.bk-input{resize:vertical;min-height:48px}
   <div class="section" id="sec-dress"></div>
   <!-- КАК ДОБРАТЬСЯ -->
   <div class="section" id="sec-location"></div>
+  <!-- ВОПРОСЫ И ОТВЕТЫ -->
+  <div class="section" id="sec-faq"></div>
   <!-- КОНТАКТЫ -->
   <div class="section" id="sec-contacts"></div>
 </div>
@@ -1091,7 +1121,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 07.10 · сборка 8";
+const GUEST_VERSION = "v 16.10 · сборка 11";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1118,6 +1148,9 @@ const T = {
   nav_menu: {ru:"Меню", uz:"Menyu", en:"Menu", kz:"Мәзір", kg:"Меню", tj:"Меню", cn:"菜单"},
   nav_book: {ru:"Бронь", uz:"Bron", en:"Book", kz:"Брондау", kg:"Бронь", tj:"Брон", cn:"预订"},
   tb_mybk: {ru:"Мои брони", uz:"Mening bronlarim", en:"My bookings", kz:"Менің брондарым", kg:"Менин бронум", tj:"Бронҳои ман", cn:"我的预订"},
+  nav_faq: {ru:"Вопросы", uz:"Savollar", en:"FAQ", kz:"Сұрақтар", kg:"Суроолор", tj:"Саволҳо", cn:"常见问题"},
+  faq_t: {ru:"Вопросы и ответы", uz:"Savol-javob", en:"Questions & answers", kz:"Сұрақ-жауап", kg:"Суроо-жооп", tj:"Савол ва ҷавоб", cn:"问答"},
+  faq_more: {ru:"Не нашли свой вопрос — позвоните, подскажем.", uz:"Savolingizni topmadingizmi — qo'ng'iroq qiling.", en:"Can't find your question? Give us a call.", kz:"Сұрағыңызды таппадыңыз ба — қоңырау шалыңыз.", kg:"Сурооңузду таппадыңызбы — чалыңыз.", tj:"Саволатонро наёфтед — занг занед.", cn:"没有找到您的问题？请致电我们。"},
   nav_where: {ru:"Адрес", uz:"Manzil", en:"Location", kz:"Мекенжай", kg:"Дарек", tj:"Суроға", cn:"地址"},
   zones_t: {ru:"Залы и кабинки", uz:"Zal va kabinalar", en:"Halls & rooms", kz:"Залдар мен кабиналар", kg:"Залдар жана кабиналар", tj:"Толорҳо ва кабинаҳо", cn:"大厅与包间"},
   menu_t: {ru:"Меню", uz:"Menyu", en:"Menu", kz:"Мәзір", kg:"Меню", tj:"Меню", cn:"菜单"},
@@ -1253,6 +1286,178 @@ function pick(o){ if(o==null) return ""; if(typeof o==="string") return o; retur
 const KEYHOLE = '<svg viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="38" r="20"/><path d="M42 50 L58 50 L64 82 L36 82 Z"/></svg>';
 
 // иконки навигации
+/* ============================================================
+   ВОПРОСЫ И ОТВЕТЫ
+   Текст правится прямо здесь. Три языка: ru / uz / en; для остальных
+   языков подставляется русский (как в меню и карточках залов).
+   Метка {DEP} в ответе заменяется живой таблицей депозитов из базы —
+   суммы не дублируются в тексте и не устаревают.
+   ============================================================ */
+const FAQ = {
+  karaoke: [
+    { q:{ru:"Что такое депозит и куда он идёт?",
+         uz:"Depozit nima va u qayerga ketadi?",
+         en:"What is the deposit and where does it go?"},
+      a:{ru:"Депозит - это не плата за вход и не доплата сверху. <b>Вся сумма идёт в счёт заказа</b>: еда, напитки, кальян. Вы просто заказываете на эту сумму или больше.",
+         uz:"Depozit - kirish haqi emas va qo'shimcha to'lov ham emas. <b>Butun summa buyurtma hisobiga o'tadi</b>: taom, ichimlik, kalyan.",
+         en:"The deposit is not a cover charge or an extra fee. <b>The full amount goes towards your order</b>: food, drinks, hookah."} },
+    { q:{ru:"Сколько стоит депозит?",
+         uz:"Depozit qancha turadi?",
+         en:"How much is the deposit?"},
+      a:{ru:"Зависит от зала и дня недели. Пятница и суббота - по тарифу выходного дня, остальные дни - будни.{DEP}<br><br>Приход <b>после 02:00</b> - депозита нет.",
+         uz:"Zal va hafta kuniga bog'liq. Juma va shanba - dam olish tarifi, qolgan kunlar - ish kuni.{DEP}<br><br><b>02:00 dan keyin</b> kelsangiz - depozit yo'q.",
+         en:"It depends on the hall and the day. Friday and Saturday use the weekend rate.{DEP}<br><br>Arriving <b>after 2:00</b> - no deposit."} },
+    { q:{ru:"Нужно ли платить за бронь заранее?",
+         uz:"Bron uchun oldindan to'lash kerakmi?",
+         en:"Do I need to pay in advance to book?"},
+      a:{ru:"Нет. Бронь бесплатная, предоплаты нет - депозит вы тратите уже на месте, заказом.",
+         uz:"Yo'q. Bron bepul, oldindan to'lov yo'q - depozitni joyida buyurtmaga sarflaysiz.",
+         en:"No. Booking is free, there is no prepayment - you spend the deposit on site, on your order."} },
+    { q:{ru:"Во сколько работает караоке?",
+         uz:"Karaoke necha soatda ishlaydi?",
+         en:"What are the karaoke opening hours?"},
+      a:{ru:"Каждый день с <b>17:00 до 05:00</b>.",
+         uz:"Har kuni <b>17:00 dan 05:00 gacha</b>.",
+         en:"Every day from <b>17:00 to 5:00</b>."} },
+    { q:{ru:"Какие есть кабинки?",
+         uz:"Qanday kabinalar bor?",
+         en:"What rooms do you have?"},
+      a:{ru:"Кабинки <b>1, 2, 3, 5, 6</b> и ВИП-кабинка <b>7</b>. Четвёртой кабинки у нас нет. Вместимость каждой и фотографии - в разделе «Залы».",
+         uz:"Kabinalar <b>1, 2, 3, 5, 6</b> va VIP-kabina <b>7</b>. To'rtinchi kabina yo'q. Sig'imi va suratlari - «Zallar» bo'limida.",
+         en:"Rooms <b>1, 2, 3, 5, 6</b> and VIP room <b>7</b>. There is no room 4. Capacity and photos are in the Halls section."},
+      link:"zones" },
+    { q:{ru:"Малый зал работает всегда?",
+         uz:"Kichik zal doim ishlaydimi?",
+         en:"Is the Small Hall always open?"},
+      a:{ru:"Малый зал открыт <b>только в пятницу и субботу</b>. В остальные дни бронируйте Большой зал, Летку или кабинку.",
+         uz:"Kichik zal <b>faqat juma va shanba</b> kunlari ochiq.",
+         en:"The Small Hall is open <b>on Friday and Saturday only</b>."} },
+    { q:{ru:"Сколько песен можно спеть в общем зале?",
+         uz:"Umumiy zalda nechta qo'shiq aytish mumkin?",
+         en:"How many songs can we sing in the main hall?"},
+      a:{ru:"В Большом зале - <b>2 песни на стол за круг</b>, за двойными столами №3 и №5 - три. В Среднем и Малом залах - по две. Круг возвращается к столу в среднем через <b>40-80 минут</b>. За барной стойкой песни не поют.",
+         uz:"Katta zalda - <b>bir aylanada stolga 2 qo'shiq</b>, №3 va №5 qo'sh stollarda - uchta. O'rta va Kichik zallarda - ikkitadan. Aylana stolga o'rtacha <b>40-80 daqiqada</b> qaytadi.",
+         en:"In the Big Hall - <b>2 songs per table per round</b>; at the double tables 3 and 5 - three. In the Middle and Small halls - two. A round comes back to your table in about <b>40-80 minutes</b>."} },
+    { q:{ru:"Сколько стоит кабинка в час?",
+         uz:"Kabina bir soatga qancha turadi?",
+         en:"How much is a room per hour?"},
+      a:{ru:"Маленькие кабинки - <b>100 000 сум в час</b>, большие - <b>200 000 сум в час</b>. Депозит можно потратить и на меню, и на эти часы. В Большом, Среднем и Малом залах почасовой оплаты нет - только позиции по меню.",
+         uz:"Kichik kabinalar - <b>soatiga 100 000 so'm</b>, kattalari - <b>soatiga 200 000 so'm</b>. Depozitni menyuga ham, shu soatlarga ham sarflash mumkin.",
+         en:"Small rooms - <b>100,000 UZS per hour</b>, large ones - <b>200,000 UZS per hour</b>. The deposit covers both the menu and these hours."} },
+    { q:{ru:"Какое оборудование в залах?",
+         uz:"Zallarda qanday jihozlar bor?",
+         en:"What equipment do you have?"},
+      a:{ru:"В кабинках - караоке-система <b>AST ZOOM-2</b>, акустика JBL, микрофоны Shure, телевизоры 65\" 4K; в VIP-кабинке №7 - 75\" 4K QLED и своя уборная. В залах - караоке-система <b>AST-250</b>, акустика Celestion, консоли Midas и Behringer.",
+         uz:"Kabinalarda - <b>AST ZOOM-2</b> karaoke tizimi, JBL akustikasi, Shure mikrofonlari, 65\" 4K televizorlar. Zallarda - <b>AST-250</b>, Celestion akustikasi, Midas va Behringer konsollari.",
+         en:"Rooms have an <b>AST ZOOM-2</b> karaoke system, JBL speakers, Shure microphones and 65\" 4K TVs. The halls run an <b>AST-250</b> system with Celestion speakers and Midas / Behringer consoles."} },
+    { q:{ru:"Можно ли отменить бронь?",
+         uz:"Bronni bekor qilish mumkinmi?",
+         en:"Can I cancel my booking?"},
+      a:{ru:"Да. Откройте свою бронь в этом приложении и нажмите «Отменить» - укажите причину, чтобы мы освободили стол.",
+         uz:"Ha. Shu ilovada bronni oching va «Bekor qilish» tugmasini bosing.",
+         en:"Yes. Open your booking in this app and press Cancel."} },
+  ],
+  club: [
+    { q:{ru:"Что такое депозит и куда он идёт?",
+         uz:"Depozit nima va u qayerga ketadi?",
+         en:"What is the deposit and where does it go?"},
+      a:{ru:"Депозит - это не плата за вход. <b>Вся сумма идёт в счёт заказа</b> за столом: напитки, кухня, кальян.",
+         uz:"Depozit - kirish haqi emas. <b>Butun summa stol buyurtmasi hisobiga o'tadi</b>.",
+         en:"The deposit is not a cover charge. <b>The full amount goes towards your order</b> at the table."} },
+    { q:{ru:"Сколько стоит депозит?",
+         uz:"Depozit qancha turadi?",
+         en:"How much is the deposit?"},
+      a:{ru:"Зависит от зоны и дня недели. Пятница и суббота - по тарифу выходного дня.{DEP}<br><br>Приход <b>после 03:00</b> - депозита нет.",
+         uz:"Zona va hafta kuniga bog'liq. Juma va shanba - dam olish tarifi.{DEP}<br><br><b>03:00 dan keyin</b> kelsangiz - depozit yo'q.",
+         en:"It depends on the area and the day. Friday and Saturday use the weekend rate.{DEP}<br><br>Arriving <b>after 3:00</b> - no deposit."} },
+    { q:{ru:"Вход платный?",
+         uz:"Kirish pullikmi?",
+         en:"Is there an entrance fee?"},
+      a:{ru:"Обычно вход <b>свободный</b>. Платный - только на особые даты, когда выступают приглашённые артисты: билет от 200 000 сум, стоимость объявляем к событию.",
+         uz:"Odatda kirish <b>bepul</b>. Faqat taklif qilingan artistlar chiqadigan maxsus sanalarda pullik: chipta 200 000 so'mdan, narxi tadbirga yaqin e'lon qilinadi.",
+         en:"Entry is normally <b>free</b>. There is a ticket only on special dates with guest artists - from 200,000 UZS, announced closer to the event."} },
+    { q:{ru:"Во сколько работает клуб?",
+         uz:"Klub necha soatda ishlaydi?",
+         en:"What are the club opening hours?"},
+      a:{ru:"С воскресенья по четверг - с <b>23:00 до 05:00</b>. В пятницу и субботу - с <b>22:00 до 06:00</b>.",
+         uz:"Yakshanbadan payshanbagacha - <b>23:00 dan 05:00 gacha</b>. Juma va shanba - <b>22:00 dan 06:00 gacha</b>.",
+         en:"Sunday to Thursday <b>23:00 - 5:00</b>. Friday and Saturday <b>22:00 - 6:00</b>."} },
+    { q:{ru:"Нужно ли платить за бронь заранее?",
+         uz:"Bron uchun oldindan to'lash kerakmi?",
+         en:"Do I need to pay in advance to book?"},
+      a:{ru:"Нет. Бронь бесплатная, предоплаты нет - депозит вы тратите заказом за своим столом.",
+         uz:"Yo'q. Bron bepul, oldindan to'lov yo'q.",
+         en:"No. Booking is free, there is no prepayment."} },
+    { q:{ru:"Какие зоны есть в клубе?",
+         uz:"Klubda qanday zonalar bor?",
+         en:"What areas does the club have?"},
+      a:{ru:"ВИП-ложи, подиумы, красные диваны, коктейльные столы и кабинки. Вместимость каждой зоны и фотографии - в разделе «Залы».",
+         uz:"VIP-lojalar, podiumlar, qizil divanlar, kokteyl stollari va kabinalar. Sig'imi va suratlari - «Zallar» bo'limida.",
+         en:"VIP boxes, podiums, red sofas, cocktail tables and booths. Capacity and photos are in the Halls section."},
+      link:"zones" },
+    { q:{ru:"Есть ли фейс-контроль и дресс-код?",
+         uz:"Feys-nazorat va dress-kod bormi?",
+         en:"Is there face control and a dress code?"},
+      a:{ru:"Да. Что можно и чего не стоит надевать - в разделе «Фейс-контроль».",
+         uz:"Ha. Nima mumkin va nima mumkin emasligi - «Feys-nazorat» bo'limida.",
+         en:"Yes. What to wear and what to avoid is in the Face Control section."},
+      link:"dress" },
+    { q:{ru:"Можно ли отменить бронь?",
+         uz:"Bronni bekor qilish mumkinmi?",
+         en:"Can I cancel my booking?"},
+      a:{ru:"Да. Откройте свою бронь в этом приложении и нажмите «Отменить» - укажите причину, чтобы мы освободили стол.",
+         uz:"Ha. Shu ilovada bronni oching va «Bekor qilish» tugmasini bosing.",
+         en:"Yes. Open your booking in this app and press Cancel."} },
+  ],
+};
+// Эти вопросы одинаковы для караоке и клуба - показываем их в обоих списках.
+FAQ.common = [
+  { q:{ru:"Со скольки лет пускают?",
+       uz:"Necha yoshdan kirishadi?",
+       en:"What is the age limit?"},
+    a:{ru:"<b>21+</b>, и в караоке, и в клуб. С детьми, к сожалению, нельзя.",
+       uz:"<b>21+</b>, ham karaokega, ham klubga. Bolalar bilan kirish mumkin emas.",
+       en:"<b>21+</b>, both for karaoke and the club. Children are not admitted."} },
+  { q:{ru:"Можно ли со своим алкоголем или тортом?",
+       uz:"O'z spirtli ichimligi yoki torti bilan kirish mumkinmi?",
+       en:"Can we bring our own drinks or a cake?"},
+    a:{ru:"Со своим алкоголем и напитками - <b>нельзя</b>. <b>Торт можно</b> - предупредите хостес при бронировании, вынесем его как надо.",
+       uz:"O'z spirtli ichimlik va ichimliklar bilan - <b>mumkin emas</b>. <b>Tort mumkin</b> - bron qilayotganda xostesga ayting.",
+       en:"Outside alcohol and drinks are <b>not allowed</b>. <b>A cake is fine</b> - just tell the hostess when you book."} },
+  { q:{ru:"Есть ли кальян?",
+       uz:"Kalyan bormi?",
+       en:"Do you have hookah?"},
+    a:{ru:"Да. Кальян <b>от 300 000 сум</b> и выше, в зависимости от табака и чаши. Его тоже можно оплатить депозитом.",
+       uz:"Ha. Kalyan <b>300 000 so'mdan</b> va undan yuqori, tamaki va kosaga qarab. Uni ham depozit bilan to'lash mumkin.",
+       en:"Yes. Hookah starts <b>from 300,000 UZS</b>, depending on the tobacco and bowl. The deposit covers it too."} },
+  { q:{ru:"Можно ли курить в зале?",
+       uz:"Zalda chekish mumkinmi?",
+       en:"Can we smoke inside?"},
+    a:{ru:"Да, курить в зале можно.",
+       uz:"Ha, zalda chekish mumkin.",
+       en:"Yes, smoking inside is allowed."} },
+  { q:{ru:"Как можно оплатить?",
+       uz:"Qanday to'lash mumkin?",
+       en:"How can we pay?"},
+    a:{ru:"Наличными и картами <b>Uzcard, Humo, Visa, Mastercard</b>, а также <b>QR, Rahmat, Payme, Click</b>.",
+       uz:"Naqd pul va <b>Uzcard, Humo, Visa, Mastercard</b> kartalari, shuningdek <b>QR, Rahmat, Payme, Click</b>.",
+       en:"Cash and <b>Uzcard, Humo, Visa, Mastercard</b> cards, plus <b>QR, Rahmat, Payme, Click</b>."} },
+  { q:{ru:"Есть ли парковка?",
+       uz:"Parkovka bormi?",
+       en:"Is there parking?"},
+    a:{ru:"Да. Охраняемая парковка на 100 машин - <b>30 000 сум</b>. Плюс 5 бесплатных мест прямо у входа.",
+       uz:"Ha. 100 ta mashinaga qo'riqlanadigan parkovka - <b>30 000 so'm</b>. Kirish oldida 5 ta bepul joy ham bor.",
+       en:"Yes. Guarded parking for 100 cars - <b>30,000 UZS</b>. Plus 5 free spaces right by the entrance."} },
+  { q:{ru:"Принимаете банкеты и корпоративы?",
+       uz:"Banket va korporativlarni qabul qilasizmi?",
+       en:"Do you host banquets and corporate parties?"},
+    a:{ru:"Да, принимаем. Условия обсуждаются с менеджером - позвоните нам, подберём зал и меню под ваш формат.",
+       uz:"Ha, qabul qilamiz. Shartlar menejer bilan kelishiladi - qo'ng'iroq qiling.",
+       en:"Yes we do. The details are arranged with a manager - give us a call."},
+    link:"contacts" },
+];
+let FAQ_VENUE = "karaoke";
+
 const IC = {
   mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>',
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
@@ -1263,6 +1468,7 @@ const IC = {
   taxi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="19.5" r="1.5"/><circle cx="16.5" cy="19.5" r="1.5"/></svg>',
   phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.5 2.6a2 2 0 0 1-.5 1.8L8 9.4a16 16 0 0 0 6 6l1.3-1.1a2 2 0 0 1 1.8-.5l2.6.5a2 2 0 0 1 1.7 2z"/></svg>',
   star:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>',
+  faq:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a3 3 0 0 1 5.8 1c0 2-3 2.4-3 4"/><path d="M12 17.5h.01"/></svg>',
   dress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2l3 3 3-3"/><path d="M12 5v3"/><path d="M8 8l-2 4 6 10 6-10-2-4"/><path d="M6 12h12"/></svg>',
   tg:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21.9 4.3l-3.3 15.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.1 13.4l-4.9-1.5c-1.1-.3-1.1-1 .2-1.5l19.2-7.4c.9-.3 1.7.2 1.4 1.3z"/></svg>',
   globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z"/></svg>',
@@ -1474,6 +1680,63 @@ function renderDress(){
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
 
+// ============ ВОПРОСЫ И ОТВЕТЫ ============
+// Живая таблица депозитов по залам выбранного заведения: те же данные,
+// что на карточках «Залы», поэтому расходиться они не могут.
+function faqDepTable(){
+  const Z = ZONE_DEP_NOTE;
+  const esc = v => String(v==null?"":v).replace(/</g,"&lt;");
+  const money = v => Number(v)>0 ? bkfMoney(v) : "—";
+  const rows = [];
+  bkfZonesFor(FAQ_VENUE).forEach(zone=>{
+    const ts = bkfZoneTables(zone.id).filter(x=>Number(x.deposit_weekday)>0 || Number(x.deposit_weekend)>0);
+    if(!ts.length) return;
+    // в зале все столы по одной цене — одна строка на зал;
+    // цены разные (как у кабинок) — разворачиваем по столам, чтобы гость
+    // видел свою сумму, а не одинаковое «от ...» в каждой строке
+    const uniq = new Set(ts.map(x=>`${Number(x.deposit_weekday)||0}|${Number(x.deposit_weekend)||0}`));
+    if(uniq.size === 1){
+      rows.push(`<tr><td>${esc(zone.title)}</td><td>${money(ts[0].deposit_weekday)}</td><td>${money(ts[0].deposit_weekend)}</td></tr>`);
+      return;
+    }
+    rows.push(`<tr class="faq-dep-z"><td colspan="3">${esc(zone.title)}</td></tr>`);
+    ts.slice().sort((a,b)=>{
+      const na=parseInt(String(a.name).replace(/\D/g,""),10), nb=parseInt(String(b.name).replace(/\D/g,""),10);
+      if(!isNaN(na) && !isNaN(nb) && na!==nb) return na-nb;
+      return String(a.name).localeCompare(String(b.name),"ru");
+    }).forEach(tb=>{
+      // чисто числовое имя стола читается лучше как «№7»
+      const nm = /^\d+$/.test(String(tb.name||"").trim()) ? "№"+String(tb.name).trim() : tb.name;
+      rows.push(`<tr><td class="faq-dep-t">${esc(nm)}</td><td>${money(tb.deposit_weekday)}</td><td>${money(tb.deposit_weekend)}</td></tr>`);
+    });
+  });
+  if(!rows.length) return "";
+  return `<table class="faq-dep"><tr><th>&nbsp;</th><th>${pick(Z.wd)}</th><th>${pick(Z.we)}</th></tr>${rows.join("")}</table>`;
+}
+function renderFaq(){
+  const el = document.getElementById("sec-faq");
+  if(!el) return;
+  const dep = faqDepTable();
+  const items = [...(FAQ[FAQ_VENUE]||[]), ...(FAQ.common||[])].map(it=>{
+    const body = pick(it.a).replace("{DEP}", dep);
+    const linkLbl = {zones:'nav_zones', dress:'nav_dress', contacts:'contacts_t'}[it.link];
+    const link = linkLbl
+      ? `<br><button class="faq-link" data-go="${it.link}">${t(linkLbl)} →</button>` : "";
+    return `<details class="faq-item"><summary>${pick(it.q)}</summary>
+      <div class="faq-a">${body}${link}</div></details>`;
+  }).join("");
+  el.innerHTML = `
+    <div class="sec-head"><button class="back" data-go="home">←</button><h2>${t('faq_t')}</h2></div>
+    <div class="faq-switch">
+      <button data-fv="karaoke" class="${FAQ_VENUE==='karaoke'?'on':''}">${t('karaoke')}</button>
+      <button data-fv="club" class="${FAQ_VENUE==='club'?'on':''}">${t('club')}</button>
+    </div>
+    ${items}
+    <div class="bk-bizday" style="margin-top:14px">${t('faq_more')}</div>`;
+  el.querySelectorAll("[data-fv]").forEach(b=>b.onclick=()=>{ FAQ_VENUE=b.dataset.fv; renderFaq(); });
+  el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
 // ============ КОНТАКТЫ ============
 function renderContacts(){
   const el = document.getElementById("sec-contacts");
@@ -1642,11 +1905,9 @@ function bkfSpecialForTable(tbl, dateIso){
 }
 // показываем ли гостю сумму: только пятница/суббота либо особая дата
 function bkfShowDeposit(dateIso, zoneId){
-  if(bkfIsWeekendIso(dateIso)) return true;
-  if(!zoneId) return false;
-  const z = BK_REF && BK_REF.zones.find(x=>x.id===zoneId);
-  const v = z ? BK_REF.venues.find(x=>x.id===z.venue_id) : null;
-  return !!bkfSpecialFor(dateIso, v?v.key:null, zoneId);
+  // Гостю показываем тариф и в будни, и в выходные (решение от 16.10.2026).
+  // Раньше будни оставались «по запросу» и сумму называла хостес.
+  return true;
 }
 // депозит конкретного стола на дату и время (зеркало расчёта в приложении персонала)
 function bkfTableDeposit(tbl, dateIso, timeStr){
@@ -2416,10 +2677,13 @@ async function bkfFillZoneDeps(cards){
     const match = bkfMatchZoneCard(card, ZONE_VENUE);
     const d = match ? bkfZoneDeposit(match.id) : null;
     if(!d) return;                       // тарифы не заданы — оставляем «по запросу»
-    // гостю публикуем только тариф выходного дня; в будни остаётся «по запросу»
+    const wd = bkfDepRange(d.wdMin, d.wdMax, pick(Z.from));
     const we = bkfDepRange(d.weMin, d.weMax, pick(Z.from));
-    if(!we) return;
-    el.innerHTML = `${pick(Z.deposit)}: <b>${pick(Z.we)} ${we}</b>`;
+    if(!wd && !we) return;
+    const parts = [];
+    if(wd) parts.push(`${pick(Z.wd)} <b>${wd}</b>`);
+    if(we) parts.push(`${pick(Z.we)} <b>${we}</b>`);
+    el.innerHTML = `${pick(Z.deposit)}: ${parts.join(" · ")}`;
   });
 }
 
@@ -2641,7 +2905,7 @@ const NAV = [
   {id:"songs", key:"nav_songs", ic:"mic"},
   {id:"zones", key:"nav_zones", ic:"zones"},
   {id:"menu", key:"nav_menu", ic:"menu"},
-  {id:"dress", key:"nav_dress", ic:"dress"},
+  {id:"faq", key:"nav_faq", ic:"faq"},
   {id:"location", key:"nav_where", ic:"where"},
 ];
 let CUR = "home";
@@ -2653,13 +2917,15 @@ function renderNav(){
 function go(id){
   CUR = id;
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-  const map = {home:"sec-home",songs:"sec-songs",zones:"sec-zones",menu:"sec-menu",book:"sec-book",dress:"sec-dress",location:"sec-location",contacts:"sec-contacts"};
+  const map = {home:"sec-home",songs:"sec-songs",zones:"sec-zones",menu:"sec-menu",book:"sec-book",dress:"sec-dress",faq:"sec-faq",location:"sec-location",contacts:"sec-contacts"};
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
   if(id==="book"){ if(typeof ZONE_VENUE!=="undefined" && ZONE_VENUE){ BK_STATE.venue=ZONE_VENUE; } renderBook(true); if(MYBK_LAST) mybkMarkSeen(MYBK_LAST); }   // бронь — под выбранное заведение
   if(id==="home") mybkRefresh();       // обновить баннер статуса брони на главной
   if(id==="zones") renderZones();     // перерисовать под выбранное заведение (ZONE_VENUE)
+  if(id==="faq"){ if(typeof ZONE_VENUE!=="undefined" && ZONE_VENUE) FAQ_VENUE = ZONE_VENUE;
+                  bkfLoadRef().then(renderFaq).catch(()=>renderFaq()); }
   if(id==="songs"){ if(window.PesniOpen) window.PesniOpen(); } else if(window.PesniClose) window.PesniClose();
 }
 
@@ -2672,6 +2938,7 @@ function renderAll(){
   renderZones();
   renderBook();
   renderDress();
+  renderFaq();
   renderNav();
   const mybkLbl=document.getElementById("tb-mybk-lbl");
   if(mybkLbl) mybkLbl.textContent=t('tb_mybk');
