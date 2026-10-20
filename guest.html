@@ -307,6 +307,11 @@ button{font-family:inherit;cursor:pointer}
 .bk-dates button{flex:0 0 auto;padding:9px 13px;border:1px solid var(--line);background:var(--panel2);
   color:var(--text);border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap}
 .bk-dates button.on{background:var(--emerald);color:#08130d;border-color:var(--emerald)}
+.bk-datepick{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  margin-top:7px;padding:10px 13px;border:1px dashed var(--line);background:var(--panel2);
+  border-radius:10px;font-size:13px;font-weight:700;color:var(--muted)}
+.bk-datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;
+  background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none}
 .bk-zones{display:flex;flex-wrap:wrap;gap:8px}
 .bk-zones button{padding:9px 14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);
   border-radius:9px;font-size:13px;font-weight:600;font-family:inherit}
@@ -1121,7 +1126,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 16.10 · сборка 11";
+const GUEST_VERSION = "v 20.10 · сборка 12";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1185,6 +1190,8 @@ const T = {
                 uz:"Juma va shanba — dam olish kuni tarifi. 02:00 dan keyin depozit yo'q.",
                 en:"Friday and Saturday use the weekend rate. After 2:00 there is no deposit."},
   bk_g_more:   {ru:"больше · по запросу", uz:"ko'proq · so'rov bo'yicha", en:"more · on request"},
+  bk_g_how:    {ru:"Сколько вас будет?", uz:"Nechta kishi bo'lasiz?", en:"How many of you?",
+                kz:"Қанша адам боласыздар?", kg:"Канча киши болосуздар?", tj:"Чанд нафар мешавед?", cn:"你们有多少人？"},
   bk_g_upto:   {ru:"до", uz:"gacha", en:"up to"},
   bk_g_ppl:    {ru:"чел. за столом", uz:"kishi bir stolda", en:"guests per table"},
   bk_g_hint:   {ru:"Больше гостей — соберём несколько столов, хостес перезвонит.",
@@ -1246,6 +1253,7 @@ const T = {
   bk_auth_wait: {ru:"Открываю бронирование…", uz:"Bron ochilmoqda…", en:"Opening booking…", kz:"Брондау ашылуда…", kg:"Брондоо ачылууда…", tj:"Бронкунӣ кушода мешавад…", cn:"正在打开预订…"},
   bk_auth_err: {ru:"Бронирование доступно только при открытии через Telegram-бота.", uz:"Bron faqat Telegram-bot orqali ochilganda ishlaydi.", en:"Booking works only when opened via the Telegram bot.", kz:"Брондау тек Telegram-бот арқылы ашылғанда жұмыс істейді.", kg:"Брондоо Telegram-бот аркылуу ачылганда гана иштейт.", tj:"Бронкунӣ танҳо ҳангоми кушодан тавассути Telegram-бот кор мекунад.", cn:"预订仅在通过 Telegram 机器人打开时可用。"},
   bk_today: {ru:"Сегодня", uz:"Bugun", en:"Today", kz:"Бүгін", kg:"Бүгүн", tj:"Имрӯз", cn:"今天"},
+  bk_other_date: {ru:"Другая дата", uz:"Boshqa sana", en:"Other date", kz:"Басқа күн", kg:"Башка күн", tj:"Санаи дигар", cn:"其他日期"},
   bk_tomorrow: {ru:"Завтра", uz:"Ertaga", en:"Tomorrow", kz:"Ертең", kg:"Эртең", tj:"Фардо", cn:"明天"},
   bk_time: {ru:"Время прихода", uz:"Kelish vaqti", en:"Arrival time", kz:"Келу уақыты", kg:"Келүү убактысы", tj:"Вақти омадан", cn:"到店时间"},
   bk_pick_time: {ru:"Выберите время прихода", uz:"Kelish vaqtini tanlang", en:"Pick an arrival time", kz:"Келу уақытын таңдаңыз", kg:"Келүү убактысын тандаңыз", tj:"Вақти омаданро интихоб кунед", cn:"请选择到店时间"},
@@ -1787,6 +1795,20 @@ function bkfIsPast(b){
   if(!b || !b.business_date) return false;
   return String(b.business_date) < bkfBizToday();
 }
+// На сколько дней вперёд вообще принимаем бронь. Быстрые кнопки
+// показывают первые две недели, дальше - через календарь.
+const BK_MAX_AHEAD = 90;
+function bkfBizBase(){
+  const n = new Date();
+  const base = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  if(n.getHours() < 5) base.setDate(base.getDate() - 1);
+  return base;
+}
+function bkfMaxDateIso(){
+  const d = bkfBizBase();
+  d.setDate(d.getDate() + BK_MAX_AHEAD);
+  return bkfIso(d);
+}
 // список ближайших дат для выбора (сегодня + 13 дней)
 function bkfDates(){
   const out=[];
@@ -1796,6 +1818,10 @@ function bkfDates(){
   if(n.getHours()<5) base.setDate(base.getDate()-1);
   for(let i=0;i<14;i++){ const d=new Date(base.getFullYear(),base.getMonth(),base.getDate()+i); out.push(d); }
   return out;
+}
+function fromIsoD(iso){
+  const [y,m,d] = String(iso).split("-").map(Number);
+  return new Date(y, m-1, d);
 }
 function bkfDateLabel(d, idx){
   if(idx===0) return t('bk_today');
@@ -2297,10 +2323,21 @@ function bkfDrawForm(){
   const venueName = BK_STATE.venue==='club' ? t('club') : t('karaoke');
   const venueBtns = `<div class="bk-venue-fixed">${venueName}</div>`;
 
+  const quick = dates.map(bkfIso);
+  // выбранная дата дальше двух недель — показываем её отдельной кнопкой,
+  // иначе гость не видит, что именно выбрано
+  const farBtn = (BK_STATE.date && !quick.includes(BK_STATE.date))
+    ? `<button data-bd="${BK_STATE.date}" class="on">${bkfDateLabel(fromIsoD(BK_STATE.date), 9)}</button>`
+    : "";
   const dateBtns = `<div class="bk-dates">` + dates.map((d,i)=>{
     const iso=bkfIso(d);
     return `<button data-bd="${iso}" class="${BK_STATE.date===iso?'on':''}">${bkfDateLabel(d,i)}</button>`;
-  }).join("") + `</div>`;
+  }).join("") + farBtn + `</div>`
+    // отдельной строкой под рядом дат: ряд прокручивается вбок, и кнопку
+    // в его конце гость не находит
+    + `<label class="bk-datepick">${t('bk_other_date')}
+         <input type="date" id="bkf-pick" min="${quick[0]}" max="${bkfMaxDateIso()}"
+                value="${BK_STATE.date||quick[0]}"></label>`;
 
   const zoneBtns = `<div class="bk-zones">` + zones.map(z=>
     `<button data-bz="${z.id}" class="${BK_STATE.zoneId===z.id?'on':''}">${z.title}</button>`
@@ -2383,6 +2420,9 @@ function bkfDrawForm(){
 
     <label class="bk-lbl">${t('bk_guests')}</label>
     <select id="bk-guests" class="bk-input"><option value="">—</option>${guestOpts}</select>
+    ${BK_STATE.guests==="more" ? `<input id="bk-guests-n" class="bk-input" type="number"
+         inputmode="numeric" min="${(maxCap||6)+1}" max="60" style="margin-top:8px"
+         placeholder="${t('bk_g_how')}" value="${BK_STATE.guestsMore||""}">` : ""}
     ${guestHint}
 
     ${depBlock}
@@ -2397,6 +2437,13 @@ function bkfDrawForm(){
     <button class="bk-submit" id="bk-submit">${t('bk_submit')}</button>`;
 
   body.querySelectorAll("[data-bd]").forEach(b=>b.onclick=()=>{ BK_STATE.date=b.dataset.bd; bkfSaveInputs(); bkfDrawForm(); });
+  // ВНИМАНИЕ: не называть переменную pick — так называется функция выбора языка
+  const dateInput = document.getElementById("bkf-pick");
+  if(dateInput) dateInput.onchange = ()=>{
+    if(!dateInput.value) return;
+    BK_STATE.date = dateInput.value; BK_STATE.time = null;
+    bkfSaveInputs(); bkfDrawForm();
+  };
   body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ if(b.disabled||bkfSlotPassed(BK_STATE.date,b.dataset.bt)) return; BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
   body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
   // форматирование телефона с пробелами при вводе: +998 90 063 88 88
@@ -2474,6 +2521,8 @@ function bkfComposeArrive(dateIso, time){
 // сохранить введённые поля (чтобы не терялись при перерисовке)
 function bkfSaveInputs(){
   const g=document.getElementById("bk-guests"); if(g) BK_STATE.guests=g.value||null;
+  const gn=document.getElementById("bk-guests-n");
+  BK_STATE.guestsMore = gn ? (gn.value||null) : BK_STATE.guestsMore;
   const p=document.getElementById("bk-phone"); if(p) BK_STATE.phone=p.value;
   const c=document.getElementById("bk-comment"); if(c) BK_STATE.comment=c.value;
 }
@@ -2500,11 +2549,15 @@ async function bkfSubmit(){
     if(!tbl){ bkfMsg("Зона недоступна, выберите другую"); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
     const isMore = BK_STATE.guests === "more";
-    const guests = (BK_STATE.guests && !isMore) ? Number(BK_STATE.guests) : null;
+    // «больше N» — число берём из отдельного поля, чтобы заявка не приходила без него
+    const guests = isMore
+      ? (Number(BK_STATE.guestsMore) || null)
+      : (BK_STATE.guests ? Number(BK_STATE.guests) : null);
     // депозит по тарифу стола на выбранную дату — чтобы сумма была видна и гостю, и персоналу
     const depAmount = bkfTableDeposit(tbl, BK_STATE.date, BK_STATE.time);
     const capNote = isMore
-      ? ("Компания больше " + (bkfZoneMaxGuests(zone.id) || "") + " чел. — нужен подбор столов")
+      ? ((guests ? ("Компания " + guests + " чел.") : ("Компания больше " + (bkfZoneMaxGuests(zone.id) || "") + " чел."))
+         + " — нужен подбор столов")
       : null;
     // время прихода -> timestamptz; ночные часы (00:00-04:59) = следующий календарный день
     const arriveAt = bkfComposeArrive(BK_STATE.date, BK_STATE.time);
