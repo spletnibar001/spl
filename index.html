@@ -1349,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 20.10 · сборка 61";
+const APP_VERSION = "v 20.10 · сборка 62";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5756,12 +5756,20 @@ async function bkConfirmRequest(rid){
     guestComment = cm[1].trim();
     noteMeta = noteRaw.slice(0, cm.index).replace(/[·•\s]+$/,"").trim();
   }
+  // время заявки для поля «Время прихода»
+  const reqTime = r.arrive_at
+    ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})
+    : "";
   document.getElementById("bkm-title").textContent = "Подтвердить заявку";
   document.getElementById("bkm-sub").textContent = (venueKey==="club"?"Клуб":"Караоке")+" · "+bkFmtDate(fromIso(r.business_date));
   document.getElementById("bkm-body").innerHTML = `
     <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>
     ${noteMeta?`<div class="bkm-field"><label>Заявка</label><div>${noteMeta}</div></div>`:""}
     ${guestComment?`<div class="bkm-field"><label>Комментарий гостя</label><div class="bkm-comment">${guestComment}</div></div>`:""}
+    <div class="bkm-field"><label>Дата</label>
+      <input id="bk-req-date" class="bkm-input" type="date" value="${r.business_date}"></div>
+    <div class="bkm-field"><label>Время прихода</label>
+      <input id="bk-req-time" class="bkm-input" type="time" value="${reqTime}"></div>
     <div class="bkm-field"><label>Гостей</label>
       <input id="bk-req-guests" class="bkm-input" type="number" inputmode="numeric" min="1" max="60"
              placeholder="сколько человек" value="${r.guests_count||""}"></div>
@@ -5780,6 +5788,24 @@ async function bkConfirmRequest(rid){
     const digits = this.value.replace(/[^\d]/g,"");
     this.value = digits ? Number(digits).toLocaleString("ru-RU").replace(/,/g," ") : "";
   };
+  // сменили дату, время или стол — пересчитываем депозит по тарифу
+  // (будни/выходной и особые даты считаются по-разному)
+  const reqRecalc = ()=>{
+    try{
+      const dEl = document.getElementById("bk-req-date");
+      const tEl = document.getElementById("bk-req-time");
+      const tbl = BK.data.tables.find(x=>x.id===Number(document.getElementById("bk-req-table").value));
+      if(!tbl || !dEl || !dEl.value) return;
+      const dep = bkCalcDeposit(tbl, fromIso(dEl.value), (tEl&&tEl.value)||null);
+      depEl.value = dep>0 ? bkFmtMoney(dep) : "";
+      const msg = document.getElementById("bk-req-msg");
+      if(msg) msg.textContent = "Депозит пересчитан по тарифу: " + (dep>0?bkFmtMoney(dep):"без депозита");
+    }catch(_){}
+  };
+  ["bk-req-date","bk-req-time","bk-req-table"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.onchange = reqRecalc;
+  });
   document.getElementById("bk-req-ok").onclick = async function(){
     const tid = Number(document.getElementById("bk-req-table").value);
     if(!tid){ document.getElementById("bk-req-msg").textContent="Выберите стол"; return; }
@@ -5789,19 +5815,26 @@ async function bkConfirmRequest(rid){
     if(dep>0 && dep<10000 && !confirm(`Депозит ${fmtNum(dep)} сум — так и оставить?`)) return;
     const gRaw = parseInt(document.getElementById("bk-req-guests").value,10);
     const guests = (gRaw>0) ? gRaw : null;
+    const newDate = (document.getElementById("bk-req-date").value||"").trim() || r.business_date;
+    const newTime = (document.getElementById("bk-req-time").value||"").trim();
+    if(newDate < isoBizToday() && !confirm("Дата уже прошла. Всё равно подтвердить?")) return;
     this.disabled=true; this.textContent="Сохраняем…";
-    // проверка занятости выбранного стола на эту дату
+    // проверка занятости выбранного стола на выбранную дату
     const {data:clash} = await sb.from("bookings").select("id,guest_name,status")
-      .eq("table_id",tid).eq("business_date",r.business_date).in("status",["booked","seated"]);
+      .eq("table_id",tid).eq("business_date",newDate).in("status",["booked","seated"]);
     if(clash && clash.length){
       if(!confirm("Этот стол уже занят на выбранную дату. Всё равно подтвердить (вторая бронь)?")){
         this.disabled=false; this.textContent="Подтвердить бронь"; return;
       }
     }
-    const {error} = await sb.from("bookings").update({
+    const upd = {
       table_id: tid, status:"booked", deposit_amount: dep, guests_count: guests,
+      business_date: newDate,
       seated_by_name: ME.name   // фиксируем, кто подтвердил (поле seated_by_name используем как «обработал»)
-    }).eq("id", rid);
+    };
+    // время прихода хранится меткой времени, поэтому собираем его заново от новой даты
+    if(newTime) upd.arrive_at = bkComposeArrive(newDate, newTime);
+    const {error} = await sb.from("bookings").update(upd).eq("id", rid);
     if(error){ document.getElementById("bk-req-msg").textContent=error.message; this.disabled=false; this.textContent="Подтвердить бронь"; return; }
     bkNotify(rid, "request_confirmed");
     bkCloseModal();
