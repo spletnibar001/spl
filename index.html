@@ -1349,7 +1349,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 14.10 · сборка 59";
+const APP_VERSION = "v 20.10 · сборка 61";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5683,7 +5683,7 @@ function bkOpenRequests(){
       return `<div class="bk-req" data-rid="${r.id}">
         <div class="bk-req-top">
           <div class="bk-req-when">${venue}${r.zone_title?(" · "+r.zone_title):""} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}</div>
-          <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):""}</div>
+          <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):"число гостей не указано"}</div>
         </div>
         <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
         ${note?`<div class="bk-req-note">${note}</div>`:""}
@@ -5706,7 +5706,7 @@ function bkOpenRequests(){
         return `<div class="bk-req cancel" data-rid="${r.id}">
           <div class="bk-req-top">
             <div class="bk-req-when">✕ ${venue} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}${place?(" · "+place):""}</div>
-            <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):""}</div>
+            <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):"число гостей не указано"}</div>
           </div>
           <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
           ${reason?`<div class="bk-req-comment">${reason}</div>`:""}
@@ -5762,6 +5762,9 @@ async function bkConfirmRequest(rid){
     <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>
     ${noteMeta?`<div class="bkm-field"><label>Заявка</label><div>${noteMeta}</div></div>`:""}
     ${guestComment?`<div class="bkm-field"><label>Комментарий гостя</label><div class="bkm-comment">${guestComment}</div></div>`:""}
+    <div class="bkm-field"><label>Гостей</label>
+      <input id="bk-req-guests" class="bkm-input" type="number" inputmode="numeric" min="1" max="60"
+             placeholder="сколько человек" value="${r.guests_count||""}"></div>
     <div class="bkm-field"><label>Назначить стол</label>
       <select id="bk-req-table" class="bkm-input">${opts}</select></div>
     <div class="bkm-field"><label>Депозит (сум, необязательно)</label>
@@ -5782,6 +5785,10 @@ async function bkConfirmRequest(rid){
     if(!tid){ document.getElementById("bk-req-msg").textContent="Выберите стол"; return; }
     const depRaw=(document.getElementById("bk-req-dep").value||"").replace(/[^\d]/g,"");
     const dep = depRaw?Number(depRaw):0;
+    // 800 вместо 800 000 — частая опечатка, переспрашиваем
+    if(dep>0 && dep<10000 && !confirm(`Депозит ${fmtNum(dep)} сум — так и оставить?`)) return;
+    const gRaw = parseInt(document.getElementById("bk-req-guests").value,10);
+    const guests = (gRaw>0) ? gRaw : null;
     this.disabled=true; this.textContent="Сохраняем…";
     // проверка занятости выбранного стола на эту дату
     const {data:clash} = await sb.from("bookings").select("id,guest_name,status")
@@ -5792,7 +5799,7 @@ async function bkConfirmRequest(rid){
       }
     }
     const {error} = await sb.from("bookings").update({
-      table_id: tid, status:"booked", deposit_amount: dep,
+      table_id: tid, status:"booked", deposit_amount: dep, guests_count: guests,
       seated_by_name: ME.name   // фиксируем, кто подтвердил (поле seated_by_name используем как «обработал»)
     }).eq("id", rid);
     if(error){ document.getElementById("bk-req-msg").textContent=error.message; this.disabled=false; this.textContent="Подтвердить бронь"; return; }
@@ -7353,25 +7360,34 @@ function rcBodyManager(){
     } else {
       html += items.map(i=>{
         const nm = (i.guest_name||"Гость").replace(/</g,"&lt;");
-        const sub = [i.table_name, i.guest_phone?bkFmtPhone(i.guest_phone):""].filter(Boolean).join(" · ");
+        const bot = i.source === "bot";
+        const sub = bot
+          ? rcWhy(i)
+          : [i.table_name, i.guest_phone?bkFmtPhone(i.guest_phone):""].filter(Boolean).join(" · ");
+        // снимок из группы открывается по ссылке на 5 минут, бакет приватный
+        const pic = (i.photo_path && rcCanConfirm())
+          ? `<button class="rc-btn gh" onclick="rcPhoto('${i.photo_path}')">фото</button>` : "";
         if(i.status==="confirmed"){
+          const undo = rcCanConfirm()
+            ? `<button class="rc-btn gh" onclick="rcUndo('${i.id}')">отменить</button>` : "";
           return `<div class="rc-row ok"><div class="rc-nm"><b>${nm}</b><span>${sub}</span></div>
-            <span class="rc-tag ok">принят</span></div>`;
+            ${pic}<span class="rc-tag ok">принят</span>${undo}</div>`;
         }
         if(!rcCanConfirm()){
           return `<div class="rc-row wait"><div class="rc-nm"><b>${nm}</b><span>${sub||"ждёт проверки"}</span></div>
             <span class="rc-tag">ждёт администратора</span></div>`;
         }
         return `<div class="rc-row wait"><div class="rc-nm"><b>${nm}</b><span>${sub||"ждёт проверки"}</span></div>
-          <button class="rc-btn gr" onclick="rcConfirm('${i.id}')">✓ Видел отзыв</button>
+          ${pic}<button class="rc-btn gr" onclick="rcConfirm('${i.id}')">✓ Видел отзыв</button>
           <button class="rc-btn gh" onclick="rcReject('${i.id}')">нет</button></div>`;
       }).join("");
     }
   });
   return html + `<div class="rc-msg" id="rc-msg"></div>
     <div class="rc-note">${rcCanConfirm()
-      ? `Хостес показывает отзыв с экрана телефона гостя. Третий подтверждённый отзыв
-         автоматически начисляет ей бонус 100 000 сум с примечанием «Челлендж: 3 отзыва».`
+      ? `Хостес присылает скриншот отзыва в рабочую группу - бот проверяет снимок и
+         засчитывает сам. Что бот не принял, лежит здесь на вашу проверку; засчитанное
+         можно снять кнопкой «отменить» вместе с бонусом.`
       : `Подтверждает отзывы только администратор. Здесь видно, сколько отзывов заявлено
          и сколько уже принято.`}</div>`;
 }
@@ -7382,6 +7398,46 @@ async function rcSetTab(t){
   rcRender();
 }
 window.rcSetTab = rcSetTab;
+
+// почему бот не засчитал снимок — человеческим языком
+function rcWhy(i){
+  if(i.status === "confirmed") return "фото из группы, проверено ботом";
+  const ai = i.ai || {};
+  if(ai.is_review === false)   return "фото из группы · не похоже на экран отзыва";
+  if(ai.venue_match === false) return "фото из группы · на снимке не наше заведение";
+  if(ai.date_fresh === false)  return "фото из группы · отзыв не сегодняшний";
+  if(ai.platform)              return "фото из группы · отзыв на " + (ai.platform==="google"?"Google":"Яндексе");
+  return "фото из группы · проверить не удалось";
+}
+// показать снимок: приватный бакет, ссылка живёт 5 минут
+async function rcPhoto(path){
+  try{
+    const { data, error } = await sb.storage.from("reviews").createSignedUrl(path, 300);
+    if(error || !data || !data.signedUrl){ rcMsg((error&&error.message)||"Снимок недоступен"); return; }
+    let ov = document.getElementById("rc-pic");
+    if(!ov){
+      ov = document.createElement("div");
+      ov.id = "rc-pic";
+      ov.style.cssText = "position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.92);"
+        + "display:flex;align-items:center;justify-content:center;padding:14px";
+      ov.onclick = ()=>{ ov.style.display="none"; };
+      ov.innerHTML = `<img id="rc-pic-img" style="max-width:100%;max-height:100%;border-radius:12px">`;
+      document.body.appendChild(ov);
+    }
+    document.getElementById("rc-pic-img").src = data.signedUrl;
+    ov.style.display = "flex";
+  }catch(e){ rcMsg("Снимок недоступен"); }
+}
+// снять засчитанный отзыв; если бонус уже начислен и нормы больше нет — бонус удаляется
+async function rcUndo(itemId){
+  if(!confirm("Отменить этот отзыв?\n\nЕсли бонус за челлендж уже начислен и нормы больше не будет, он тоже снимется.")) return;
+  if(typeof ensureToken==="function") await ensureToken();
+  const { data, error } = await sb.rpc("rc_undo", { p_item_id: itemId });
+  if(error){ rcMsg(error.message); return; }
+  if(data && data.ok === false){ rcMsg(data.error); return; }
+  await rcLoadManager(); rcFab(); rcRender();
+  rcMsg(data && data.bonus_removed ? "Отзыв снят, бонус удалён" : "Отзыв снят", true);
+}
 
 /* ---------- действия ---------- */
 async function rcAdd(bookingId){
@@ -7477,7 +7533,7 @@ async function rcInit(){
 }
 window.rcOpen = rcOpen; window.rcClose = rcClose; window.rcAdd = rcAdd;
 window.rcRemove = rcRemove; window.rcConfirm = rcConfirm; window.rcReject = rcReject;
-window.rcRefresh = rcRefresh;
+window.rcRefresh = rcRefresh; window.rcPhoto = rcPhoto; window.rcUndo = rcUndo;
 
 
 /* ============================================================
