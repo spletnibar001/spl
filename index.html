@@ -375,8 +375,7 @@ window.__xlsxReady = (function(){
   @keyframes spin{to{transform:rotate(360deg)}}
   #app{display:none}
 /* ГОСТИ: вкладки окна */
-.gst-tabs{display:flex;gap:6px;margin:0 0 12px;overflow-x:auto;scrollbar-width:none}
-.gst-tabs::-webkit-scrollbar{display:none}
+.gst-tabs{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
 .gst-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
   border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer}
 .gst-tabs button.on{border-color:var(--emerald);color:var(--emerald)}
@@ -1416,7 +1415,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.10 · сборка 69";
+const APP_VERSION = "v 26.10 · сборка 70";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5931,6 +5930,11 @@ function gstDaysWord(n){
   if(t>=11 && t<=14) return "дней";
   if(o===1) return "день"; if(o>=2 && o<=4) return "дня"; return "дней";
 }
+// phone_norm в базе уже с «+», второй добавлять не надо
+function gstPhoneShow(phone){
+  const d = String(phone||"").replace(/\D/g,"");
+  return d ? "+"+d : "";
+}
 function gstTel(phone, label){
   if(!phone) return "";
   return `<a href="tel:+${String(phone).replace(/\D/g,"")}">${label||"позвонить"}</a>`;
@@ -5988,7 +5992,7 @@ function gstProfileHtml(p){
   return `<div class="gst-card">
       <div class="nm">${hrEsc(p.name||"Без имени")}
         ${v>=5?`<span class="gst-tag vip">постоянный</span>`:""}
-        ${gstTel(p.phone, "+"+hrEsc(p.phone||""))}</div>
+        ${gstTel(p.phone, gstPhoneShow(p.phone))}</div>
       <div class="gst-grid">
         <div class="gst-cell"><div class="k">Визитов</div><div class="v">${v}</div></div>
         <div class="gst-cell"><div class="k">Где сидит</div><div class="v">${hrEsc(p.fav_zone||"—")}</div></div>
