@@ -374,6 +374,29 @@ window.__xlsxReady = (function(){
     border-top-color:var(--emerald);border-radius:50%;animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   #app{display:none}
+/* ГОСТИ: вкладки окна */
+.gst-tabs{display:flex;gap:6px;margin:0 0 12px;overflow-x:auto;scrollbar-width:none}
+.gst-tabs::-webkit-scrollbar{display:none}
+.gst-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+  border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer}
+.gst-tabs button.on{border-color:var(--emerald);color:var(--emerald)}
+.gst-card{border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  padding:12px;margin-bottom:8px}
+.gst-card .nm{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gst-card .nm a{color:var(--emerald);font-size:12px;font-weight:700;text-decoration:none}
+.gst-card .fx{font-size:12px;color:var(--muted);line-height:1.6;margin-top:5px}
+.gst-card .fx b{color:var(--text)}
+.gst-tag{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  border-radius:20px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
+.gst-tag.new{border-color:var(--blue,#4ea6e2);color:var(--blue,#4ea6e2)}
+.gst-tag.vip{border-color:var(--gold);color:var(--gold)}
+.gst-tag.bd{border-color:var(--emerald);color:var(--emerald)}
+.gst-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.gst-cell{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:var(--panel2)}
+.gst-cell .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.gst-cell .v{font-size:14px;font-weight:800;margin-top:3px}
+.gst-empty{padding:18px 10px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
+
 /* ЗАКРЫТЫЕ ДНИ */
 .bk-closed{display:flex;align-items:center;gap:9px;margin:0 0 12px;padding:11px 13px;
   border:1px solid var(--gold);border-radius:11px;background:rgba(217,176,76,.1)}
@@ -968,7 +991,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 <!-- ПРИЛОЖЕНИЕ -->
 <div id="app">
 <header>
-  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span><button id="call-btn" style="display:none;margin-left:10px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:5px 12px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">📞 Обзвон</button>
+  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span><button id="call-btn" style="display:none;margin-left:10px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:5px 12px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">Гости</button>
 </header>
 
 <!-- ПЕРЕКЛЮЧАТЕЛЬ ТАБЕЛЬ / БРОНИРОВАНИЕ -->
@@ -1393,7 +1416,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 24.10 · сборка 66";
+const APP_VERSION = "v 25.10 · сборка 68";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5689,6 +5712,27 @@ function bkOpenModal(tableId, editMode){
   document.getElementById("bkm-title").textContent = (doEdit?"Изменить бронь · ":(bkCurrentBooking?"Бронь · ":"Новая бронь · ")) + t.name;
   document.getElementById("bkm-sub").textContent = (z?z.title:"") + " · " + bkFmtDate(BK.date);
   document.getElementById("bkm-body").innerHTML = doEdit ? bkModalEdit() : (bkCurrentBooking ? bkModalExisting() : bkModalNew());
+  // день рождения гостя: значение подтягиваем после отрисовки
+  if(!doEdit && bkCurrentBooking && document.getElementById("bkm-bd")){
+    (async ()=>{
+      const ph = bkNormPhone(bkCurrentBooking.display_phone||"");
+      const el = document.getElementById("bkm-bd");
+      const msg = document.getElementById("bkm-bd-msg");
+      try{
+        const { data } = await sb.rpc("gst_profile", { p_phone: ph });
+        if(data && data.birthday && el) el.value = String(data.birthday).slice(0,10);
+      }catch(_){}
+      const btn = document.getElementById("bkm-bd-save");
+      if(btn) btn.onclick = async ()=>{
+        await ensureToken();
+        const { data, error } = await sb.rpc("gst_birthday_set",
+          { p_phone: ph, p_birthday: el.value || null, p_by: ME.name });
+        if(msg) msg.textContent = (error || (data && data.ok===false))
+          ? ((error&&error.message) || data.error)
+          : (el.value ? "Записал" : "Дата убрана");
+      };
+    })();
+  }
   // «Официант на столе» в карточке брони — тот же выбор, что в «Депозитах»
   if(!doEdit && bkCurrentBooking && document.getElementById("bkm-waiter")){
     (async ()=>{
@@ -5821,16 +5865,235 @@ bigparty:`<h4>Начало</h4><div class="csay">«[Имя], здравству�
 <h4>Возражения</h4><div class="cobj"><b>«Пока не планируем»</b> — «Соберётесь — наберите меня, стол найдём даже в субботу.» Отметить «Перезвонить».</div>
 <div class="cobj"><b>«Сколько депозит?»</b> — назвать честно и добавить: «Депозит полностью идёт в счёт заказа.»</div>
 <div class="ctip">Самые дорогие брони. Перед праздниками прозванивать весь список.</div>`};
+/* ============================================================
+   ГОСТИ: ПОРТРЕТ, СЕГОДНЯШНИЕ ВИЗИТЫ, ДНИ РОЖДЕНИЯ
+   Серверная часть: gosti.sql. Всё считается из броней — отдельной
+   «аналитики» здесь нет, поэтому цифры не могут разойтись с бронью.
+   ============================================================ */
+let GST_TAB = "call";                 // call | today | find | bd
+const GST_TABS = {call:"Обзвон", today:"Сегодня придут", find:"Карточка гостя", bd:"Дни рождения"};
+let GST_FOUND = null;                 // последний найденный портрет
+
+function gstTabRow(){
+  if(!gstCanClient()) return "";        // без прав вкладок нет — только обзвон
+  return `<div class="gst-tabs">` + Object.keys(GST_TABS).map(k=>
+    `<button type="button" data-gt="${k}" class="${GST_TAB===k?'on':''}">${GST_TABS[k]}</button>`
+  ).join("") + `</div>`;
+}
+function gstWireTabs(){
+  document.querySelectorAll("[data-gt]").forEach(b=>{
+    b.onclick = ()=>{ GST_TAB = b.dataset.gt; gstRender(); };
+  });
+}
+// Те же роли, что в gst_can() на сервере. Портрет гостя - это вся его
+// история с телефоном, поэтому доступ уже, чем у обзвона: только
+// управляющий и администраторы. Хостес окно открывает, но видит один
+// обзвон, как раньше.
+function gstCanClient(){
+  return ["admin","upr"].includes(ME && ME.role);
+}
+function gstMoney(n){ return Number(n||0).toLocaleString("ru-RU").replace(/,/g," "); }
+function gstDate(iso){
+  if(!iso) return "—";
+  try{
+    const d = fromIso(String(iso).slice(0,10));
+    const mo=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+    return d.getDate()+" "+mo[d.getMonth()];
+  }catch(_){ return String(iso); }
+}
+function gstDaysWord(n){
+  n = Math.abs(Number(n)||0);
+  const t = n % 100, o = n % 10;
+  if(t>=11 && t<=14) return "дней";
+  if(o===1) return "день"; if(o>=2 && o<=4) return "дня"; return "дней";
+}
+function gstTel(phone, label){
+  if(!phone) return "";
+  return `<a href="tel:+${String(phone).replace(/\D/g,"")}">${label||"позвонить"}</a>`;
+}
+
+/* ----- вкладка «Сегодня придут» ----- */
+async function gstToday(){
+  const body = document.getElementById("bkm-body");
+  body.innerHTML = gstTabRow() + `<div class="gst-empty">Загрузка…</div>`;
+  gstWireTabs();
+  const ven = (CALL_VENUE && CALL_VENUE!=="all") ? CALL_VENUE : null;
+  const { data, error } = await sb.rpc("gst_today", { p_date: isoBizToday(), p_venue: ven });
+  const rows = Array.isArray(data) ? data : [];
+  let html = gstTabRow();
+  if(error){ html += `<div class="gst-empty">${hrEsc(error.message)}</div>`; }
+  else if(!rows.length){ html += `<div class="gst-empty">На сегодня броней нет.</div>`; }
+  else {
+    html += rows.map(r=>{
+      const tm = r.arrive_at ? new Date(r.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
+      const v = Number(r.visits)||0;
+      const tag = v===0 ? `<span class="gst-tag new">впервые</span>`
+                : (v>=5 ? `<span class="gst-tag vip">${v} визитов</span>`
+                        : `<span class="gst-tag">${v} визит${v>1?"а":""}</span>`);
+      const hints = [];
+      if(r.fav_zone)      hints.push(`обычно <b>${hrEsc(r.fav_zone)}</b>`);
+      if(r.usual_guests)  hints.push(`компания <b>${r.usual_guests}</b>`);
+      if(r.usual_deposit) hints.push(`депозит <b>${gstMoney(r.usual_deposit)}</b>`);
+      if(r.last_visit)    hints.push(`был(а) ${gstDate(r.last_visit)}`);
+      return `<div class="gst-card">
+        <div class="nm">${hrEsc(r.guest_name||"Гость")} ${tag}
+          ${gstTel(r.phone)}</div>
+        <div class="fx">${hrEsc(r.zone_title||"")} · ${hrEsc(r.table_name||"")}${tm?" · ~"+tm:""}${
+          r.guests?" · "+r.guests+" гост.":""}${r.deposit?" · депозит "+gstMoney(r.deposit):""}</div>
+        ${hints.length?`<div class="fx">${hints.join(" · ")}</div>`:
+          `<div class="fx">первый визит — встречаем как новичка</div>`}
+      </div>`;
+    }).join("");
+  }
+  body.innerHTML = html;
+  gstWireTabs();
+  document.getElementById("bkm-sub").textContent = "смена " + fmtFull(fromIso(isoBizToday()));
+}
+
+/* ----- вкладка «Карточка гостя» ----- */
+function gstProfileHtml(p){
+  if(!p) return "";
+  if(p.found === false){
+    return `<div class="gst-empty">Такого гостя в базе нет.<br>
+      Он появится после первой брони с телефоном.</div>`;
+  }
+  const v = Number(p.visits)||0;
+  const byV = p.by_venue || {};
+  const where = [byV.karaoke?`караоке ${byV.karaoke}`:null, byV.club?`клуб ${byV.club}`:null]
+    .filter(Boolean).join(" · ");
+  return `<div class="gst-card">
+      <div class="nm">${hrEsc(p.name||"Без имени")}
+        ${v>=5?`<span class="gst-tag vip">постоянный</span>`:""}
+        ${gstTel(p.phone, "+"+hrEsc(p.phone||""))}</div>
+      <div class="gst-grid">
+        <div class="gst-cell"><div class="k">Визитов</div><div class="v">${v}</div></div>
+        <div class="gst-cell"><div class="k">Где сидит</div><div class="v">${hrEsc(p.fav_zone||"—")}</div></div>
+        <div class="gst-cell"><div class="k">Обычно человек</div><div class="v">${p.avg_guests||"—"}</div></div>
+        <div class="gst-cell"><div class="k">Средний депозит</div><div class="v">${p.avg_deposit?gstMoney(p.avg_deposit):"—"}</div></div>
+        <div class="gst-cell"><div class="k">Первый визит</div><div class="v">${gstDate(p.first_visit)}</div></div>
+        <div class="gst-cell"><div class="k">Последний</div><div class="v">${gstDate(p.last_visit)}</div></div>
+      </div>
+      ${where?`<div class="fx">${where}${p.sum_deposit?` · депозитов всего ${gstMoney(p.sum_deposit)}`:""}</div>`:""}
+      <div class="bkm-field" style="margin-top:12px"><label>Дата рождения</label>
+        <div style="display:flex;gap:8px">
+          <input id="gst-bd" type="date" value="${p.birthday?String(p.birthday).slice(0,10):""}" style="flex:1">
+          <button class="bkm-btn secondary" style="padding:10px 14px;font-size:13px"
+            onclick="gstSaveBd('${hrEsc(p.phone)}')">Сохранить</button>
+        </div></div>
+      <div class="bkm-msg" id="gst-bd-msg"></div>
+    </div>`;
+}
+async function gstSaveBd(phone){
+  const el = document.getElementById("gst-bd");
+  const msg = document.getElementById("gst-bd-msg");
+  await ensureToken();
+  const { data, error } = await sb.rpc("gst_birthday_set",
+    { p_phone: phone, p_birthday: (el && el.value) || null, p_by: ME.name });
+  if(error || (data && data.ok === false)){
+    if(msg){ msg.textContent = (error&&error.message) || data.error; }
+    return;
+  }
+  if(msg) msg.textContent = (el && el.value) ? "Дата сохранена" : "Дата убрана";
+  if(GST_FOUND) GST_FOUND.birthday = (el && el.value) || null;
+}
+async function gstFindRun(){
+  const q = (document.getElementById("gst-q")||{}).value || "";
+  const box = document.getElementById("gst-res");
+  if(!box) return;
+  if(q.trim().length < 3){ box.innerHTML = `<div class="gst-empty">Введите три символа и больше.</div>`; return; }
+  box.innerHTML = `<div class="gst-empty">Ищу…</div>`;
+  await ensureToken();
+  const { data } = await sb.rpc("gst_search", { p_q: q });
+  const list = Array.isArray(data) ? data : [];
+  if(!list.length){ box.innerHTML = `<div class="gst-empty">Никого не нашлось.</div>`; return; }
+  if(list.length === 1){ return gstOpenProfile(list[0].phone); }
+  box.innerHTML = list.map(g=>`<div class="gst-card" style="cursor:pointer"
+      onclick="gstOpenProfile('${hrEsc(g.phone)}')">
+      <div class="nm">${hrEsc(g.name||"Без имени")}</div>
+      <div class="fx">+${hrEsc(g.phone||"")}</div></div>`).join("");
+}
+async function gstOpenProfile(phone){
+  const box = document.getElementById("gst-res");
+  if(box) box.innerHTML = `<div class="gst-empty">Загрузка…</div>`;
+  await ensureToken();
+  const { data, error } = await sb.rpc("gst_profile", { p_phone: phone });
+  if(error || (data && data.ok === false)){
+    if(box) box.innerHTML = `<div class="gst-empty">${hrEsc((error&&error.message)||data.error)}</div>`;
+    return;
+  }
+  GST_FOUND = data;
+  if(box) box.innerHTML = gstProfileHtml(data);
+}
+function gstFind(){
+  const body = document.getElementById("bkm-body");
+  body.innerHTML = gstTabRow() + `
+    <div class="bkm-field"><label>Телефон или имя</label>
+      <div style="display:flex;gap:8px">
+        <input id="gst-q" placeholder="998 90 123 45 67 или Азиз" style="flex:1">
+        <button class="bkm-btn secondary" style="padding:10px 14px;font-size:13px"
+          onclick="gstFindRun()">Найти</button>
+      </div></div>
+    <div id="gst-res">${GST_FOUND ? gstProfileHtml(GST_FOUND)
+      : `<div class="gst-empty">Найдите гостя по телефону или имени — покажу,
+         сколько раз был, где обычно сидит и какой компанией.</div>`}</div>`;
+  gstWireTabs();
+  const q = document.getElementById("gst-q");
+  if(q) q.onkeydown = e=>{ if(e.key==="Enter") gstFindRun(); };
+  document.getElementById("bkm-sub").textContent = "поиск по гостевой базе";
+}
+
+/* ----- вкладка «Дни рождения» ----- */
+async function gstBirthdays(){
+  const body = document.getElementById("bkm-body");
+  body.innerHTML = gstTabRow() + `<div class="gst-empty">Загрузка…</div>`;
+  gstWireTabs();
+  await ensureToken();
+  const { data, error } = await sb.rpc("gst_birthdays", { p_days: 14 });
+  const rows = Array.isArray(data) ? data : [];
+  let html = gstTabRow();
+  if(error){ html += `<div class="gst-empty">${hrEsc(error.message)}</div>`; }
+  else if(!rows.length){
+    html += `<div class="gst-empty">В ближайшие две недели дней рождения нет.<br><br>
+      Дата рождения заполняется в карточке гостя. Пока их мало — база наберётся,
+      когда хостес начнут спрашивать дату при брони.</div>`;
+  } else {
+    html += rows.map(r=>{
+      const d = Number(r.in_days)||0;
+      const when = d===0 ? "сегодня" : (d===1 ? "завтра" : "через "+d+" "+gstDaysWord(d));
+      return `<div class="gst-card">
+        <div class="nm">${hrEsc(r.name||"Гость")}
+          <span class="gst-tag bd">${when}</span>${gstTel(r.phone)}</div>
+        <div class="fx">${gstDate(r.birthday)}${r.turns?` · исполняется ${r.turns}`:""}${
+          r.visits?` · визитов ${r.visits}`:""}${r.fav_zone?` · обычно ${hrEsc(r.fav_zone)}`:""}</div>
+      </div>`;
+    }).join("");
+    html += `<div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:10px">
+      Звонить лучше за неделю: столик на день рождения выбирают заранее.</div>`;
+  }
+  body.innerHTML = html;
+  gstWireTabs();
+  document.getElementById("bkm-sub").textContent = "ближайшие две недели";
+}
+
+function gstRender(){
+  if(!gstCanClient()) GST_TAB = "call";
+  if(GST_TAB === "today") return gstToday();
+  if(GST_TAB === "find")  return gstFind();
+  if(GST_TAB === "bd")    return gstBirthdays();
+  return callRender();
+}
+window.gstFindRun = gstFindRun; window.gstOpenProfile = gstOpenProfile; window.gstSaveBd = gstSaveBd;
+
 async function callOpen(){
   const mv = callMyVenue();
   if(mv !== "all") CALL_VENUE = mv;          // хостес — только её площадка
   else if(ME.role !== "admin") CALL_VENUE = "all";
-  document.getElementById("bkm-title").textContent = "Обзвон гостей";
+  document.getElementById("bkm-title").textContent = "Гости";
   document.getElementById("bkm-sub").textContent = "загрузка…";
   document.getElementById("bkm-body").innerHTML = "";
   document.getElementById("bk-modal").classList.add("open");
   if(typeof bkCurrentTable!=="undefined"){ bkCurrentTable=null; bkCurrentBooking=null; }
-  await callRender();
+  await gstRender();
 }
 async function callRender(){
   await ensureToken();
@@ -5847,6 +6110,7 @@ async function callRender(){
   // журнал просмотра — не блокирует
   try{ sb.from("call_views").insert({tg_id:Number(ME.tg_id||ME.telegram_id||0), viewer_name:ME.name, segment:seg, shown:rows.length}).then(()=>{}); }catch(_){}
   const segBtn = k=>`<button type="button" data-cs="${k}" class="${seg===k?'on':''}">${CALL_SEG_LBL[k]}</button>`;
+  const gstTop = gstTabRow();   // обзвон — одна из вкладок окна «Гости»
   const RES_LBL = {will_come:"придёт", recall:"перезвонить", refused:"отказ", no_call:"не звонить"};
   let html = `<style>
     .cw-src{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
@@ -5903,7 +6167,8 @@ async function callRender(){
     <span>За месяц: ${st.calls} звонков · ${st.came} броней после «придёт»</span>
     <span style="color:var(--emerald);font-weight:700">${st.calls?Math.round(st.came*100/st.calls):0}%</span></div>`;
   document.getElementById("bkm-sub").textContent = CALL_SEG_LBL[seg];
-  document.getElementById("bkm-body").innerHTML = html;
+  document.getElementById("bkm-body").innerHTML = gstTop + html;
+  gstWireTabs();
   document.querySelectorAll("#cw-seg button").forEach(b=>{
     b.onclick = ()=>{ CALL_SEG = b.dataset.cs; callRender(); };
   });
@@ -6650,6 +6915,14 @@ function bkModalExisting(){
     ${depBlock}
     ${dpCanSee()?`<div class="bkm-field"><label>Официант на столе</label>
       <div id="bkm-waiter">загрузка…</div></div>`:""}
+    ${(b.display_phone && gstCanClient())?`<div class="bkm-field">
+      <label>День рождения гостя <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· спросите при случае</span></label>
+      <div style="display:flex;gap:8px">
+        <input id="bkm-bd" type="date" style="flex:1">
+        <button class="bkm-btn secondary" style="padding:10px 14px;font-size:13px"
+          id="bkm-bd-save">Сохранить</button>
+      </div>
+      <div class="bkm-msg" id="bkm-bd-msg"></div></div>`:""}
     ${canEdit?`<div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· нажмите вариант — сохранится сразу</span></label>
       <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>`:""}
     <div class="bkm-msg" id="bkm-msg"></div>
