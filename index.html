@@ -374,6 +374,17 @@ window.__xlsxReady = (function(){
     border-top-color:var(--emerald);border-radius:50%;animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   #app{display:none}
+/* ЗАКРЫТЫЕ ДНИ */
+.bk-closed{display:flex;align-items:center;gap:9px;margin:0 0 12px;padding:11px 13px;
+  border:1px solid var(--gold);border-radius:11px;background:rgba(217,176,76,.1)}
+.bk-closed b{color:var(--gold);font-size:13px}
+.bk-closed span{font-size:12px;color:var(--muted)}
+.cd-row{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel);margin-bottom:7px}
+.cd-row .l{flex:1;min-width:0}
+.cd-row .l b{font-size:13px;display:block}
+.cd-row .l span{font-size:11px;color:var(--muted)}
+
 /* ДЕПОЗИТЫ: номера заказов айко */
 .bk-t.dp-has{border-color:var(--emerald)}
 .bk-t.dp-need{border-color:var(--gold)}
@@ -1382,7 +1393,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 24.10 · сборка 64";
+const APP_VERSION = "v 24.10 · сборка 66";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4702,15 +4713,17 @@ function bkRenderVenueTabs(){
 
 async function bkLoadRef(){
   if(BK.data.venues.length) return; // справочники грузим один раз
-  const [v,z,t,sp] = await Promise.all([
+  const [v,z,t,sp,cl] = await Promise.all([
     sb.from("venues").select("*").order("id"),
     sb.from("zones").select("*").order("sort"),
     sb.from("tables").select("*").order("id"),
     sb.from("deposit_special_days").select("*").order("day"),   // особые даты (если таблицы нет — просто пусто)
+    sb.from("closed_days").select("*").order("day")             // закрытые дни (санитарный и т.п.)
   ]);
   BK.data.venues=v.data||[]; BK.data.zones=z.data||[];
   BK.data.tables=(t.data||[]).filter(x=>!x.archived);  // архивные столы скрыты везде
   BK.data.specials=sp.data||[];
+  BK.data.closed=(cl && cl.data) ? cl.data : [];        // закрытые дни (нет таблицы — пусто)
 }
 
 /* ===== ОСОБЫЕ ДАТЫ: депозит выше обычного на конкретный день =====
@@ -4863,16 +4876,17 @@ function bkRender(){
   if(todayEl) todayEl.style.display = (bkIso(d)===bkIso(bkToday())) ? "inline-block" : "none";
   document.getElementById("bk-wk").textContent = bkIsWeekend(d) ? "выхи" : "будни";
   const root=document.getElementById("bk-content");
+  const closedTop = cdBanner();
   if(BK.view==="dep"){
     // тот же план залов, что в «Схеме», но плитки показывают деньги
-    root.innerHTML = (BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub()) + dpBody();
+    root.innerHTML = closedTop + (BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub()) + dpBody();
     bkFitSchema();
     try{ dpWireInputs(); }catch(_){}
   } else if(BK.view==="schema"){
-    root.innerHTML = BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub();
+    root.innerHTML = closedTop + (BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub());
     bkFitSchema();
   } else {
-    root.innerHTML = BK.venue==="karaoke" ? bkRenderKaraoke() : bkRenderClub();
+    root.innerHTML = closedTop + (BK.venue==="karaoke" ? bkRenderKaraoke() : bkRenderClub());
   }
   if(BK.mode==="booking") setTimeout(bkAlignDateCard,0);
 }
@@ -5045,6 +5059,81 @@ function bkRenderClub(){
   html+=bkLegend()+bkBookingList("Клуб")+bkUpcomingList();
   return html;
 }
+
+/* ============================================================
+   ЗАКРЫТЫЕ ДНИ
+   Серверная часть: zakrytye-dni.sql. Триггер в базе не даёт записать
+   бронь на закрытую дату никому, кроме admin и upr, — гостевое
+   приложение ходит открытым анонимным ключом, одного интерфейса мало.
+   ============================================================ */
+function cdCanEdit(){ return ["admin","upr"].includes(ME && ME.role); }
+// причина закрытия для даты и площадки; null — день открыт
+function cdReason(dateIso, venueKey){
+  const rows = (BK.data.closed||[]).filter(c=>String(c.day)===String(dateIso)
+    && (!c.venue_key || c.venue_key===venueKey));
+  if(!rows.length) return null;
+  const exact = rows.find(c=>c.venue_key===venueKey);
+  return (exact || rows[0]).reason || "брони не принимаем";
+}
+function cdBanner(){
+  const why = cdReason(bkIso(BK.date), BK.venue);
+  if(!why) return "";
+  return `<div class="bk-closed"><b>${bkFmtDate(BK.date)} · ${hrEsc(why)}</b>
+    <span>${cdCanEdit() ? "брони ставите только вы" : "брони не принимаем"}</span></div>`;
+}
+async function cdReload(){
+  const r = await sb.from("closed_days").select("*").order("day");
+  BK.data.closed = r.data || [];
+  return r.error ? r.error.message : null;
+}
+function cdList(){
+  const today = bkIso(bkToday());
+  const rows = (BK.data.closed||[]).filter(c=>String(c.day)>=today)
+    .sort((a,b)=>String(a.day).localeCompare(String(b.day)));
+  if(!rows.length) return `<div class="bkm-msg">Закрытых дат впереди нет.</div>`;
+  return rows.map(c=>`<div class="cd-row">
+      <div class="l"><b>${bkFmtDate(fromIso(c.day))}${
+        c.venue_key ? " · "+(c.venue_key==="club"?"Клуб":"Караоке") : " · обе площадки"}</b>
+        <span>${hrEsc(c.reason||"брони не принимаем")}${c.created_by?" · "+hrEsc(c.created_by):""}</span></div>
+      ${cdCanEdit()?`<button class="bkm-btn secondary" style="padding:8px 12px;font-size:12px"
+        onclick="cdDel(${c.id})">Открыть</button>`:""}
+    </div>`).join("");
+}
+async function cdAdd(){
+  const day = (document.getElementById("cd-day")||{}).value;
+  const ven = (document.getElementById("cd-venue")||{}).value;
+  const why = ((document.getElementById("cd-why")||{}).value||"").trim();
+  const msg = document.getElementById("cd-msg");
+  if(!day){ if(msg){ msg.textContent="Выберите дату"; msg.className="bkm-msg"; } return; }
+  await ensureToken();
+  const { data, error } = await sb.rpc("closed_add",
+    { p_date: day, p_venue: ven || null, p_reason: why || null, p_by: ME.name });
+  if(error || (data && data.ok === false)){
+    if(msg) msg.textContent = (error&&error.message) || data.error;
+    return;
+  }
+  await cdReload();
+  bkRenderSpecials(null);
+  const n = Number(data && data.existing) || 0;
+  if(n > 0){
+    alert(`Дата закрыта.\n\nНа эту дату уже стоит броней: ${n}. Их нужно обзвонить и отменить — сами они не снимутся.`);
+  }
+  if(bkIso(BK.date) === day) bkRender();
+}
+async function cdDel(id){
+  if(!confirm("Снова принимать брони на эту дату?")) return;
+  await ensureToken();
+  const { data, error } = await sb.rpc("closed_del", { p_id: id });
+  if(error || (data && data.ok === false)){
+    const msg = document.getElementById("cd-msg");
+    if(msg) msg.textContent = (error&&error.message) || data.error;
+    return;
+  }
+  await cdReload();
+  bkRenderSpecials(null);
+  bkRender();
+}
+window.cdAdd = cdAdd; window.cdDel = cdDel;
 
 /* ============================================================
    ДЕПОЗИТЫ: НОМЕРА ЗАКАЗОВ АЙКО
@@ -5918,7 +6007,29 @@ function bkRenderSpecials(err){
     <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">
       Тариф действует только на выбранный день — на следующий всё возвращается к обычному.
       Сумма важнее множителя. Правило по зоне перебивает правило по площадке.
-      Особые даты видит и приложение гостей.</div>`;
+      Особые даты видит и приложение гостей.</div>
+
+    <div class="hr-sec" style="margin-top:22px">Закрытые дни</div>
+    ${cdList()}
+    ${cdCanEdit()?`
+    <div class="bkm-row" style="margin-top:12px">
+      <div class="bkm-field"><label>Дата</label><input id="cd-day" type="date" value="${today}"></div>
+      <div class="bkm-field"><label>Где</label>
+        <select id="cd-venue">
+          <option value="">Обе площадки</option>
+          <option value="karaoke">Только караоке</option>
+          <option value="club">Только клуб</option>
+        </select></div>
+    </div>
+    <div class="bkm-field"><label>Причина <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· увидит гость</span></label>
+      <input id="cd-why" type="text" placeholder="санитарный день"></div>
+    <div class="bkm-msg" id="cd-msg"></div>
+    <button class="bkm-btn primary" onclick="cdAdd()">Закрыть дату</button>`:""}
+    <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">
+      В закрытый день гость заявку не отправит — дата пропадает из выбора, а база
+      отбивает запись, даже если обойти приложение. Из персонала поставить бронь
+      на такой день могут только администратор и управляющий.
+      Уже стоящие брони сами не снимаются — программа скажет, сколько их.</div>`;
   const amtEl = document.getElementById("bkspec-amount");
   if(amtEl) amtEl.oninput = function(){ const d=this.value.replace(/[^\d]/g,""); this.value = d?fmtNum(d):""; };
   const addBtn = document.getElementById("bkspec-add");
@@ -6114,16 +6225,37 @@ window.bkDismissGuestCancel = bkDismissGuestCancel;
 async function bkConfirmRequest(rid){
   const r = (BK.data.requests||[]).find(x=>x.id===rid);
   if(!r) return;
-  // список столов того же заведения, сгруппированный по зонам
+  // Список столов: сначала зона, которую выбрал гость, потом остальные
+  // зоны его площадки, и только в самом низу — вторая площадка.
   const venueKey = r.venue_key;
   const venue = BK.data.venues.find(v=>v.key===venueKey);
-  const zones = BK.data.zones.filter(z=>z.venue_id===(venue&&venue.id)).sort((a,b)=>(a.sort||0)-(b.sort||0));
-  let opts = "";
-  zones.forEach(z=>{
-    const tbls = BK.data.tables.filter(t=>t.zone_id===z.id);
-    if(!tbls.length) return;
-    opts += `<optgroup label="${z.title}">` + tbls.map(t=>`<option value="${t.id}">${t.name}</option>`).join("") + `</optgroup>`;
-  });
+  const selTid = r.table_id ? Number(r.table_id) : null;
+  const selTable = BK.data.tables.find(t=>String(t.id)===String(selTid));
+  const selZoneId = selTable ? selTable.zone_id : null;
+  const bySort = (a,b)=>(a.sort||0)-(b.sort||0);
+  const mine  = BK.data.zones.filter(z=>z.venue_id===(venue&&venue.id)).sort(bySort);
+  const other = BK.data.zones.filter(z=>z.venue_id!==(venue&&venue.id)).sort(bySort);
+  // зона гостя — наверх
+  const ordered = mine.slice().sort((a,b)=>
+    (b.id===selZoneId?1:0)-(a.id===selZoneId?1:0) || bySort(a,b));
+  const optGroup = (z, label) => {
+    const tbls = BK.data.tables.filter(t=>t.zone_id===z.id)
+      .sort((a,b)=>(parseInt(String(a.name).replace(/\D/g,""))||0)-(parseInt(String(b.name).replace(/\D/g,""))||0));
+    if(!tbls.length) return "";
+    return `<optgroup label="${hrEsc(label)}">` + tbls.map(t=>
+      `<option value="${t.id}" ${String(t.id)===String(selTid)?"selected":""}>${hrEsc(t.name)}</option>`
+    ).join("") + `</optgroup>`;
+  };
+  let opts = ordered.map(z=>optGroup(z, z.id===selZoneId ? (z.title+" · выбрал гость") : z.title)).join("");
+  // вторая площадка — отдельной группой в конце, на всякий случай
+  const otherName = venueKey==="club" ? "КАРАОКЕ" : "КЛУБ";
+  const otherOpts = other.map(z=>optGroup(z, otherName+" · "+z.title)).join("");
+  if(otherOpts) opts += `<optgroup label="── другая площадка ──"></optgroup>` + otherOpts;
+  // что именно выбрал гость — пишем отдельной строкой, чтобы было видно и после правок
+  const selZone = selZoneId ? BK.data.zones.find(z=>z.id===selZoneId) : null;
+  const pickLine = selTable
+    ? `${hrEsc((selZone&&selZone.title)||"")} · ${hrEsc(selTable.name)}`
+    : "зона не указана";
   const noteRaw=(r.note||"").replace(/</g,"&lt;");
   // выделяем комментарий гостя из note (часть после "Коммент:")
   let noteMeta=noteRaw, guestComment="";
@@ -6149,6 +6281,8 @@ async function bkConfirmRequest(rid){
     <div class="bkm-field"><label>Гостей</label>
       <input id="bk-req-guests" class="bkm-input" type="number" inputmode="numeric" min="1" max="60"
              placeholder="сколько человек" value="${r.guests_count||""}"></div>
+    <div class="bkm-field"><label>Гость выбрал</label>
+      <div style="font-weight:700;color:var(--emerald)">${pickLine}</div></div>
     <div class="bkm-field"><label>Назначить стол</label>
       <select id="bk-req-table" class="bkm-input">${opts}</select></div>
     <div class="bkm-field"><label>Депозит (сум, необязательно)</label>
