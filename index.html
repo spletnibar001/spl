@@ -374,6 +374,32 @@ window.__xlsxReady = (function(){
     border-top-color:var(--emerald);border-radius:50%;animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   #app{display:none}
+/* ДЕПОЗИТЫ: номера заказов айко */
+.bk-t.dp-has{border-color:var(--emerald)}
+.bk-t.dp-need{border-color:var(--gold)}
+.bk-t .dp-sum{font-size:10px;font-weight:700;color:var(--gold);line-height:1.25;margin-top:1px}
+.bk-t .dp-no{font-size:10px;font-weight:800;color:var(--emerald);line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bk-t .dp-no.need{color:var(--gold);font-weight:700}
+.bk-t .dp-left{font-size:9.5px;font-weight:700;color:var(--muted);line-height:1.2}
+.dp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 10px}
+.dp-count{font-size:12px;font-weight:700;color:var(--muted)}
+.dp-count b{color:var(--emerald)}
+.dp-row{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel);margin-bottom:7px}
+.dp-row .l{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dp-row .l b{font-size:13px}
+.dp-row .l span{font-size:11px;color:var(--muted)}
+.dp-row .dep{font-size:13px;font-weight:800;color:var(--gold);white-space:nowrap}
+.dp-row input{width:92px;text-align:center;background:var(--panel2);border:1px solid var(--line);
+  color:var(--text);border-radius:8px;padding:8px 6px;font-size:13px;font-weight:700;font-family:inherit}
+.dp-row input.on{border-color:var(--emerald);color:var(--emerald)}
+.dp-tot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);
+  padding:10px 2px 0;border-top:1px solid var(--line);margin-top:4px}
+.dp-tot b{color:var(--text)}
+.dp-msg{font-size:12px;margin:8px 2px;min-height:16px}
+.dp-msg.ok{color:var(--emerald)} .dp-msg.err{color:var(--red,#e2574e)}
+
 /* ===== БРОНИРОВАНИЕ — стили (Слой 1) ===== */
 /* верхний переключатель Табель / Бронирование */
 #mode-switch{display:none;gap:5px;margin:0 0 12px;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content}
@@ -946,6 +972,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
         <div id="bk-view-tabs">
           <button id="bk-view-grid" class="active">Сетка</button>
           <button id="bk-view-schema">Схема</button>
+          <button id="bk-view-dep" style="display:none">Депозиты</button>
         </div>
         <button id="bk-reqs-btn" style="display:none">Заявки <span id="bk-reqs-badge" class="bk-reqs-badge">0</span></button>
         <button id="bk-src-btn" style="display:none">📊 Источники</button>
@@ -1349,7 +1376,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 20.10 · сборка 62";
+const APP_VERSION = "v 24.10 · сборка 63";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4488,6 +4515,13 @@ function bkInit(){
   if(calBg) calBg.addEventListener("click", function(e){ if(e.target===calBg) bkCloseCal(); });
   document.getElementById("bk-view-grid").onclick = function(){ BK.view="grid"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-view-schema").onclick = function(){ BK.view="schema"; bkRenderVenueTabs(); bkRender(); };
+  var vd = document.getElementById("bk-view-dep");
+  if(vd) vd.onclick = async function(){
+    BK.view="dep"; bkRenderVenueTabs();
+    document.getElementById("bk-content").innerHTML='<div class="bk-empty">Загрузка…</div>';
+    await dpLoad(); bkRender();
+  };
+  try{ dpInit(); }catch(e){ console.warn("dpInit", e); }   // вкладка «Депозиты»
   var reqBtn=document.getElementById("bk-reqs-btn");
   if(reqBtn) reqBtn.onclick = async function(){ await bkReloadRequests(); bkOpenRequests(); };
   var srcBtn=document.getElementById("bk-src-btn");
@@ -4546,6 +4580,12 @@ function bkInit(){
         var p = up.dataset.d.split("-").map(Number);
         BK.date = new Date(p[0],p[1]-1,p[2]);
         bkLoadAndRender();
+        return;
+      }
+      // режим «Депозиты»: тап по столу открывает окно ввода номера заказа
+      var dpc = e.target.closest(".bk-t[data-dpid]");
+      if(dpc){
+        if(dpc.dataset.dpid) dpAsk(Number(dpc.dataset.dpid));
         return;
       }
       var cell = e.target.closest(".bk-t[data-tid]");
@@ -4650,6 +4690,8 @@ function bkRenderVenueTabs(){
   var vg=document.getElementById("bk-view-grid"), vs=document.getElementById("bk-view-schema");
   if(vg) vg.classList.toggle("active",BK.view==="grid");
   if(vs) vs.classList.toggle("active",BK.view==="schema");
+  var vd2=document.getElementById("bk-view-dep");
+  if(vd2){ vd2.classList.toggle("active",BK.view==="dep"); try{ dpSyncTab(); }catch(_){} }
 }
 
 async function bkLoadRef(){
@@ -4709,6 +4751,7 @@ async function bkLoadAndRender(){
   const up = await sb.from("v_bookings_full").select("*").gte("business_date",today)
     .in("status",["booked","seated"]).order("business_date").order("arrive_at");
   BK.data.upcoming = bkFilterForWaiter(up.data||[]);
+  try{ await dpLoad(); }catch(_){}        // номера заказов на эту смену
   // ЗАЯВКИ от гостей (status=request) — все, от сегодняшней бизнес-даты, для руководства
   if(bkCanManageRequests()){
     const rq = await sb.from("v_bookings_full").select("*").eq("status","request")
@@ -4814,7 +4857,12 @@ function bkRender(){
   if(todayEl) todayEl.style.display = (bkIso(d)===bkIso(bkToday())) ? "inline-block" : "none";
   document.getElementById("bk-wk").textContent = bkIsWeekend(d) ? "выхи" : "будни";
   const root=document.getElementById("bk-content");
-  if(BK.view==="schema"){
+  if(BK.view==="dep"){
+    // тот же план залов, что в «Схеме», но плитки показывают деньги
+    root.innerHTML = (BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub()) + dpBody();
+    bkFitSchema();
+    try{ dpWireInputs(); }catch(_){}
+  } else if(BK.view==="schema"){
     root.innerHTML = BK.venue==="karaoke" ? bkSchemaKaraoke() : bkSchemaClub();
     bkFitSchema();
   } else {
@@ -4906,6 +4954,7 @@ function bkMgmtHead(venueKey){
 }
 
 function bkTableCell(t, weekend){
+  if(BK.view==="dep") return dpCellHtml(t, t.name, "", false);
   const b=bkBookingFor(t.id);
   const cls=bkTableCls(b);
   const wasOcc = !b && bkWasOccupied(t.id);
@@ -4991,6 +5040,197 @@ function bkRenderClub(){
   return html;
 }
 
+/* ============================================================
+   ДЕПОЗИТЫ: НОМЕРА ЗАКАЗОВ АЙКО
+   Серверная часть: depozity.sql (booking_orders + bk_orders/bk_ord_set).
+   Экран нужен, чтобы потом сверить депозит, который поставила хостес,
+   со счётом из айко — связкой служит номер заказа.
+   Зоны ответственности считает база: админ — обе площадки, управляющий —
+   караоке, директор — клуб, менеджер — свою по карточке.
+   ============================================================ */
+const DP = { venue:null, rows:[], asked:{}, busy:false };
+
+function dpCanSee(){
+  if(!DP.venue) return false;
+  return DP.venue === "both" || DP.venue === BK.venue;
+}
+async function dpInit(){
+  try{
+    const { data } = await sb.rpc("bk_ord_venue");
+    DP.venue = (typeof data === "string" && data) ? data : null;
+  }catch(_){ DP.venue = null; }
+  dpSyncTab();
+}
+function dpSyncTab(){
+  const b = document.getElementById("bk-view-dep");
+  if(!b) return;
+  b.style.display = dpCanSee() ? "" : "none";
+  // площадку переключили на чужую, а мы были в депозитах — уводим на сетку
+  if(!dpCanSee() && BK.view === "dep"){ BK.view = "grid"; }
+}
+async function dpLoad(){
+  DP.rows = [];
+  if(!dpCanSee()) return;
+  try{
+    const { data, error } = await sb.rpc("bk_orders",
+      { p_date: bkIso(BK.date), p_venue: BK.venue });
+    if(error || !data || data.ok === false) return;
+    DP.rows = data.rows || [];
+  }catch(_){}
+}
+// активная бронь стола: сначала сидящие, потом бронь, потом последняя завершённая
+function dpForTable(tableId){
+  const list = DP.rows.filter(r=>String(r.table_id)===String(tableId));
+  if(!list.length) return null;
+  const rank = st => st==="seated" ? 0 : (st==="booked" ? 1 : 2);
+  return list.slice().sort((a,b)=> rank(a.status)-rank(b.status)
+    || String(b.arrive_at||"").localeCompare(String(a.arrive_at||"")))[0];
+}
+function dpHm(ts){
+  if(!ts) return "";
+  try{ return new Date(ts).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); }
+  catch(_){ return ""; }
+}
+// плитка стола в режиме «Депозиты» — вместо гостя и времени показываем деньги
+function dpCellHtml(t, label, style, round){
+  const r = dpForTable(t.id);
+  let cls = "bk-t" + (round ? " round" : "");
+  let inner = `<div class="tn">${label}</div>`;
+  if(r){
+    cls += r.status==="seated" ? " seated" : (r.status==="booked" ? " booked" : "");
+    const hasDep = Number(r.deposit) > 0;
+    // стол без депозита сверять не с чем — золотой рамкой не дёргаем
+    if(hasDep) cls += r.order_no ? " dp-has" : " dp-need";
+    else if(r.order_no) cls += " dp-has";
+    inner += hasDep
+      ? `<div class="dp-sum">${bkFmtMoney(r.deposit)}</div>`
+      : `<div class="dp-sum" style="color:var(--muted)">без депозита</div>`;
+    if(hasDep || r.order_no){
+      inner += r.order_no
+        ? `<div class="dp-no">№${hrEsc(r.order_no)}</div>`
+        : `<div class="dp-no need">нет №</div>`;
+    }
+    // время ухода нужно только владельцу: по нему видно, добивали ли депозит
+    // после того, как гости встали
+    if(isOwner() && r.finished_at) inner += `<div class="dp-left">ушли ${dpHm(r.finished_at)}</div>`;
+  }
+  return `<div class="${cls}" data-dpid="${r?r.booking_id:""}" style="${style||""}">${inner}</div>`;
+}
+// как читать строку гостя: фактические посадка и уход, а не плановое время
+function dpWhen(r){
+  if(r.status==="finished") return `${dpHm(r.seated_at||r.arrive_at)} по ${dpHm(r.finished_at)}`;
+  if(r.status==="seated")   return `${dpHm(r.seated_at||r.arrive_at)}, сидят`;
+  return `ждём к ${dpHm(r.arrive_at)}`;
+}
+function dpRowLabel(r){
+  const z = String(r.zone_title||"");
+  const short = /больш/i.test(z) ? "БЗ" : (/средн/i.test(z) ? "СЗ" : (/мал/i.test(z) ? "МЗ" : z));
+  return /кабин/i.test(z) ? hrEsc(r.table_name) : `${hrEsc(short)} · ${hrEsc(r.table_name)}`;
+}
+function dpBody(){
+  const rows = DP.rows.slice().sort((a,b)=>
+    String(a.arrive_at||"").localeCompare(String(b.arrive_at||"")));
+  const pay = rows.filter(r=>Number(r.deposit)>0);
+  const done = pay.filter(r=>r.order_no).length;
+  const total = pay.reduce((s,r)=>s+Number(r.deposit||0),0);
+  let html = `<div class="dp-head">
+      <div class="dp-count">Заполнено <b>${done}</b> из ${pay.length}</div>
+      <button class="hr-btn" onclick="dpCsv()">Скачать CSV</button>
+    </div><div class="dp-msg" id="dp-msg"></div>`;
+  if(!pay.length){
+    return html + `<div class="bk-empty">На эту смену депозитов нет</div>`;
+  }
+  html += pay.map(r=>`<div class="dp-row">
+      <div class="l"><b>${dpRowLabel(r)}</b>
+        <span>${hrEsc(r.guest_name||"Гость")}${r.guests?` · ${r.guests} гост.`:""} · ${dpWhen(r)}</span></div>
+      <div class="dep">${bkFmtMoney(r.deposit)}</div>
+      <input class="${r.order_no?"on":""}" inputmode="numeric" placeholder="№"
+             value="${hrEsc(r.order_no||"")}" data-dpin="${r.booking_id}">
+    </div>`).join("");
+  html += `<div class="dp-tot"><span>Депозитов за смену</span><b>${bkFmtMoney(total)} сум</b></div>`;
+  return html;
+}
+function dpWireInputs(){
+  document.querySelectorAll("[data-dpin]").forEach(el=>{
+    el.onchange = ()=>dpSave(Number(el.dataset.dpin), el.value, el);
+  });
+}
+async function dpSave(bookingId, value, el){
+  if(DP.busy) return;
+  DP.busy = true;
+  try{
+    if(typeof ensureToken==="function") await ensureToken();
+    const { data, error } = await sb.rpc("bk_ord_set",
+      { p_booking_id: bookingId, p_order_no: value, p_by: ME.name });
+    const msg = document.getElementById("dp-msg");
+    if(error || (data && data.ok === false)){
+      if(msg){ msg.textContent = (error&&error.message) || data.error; msg.className = "dp-msg err"; }
+      return;
+    }
+    const r = DP.rows.find(x=>String(x.booking_id)===String(bookingId));
+    if(r) r.order_no = (data && data.order_no) || null;
+    if(el) el.classList.toggle("on", !!(data && data.order_no));
+    if(msg){ msg.textContent = (data && data.order_no) ? "Номер сохранён" : "Номер убран"; msg.className = "dp-msg ok"; }
+    delete DP.asked[String(bookingId)];
+  } finally { DP.busy = false; }
+}
+// выгрузка для сверки с выгрузкой счетов из айко
+function dpCsv(){
+  const head = ["дата","площадка","зал","стол","гость","гостей","депозит","номер заказа","посадка","уход"];
+  const lines = [head.join(";")];
+  DP.rows.forEach(r=>{
+    lines.push([bkIso(BK.date), BK.venue==="club"?"Клуб":"Караоке", r.zone_title||"", r.table_name||"",
+      (r.guest_name||"").replace(/;/g,","), r.guests||"", Number(r.deposit||0),
+      (r.order_no||"").replace(/;/g,","), dpHm(r.seated_at), dpHm(r.finished_at)].join(";"));
+  });
+  const blob = new Blob(["\ufeff"+lines.join("\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `depozity-${BK.venue}-${bkIso(BK.date)}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+// окно ввода номера: по тапу на стол и само, когда хостес посадила гостей
+function dpAsk(bookingId){
+  const r = DP.rows.find(x=>String(x.booking_id)===String(bookingId));
+  if(!r) return;
+  DP.asked[String(bookingId)] = true;
+  document.getElementById("bkm-title").textContent = "Введите номер заказа";
+  document.getElementById("bkm-sub").textContent =
+    `${r.zone_title||""} · ${r.table_name||""} · депозит ${bkFmtMoney(r.deposit)}`;
+  document.getElementById("bkm-body").innerHTML = `
+    <div class="bkm-field"><label>Гость</label>
+      <div style="font-weight:700">${hrEsc(r.guest_name||"Гость")}${r.guests?` · ${r.guests} гост.`:""}</div></div>
+    <div class="bkm-field"><label>Номер заказа в айко</label>
+      <input id="dp-one" class="bkm-input" inputmode="numeric" placeholder="например 1484"
+             value="${hrEsc(r.order_no||"")}" style="text-align:center;letter-spacing:.05em"></div>
+    <div class="bkm-msg" id="dp-one-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn primary" id="dp-one-ok">Сохранить</button>
+      <button class="bkm-btn" onclick="bkCloseModal()">Позже</button>
+    </div>`;
+  document.getElementById("bk-modal").classList.add("open");
+  const inp = document.getElementById("dp-one");
+  if(inp) setTimeout(()=>inp.focus(), 150);
+  document.getElementById("dp-one-ok").onclick = async function(){
+    this.disabled = true;
+    await dpSave(bookingId, (inp.value||"").trim(), null);
+    const m = document.getElementById("dp-msg");
+    bkCloseModal();
+    if(BK.view === "dep") bkRender();
+  };
+}
+// столы, которые только что посадили, а номера нет — спрашиваем сами
+function dpPrompt(){
+  if(!dpCanSee()) return;
+  if(document.getElementById("bk-modal").classList.contains("open")) return;
+  if(bkIso(BK.date) !== bkIso(bkToday())) return;      // только текущая смена
+  const r = DP.rows.find(x=> x.status==="seated" && !x.order_no
+                             && Number(x.deposit)>0 && !DP.asked[String(x.booking_id)]);
+  if(r) dpAsk(r.booking_id);
+}
+window.dpCsv = dpCsv; window.dpAsk = dpAsk;
+
 // ===== СХЕМА: точные планы с координатами (как в макете booking_13) =====
 function bkTableByCode(code){ return BK.data.tables.find(t=>t.code===code); }
 // ячейка стола по коду на координатном плане
@@ -5003,7 +5243,9 @@ function bkSchemaCell(code, style, opts){
   const cls = bkTableCls(b);
   const wasOcc = !b && bkWasOccupied(t.id);
   const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid">✓</div>' : "";
-  const num = opts.label!=null ? opts.label : t.name.replace('Стол ','').replace('Каб. слева ','').replace('Каб. справа ','').replace('Кокт. ','').replace('Подиум ','').replace('ВИП ','ВИП ');
+  const num0 = opts.label!=null ? opts.label : t.name.replace('Стол ','').replace('Каб. слева ','').replace('Каб. справа ','').replace('Кокт. ','').replace('Подиум ','').replace('ВИП ','ВИП ');
+  const num = num0;
+  if(BK.view==="dep") return dpCellHtml(t, num, style, !!opts.round);
   let inner = `<div class="tn">${num}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
@@ -5307,6 +5549,8 @@ function bkStartReqPolling(){
     const modalOpen = document.getElementById("bk-modal").classList.contains("open");
     const isReqModal = (document.getElementById("bkm-title")||{}).textContent==="Заявки с сайта";
     if(modalOpen && isReqModal && before!==after) bkOpenRequests();
+    // хостес посадила гостей — просим у менеджера номер заказа, пока не забыл
+    try{ await dpLoad(); dpPrompt(); }catch(_){}
   }, 30000);
 }
 
