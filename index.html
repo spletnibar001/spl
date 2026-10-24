@@ -1,17 +1,4 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<!-- SPLETNI · программа персонала · сборка 72 · 24.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -376,6 +363,10 @@ window.__xlsxReady = (function(){
   #app{display:none}
 /* ГОСТИ: вкладки окна */
 .gst-tabs{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+.gst-venue{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+.gst-venue button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+.gst-venue button.on{background:var(--emerald);border-color:var(--emerald);color:#08130d;font-weight:700}
 .gst-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
   border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer}
 .gst-tabs button.on{border-color:var(--emerald);color:var(--emerald)}
@@ -1415,7 +1406,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 26.10 · сборка 70";
+const APP_VERSION = "v 26.10 · сборка 72";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5713,7 +5704,10 @@ function bkOpenModal(tableId, editMode){
   document.getElementById("bkm-body").innerHTML = doEdit ? bkModalEdit() : (bkCurrentBooking ? bkModalExisting() : bkModalNew());
   // повод визита — сохраняется по клику
   if(!doEdit && bkCurrentBooking && document.getElementById("bkm-occ")){
-    try{ bkOccWire(bkCurrentBooking.id); }catch(e){ console.warn("bkOccWire", e); }
+    try{
+      bkOccWire(bkCurrentBooking.id, bkIso(BK.date),
+                bkCurrentBooking.occasion_date ? String(bkCurrentBooking.occasion_date).slice(0,10) : null);
+    }catch(e){ console.warn("bkOccWire", e); }
   }
   // день рождения гостя: значение подтягиваем после отрисовки
   if(!doEdit && bkCurrentBooking && document.getElementById("bkm-bd")){
@@ -5897,15 +5891,36 @@ const GST_TABS = {call:"Обзвон", today:"Сегодня придут", find
 let GST_BACK_DAYS = 180;
 let GST_FOUND = null;                 // последний найденный портрет
 
+const GST_VLBL = {all:"Все", karaoke:"Караоке", club:"Клуб"};
+// Площадка влияет на все вкладки, кроме карточки гостя: там мы смотрим
+// на человека целиком, а не на зал.
+function gstVenueRow(){
+  if(GST_TAB === "find") return "";
+  const mv = callMyVenue();
+  if(mv !== "all")
+    return `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Ваша площадка: <b style="color:var(--emerald)">${GST_VLBL[mv]}</b></div>`;
+  const vb = k=>`<button type="button" data-cv="${k}" class="${CALL_VENUE===k?'on':''}">${GST_VLBL[k]}</button>`;
+  return `<div class="gst-venue" id="cw-venue">${vb("all")}${vb("karaoke")}${vb("club")}</div>`;
+}
 function gstTabRow(){
-  if(!gstCanClient()) return "";        // без прав вкладок нет — только обзвон
-  return `<div class="gst-tabs">` + Object.keys(GST_TABS).map(k=>
-    `<button type="button" data-gt="${k}" class="${GST_TAB===k?'on':''}">${GST_TABS[k]}</button>`
-  ).join("") + `</div>`;
+  const tabs = !gstCanClient() ? "" :     // без прав вкладок нет — только обзвон
+    `<div class="gst-tabs">` + Object.keys(GST_TABS).map(k=>
+      `<button type="button" data-gt="${k}" class="${GST_TAB===k?'on':''}">${GST_TABS[k]}</button>`
+    ).join("") + `</div>`;
+  return tabs + gstVenueRow();
+}
+// площадка, по которой считать: null = все
+function gstVen(){
+  const mv = callMyVenue();
+  const v = (mv !== "all") ? mv : CALL_VENUE;
+  return (v && v !== "all") ? v : null;
 }
 function gstWireTabs(){
   document.querySelectorAll("[data-gt]").forEach(b=>{
     b.onclick = ()=>{ GST_TAB = b.dataset.gt; gstRender(); };
+  });
+  document.querySelectorAll("#cw-venue button").forEach(b=>{
+    b.onclick = ()=>{ CALL_VENUE = b.dataset.cv; gstRender(); };
   });
 }
 // Те же роли, что в gst_can() на сервере. Портрет гостя - это вся его
@@ -5945,7 +5960,7 @@ async function gstToday(){
   const body = document.getElementById("bkm-body");
   body.innerHTML = gstTabRow() + `<div class="gst-empty">Загрузка…</div>`;
   gstWireTabs();
-  const ven = (CALL_VENUE && CALL_VENUE!=="all") ? CALL_VENUE : null;
+  const ven = gstVen();
   const { data, error } = await sb.rpc("gst_today", { p_date: isoBizToday(), p_venue: ven });
   const rows = Array.isArray(data) ? data : [];
   let html = gstTabRow();
@@ -6086,7 +6101,7 @@ async function gstBirthdays(){
   body.innerHTML = gstTabRow() + `<div class="gst-empty">Загрузка…</div>`;
   gstWireTabs();
   await ensureToken();
-  const { data, error } = await sb.rpc("gst_birthdays", { p_days: 14 });
+  const { data, error } = await sb.rpc("gst_birthdays", { p_days: 14, p_venue: gstVen() });
   const rows = Array.isArray(data) ? data : [];
   let html = gstTabRow();
   if(error){ html += `<div class="gst-empty">${hrEsc(error.message)}</div>`; }
@@ -6134,8 +6149,8 @@ async function gstBack(){
   await ensureToken();
   const [from, to] = gstBackPeriod();
   const [r1, r2] = await Promise.all([
-    sb.rpc("gst_retention", { p_from: from, p_to: to, p_venue: null }),
-    sb.rpc("gst_occasion_stats", { p_from: from, p_to: to, p_venue: null })
+    sb.rpc("gst_retention", { p_from: from, p_to: to, p_venue: gstVen() }),
+    sb.rpc("gst_occasion_stats", { p_from: from, p_to: to, p_venue: gstVen() })
   ]);
   const d = (r1 && r1.data) || {};
   const occ = Array.isArray(r2 && r2.data) ? r2.data : [];
@@ -6159,7 +6174,8 @@ async function gstBack(){
       </div>
       <div class="fx">Считаем только тех, у кого с первого визита прошло 90 дней - иначе
         вчерашние новички портили бы цифру.${d.too_fresh?` Ещё ${d.too_fresh} слишком свежих, из них уже вернулись ${d.fresh_back||0}.`:""}${
-        d.avg_gap?` Между первым и вторым визитом в среднем ${d.avg_gap} дн.`:""}</div>
+        d.avg_gap?` Между первым и вторым визитом в среднем ${d.avg_gap} дн.`:""}${
+        d.cross_back?` Ещё ${d.cross_back} сюда не вернулись, но пришли на другую площадку - их мы не потеряли.`:""}</div>
       <div class="fx" style="margin-top:8px">${
         d.rate === null || d.rate === undefined ? "Данных пока мало - вернитесь к этой цифре через пару месяцев."
         : (Number(d.rate) < 20
@@ -6187,8 +6203,9 @@ async function gstBack(){
   document.querySelectorAll("[data-gb]").forEach(b=>{
     b.onclick = ()=>{ GST_BACK_DAYS = Number(b.dataset.gb); gstBack(); };
   });
+  const per = GST_BACK_DAYS===90 ? "за 3 месяца" : (GST_BACK_DAYS===180 ? "за полгода" : "за год");
   document.getElementById("bkm-sub").textContent =
-    GST_BACK_DAYS===90 ? "за 3 месяца" : (GST_BACK_DAYS===180 ? "за полгода" : "за год");
+    gstVen() ? per + " · " + GST_VLBL[gstVen()] : per + " · обе площадки";
 }
 
 window.gstFindRun = gstFindRun; window.gstOpenProfile = gstOpenProfile; window.gstSaveBd = gstSaveBd;
@@ -6211,7 +6228,7 @@ async function callRender(){
   try{
     const [a,b,c] = await Promise.all([
       GST_SEGS.includes(seg)
-        ? sb.rpc("gst_segment", {p_key: seg, p_venue: CALL_VENUE, p_limit: 15})
+        ? sb.rpc("gst_segment", {p_key: seg, p_venue: gstVen(), p_limit: 15})
         : sb.rpc("call_segment_list", {p_segment: seg, p_venue: CALL_VENUE, p_limit: 15}),
       sb.rpc("call_recent", {p_segment: seg, p_venue: CALL_VENUE}),
       sb.rpc("call_month_stats"),
@@ -6237,14 +6254,6 @@ async function callRender(){
     .cres button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 9px;font-size:11.5px;cursor:pointer}
     .ccall{background:rgba(31,191,122,.15);border:1px solid var(--emerald);color:var(--emerald);border-radius:10px;padding:7px 12px;font-size:12.5px;text-decoration:none;font-weight:700;white-space:nowrap}
   </style>
-  ${(function(){
-    const mv = callMyVenue();
-    const VLBL = {all:"Все", karaoke:"Караоке", club:"Клуб"};
-    if(mv !== "all")
-      return `<div style="font-size:11px;color:var(--muted);margin-bottom:6px">Ваша площадка: <b style="color:var(--emerald)">${VLBL[mv]}</b></div>`;
-    const vb = k=>`<button type="button" data-cv="${k}" class="${CALL_VENUE===k?'on':''}">${VLBL[k]}</button>`;
-    return `<div class="cw-src" id="cw-venue" style="margin-bottom:6px">${vb("all")}${vb("karaoke")}${vb("club")}</div>`;
-  })()}
   <div class="cw-src" id="cw-seg">${segBtn("sleeping")}${segBtn("newbie")}${segBtn("bigparty")}${
     gstCanClient() ? GST_SEGS.map(segBtn).join("") : ""}</div>
   <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${CALL_SEG_NOTE[seg]} · показано ${rows.length} (порциями по 15)</div>
@@ -6283,9 +6292,6 @@ async function callRender(){
   gstWireTabs();
   document.querySelectorAll("#cw-seg button").forEach(b=>{
     b.onclick = ()=>{ CALL_SEG = b.dataset.cs; callRender(); };
-  });
-  document.querySelectorAll("#cw-venue button").forEach(b=>{
-    b.onclick = ()=>{ CALL_VENUE = b.dataset.cv; callRender(); };
   });
 }
 async function callResult(gid, phone, res, btn){
@@ -6836,6 +6842,9 @@ function bkModalNew(){
       ${bkSpecialHint(t, BK.date)}</div>
     <div class="bkm-field"><label>Комментарий <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
       <textarea id="bkm-note" class="bkm-textarea" rows="2" placeholder="Пожелания гостя, повод, детали…"></textarea></div>
+    <div class="bkm-field"><label>Повод визита <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
+      <div class="bkm-src" id="bkm-occ">${bkOccChips()}</div>
+      <div id="bkm-occd"></div></div>
     <div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
       <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>
     <div class="bkm-msg" id="bkm-msg"></div>
@@ -7037,6 +7046,7 @@ function bkModalExisting(){
       <div class="bkm-msg" id="bkm-bd-msg"></div></div>`:""}
     ${canEdit?`<div class="bkm-field"><label>Повод визита <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· нажмите вариант — сохранится сразу</span></label>
       <div class="bkm-src" id="bkm-occ">${bkOccChips(b.occasion)}</div>
+      <div id="bkm-occd"></div>
       <div class="bkm-msg" id="bkm-occ-msg"></div></div>`:""}
     ${canEdit?`<div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· нажмите вариант — сохранится сразу</span></label>
       <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>`:""}
@@ -7115,6 +7125,7 @@ function bkWireModalForm(editMode){
   // защита от автозаполнения десктопного Telegram/браузера — очищаем поле
   phone.value="";
   bkSrcWireLocal();
+  bkOccWireLocal(bkIso(BK.date));   // повод визита + дата дня рождения
   setTimeout(function(){ if(phone && phone.value && phone.value.replace(/[^\d]/g,"")==="998") phone.value=""; }, 50);
   let lookupTimer=null;
   phone.oninput = ()=>{
@@ -7152,21 +7163,91 @@ const BK_OCCASIONS = ["День рождения","Корпоратив","Сви
 function bkOccChips(cur){
   return BK_OCCASIONS.map(v=>`<button type="button" data-o="${v}" class="${cur===v?'on':''}">${v}</button>`).join("");
 }
-// клик по поводу сохраняется сразу — отдельной кнопки «сохранить» нет
-function bkOccWire(bookingId){
+// День рождения отмечают не всегда в сам день, поэтому рядом с поводом
+// появляется дата: по умолчанию день визита, стрелками ±1 день.
+function bkIsBirthday(v){ return /рожд/i.test(String(v||"")); }
+function bkOccDateHtml(val){
+  return `<div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+      <button type="button" class="bkm-btn secondary" id="bkm-occd-prev"
+        style="padding:9px 13px;font-size:15px;line-height:1">‹</button>
+      <input id="bkm-occd-val" type="date" value="${val||""}" style="flex:1">
+      <button type="button" class="bkm-btn secondary" id="bkm-occd-next"
+        style="padding:9px 13px;font-size:15px;line-height:1">›</button>
+    </div>
+    <div class="bkm-hint" style="color:var(--muted);font-size:11.5px;margin-top:5px">
+      Дата рождения гостя. По умолчанию - день визита, стрелками подвиньте на нужный.</div>`;
+}
+// показать или спрятать поле даты под чипами повода
+function bkOccDateSync(slotId, occ, defIso, onChange){
+  const slot = document.getElementById(slotId);
+  if(!slot) return;
+  if(!bkIsBirthday(occ)){ slot.innerHTML = ""; if(onChange) onChange(null); return; }
+  const cur = slot.querySelector("#bkm-occd-val");
+  if(cur) return;                                  // уже показано — не сбрасываем введённое
+  slot.innerHTML = bkOccDateHtml(defIso);
+  const el = slot.querySelector("#bkm-occd-val");
+  const step = n=>{
+    if(!el.value) el.value = defIso;
+    const [y,m,d] = el.value.split("-").map(Number);
+    const dt = new Date(y, m-1, d + n);
+    const p = v=>String(v).padStart(2,"0");
+    el.value = dt.getFullYear()+"-"+p(dt.getMonth()+1)+"-"+p(dt.getDate());
+    if(onChange) onChange(el.value);
+  };
+  slot.querySelector("#bkm-occd-prev").onclick = ()=>step(-1);
+  slot.querySelector("#bkm-occd-next").onclick = ()=>step(1);
+  el.onchange = ()=>{ if(onChange) onChange(el.value||null); };
+  if(onChange) onChange(el.value||null);
+}
+function bkOccDateValue(){
+  const el = document.getElementById("bkm-occd-val");
+  return (el && el.value) ? el.value : null;
+}
+function bkOccSelected(){
+  const el = document.querySelector("#bkm-occ button.on");
+  return el ? el.dataset.o : null;
+}
+// локальный переключатель повода для формы создания (в базу пишем при сохранении)
+function bkOccWireLocal(defIso){
   const w = document.getElementById("bkm-occ");
   if(!w) return;
   w.querySelectorAll("button").forEach(btn=>{
+    btn.onclick = ()=>{
+      const wasOn = btn.classList.contains("on");
+      w.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      if(!wasOn) btn.classList.add("on");
+      bkOccDateSync("bkm-occd", wasOn ? null : btn.dataset.o, defIso);
+    };
+  });
+}
+// клик по поводу сохраняется сразу — отдельной кнопки «сохранить» нет
+function bkOccWire(bookingId, defIso, curDate){
+  const w = document.getElementById("bkm-occ");
+  if(!w) return;
+  const save = async (val, dt)=>{
+    const { error } = await sb.from("bookings")
+      .update({ occasion: val, occasion_date: val ? (dt||null) : null }).eq("id", bookingId);
+    const msg = document.getElementById("bkm-occ-msg");
+    if(msg) msg.textContent = error ? error.message : (val ? "Повод записан" : "Повод убран");
+    const b = (BK.data.bookings||[]).find(x=>String(x.id)===String(bookingId));
+    if(b){ b.occasion = val; b.occasion_date = val ? (dt||null) : null; }
+  };
+  // дата уже выбрана раньше — показываем её сразу
+  const cur = (w.querySelector("button.on")||{}).dataset;
+  bkOccDateSync("bkm-occd", cur && cur.o, curDate || defIso, dt=>{
+    const sel = bkOccSelected();
+    if(bkIsBirthday(sel) && dt) save(sel, dt);
+  });
+  w.querySelectorAll("button").forEach(btn=>{
     btn.onclick = async ()=>{
       const wasOn = btn.classList.contains("on");
-      w.querySelectorAll("x".replace("x","button")).forEach(x=>x.classList.remove("on"));
+      w.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
       if(!wasOn) btn.classList.add("on");
       const val = wasOn ? null : btn.dataset.o;
-      const { error } = await sb.from("bookings").update({ occasion: val }).eq("id", bookingId);
-      const msg = document.getElementById("bkm-occ-msg");
-      if(msg) msg.textContent = error ? error.message : (val ? "Повод записан" : "Повод убран");
-      const b = (BK.data.bookings||[]).find(x=>String(x.id)===String(bookingId));
-      if(b) b.occasion = val;
+      bkOccDateSync("bkm-occd", val, curDate || defIso, dt=>{
+        if(bkIsBirthday(val) && dt) save(val, dt);
+      });
+      await save(val, bkOccDateValue());
     };
   });
 }
@@ -7353,6 +7434,8 @@ async function bkActionCreate(){
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:arriveAt, guests_count:guests, phone:phoneNorm, guest_name:name||null,
       heard_from: bkSrcSelected(),
+      occasion: bkOccSelected(),
+      occasion_date: bkIsBirthday(bkOccSelected()) ? bkOccDateValue() : null,
       note: (document.getElementById("bkm-note")&&document.getElementById("bkm-note").value.trim())||null,
       deposit_amount:dep, is_paid:false, status:"booked",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
@@ -7414,6 +7497,8 @@ async function bkActionWalkin(){
       table_id:t.id, guest_id:guestId, business_date:bkIso(bizDate),
       arrive_at:nowIso, guests_count:guests, phone:phoneNorm, guest_name:name||null,
       heard_from: bkSrcSelected(),
+      occasion: bkOccSelected(),
+      occasion_date: bkIsBirthday(bkOccSelected()) ? bkOccDateValue() : null,
       note: (document.getElementById("bkm-note")&&document.getElementById("bkm-note").value.trim())||null,
       deposit_amount:dep, is_paid:false, status:"seated",
       created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name,
