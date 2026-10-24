@@ -1126,7 +1126,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 20.10 · сборка 12";
+const GUEST_VERSION = "v 24.10 · сборка 14";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1253,6 +1253,10 @@ const T = {
   bk_auth_wait: {ru:"Открываю бронирование…", uz:"Bron ochilmoqda…", en:"Opening booking…", kz:"Брондау ашылуда…", kg:"Брондоо ачылууда…", tj:"Бронкунӣ кушода мешавад…", cn:"正在打开预订…"},
   bk_auth_err: {ru:"Бронирование доступно только при открытии через Telegram-бота.", uz:"Bron faqat Telegram-bot orqali ochilganda ishlaydi.", en:"Booking works only when opened via the Telegram bot.", kz:"Брондау тек Telegram-бот арқылы ашылғанда жұмыс істейді.", kg:"Брондоо Telegram-бот аркылуу ачылганда гана иштейт.", tj:"Бронкунӣ танҳо ҳангоми кушодан тавассути Telegram-бот кор мекунад.", cn:"预订仅在通过 Telegram 机器人打开时可用。"},
   bk_today: {ru:"Сегодня", uz:"Bugun", en:"Today", kz:"Бүгін", kg:"Бүгүн", tj:"Имрӯз", cn:"今天"},
+  bk_closed: {ru:"В этот день мы не принимаем брони", uz:"Bu kuni bron qabul qilmaymiz",
+              en:"We are not taking bookings on this day", kz:"Бұл күні брондау қабылдамаймыз",
+              kg:"Бул күнү брондоо кабыл албайбыз", tj:"Дар ин рӯз бронкунӣ қабул намекунем",
+              cn:"当天我们不接受预订"},
   bk_other_date: {ru:"Другая дата", uz:"Boshqa sana", en:"Other date", kz:"Басқа күн", kg:"Башка күн", tj:"Санаи дигар", cn:"其他日期"},
   bk_tomorrow: {ru:"Завтра", uz:"Ertaga", en:"Tomorrow", kz:"Ертең", kg:"Эртең", tj:"Фардо", cn:"明天"},
   bk_time: {ru:"Время прихода", uz:"Kelish vaqti", en:"Arrival time", kz:"Келу уақыты", kg:"Келүү убактысы", tj:"Вақти омадан", cn:"到店时间"},
@@ -1809,6 +1813,28 @@ function bkfMaxDateIso(){
   d.setDate(d.getDate() + BK_MAX_AHEAD);
   return bkfIso(d);
 }
+// Закрытые дни: санитарный и прочие даты без броней. Запись всё равно
+// отобьёт база, но гостю правильнее не показывать такую дату вовсе.
+function bkfClosedReason(dateIso, venueKey){
+  const vk = venueKey || BK_STATE.venue;
+  const rows = ((BK_REF && BK_REF.closed) || []).filter(c =>
+    String(c.day)===String(dateIso) && (!c.venue_key || c.venue_key===vk));
+  if(!rows.length) return null;
+  const exact = rows.find(c=>c.venue_key===vk);
+  return (exact || rows[0]).reason || t('bk_closed');
+}
+// Номер в коде карточки: cab1 -> 1, vip7 -> 7. Для залов номера нет.
+function bkfCardTableNo(){
+  const m = String(BK_STATE.card||"").match(/^(?:cab|vip)(\d+)$/);
+  return m ? Number(m[1]) : null;
+}
+// стол зоны, соответствующий карточке; null — карточка без номера
+function bkfCardTable(zoneId){
+  const no = bkfCardTableNo();
+  if(no == null) return null;
+  return bkfZoneTables(zoneId).find(t =>
+    (parseInt(String(t.name).replace(/\D/g,""),10) || null) === no) || null;
+}
 // список ближайших дат для выбора (сегодня + 13 дней)
 function bkfDates(){
   const out=[];
@@ -1818,6 +1844,15 @@ function bkfDates(){
   if(n.getHours()<5) base.setDate(base.getDate()-1);
   for(let i=0;i<14;i++){ const d=new Date(base.getFullYear(),base.getMonth(),base.getDate()+i); out.push(d); }
   return out;
+}
+// «5 ноября» для сообщений
+function bkfDateHuman(iso){
+  try{
+    const d = fromIsoD(iso);
+    const mo = ["января","февраля","марта","апреля","мая","июня","июля",
+                "августа","сентября","октября","ноября","декабря"];
+    return d.getDate()+" "+mo[d.getMonth()];
+  }catch(_){ return String(iso||""); }
 }
 function fromIsoD(iso){
   const [y,m,d] = String(iso).split("-").map(Number);
@@ -1868,14 +1903,16 @@ function bkfPlaceLabel(tableId){
 // загрузка справочников (заведения + зоны + столы) из базы
 async function bkfLoadRef(){
   if(BK_REF) return BK_REF;
-  const [v,z,tb,sp] = await Promise.all([
+  const [v,z,tb,sp,cd] = await Promise.all([
     SB.from("venues").select("*").order("id"),
     SB.from("zones").select("*").order("sort"),
     SB.from("tables").select("*").order("id"),
     SB.from("deposit_special_days").select("*").order("day"),   // особые даты; нет таблицы — просто пусто
+    SB.from("closed_days").select("*").order("day"),            // закрытые дни; нет таблицы — просто пусто
   ]);
   BK_REF = { venues:v.data||[], zones:z.data||[],
-             tables:(tb.data||[]).filter(x=>!x.archived), specials:sp.data||[] };
+             tables:(tb.data||[]).filter(x=>!x.archived), specials:sp.data||[],
+             closed:(cd && cd.data) ? cd.data : [] };
   return BK_REF;
 }
 
@@ -2323,15 +2360,24 @@ function bkfDrawForm(){
   const venueName = BK_STATE.venue==='club' ? t('club') : t('karaoke');
   const venueBtns = `<div class="bk-venue-fixed">${venueName}</div>`;
 
-  const quick = dates.map(bkfIso);
+  // закрытые даты в выбор не попадают
+  const openDates = dates.filter(d=>!bkfClosedReason(bkfIso(d)));
+  const quick = openDates.map(bkfIso);
+  // выбранная дата оказалась закрытой (закрыли уже после выбора) — сбрасываем
+  if(BK_STATE.date && bkfClosedReason(BK_STATE.date)){
+    BK_STATE.date = quick[0] || null;
+    BK_STATE.time = null;
+  }
   // выбранная дата дальше двух недель — показываем её отдельной кнопкой,
   // иначе гость не видит, что именно выбрано
   const farBtn = (BK_STATE.date && !quick.includes(BK_STATE.date))
     ? `<button data-bd="${BK_STATE.date}" class="on">${bkfDateLabel(fromIsoD(BK_STATE.date), 9)}</button>`
     : "";
-  const dateBtns = `<div class="bk-dates">` + dates.map((d,i)=>{
+  const dateBtns = `<div class="bk-dates">` + openDates.map(d=>{
     const iso=bkfIso(d);
-    return `<button data-bd="${iso}" class="${BK_STATE.date===iso?'on':''}">${bkfDateLabel(d,i)}</button>`;
+    // подпись «Сегодня»/«Завтра» считаем от настоящего дня, а не от позиции в списке
+    const idx = dates.findIndex(x=>bkfIso(x)===iso);
+    return `<button data-bd="${iso}" class="${BK_STATE.date===iso?'on':''}">${bkfDateLabel(d,idx)}</button>`;
   }).join("") + farBtn + `</div>`
     // отдельной строкой под рядом дат: ряд прокручивается вбок, и кнопку
     // в его конце гость не находит
@@ -2441,10 +2487,19 @@ function bkfDrawForm(){
   const dateInput = document.getElementById("bkf-pick");
   if(dateInput) dateInput.onchange = ()=>{
     if(!dateInput.value) return;
+    const why = bkfClosedReason(dateInput.value);
+    if(why){
+      // дату не применяем — иначе гость заполнит форму и получит отказ в конце
+      dateInput.value = BK_STATE.date || "";
+      bkfMsg(`${bkfDateHuman(dateInput.value)}${why ? " · "+why : ""}`);
+      return;
+    }
     BK_STATE.date = dateInput.value; BK_STATE.time = null;
     bkfSaveInputs(); bkfDrawForm();
   };
   body.querySelectorAll("[data-bt]").forEach(b=>b.onclick=()=>{ if(b.disabled||bkfSlotPassed(BK_STATE.date,b.dataset.bt)) return; BK_STATE.time=b.dataset.bt; bkfSaveInputs(); bkfDrawForm(); });
+  // зону выбрали руками — привязка к карточке больше не действует
+  body.querySelectorAll("[data-bz]").forEach(b=>b.addEventListener("click",()=>{ BK_STATE.card=null; }));
   body.querySelectorAll("[data-bz]").forEach(b=>b.onclick=()=>{ BK_STATE.zoneId=Number(b.dataset.bz); bkfSaveInputs(); bkfDrawForm(); });
   // форматирование телефона с пробелами при вводе: +998 90 063 88 88
   const phEl=document.getElementById("bk-phone");
@@ -2545,7 +2600,10 @@ async function bkfSubmit(){
     const zone = BK_REF.zones.find(z=>z.id===BK_STATE.zoneId);
     const venue = BK_REF.venues.find(v=>v.id===zone.venue_id);
     // представительный стол выбранной зоны (персонал переназначит при подтверждении)
-    const tbl = bkfPickTable(zone.id, BK_STATE.guests) || BK_REF.tables.find(x=>x.zone_id===zone.id);
+    // приоритет: стол выбранной карточки, потом подбор по числу гостей
+    const tbl = bkfCardTable(zone.id)
+      || bkfPickTable(zone.id, BK_STATE.guests)
+      || BK_REF.tables.find(x=>x.zone_id===zone.id);
     if(!tbl){ bkfMsg("Зона недоступна, выберите другую"); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
 
     const isMore = BK_STATE.guests === "more";
@@ -2691,6 +2749,10 @@ function renderZones(){
     const card = allCards.find(z=>String(z.id)===String(cardId));
     // заведение — то, что выбрано на витрине
     if(card){ BK_STATE.venue = ZONE_VENUE; }
+    // Карточки кабинок отдельные (№1, №2, №3, №5, №6, VIP №7), а зона в базе
+    // одна — «Кабинки». Запоминаем карточку, иначе выбор конкретной кабинки
+    // теряется и персонал видит только зону.
+    BK_STATE.card = cardId || null;
     // сопоставляем карточную зону с зоной из базы
     try{
       await bkfLoadRef();
