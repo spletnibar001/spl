@@ -1416,7 +1416,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.10 · сборка 68";
+const APP_VERSION = "v 25.10 · сборка 69";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5712,6 +5712,10 @@ function bkOpenModal(tableId, editMode){
   document.getElementById("bkm-title").textContent = (doEdit?"Изменить бронь · ":(bkCurrentBooking?"Бронь · ":"Новая бронь · ")) + t.name;
   document.getElementById("bkm-sub").textContent = (z?z.title:"") + " · " + bkFmtDate(BK.date);
   document.getElementById("bkm-body").innerHTML = doEdit ? bkModalEdit() : (bkCurrentBooking ? bkModalExisting() : bkModalNew());
+  // повод визита — сохраняется по клику
+  if(!doEdit && bkCurrentBooking && document.getElementById("bkm-occ")){
+    try{ bkOccWire(bkCurrentBooking.id); }catch(e){ console.warn("bkOccWire", e); }
+  }
   // день рождения гостя: значение подтягиваем после отрисовки
   if(!doEdit && bkCurrentBooking && document.getElementById("bkm-bd")){
     (async ()=>{
@@ -5844,11 +5848,17 @@ function callMyVenue(){
   }
   return "all";
 }
-const CALL_SEG_LBL = {sleeping:"Уснувшие", newbie:"Новички", bigparty:"Компании 8+"};
+const CALL_SEG_LBL = {sleeping:"Уснувшие", newbie:"Новички", bigparty:"Компании 8+",
+  rich_sleep:"Дорогие уснувшие", low_sleep:"Эконом уснувшие", weekday:"Будние гости"};
+// сегменты, которые считает gst_segment (только управляющий и админы)
+const GST_SEGS = ["rich_sleep","low_sleep","weekday"];
 const CALL_SEG_NOTE = {
   sleeping:"Были 3+ раз, не приходили больше 45 дней",
   newbie:"Один визит 2–4 недели назад — звонок-благодарность",
-  bigparty:"Приходили компанией от 8 человек, не были больше месяца"};
+  bigparty:"Приходили компанией от 8 человек, не были больше месяца",
+  rich_sleep:"Средний депозит от 2 млн, не были больше 45 дней — этих возвращаем в первую очередь",
+  low_sleep:"Средний депозит ниже 2 млн, не были больше 45 дней — им нужен другой разговор",
+  weekday:"Ходят в будни чаще, чем в выходные — под будничные акции"};
 const CALL_SCRIPTS = {
 sleeping:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! Это [я] из SPLETNI. Вы у нас частый гость, а последнее время вас не видно — решила лично позвонить. Не отвлекаю?»</div>
 <h4>Предложение</h4><div class="csay">«В пятницу/субботу как раз [повод]. Забронировать вам ваш столик? Придёте — будем рады.»</div>
@@ -5864,14 +5874,28 @@ bigparty:`<h4>Начало</h4><div class="csay">«[Имя], здравству�
 <h4>Предложение</h4><div class="csay">«Под компанию от 8 человек держим большие столы и Средний зал до 14 гостей. День рождения или корпоратив — соберём программу.»</div>
 <h4>Возражения</h4><div class="cobj"><b>«Пока не планируем»</b> — «Соберётесь — наберите меня, стол найдём даже в субботу.» Отметить «Перезвонить».</div>
 <div class="cobj"><b>«Сколько депозит?»</b> — назвать честно и добавить: «Депозит полностью идёт в счёт заказа.»</div>
-<div class="ctip">Самые дорогие брони. Перед праздниками прозванивать весь список.</div>`};
+<div class="ctip">Самые дорогие брони. Перед праздниками прозванивать весь список.</div>`,
+rich_sleep:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! Это [я] из SPLETNI. Вы у нас один из любимых гостей, а давно не заходили — решила позвонить лично.»</div>
+<h4>Предложение</h4><div class="csay">«Придержу вам ваш столик на пятницу или субботу. Скажете день — всё подготовим заранее.»</div>
+<h4>Возражения</h4><div class="cobj"><b>«Был занят»</b> — «Понимаю. Давайте так: наберёте за день — стол найдём в любую субботу.»</div>
+<div class="ctip">Эти гости оставляют больше всех. Говорить как с постоянным, а не как с клиентом. Скидку не предлагать — предлагать внимание.</div>`,
+low_sleep:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! SPLETNI. Давно вас не видели — у нас появилось кое-что под будни.»</div>
+<h4>Предложение</h4><div class="csay">«В будни спокойнее и дешевле: сет и кабинка с оплатой первого часа. Соберётесь компанией — будет как раз.»</div>
+<h4>Возражения</h4><div class="cobj"><b>«Дорого»</b> — «Поэтому и звоню про будни — там совсем другой счёт.»</div>
+<div class="ctip">Не звать в субботу: в выходной у них не сойдётся по деньгам, и получится отказ вместо визита.</div>`,
+weekday:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! SPLETNI. Вы обычно заходите в будни — как раз под них у нас новое предложение.»</div>
+<h4>Предложение</h4><div class="csay">«Сет на компанию и кабинка с оплатой первого часа. В будни зал свободнее — сядете куда захотите.»</div>
+<h4>Возражения</h4><div class="cobj"><b>«Посмотрим»</b> — «Наберите за день, придержу стол. Отметить «Перезвонить».»</div>
+<div class="ctip">Этот сегмент заполняет слабые дни. Звонить во вторник-среду под четверг.</div>`};
 /* ============================================================
    ГОСТИ: ПОРТРЕТ, СЕГОДНЯШНИЕ ВИЗИТЫ, ДНИ РОЖДЕНИЯ
    Серверная часть: gosti.sql. Всё считается из броней — отдельной
    «аналитики» здесь нет, поэтому цифры не могут разойтись с бронью.
    ============================================================ */
 let GST_TAB = "call";                 // call | today | find | bd
-const GST_TABS = {call:"Обзвон", today:"Сегодня придут", find:"Карточка гостя", bd:"Дни рождения"};
+const GST_TABS = {call:"Обзвон", today:"Сегодня придут", find:"Карточка гостя",
+                  bd:"Дни рождения", back:"Возвраты"};
+let GST_BACK_DAYS = 180;
 let GST_FOUND = null;                 // последний найденный портрет
 
 function gstTabRow(){
@@ -5974,6 +5998,7 @@ function gstProfileHtml(p){
         <div class="gst-cell"><div class="k">Последний</div><div class="v">${gstDate(p.last_visit)}</div></div>
       </div>
       ${where?`<div class="fx">${where}${p.sum_deposit?` · депозитов всего ${gstMoney(p.sum_deposit)}`:""}</div>`:""}
+      <div class="fx" id="gst-occ"></div>
       <div class="bkm-field" style="margin-top:12px"><label>Дата рождения</label>
         <div style="display:flex;gap:8px">
           <input id="gst-bd" type="date" value="${p.birthday?String(p.birthday).slice(0,10):""}" style="flex:1">
@@ -6023,6 +6048,15 @@ async function gstOpenProfile(phone){
   }
   GST_FOUND = data;
   if(box) box.innerHTML = gstProfileHtml(data);
+  // поводы визита этого гостя — отдельным запросом, чтобы портрет не ждал
+  try{
+    const { data: oc } = await sb.rpc("gst_occasions", { p_phone: phone });
+    const slot = document.getElementById("gst-occ");
+    if(slot && Array.isArray(oc) && oc.length){
+      slot.innerHTML = "приходит по поводам: " + oc.map(o=>
+        `<b>${hrEsc(o.occasion)}</b>${o.n>1?` (${o.n})`:""}`).join(" · ");
+    }
+  }catch(_){}
 }
 function gstFind(){
   const body = document.getElementById("bkm-body");
@@ -6077,11 +6111,82 @@ async function gstBirthdays(){
 
 function gstRender(){
   if(!gstCanClient()) GST_TAB = "call";
+  if(GST_TAB === "back")  return gstBack();
   if(GST_TAB === "today") return gstToday();
   if(GST_TAB === "find")  return gstFind();
   if(GST_TAB === "bd")    return gstBirthdays();
   return callRender();
 }
+/* ----- вкладка «Возвраты»: возвращаемость новичков и поводы визита ----- */
+function gstBackPeriod(){
+  const to = fromIso(isoBizToday());
+  const from = new Date(to.getFullYear(), to.getMonth(), to.getDate() - GST_BACK_DAYS);
+  return [iso(from), iso(to)];
+}
+async function gstBack(){
+  const body = document.getElementById("bkm-body");
+  body.innerHTML = gstTabRow() + `<div class="gst-empty">Считаю…</div>`;
+  gstWireTabs();
+  await ensureToken();
+  const [from, to] = gstBackPeriod();
+  const [r1, r2] = await Promise.all([
+    sb.rpc("gst_retention", { p_from: from, p_to: to, p_venue: null }),
+    sb.rpc("gst_occasion_stats", { p_from: from, p_to: to, p_venue: null })
+  ]);
+  const d = (r1 && r1.data) || {};
+  const occ = Array.isArray(r2 && r2.data) ? r2.data : [];
+  let html = gstTabRow();
+
+  const perBtn = n=>`<button type="button" data-gb="${n}" class="${GST_BACK_DAYS===n?'on':''}">${
+    n===90?"3 месяца":(n===180?"полгода":"год")}</button>`;
+  html += `<div class="gst-tabs" style="margin-bottom:12px">${perBtn(90)}${perBtn(180)}${perBtn(365)}</div>`;
+
+  if(d.ok === false){
+    html += `<div class="gst-empty">${hrEsc(d.error||"")}</div>`;
+  } else {
+    const rate = (d.rate === null || d.rate === undefined) ? "—" : d.rate + "%";
+    html += `<div class="gst-card">
+      <div class="nm">Возвращаемость новичков</div>
+      <div class="gst-grid">
+        <div class="gst-cell"><div class="k">Пришли впервые</div><div class="v">${d.first_time||0}</div></div>
+        <div class="gst-cell"><div class="k">Вернулись</div><div class="v">${rate}</div></div>
+        <div class="gst-cell"><div class="k">Из них успели</div><div class="v">${d.ripe||0}</div></div>
+        <div class="gst-cell"><div class="k">Пришли снова</div><div class="v">${d.returned||0}</div></div>
+      </div>
+      <div class="fx">Считаем только тех, у кого с первого визита прошло 90 дней - иначе
+        вчерашние новички портили бы цифру.${d.too_fresh?` Ещё ${d.too_fresh} слишком свежих, из них уже вернулись ${d.fresh_back||0}.`:""}${
+        d.avg_gap?` Между первым и вторым визитом в среднем ${d.avg_gap} дн.`:""}</div>
+      <div class="fx" style="margin-top:8px">${
+        d.rate === null || d.rate === undefined ? "Данных пока мало - вернитесь к этой цифре через пару месяцев."
+        : (Number(d.rate) < 20
+            ? "Меньше 20% - люди приходят и не возвращаются. Дело не в рекламе, а в том, что происходит в зале."
+            : (Number(d.rate) < 40
+               ? "Нормально, но есть куда расти. Звонок-благодарность новичку поднимает эту цифру быстрее всего."
+               : "Хорошо. При такой возвращаемости деньги выгоднее вкладывать в трафик, а не в удержание."))}</div>
+    </div>`;
+  }
+
+  html += `<div class="gst-card"><div class="nm">Подо что нас выбирают</div>`;
+  if(!occ.length){
+    html += `<div class="fx">Поводы визита пока не заполнялись. Поле есть в карточке брони -
+      хостес отмечает в один клик, и через пару месяцев здесь появится картина.</div>`;
+  } else {
+    const tot = occ.reduce((s2,o)=>s2+Number(o.n||0),0) || 1;
+    html += occ.map(o=>`<div class="fx"><b>${hrEsc(o.occasion)}</b> · ${o.n} ${
+      o.n==1?"бронь":"броней"} · ${Math.round(o.n*100/tot)}%${
+      o.dep?` · средний депозит ${gstMoney(o.dep)}`:""}</div>`).join("");
+  }
+  html += `</div>`;
+
+  body.innerHTML = html;
+  gstWireTabs();
+  document.querySelectorAll("[data-gb]").forEach(b=>{
+    b.onclick = ()=>{ GST_BACK_DAYS = Number(b.dataset.gb); gstBack(); };
+  });
+  document.getElementById("bkm-sub").textContent =
+    GST_BACK_DAYS===90 ? "за 3 месяца" : (GST_BACK_DAYS===180 ? "за полгода" : "за год");
+}
+
 window.gstFindRun = gstFindRun; window.gstOpenProfile = gstOpenProfile; window.gstSaveBd = gstSaveBd;
 
 async function callOpen(){
@@ -6101,7 +6206,9 @@ async function callRender(){
   let rows=[], done=[], st=null;
   try{
     const [a,b,c] = await Promise.all([
-      sb.rpc("call_segment_list", {p_segment: seg, p_venue: CALL_VENUE, p_limit: 15}),
+      GST_SEGS.includes(seg)
+        ? sb.rpc("gst_segment", {p_key: seg, p_venue: CALL_VENUE, p_limit: 15})
+        : sb.rpc("call_segment_list", {p_segment: seg, p_venue: CALL_VENUE, p_limit: 15}),
       sb.rpc("call_recent", {p_segment: seg, p_venue: CALL_VENUE}),
       sb.rpc("call_month_stats"),
     ]);
@@ -6134,7 +6241,8 @@ async function callRender(){
     const vb = k=>`<button type="button" data-cv="${k}" class="${CALL_VENUE===k?'on':''}">${VLBL[k]}</button>`;
     return `<div class="cw-src" id="cw-venue" style="margin-bottom:6px">${vb("all")}${vb("karaoke")}${vb("club")}</div>`;
   })()}
-  <div class="cw-src" id="cw-seg">${segBtn("sleeping")}${segBtn("newbie")}${segBtn("bigparty")}</div>
+  <div class="cw-src" id="cw-seg">${segBtn("sleeping")}${segBtn("newbie")}${segBtn("bigparty")}${
+    gstCanClient() ? GST_SEGS.map(segBtn).join("") : ""}</div>
   <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${CALL_SEG_NOTE[seg]} · показано ${rows.length} (порциями по 15)</div>
   <details style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:0 12px">
     <summary style="cursor:pointer;padding:9px 0;font-size:12.5px;font-weight:700;color:var(--gold)">📋 Скрипт разговора</summary>
@@ -6923,6 +7031,9 @@ function bkModalExisting(){
           id="bkm-bd-save">Сохранить</button>
       </div>
       <div class="bkm-msg" id="bkm-bd-msg"></div></div>`:""}
+    ${canEdit?`<div class="bkm-field"><label>Повод визита <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· нажмите вариант — сохранится сразу</span></label>
+      <div class="bkm-src" id="bkm-occ">${bkOccChips(b.occasion)}</div>
+      <div class="bkm-msg" id="bkm-occ-msg"></div></div>`:""}
     ${canEdit?`<div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· нажмите вариант — сохранится сразу</span></label>
       <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>`:""}
     <div class="bkm-msg" id="bkm-msg"></div>
@@ -7031,6 +7142,30 @@ function bkWireModalForm(editMode){
 //          "8901234567" -> +998901234567 ; уже "+998..." остаётся как есть
 // «Откуда узнали о нас?» — варианты для статистики
 const BK_SOURCES = ["Instagram","Telegram","Друзья/знакомые","Яндекс","Google","2GIS","Проходили мимо","Уже были у нас","Другое"];
+// Повод визита: одно поле, которое хостес и так спрашивает. Через полгода
+// по нему видно, подо что нас выбирают, и сегменты обзвона станут точнее.
+const BK_OCCASIONS = ["День рождения","Корпоратив","Свидание","Встреча друзей","Просто посидеть","Другое"];
+function bkOccChips(cur){
+  return BK_OCCASIONS.map(v=>`<button type="button" data-o="${v}" class="${cur===v?'on':''}">${v}</button>`).join("");
+}
+// клик по поводу сохраняется сразу — отдельной кнопки «сохранить» нет
+function bkOccWire(bookingId){
+  const w = document.getElementById("bkm-occ");
+  if(!w) return;
+  w.querySelectorAll("button").forEach(btn=>{
+    btn.onclick = async ()=>{
+      const wasOn = btn.classList.contains("on");
+      w.querySelectorAll("x".replace("x","button")).forEach(x=>x.classList.remove("on"));
+      if(!wasOn) btn.classList.add("on");
+      const val = wasOn ? null : btn.dataset.o;
+      const { error } = await sb.from("bookings").update({ occasion: val }).eq("id", bookingId);
+      const msg = document.getElementById("bkm-occ-msg");
+      if(msg) msg.textContent = error ? error.message : (val ? "Повод записан" : "Повод убран");
+      const b = (BK.data.bookings||[]).find(x=>String(x.id)===String(bookingId));
+      if(b) b.occasion = val;
+    };
+  });
+}
 function bkSrcChips(cur){
   return BK_SOURCES.map(v=>`<button type="button" data-v="${v}" class="${cur===v?'on':''}">${v}</button>`).join("");
 }
