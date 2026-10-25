@@ -1,4 +1,4 @@
-<!-- SPLETNI · программа персонала · сборка 72 · 24.10.2026 -->
+<!-- SPLETNI · программа персонала · сборка 76 · 25.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -196,7 +196,9 @@ window.__xlsxReady = (function(){
   .cell.abs::after{content:"✗";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     color:#fff;font-size:15px;font-weight:800;line-height:1}
   .cellwrap{position:relative;display:inline-block}
-  .cellwrap .pen-mark{position:absolute;top:-3px;right:-3px;width:0;height:0;
+  .cellwrap .dayoff-mark{position:absolute;left:-2px;top:-2px;width:7px;height:7px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 0 2px var(--panel)}
+.pen-mark{position:absolute;top:-3px;right:-3px;width:0;height:0;
     border-left:9px solid transparent;border-top:9px solid var(--red);border-radius:2px;pointer-events:none}
   td.actions .penbon-btn{color:var(--gold);font-weight:800}
   td.actions .penbon-btn:hover{border-color:var(--gold)}
@@ -363,6 +365,13 @@ window.__xlsxReady = (function(){
   #app{display:none}
 /* ГОСТИ: вкладки окна */
 .gst-tabs{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+.gst-tasks{display:flex;flex-direction:column;gap:8px}
+.gst-task{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--emerald);
+  border-radius:0 10px 10px 0;padding:10px 12px;cursor:pointer}
+.gst-task .r{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.gst-task .t{font-weight:700;font-size:13.5px}
+.gst-task .n{font-weight:800;font-size:16px}
+.gst-task .s{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.5}
 .gst-venue{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
 .gst-venue button{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--text);
   border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
@@ -606,6 +615,30 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .bk-modal.open{display:flex}
 .bk-modal-card{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:16px 16px 24px}
 @media(min-width:560px){.bk-modal{align-items:center}.bk-modal-card{border-radius:16px}}
+/* ===== компьютер: широкий экран ===== */
+@media(min-width:1100px){
+  body.pc .bk-modal-card.wide{max-width:1180px;padding:20px 22px 26px}
+  body.pc .cw-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  body.pc .cw-cards .ccard{margin-bottom:0}
+  body.pc .gst-tasks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  body.pc .gst-tabs button,body.pc .gst-venue button{font-size:14px;padding:8px 16px}
+  body.pc .layout{max-width:1700px}
+  body.pc .bk-modal-title{font-size:20px}
+}
+/* верхняя полоса компьютера: смена учётной записи и выход */
+#pc-bar{display:none;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px}
+body.pc #pc-bar{display:flex;flex-wrap:wrap}
+#pc-bar .who{font-weight:800;font-size:14px}
+#pc-bar .who span{color:var(--emerald)}
+#pc-bar .sp{flex:1}
+#pc-bar button{border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+#pc-bar button.me{border-color:var(--emerald);color:var(--emerald)}
+#pc-bar button.out{border-color:var(--red);color:var(--red);padding:10px 26px;font-size:15px}
+.pc-tel{font-size:30px;font-weight:800;letter-spacing:.02em;color:var(--emerald);margin:6px 0 2px}
+.pc-qr{width:132px;height:132px;background:#fff;padding:6px;border-radius:8px;margin:8px auto 0}
+.pc-qr img,.pc-qr canvas{width:100%;height:100%;display:block}
 .bk-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px}
 .bk-modal-title{font-size:17px;font-weight:800}
 .bk-modal-sub{font-size:12px;color:var(--muted);margin-top:2px}
@@ -991,6 +1024,15 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
   <button id="ms-mine" style="display:none">Моя смена</button>
 </div>
 <!-- КОРЕНЬ БРОНИРОВАНИЯ -->
+<div id="pc-bar">
+  <div class="who">Смена: <span id="pc-who">—</span></div>
+  <div class="sp"></div>
+  <button type="button" data-pcr="host">Хостес</button>
+  <button type="button" data-pcr="man">Менеджер</button>
+  <button type="button" data-pcr="upr">Управляющий</button>
+  <button type="button" class="out" id="pc-out">Выйти</button>
+</div>
+
 <div id="booking-root">
   <div id="bk-header">
     <div id="bk-header-left">
@@ -1393,9 +1435,42 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
       <span class="msg" id="bon-msg" style="margin:0 0 0 6px"></span>
     </div>
     <div class="pen-list" id="bon-list"></div>
+    <div id="bs-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Постоянный бонус</div>
+      <div class="form-row">
+        <div class="field">
+          <label>За что начислять</label>
+          <select id="bs-kind">
+            <option value="shift">За каждую смену</option>
+            <option value="dayoff">За выход в свой выходной</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Сумма, сум *</label>
+          <input id="bs-amount" type="text" inputmode="numeric" style="width:115px">
+        </div>
+        <div class="field" style="flex:1;min-width:150px">
+          <label>Примечание *</label>
+          <input id="bs-note" type="text" placeholder="Например: доплата за смену">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:10px">
+        <button class="btn-primary" id="bs-add">Поставить постоянно</button>
+        <span class="msg" id="bs-msg" style="margin:0 0 0 6px"></span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Правило начинает работать со следующей платёжной недели и дальше начисляется само, пока его не снять. Задним числом ничего не меняется.</div>
+      <div class="pen-list" id="bs-list"></div>
+    </div>
   </div>
 </div>
 </div>
+
+<!-- QR для набора номера с телефона · qrcode-generator (MIT), вшит в файл: интернет не нужен -->
+<script>
+var qrcode=(function(){var P=function(x,w){var g=236,l=17,n=x,s=O[w],t=null,r=0,h=null,i=[],v={},_=function(a,f){r=n*4+17,t=(function(e){for(var u=new Array(e),o=0;o<e;o+=1){u[o]=new Array(e);for(var d=0;d<e;d+=1)u[o][d]=null}return u})(r),B(0,0),B(r-7,0),B(0,r-7),E(),T(),m(a,f),n>=7&&N(a),h==null&&(h=nr(n,s,i)),U(h,f)},B=function(a,f){for(var e=-1;e<=7;e+=1)if(!(a+e<=-1||r<=a+e))for(var u=-1;u<=7;u+=1)f+u<=-1||r<=f+u||(0<=e&&e<=6&&(u==0||u==6)||0<=u&&u<=6&&(e==0||e==6)||2<=e&&e<=4&&2<=u&&u<=4?t[a+e][f+u]=!0:t[a+e][f+u]=!1)},y=function(){for(var a=0,f=0,e=0;e<8;e+=1){_(!0,e);var u=k.getLostPoint(v);(e==0||a>u)&&(a=u,f=e)}return f},T=function(){for(var a=8;a<r-8;a+=1)t[a][6]==null&&(t[a][6]=a%2==0);for(var f=8;f<r-8;f+=1)t[6][f]==null&&(t[6][f]=f%2==0)},E=function(){for(var a=k.getPatternPosition(n),f=0;f<a.length;f+=1)for(var e=0;e<a.length;e+=1){var u=a[f],o=a[e];if(t[u][o]==null)for(var d=-2;d<=2;d+=1)for(var c=-2;c<=2;c+=1)d==-2||d==2||c==-2||c==2||d==0&&c==0?t[u+d][o+c]=!0:t[u+d][o+c]=!1}},N=function(a){for(var f=k.getBCHTypeNumber(n),e=0;e<18;e+=1){var u=!a&&(f>>e&1)==1;t[Math.floor(e/3)][e%3+r-8-3]=u}for(var e=0;e<18;e+=1){var u=!a&&(f>>e&1)==1;t[e%3+r-8-3][Math.floor(e/3)]=u}},m=function(a,f){for(var e=s<<3|f,u=k.getBCHTypeInfo(e),o=0;o<15;o+=1){var d=!a&&(u>>o&1)==1;o<6?t[o][8]=d:o<8?t[o+1][8]=d:t[r-15+o][8]=d}for(var o=0;o<15;o+=1){var d=!a&&(u>>o&1)==1;o<8?t[8][r-o-1]=d:o<9?t[8][15-o-1+1]=d:t[8][15-o-1]=d}t[r-8][8]=!a},U=function(a,f){for(var e=-1,u=r-1,o=7,d=0,c=k.getMaskFunction(f),p=r-1;p>0;p-=2)for(p==6&&(p-=1);;){for(var b=0;b<2;b+=1)if(t[u][p-b]==null){var C=!1;d<a.length&&(C=(a[d]>>>o&1)==1);var A=c(u,p-b);A&&(C=!C),t[u][p-b]=C,o-=1,o==-1&&(d+=1,o=7)}if(u+=e,u<0||r<=u){u-=e,e=-e;break}}},H=function(a,f){for(var e=0,u=0,o=0,d=new Array(f.length),c=new Array(f.length),p=0;p<f.length;p+=1){var b=f[p].dataCount,C=f[p].totalCount-b;u=Math.max(u,b),o=Math.max(o,C),d[p]=new Array(b);for(var A=0;A<d[p].length;A+=1)d[p][A]=255&a.getBuffer()[A+e];e+=b;var R=k.getErrorCorrectPolynomial(C),I=K(d[p],R.getLength()-1),S=I.mod(R);c[p]=new Array(R.getLength()-1);for(var A=0;A<c[p].length;A+=1){var X=A+S.getLength()-c[p].length;c[p][A]=X>=0?S.getAt(X):0}}for(var Z=0,A=0;A<f.length;A+=1)Z+=f[A].totalCount;for(var J=new Array(Z),Q=0,A=0;A<u;A+=1)for(var p=0;p<f.length;p+=1)A<d[p].length&&(J[Q]=d[p][A],Q+=1);for(var A=0;A<o;A+=1)for(var p=0;p<f.length;p+=1)A<c[p].length&&(J[Q]=c[p][A],Q+=1);return J},nr=function(a,f,e){for(var u=Y.getRSBlocks(a,f),o=G(),d=0;d<e.length;d+=1){var c=e[d];o.put(c.getMode(),4),o.put(c.getLength(),k.getLengthInBits(c.getMode(),a)),c.write(o)}for(var p=0,d=0;d<u.length;d+=1)p+=u[d].dataCount;if(o.getLengthInBits()>p*8)throw"code length overflow. ("+o.getLengthInBits()+">"+p*8+")";for(o.getLengthInBits()+4<=p*8&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=p*8||(o.put(g,8),o.getLengthInBits()>=p*8));)o.put(l,8);return H(o,u)};v.addData=function(a,f){f=f||"Byte";var e=null;switch(f){case"Numeric":e=$(a);break;case"Alphanumeric":e=W(a);break;case"Byte":e=V(a);break;case"Kanji":e=q(a);break;default:throw"mode:"+f}i.push(e),h=null},v.isDark=function(a,f){if(a<0||r<=a||f<0||r<=f)throw a+","+f;return t[a][f]},v.getModuleCount=function(){return r},v.make=function(){if(n<1){for(var a=1;a<40;a++){for(var f=Y.getRSBlocks(a,s),e=G(),u=0;u<i.length;u++){var o=i[u];e.put(o.getMode(),4),e.put(o.getLength(),k.getLengthInBits(o.getMode(),a)),o.write(e)}for(var d=0,u=0;u<f.length;u++)d+=f[u].dataCount;if(e.getLengthInBits()<=d*8)break}n=a}_(!1,y())},v.createTableTag=function(a,f){a=a||2,f=typeof f>"u"?a*4:f;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+f+"px;",e+='">',e+="<tbody>";for(var u=0;u<v.getModuleCount();u+=1){e+="<tr>";for(var o=0;o<v.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+a+"px;",e+=" height: "+a+"px;",e+=" background-color: ",e+=v.isDark(u,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>",e},v.createSvgTag=function(a,f,e,u){var o={};typeof arguments[0]=="object"&&(o=arguments[0],a=o.cellSize,f=o.margin,e=o.alt,u=o.title),a=a||2,f=typeof f>"u"?a*4:f,e=typeof e=="string"?{text:e}:e||{},e.text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,u=typeof u=="string"?{text:u}:u||{},u.text=u.text||null,u.id=u.text?u.id||"qrcode-title":null;var d=v.getModuleCount()*a+f*2,c,p,b,C,A="",R;for(R="l"+a+",0 0,"+a+" -"+a+",0 0,-"+a+"z ",A+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',A+=o.scalable?"":' width="'+d+'px" height="'+d+'px"',A+=' viewBox="0 0 '+d+" "+d+'" ',A+=' preserveAspectRatio="xMinYMin meet"',A+=u.text||e.text?' role="img" aria-labelledby="'+F([u.id,e.id].join(" ").trim())+'"':"",A+=">",A+=u.text?'<title id="'+F(u.id)+'">'+F(u.text)+"</title>":"",A+=e.text?'<description id="'+F(e.id)+'">'+F(e.text)+"</description>":"",A+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',A+='<path d="',b=0;b<v.getModuleCount();b+=1)for(C=b*a+f,c=0;c<v.getModuleCount();c+=1)v.isDark(b,c)&&(p=c*a+f,A+="M"+p+","+C+R);return A+='" stroke="transparent" fill="black"/>',A+="</svg>",A},v.createDataURL=function(a,f){a=a||2,f=typeof f>"u"?a*4:f;var e=v.getModuleCount()*a+f*2,u=f,o=e-f;return er(e,e,function(d,c){if(u<=d&&d<o&&u<=c&&c<o){var p=Math.floor((d-u)/a),b=Math.floor((c-u)/a);return v.isDark(b,p)?0:1}else return 1})},v.createImgTag=function(a,f,e){a=a||2,f=typeof f>"u"?a*4:f;var u=v.getModuleCount()*a+f*2,o="";return o+="<img",o+=' src="',o+=v.createDataURL(a,f),o+='"',o+=' width="',o+=u,o+='"',o+=' height="',o+=u,o+='"',e&&(o+=' alt="',o+=F(e),o+='"'),o+="/>",o};var F=function(a){for(var f="",e=0;e<a.length;e+=1){var u=a.charAt(e);switch(u){case"<":f+="&lt;";break;case">":f+="&gt;";break;case"&":f+="&amp;";break;case'"':f+="&quot;";break;default:f+=u;break}}return f},ar=function(a){var f=1;a=typeof a>"u"?f*2:a;var e=v.getModuleCount()*f+a*2,u=a,o=e-a,d,c,p,b,C,A={"\u2588\u2588":"\u2588","\u2588 ":"\u2580"," \u2588":"\u2584","  ":" "},R={"\u2588\u2588":"\u2580","\u2588 ":"\u2580"," \u2588":" ","  ":" "},I="";for(d=0;d<e;d+=2){for(p=Math.floor((d-u)/f),b=Math.floor((d+1-u)/f),c=0;c<e;c+=1)C="\u2588",u<=c&&c<o&&u<=d&&d<o&&v.isDark(p,Math.floor((c-u)/f))&&(C=" "),u<=c&&c<o&&u<=d+1&&d+1<o&&v.isDark(b,Math.floor((c-u)/f))?C+=" ":C+="\u2588",I+=a<1&&d+1>=o?R[C]:A[C];I+=`
+`}return e%2&&a>0?I.substring(0,I.length-e-1)+Array(e+1).join("\u2580"):I.substring(0,I.length-1)};return v.createASCII=function(a,f){if(a=a||1,a<2)return ar(f);a-=1,f=typeof f>"u"?a*2:f;var e=v.getModuleCount()*a+f*2,u=f,o=e-f,d,c,p,b,C=Array(a+1).join("\u2588\u2588"),A=Array(a+1).join("  "),R="",I="";for(d=0;d<e;d+=1){for(p=Math.floor((d-u)/a),I="",c=0;c<e;c+=1)b=1,u<=c&&c<o&&u<=d&&d<o&&v.isDark(p,Math.floor((c-u)/a))&&(b=0),I+=b?C:A;for(p=0;p<a;p+=1)R+=I+`
+`}return R.substring(0,R.length-1)},v.renderTo2dContext=function(a,f){f=f||2;for(var e=v.getModuleCount(),u=0;u<e;u++)for(var o=0;o<e;o++)a.fillStyle=v.isDark(u,o)?"black":"white",a.fillRect(o*f,u*f,f,f)},v};P.stringToBytesFuncs={default:function(x){for(var w=[],g=0;g<x.length;g+=1){var l=x.charCodeAt(g);w.push(l&255)}return w}},P.stringToBytes=P.stringToBytesFuncs.default,P.createStringToBytes=function(x,w){var g=(function(){for(var n=rr(x),s=function(){var T=n.read();if(T==-1)throw"eof";return T},t=0,r={};;){var h=n.read();if(h==-1)break;var i=s(),v=s(),_=s(),B=String.fromCharCode(h<<8|i),y=v<<8|_;r[B]=y,t+=1}if(t!=w)throw t+" != "+w;return r})(),l=63;return function(n){for(var s=[],t=0;t<n.length;t+=1){var r=n.charCodeAt(t);if(r<128)s.push(r);else{var h=g[n.charAt(t)];typeof h=="number"?(h&255)==h?s.push(h):(s.push(h>>>8),s.push(h&255)):s.push(l)}}return s}};var D={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8},O={L:1,M:0,Q:3,H:2},L={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7},k=(function(){var x=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],w=1335,g=7973,l=21522,n={},s=function(t){for(var r=0;t!=0;)r+=1,t>>>=1;return r};return n.getBCHTypeInfo=function(t){for(var r=t<<10;s(r)-s(w)>=0;)r^=w<<s(r)-s(w);return(t<<10|r)^l},n.getBCHTypeNumber=function(t){for(var r=t<<12;s(r)-s(g)>=0;)r^=g<<s(r)-s(g);return t<<12|r},n.getPatternPosition=function(t){return x[t-1]},n.getMaskFunction=function(t){switch(t){case L.PATTERN000:return function(r,h){return(r+h)%2==0};case L.PATTERN001:return function(r,h){return r%2==0};case L.PATTERN010:return function(r,h){return h%3==0};case L.PATTERN011:return function(r,h){return(r+h)%3==0};case L.PATTERN100:return function(r,h){return(Math.floor(r/2)+Math.floor(h/3))%2==0};case L.PATTERN101:return function(r,h){return r*h%2+r*h%3==0};case L.PATTERN110:return function(r,h){return(r*h%2+r*h%3)%2==0};case L.PATTERN111:return function(r,h){return(r*h%3+(r+h)%2)%2==0};default:throw"bad maskPattern:"+t}},n.getErrorCorrectPolynomial=function(t){for(var r=K([1],0),h=0;h<t;h+=1)r=r.multiply(K([1,M.gexp(h)],0));return r},n.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case D.MODE_NUMBER:return 10;case D.MODE_ALPHA_NUM:return 9;case D.MODE_8BIT_BYTE:return 8;case D.MODE_KANJI:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case D.MODE_NUMBER:return 12;case D.MODE_ALPHA_NUM:return 11;case D.MODE_8BIT_BYTE:return 16;case D.MODE_KANJI:return 10;default:throw"mode:"+t}else if(r<41)switch(t){case D.MODE_NUMBER:return 14;case D.MODE_ALPHA_NUM:return 13;case D.MODE_8BIT_BYTE:return 16;case D.MODE_KANJI:return 12;default:throw"mode:"+t}else throw"type:"+r},n.getLostPoint=function(t){for(var r=t.getModuleCount(),h=0,i=0;i<r;i+=1)for(var v=0;v<r;v+=1){for(var _=0,B=t.isDark(i,v),y=-1;y<=1;y+=1)if(!(i+y<0||r<=i+y))for(var T=-1;T<=1;T+=1)v+T<0||r<=v+T||y==0&&T==0||B==t.isDark(i+y,v+T)&&(_+=1);_>5&&(h+=3+_-5)}for(var i=0;i<r-1;i+=1)for(var v=0;v<r-1;v+=1){var E=0;t.isDark(i,v)&&(E+=1),t.isDark(i+1,v)&&(E+=1),t.isDark(i,v+1)&&(E+=1),t.isDark(i+1,v+1)&&(E+=1),(E==0||E==4)&&(h+=3)}for(var i=0;i<r;i+=1)for(var v=0;v<r-6;v+=1)t.isDark(i,v)&&!t.isDark(i,v+1)&&t.isDark(i,v+2)&&t.isDark(i,v+3)&&t.isDark(i,v+4)&&!t.isDark(i,v+5)&&t.isDark(i,v+6)&&(h+=40);for(var v=0;v<r;v+=1)for(var i=0;i<r-6;i+=1)t.isDark(i,v)&&!t.isDark(i+1,v)&&t.isDark(i+2,v)&&t.isDark(i+3,v)&&t.isDark(i+4,v)&&!t.isDark(i+5,v)&&t.isDark(i+6,v)&&(h+=40);for(var N=0,v=0;v<r;v+=1)for(var i=0;i<r;i+=1)t.isDark(i,v)&&(N+=1);var m=Math.abs(100*N/r/r-50)/5;return h+=m*10,h},n})(),M=(function(){for(var x=new Array(256),w=new Array(256),g=0;g<8;g+=1)x[g]=1<<g;for(var g=8;g<256;g+=1)x[g]=x[g-4]^x[g-5]^x[g-6]^x[g-8];for(var g=0;g<255;g+=1)w[x[g]]=g;var l={};return l.glog=function(n){if(n<1)throw"glog("+n+")";return w[n]},l.gexp=function(n){for(;n<0;)n+=255;for(;n>=256;)n-=255;return x[n]},l})();function K(x,w){if(typeof x.length>"u")throw x.length+"/"+w;var g=(function(){for(var n=0;n<x.length&&x[n]==0;)n+=1;for(var s=new Array(x.length-n+w),t=0;t<x.length-n;t+=1)s[t]=x[t+n];return s})(),l={};return l.getAt=function(n){return g[n]},l.getLength=function(){return g.length},l.multiply=function(n){for(var s=new Array(l.getLength()+n.getLength()-1),t=0;t<l.getLength();t+=1)for(var r=0;r<n.getLength();r+=1)s[t+r]^=M.gexp(M.glog(l.getAt(t))+M.glog(n.getAt(r)));return K(s,0)},l.mod=function(n){if(l.getLength()-n.getLength()<0)return l;for(var s=M.glog(l.getAt(0))-M.glog(n.getAt(0)),t=new Array(l.getLength()),r=0;r<l.getLength();r+=1)t[r]=l.getAt(r);for(var r=0;r<n.getLength();r+=1)t[r]^=M.gexp(M.glog(n.getAt(r))+s);return K(t,0).mod(n)},l}var Y=(function(){var x=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],w=function(n,s){var t={};return t.totalCount=n,t.dataCount=s,t},g={},l=function(n,s){switch(s){case O.L:return x[(n-1)*4+0];case O.M:return x[(n-1)*4+1];case O.Q:return x[(n-1)*4+2];case O.H:return x[(n-1)*4+3];default:return}};return g.getRSBlocks=function(n,s){var t=l(n,s);if(typeof t>"u")throw"bad rs block @ typeNumber:"+n+"/errorCorrectionLevel:"+s;for(var r=t.length/3,h=[],i=0;i<r;i+=1)for(var v=t[i*3+0],_=t[i*3+1],B=t[i*3+2],y=0;y<v;y+=1)h.push(w(_,B));return h},g})(),G=function(){var x=[],w=0,g={};return g.getBuffer=function(){return x},g.getAt=function(l){var n=Math.floor(l/8);return(x[n]>>>7-l%8&1)==1},g.put=function(l,n){for(var s=0;s<n;s+=1)g.putBit((l>>>n-s-1&1)==1)},g.getLengthInBits=function(){return w},g.putBit=function(l){var n=Math.floor(w/8);x.length<=n&&x.push(0),l&&(x[n]|=128>>>w%8),w+=1},g},$=function(x){var w=D.MODE_NUMBER,g=x,l={};l.getMode=function(){return w},l.getLength=function(t){return g.length},l.write=function(t){for(var r=g,h=0;h+2<r.length;)t.put(n(r.substring(h,h+3)),10),h+=3;h<r.length&&(r.length-h==1?t.put(n(r.substring(h,h+1)),4):r.length-h==2&&t.put(n(r.substring(h,h+2)),7))};var n=function(t){for(var r=0,h=0;h<t.length;h+=1)r=r*10+s(t.charAt(h));return r},s=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-48;throw"illegal char :"+t};return l},W=function(x){var w=D.MODE_ALPHA_NUM,g=x,l={};l.getMode=function(){return w},l.getLength=function(s){return g.length},l.write=function(s){for(var t=g,r=0;r+1<t.length;)s.put(n(t.charAt(r))*45+n(t.charAt(r+1)),11),r+=2;r<t.length&&s.put(n(t.charAt(r)),6)};var n=function(s){if("0"<=s&&s<="9")return s.charCodeAt(0)-48;if("A"<=s&&s<="Z")return s.charCodeAt(0)-65+10;switch(s){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+s}};return l},V=function(x){var w=D.MODE_8BIT_BYTE,g=x,l=P.stringToBytes(x),n={};return n.getMode=function(){return w},n.getLength=function(s){return l.length},n.write=function(s){for(var t=0;t<l.length;t+=1)s.put(l[t],8)},n},q=function(x){var w=D.MODE_KANJI,g=x,l=P.stringToBytesFuncs.SJIS;if(!l)throw"sjis not supported.";(function(t,r){var h=l(t);if(h.length!=2||(h[0]<<8|h[1])!=r)throw"sjis not supported."})("\u53CB",38726);var n=l(x),s={};return s.getMode=function(){return w},s.getLength=function(t){return~~(n.length/2)},s.write=function(t){for(var r=n,h=0;h+1<r.length;){var i=(255&r[h])<<8|255&r[h+1];if(33088<=i&&i<=40956)i-=33088;else if(57408<=i&&i<=60351)i-=49472;else throw"illegal char at "+(h+1)+"/"+i;i=(i>>>8&255)*192+(i&255),t.put(i,13),h+=2}if(h<r.length)throw"illegal char at "+(h+1)},s},j=function(){var x=[],w={};return w.writeByte=function(g){x.push(g&255)},w.writeShort=function(g){w.writeByte(g),w.writeByte(g>>>8)},w.writeBytes=function(g,l,n){l=l||0,n=n||g.length;for(var s=0;s<n;s+=1)w.writeByte(g[s+l])},w.writeString=function(g){for(var l=0;l<g.length;l+=1)w.writeByte(g.charCodeAt(l))},w.toByteArray=function(){return x},w.toString=function(){var g="";g+="[";for(var l=0;l<x.length;l+=1)l>0&&(g+=","),g+=x[l];return g+="]",g},w},z=function(){var x=0,w=0,g=0,l="",n={},s=function(r){l+=String.fromCharCode(t(r&63))},t=function(r){if(!(r<0)){if(r<26)return 65+r;if(r<52)return 97+(r-26);if(r<62)return 48+(r-52);if(r==62)return 43;if(r==63)return 47}throw"n:"+r};return n.writeByte=function(r){for(x=x<<8|r&255,w+=8,g+=1;w>=6;)s(x>>>w-6),w-=6},n.flush=function(){if(w>0&&(s(x<<6-w),x=0,w=0),g%3!=0)for(var r=3-g%3,h=0;h<r;h+=1)l+="="},n.toString=function(){return l},n},rr=function(x){var w=x,g=0,l=0,n=0,s={};s.read=function(){for(;n<8;){if(g>=w.length){if(n==0)return-1;throw"unexpected end of file./"+n}var r=w.charAt(g);if(g+=1,r=="=")return n=0,-1;if(r.match(/^\s$/))continue;l=l<<6|t(r.charCodeAt(0)),n+=6}var h=l>>>n-8&255;return n-=8,h};var t=function(r){if(65<=r&&r<=90)return r-65;if(97<=r&&r<=122)return r-97+26;if(48<=r&&r<=57)return r-48+52;if(r==43)return 62;if(r==47)return 63;throw"c:"+r};return s},tr=function(x,w){var g=x,l=w,n=new Array(x*w),s={};s.setPixel=function(i,v,_){n[v*g+i]=_},s.write=function(i){i.writeString("GIF87a"),i.writeShort(g),i.writeShort(l),i.writeByte(128),i.writeByte(0),i.writeByte(0),i.writeByte(0),i.writeByte(0),i.writeByte(0),i.writeByte(255),i.writeByte(255),i.writeByte(255),i.writeString(","),i.writeShort(0),i.writeShort(0),i.writeShort(g),i.writeShort(l),i.writeByte(0);var v=2,_=r(v);i.writeByte(v);for(var B=0;_.length-B>255;)i.writeByte(255),i.writeBytes(_,B,255),B+=255;i.writeByte(_.length-B),i.writeBytes(_,B,_.length-B),i.writeByte(0),i.writeString(";")};var t=function(i){var v=i,_=0,B=0,y={};return y.write=function(T,E){if(T>>>E)throw"length over";for(;_+E>=8;)v.writeByte(255&(T<<_|B)),E-=8-_,T>>>=8-_,B=0,_=0;B=T<<_|B,_=_+E},y.flush=function(){_>0&&v.writeByte(B)},y},r=function(i){for(var v=1<<i,_=(1<<i)+1,B=i+1,y=h(),T=0;T<v;T+=1)y.add(String.fromCharCode(T));y.add(String.fromCharCode(v)),y.add(String.fromCharCode(_));var E=j(),N=t(E);N.write(v,B);var m=0,U=String.fromCharCode(n[m]);for(m+=1;m<n.length;){var H=String.fromCharCode(n[m]);m+=1,y.contains(U+H)?U=U+H:(N.write(y.indexOf(U),B),y.size()<4095&&(y.size()==1<<B&&(B+=1),y.add(U+H)),U=H)}return N.write(y.indexOf(U),B),N.write(_,B),N.flush(),E.toByteArray()},h=function(){var i={},v=0,_={};return _.add=function(B){if(_.contains(B))throw"dup key:"+B;i[B]=v,v+=1},_.size=function(){return v},_.indexOf=function(B){return i[B]},_.contains=function(B){return typeof i[B]<"u"},_};return s},er=function(x,w,g){for(var l=tr(x,w),n=0;n<w;n+=1)for(var s=0;s<x;s+=1)l.setPixel(s,n,g(s,n));var t=j();l.write(t);for(var r=z(),h=t.toByteArray(),i=0;i<h.length;i+=1)r.writeByte(h[i]);return r.flush(),"data:image/gif;base64,"+r};return P})();(function(){qrcode.stringToBytesFuncs["UTF-8"]=function(P){function D(O){for(var L=[],k=0;k<O.length;k++){var M=O.charCodeAt(k);M<128?L.push(M):M<2048?L.push(192|M>>6,128|M&63):M<55296||M>=57344?L.push(224|M>>12,128|M>>6&63,128|M&63):(k++,M=65536+((M&1023)<<10|O.charCodeAt(k)&1023),L.push(240|M>>18,128|M>>12&63,128|M>>6&63,128|M&63))}return L}return D(P)}})(),(function(P){typeof define=="function"&&define.amd?define([],P):typeof exports=="object"&&(module.exports=P())})(function(){return qrcode});
+</script>
 
 <script>
 /* ============================================================
@@ -1406,7 +1481,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 24.10 · сборка 73";
+const APP_VERSION = "v 25.10 · сборка 76";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1686,6 +1761,13 @@ function hasTabletToken(){
   try{ return !!JSON.parse((sessionStorage.getItem("spl_tablet_me")||localStorage.getItem("spl_tablet_me"))||"null")?.token; }catch(_){ return false; }
 }
 const TABLET_MODE = location.hash.indexOf("tablet") >= 0 || (!window.Telegram?.WebApp?.initData && hasTabletToken());
+// Режим компьютера. Включается ТОЛЬКО явно — ссылкой с "pc" (tablet.html?pc=1
+// или index.html#tablet&pc). На планшете хостес он не включается никогда,
+// даже если экран широкий: кнопок смены учётной записи там быть не должно.
+const PC_ASKED = /(^|[#&?])pc(=1)?(&|$)/.test(String(location.hash||"") + String(location.search||""));
+const PC_MODE = TABLET_MODE && PC_ASKED
+  && window.matchMedia && window.matchMedia("(min-width:1100px)").matches;
+if(PC_MODE){ try{ document.body.classList.add("pc"); }catch(_){} }
 
 async function authorize(){
   // --- вход с планшета по PIN (tablet.html положил токен) ---
@@ -1764,6 +1846,8 @@ async function sbAll(table){
 async function loadAll(){
   const weekKey = iso(viewStart);
   await sb.rpc("ensure_roster",{ws: weekKey});  // копия состава с прошлой недели при первом открытии
+  // постоянные бонусы: дописать за отработанные смены просматриваемой недели
+  try{ await sb.rpc("bs_run", {p_from: weekKey, p_to: iso(addDays(viewStart,6))}); }catch(_){}
   const q = [
     sbAll("employees"),
     sbAll("rosters"),
@@ -2529,6 +2613,12 @@ function render(){
         }
       }
       if(sh && sh.status===2) tip = `title="Неявка — день не оплачивается"`;
+      // вышел в свой выходной — отмечает менеджер долгим нажатием на клетку
+      let dayoffMark = "";
+      if(sh && sh.status!==2 && sh.dayoff_out){
+        dayoffMark = `<span class="dayoff-mark" title="Вышел в свой выходной"></span>`;
+        if(!tip) tip = `title="Вышел в свой выходной"`;
+      }
       // отметка прихода — для всех, кто работает в этот день (охрана тоже)
       let chkMark = "";
       if(sh && sh.status!==2){
@@ -2539,7 +2629,7 @@ function render(){
           if(!tip) tip = `title="Отметился о приходе в ${t}"`;
         }
       }
-      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${plAttr} ${tip}></span>${penMark}${chkMark}</span></td>`;
+      cells+=`<td class="${ds===todayS?'today-col':''}"><span class="cellwrap"><span class="cell${st}" data-emp="${e.id}" data-date="${ds}" ${plAttr} ${tip}></span>${penMark}${chkMark}${dayoffMark}</span></td>`;
     }
     let moneyCells="";
     if(M){
@@ -2716,7 +2806,18 @@ function render(){
   renderDayTotals(days, roster);
 
   body.querySelectorAll(".cell").forEach(c=>{
+    // долгое нажатие — отметить выход в свой выходной (обычный тап работает как раньше)
+    let lpTimer = null, lpFired = false;
+    const lpStart = ()=>{
+      lpFired = false;
+      lpTimer = setTimeout(()=>{ lpFired = true; toggleDayoffOut(c.dataset.emp, c.dataset.date); }, 550);
+    };
+    const lpEnd = ()=>{ if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; } };
+    c.addEventListener("pointerdown", lpStart);
+    ["pointerup","pointerleave","pointercancel"].forEach(ev=>c.addEventListener(ev, lpEnd));
+    c.addEventListener("contextmenu", ev=>ev.preventDefault());
     c.addEventListener("click", async ()=>{
+      if(lpFired){ lpFired = false; return; }   // это было долгое нажатие
       const id=c.dataset.emp, ds=c.dataset.date;
       const e=byId(id);
       if(!inScope(e)){ showMsg("Этот сотрудник вне вашей зоны редактирования"); return; }
@@ -2915,6 +3016,7 @@ function openBonus(id){
   $("bon-note").value = "";
   $("bon-by").value = ME.name;
   hrFillBonRules(id);          // бонусы устава
+  bsFill(id);                  // постоянные бонусы — только у админа TMR
   renderBonList();
   $("bon-modal").classList.add("open");
 }
@@ -2952,6 +3054,95 @@ async function addBonus(){
   bonMsg("Бонус начислен", true);
   await loadAll(); renderBonList(); render();
 }
+/* вышел в свой выходной — отметка на смене, по ней считается постоянный бонус */
+async function toggleDayoffOut(id, ds){
+  const e = byId(id); if(!e) return;
+  if(!inScope(e)){ showMsg("Этот сотрудник вне вашей зоны редактирования"); return; }
+  const sh = shiftOf(id, ds);
+  if(!sh || sh.status === 2){ showMsg("Сначала поставьте смену на этот день"); return; }
+  const day = `${DOW[(fromIso(ds).getDay()-3+7)%7]} ${fmtD(fromIso(ds))}`;
+  const on = !sh.dayoff_out;
+  if(!confirm(on ? `${e.name}, ${day}: отметить, что вышел в свой выходной?`
+                 : `${e.name}, ${day}: снять отметку о выходе в свой выходной?`)) return;
+  const r = await sb.from("shifts").update({dayoff_out: on}).eq("employee_id",id).eq("work_date",ds);
+  if(r && r.error){ showMsg("Не удалось отметить: " + r.error.message); return; }
+  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.("light");
+  await refresh();
+}
+window.toggleDayoffOut = toggleDayoffOut;
+
+/* ---- ПОСТОЯННЫЕ БОНУСЫ (только админ TMR) ---- */
+let bsRules = [];
+const BS_KIND_LBL = {shift:"за каждую смену", dayoff:"за выход в свой выходной"};
+function bsMsg(t, ok){
+  const m = $("bs-msg"); if(!m) return;
+  m.textContent = t; m.className = "msg " + (ok?"ok":"err");
+  if(t) setTimeout(()=>{ if(m.textContent===t) m.textContent=""; }, 4000);
+}
+async function bsFill(empId){
+  const w = $("bs-wrap"); if(!w) return;
+  if(!isOwner()){ w.style.display = "none"; return; }
+  w.style.display = "";
+  $("bs-amount").value = fmtNum(DEFAULT_BONUS);
+  $("bs-note").value = "";
+  const res = await hrRpc("bs_list", {p_employee_id: String(empId)});
+  bsRules = Array.isArray(res) ? res : [];
+  bsRender();
+}
+function bsRender(){
+  const box = $("bs-list"); if(!box) return;
+  if(!bsRules.length){
+    box.innerHTML = `<div class="pen-row" style="color:var(--muted)">Постоянных бонусов нет</div>`;
+    return;
+  }
+  box.innerHTML = bsRules.map(r=>{
+    const live = !!r.live;
+    const till = r.till ? ` · до ${fmtD(fromIso(r.till))}` : "";
+    return `<div class="pen-row" style="opacity:${live?1:.55}">
+      <div>
+        <div><b style="color:var(--gold)">+${fmtNum(r.amount)}</b> ${BS_KIND_LBL[r.kind]||""}</div>
+        <div style="font-size:11.5px;color:var(--muted)">${hrEsc(r.note)} · с ${fmtD(fromIso(r.from))}${till}${
+          r.paid ? ` · начислено ${fmtNum(r.paid)}` : ""}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${live ? `<button class="pay-chip" onclick="bsStop(${r.id})" title="Перестанет начисляться со следующей недели, начисленное останется">снять</button>` : ""}
+        ${r.paid ? "" : `<button class="pay-chip" onclick="bsDelete(${r.id})" title="Убрать правило совсем">удалить</button>`}
+      </div>
+    </div>`;
+  }).join("");
+}
+async function bsAdd(){
+  if(!bonEmpId) return;
+  const amount = parseNum($("bs-amount").value);
+  const note = $("bs-note").value.trim();
+  if(!(amount > 0)){ bsMsg("Укажите сумму"); return; }
+  if(!note){ bsMsg("Напишите, за что бонус"); return; }
+  const kind = $("bs-kind").value;
+  const e = byId(bonEmpId);
+  if(!confirm(`${e?e.name:""}: ${fmtNum(amount)} ${BS_KIND_LBL[kind]} - начислять постоянно, пока правило не снимут?`)) return;
+  const res = await hrRpc("bs_add", {p_employee_id:String(bonEmpId), p_kind:kind, p_amount:amount, p_note:note});
+  if(!res || res.ok === false){ bsMsg((res&&res.error)||"Не получилось"); return; }
+  bsMsg("Правило поставлено, работает с " + fmtD(fromIso(res.from)), true);
+  await bsFill(bonEmpId);
+}
+async function bsStop(id){
+  const r = bsRules.find(x=>x.id===id); if(!r) return;
+  if(!confirm(`Снять правило «${r.note}»? Со следующей недели начисляться перестанет, уже начисленное останется.`)) return;
+  const res = await hrRpc("bs_stop", {p_id:id});
+  if(!res || res.ok === false){ bsMsg((res&&res.error)||"Не получилось"); return; }
+  bsMsg("Снято, доработает до " + fmtD(fromIso(res.till)), true);
+  await bsFill(bonEmpId);
+}
+async function bsDelete(id){
+  const r = bsRules.find(x=>x.id===id); if(!r) return;
+  if(!confirm(`Удалить правило «${r.note}» совсем?`)) return;
+  const res = await hrRpc("bs_delete", {p_id:id});
+  if(!res || res.ok === false){ bsMsg((res&&res.error)||"Не получилось"); return; }
+  bsMsg("Удалено", true);
+  await bsFill(bonEmpId); await loadAll(); render();
+}
+window.bsStop = bsStop; window.bsDelete = bsDelete;
+
 async function delBonus(bid){
   const bn = bonRows.find(x=>x.id===bid); if(!bn) return;
   if(!confirm(`Удалить бонус +${fmtNum(bn.amount)} (${bn.note})?`)) return;
@@ -2967,8 +3158,10 @@ function renderBonList(){
         <span class="d">${fmtD(fromIso(bn.bonus_date))}</span>
         <span class="a" style="color:var(--gold)">+${fmtNum(bn.amount)}</span>
         <span class="n">${bn.note}</span>
-        <span class="by">начислил(а): ${bn.created_by}</span>
-        <button class="pen-del-btn" style="color:var(--gold);border-color:var(--gold)" onclick="delBonus('${bn.id}')">Удалить бонус</button>
+        <span class="by">${bn.standing_id ? "по постоянному правилу" : "начислил(а): "+bn.created_by}</span>
+        ${bn.standing_id
+          ? `<span class="by" style="color:var(--muted)">снимается вместе с правилом</span>`
+          : `<button class="pen-del-btn" style="color:var(--gold);border-color:var(--gold)" onclick="delBonus('${bn.id}')">Удалить бонус</button>`}
       </div>`).join("")
     : `<div class="pen-row" style="color:var(--muted)">На этой неделе бонусов нет</div>`;
 }
@@ -3871,6 +4064,13 @@ function openPlace(e, ds, current){
       <span><span style="display:inline-block;min-width:20px;padding:1px 5px;border-radius:4px;background:var(--panel2);color:var(--muted);font-size:10px;font-weight:800;vertical-align:middle;margin-right:8px">${P.short}</span>${P.label}</span>
       <span class="cnt">${cnt}</span></button>`;
   }).join("")
+   + (function(){
+        const sh = shiftOf(e.id, ds);
+        if(!sh || sh.status === 2) return "";
+        return `<button class="clearbtn" onclick="pickPlace('__dayoff')" style="${
+          sh.dayoff_out ? "border-color:var(--emerald);color:var(--emerald)" : ""}">${
+          sh.dayoff_out ? "Вышел в свой выходной — снять отметку" : "Вышел в свой выходной"}</button>`;
+      })()
    + (current ? `<button class="clearbtn" onclick="pickPlace('__absent')">Отметить неявку</button>` : "")
    + (current ? `<button class="clearbtn" onclick="pickPlace('__clear')">Убрать смену</button>` : "")
    + `<button class="clearbtn" onclick="closePlace()">Отмена</button>`;
@@ -3893,6 +4093,14 @@ async function pickPlace(pl){
   if(pl === "__clear"){
     const r = await sb.from("shifts").delete().eq("employee_id",empId).eq("work_date",ds);
     if(shiftFail(r, "убрать смену")) return;
+    closePlace(); await refresh(); return;
+  }
+  if(pl === "__dayoff"){
+    const sh = shiftOf(empId, ds);
+    if(!sh){ closePlace(); return; }
+    const r = await sb.from("shifts").update({dayoff_out: !sh.dayoff_out})
+                      .eq("employee_id",empId).eq("work_date",ds);
+    if(shiftFail(r, "отметить выход в выходной")) return;
     closePlace(); await refresh(); return;
   }
   if(pl === "__absent"){
@@ -4294,6 +4502,7 @@ async function applyManagerVenueScope(){
 }
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
+  try{ pcInitBar(); }catch(_){}      // полоса смены учётной записи на компьютере
   // версия и кнопка обзвона — для всех ролей (а не только менеджеров)
   const av = $("app-ver");
   if(av){ av.textContent = APP_VERSION; av.title = "Версия программы (обновляется при каждой правке)"; }
@@ -4407,6 +4616,7 @@ async function startApp(){
   $("pen-add").addEventListener("click", addPenalty);
   $("pen-close").addEventListener("click", closePenalty);
   $("bon-add").addEventListener("click", addBonus);
+  if($("bs-add")) $("bs-add").addEventListener("click", bsAdd);
   $("bon-close").addEventListener("click", closeBonus);
   $("bon-modal").addEventListener("click", e=>{ if(e.target===$("bon-modal")) closeBonus(); });
   attachThousands($("bon-amount"));
@@ -4589,6 +4799,18 @@ function bkInit(){
   // если у роли нет брони, прячем кнопку «Брони»
   document.getElementById("ms-booking").style.display = BK.bkRole ? "" : "none";
   document.getElementById("bk-tab-kar").onclick = function(){ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
+  // горячие клавиши на компьютере: 1 — караоке, 2 — клуб
+  document.addEventListener("keydown", function(ev){
+    if(ev.ctrlKey || ev.altKey || ev.metaKey) return;
+    const t = ev.target;
+    if(t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.tagName==="SELECT" || t.isContentEditable)) return;
+    if(ev.key !== "1" && ev.key !== "2") return;
+    const root = document.getElementById("booking-root");
+    if(!root || root.style.display === "none") return;
+    ev.preventDefault();
+    BK.venue = (ev.key === "1") ? "karaoke" : "club";
+    bkRenderVenueTabs(); bkRender();
+  });
   document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkLoadAndRender(); };
   document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkLoadAndRender(); };
@@ -5809,6 +6031,8 @@ function bkOpenModal(tableId, editMode){
 }
 function bkCloseModal(){
   document.getElementById("bk-modal").classList.remove("open");
+  const _c = document.querySelector("#bk-modal .bk-modal-card");
+  if(_c) _c.classList.remove("wide");      // широкое окно — только у «Гостей»
   bkCurrentTable=null; bkCurrentBooking=null;
 }
 // Закрытие окна по тёмному фону.
@@ -5900,11 +6124,12 @@ function callMyVenue(){
   }
   return "all";
 }
-const CALL_SEG_LBL = {sleeping:"Уснувшие", newbie:"Новички", bigparty:"Компании 8+",
+const CALL_SEG_LBL = {recall:"Просили перезвонить", sleeping:"Уснувшие", newbie:"Новички", bigparty:"Компании 8+",
   rich_sleep:"Дорогие уснувшие", low_sleep:"Эконом уснувшие", weekday:"Будние гости"};
 // сегменты, которые считает gst_segment (только управляющий и админы)
 const GST_SEGS = ["rich_sleep","low_sleep","weekday"];
 const CALL_SEG_NOTE = {
+  recall:"Сами сказали набрать позже - самые тёплые номера, с них и начинать",
   sleeping:"Были 3+ раз, не приходили больше 45 дней",
   newbie:"Один визит 2–4 недели назад — звонок-благодарность",
   bigparty:"Приходили компанией от 8 человек, не были больше месяца",
@@ -5912,6 +6137,10 @@ const CALL_SEG_NOTE = {
   low_sleep:"Средний депозит ниже 2 млн, не были больше 45 дней — им нужен другой разговор",
   weekday:"Ходят в будни чаще, чем в выходные — под будничные акции"};
 const CALL_SCRIPTS = {
+recall:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! Это [я] из SPLETNI. Вы просили набрать вас попозже — удобно сейчас говорить?»</div>
+<h4>Дальше</h4><div class="csay">Напомнить, о чём договаривались в прошлый раз, и сразу предложить дату: «На эту пятницу забронировать?»</div>
+<div class="cobj"><b>«Опять не вовремя»</b> — «Понимаю. Когда лучше набрать?» и записать «Перезвонить» ещё раз.</div>
+<div class="ctip">Человек сам разрешил звонить — не извиняйтесь, просто продолжайте разговор.</div>`,
 sleeping:`<h4>Начало</h4><div class="csay">«[Имя], здравствуйте! Это [я] из SPLETNI. Вы у нас частый гость, а последнее время вас не видно — решила лично позвонить. Не отвлекаю?»</div>
 <h4>Предложение</h4><div class="csay">«В пятницу/субботу как раз [повод]. Забронировать вам ваш столик? Придёте — будем рады.»</div>
 <h4>Возражения</h4><div class="cobj"><b>«Дорого / не до этого»</b> — «Понимаю. Бронь для вас всегда без предоплаты — наберите за день, всё сделаем.»</div>
@@ -5944,9 +6173,11 @@ weekday:`<h4>Начало</h4><div class="csay">«[Имя], здравствуй
    Серверная часть: gosti.sql. Всё считается из броней — отдельной
    «аналитики» здесь нет, поэтому цифры не могут разойтись с бронью.
    ============================================================ */
-let GST_TAB = "call";                 // call | today | find | bd
-const GST_TABS = {call:"Обзвон", today:"Сегодня придут", find:"Карточка гостя",
-                  bd:"Дни рождения", back:"Возвраты"};
+let GST_TAB = "task";                 // task | call | today | find | bd | back
+const GST_TABS = {task:"Задания на день", call:"Обзвон", today:"Сегодня придут",
+                  find:"Карточка гостя", bd:"Дни рождения", back:"Возвраты"};
+// что видит хостес: свой список дел и обзвон. Портрет гостя и аналитика — нет.
+const GST_TABS_BASE = ["task","call"];
 let GST_BACK_DAYS = 180;
 let GST_FOUND = null;                 // последний найденный портрет
 
@@ -5955,24 +6186,19 @@ const GST_VLBL = {all:"Все", karaoke:"Караоке", club:"Клуб"};
 // на человека целиком, а не на зал.
 function gstVenueRow(){
   if(GST_TAB === "find") return "";
-  const mv = callMyVenue();
-  if(mv !== "all")
-    return `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Ваша площадка: <b style="color:var(--emerald)">${GST_VLBL[mv]}</b></div>`;
   const vb = k=>`<button type="button" data-cv="${k}" class="${CALL_VENUE===k?'on':''}">${GST_VLBL[k]}</button>`;
   return `<div class="gst-venue" id="cw-venue">${vb("all")}${vb("karaoke")}${vb("club")}</div>`;
 }
 function gstTabRow(){
-  const tabs = !gstCanClient() ? "" :     // без прав вкладок нет — только обзвон
-    `<div class="gst-tabs">` + Object.keys(GST_TABS).map(k=>
+  const keys = gstCanClient() ? Object.keys(GST_TABS) : GST_TABS_BASE;
+  const tabs = `<div class="gst-tabs">` + keys.map(k=>
       `<button type="button" data-gt="${k}" class="${GST_TAB===k?'on':''}">${GST_TABS[k]}</button>`
     ).join("") + `</div>`;
   return tabs + gstVenueRow();
 }
-// площадка, по которой считать: null = все
+// площадка, по которой считать: null = обе
 function gstVen(){
-  const mv = callMyVenue();
-  const v = (mv !== "all") ? mv : CALL_VENUE;
-  return (v && v !== "all") ? v : null;
+  return (CALL_VENUE && CALL_VENUE !== "all") ? CALL_VENUE : null;
 }
 function gstWireTabs(){
   document.querySelectorAll("[data-gt]").forEach(b=>{
@@ -6187,8 +6413,62 @@ async function gstBirthdays(){
   document.getElementById("bkm-sub").textContent = "ближайшие две недели";
 }
 
+/* ===== ЗАДАНИЯ НА ДЕНЬ — что надо сделать за смену ===== */
+function gstTaskCard(key, title, num, sub, tone){
+  const col = tone==="warn" ? "var(--gold)" : (tone==="cold" ? "var(--muted)" : "var(--emerald)");
+  return `<div class="gst-task" data-task="${key}" style="border-left-color:${col}">
+    <div class="r"><span class="t">${title}</span><span class="n" style="color:${col}">${num}</span></div>
+    <div class="s">${sub}</div>
+  </div>`;
+}
+async function gstTasks(){
+  const body = document.getElementById("bkm-body");
+  body.innerHTML = gstTabRow() + `<div class="gst-empty">Собираю…</div>`;
+  gstWireTabs();
+  await ensureToken();
+  const r = await sb.rpc("pc_tasks", { p_venue: gstVen() });
+  const d = (r && r.data) || {};
+  let html = gstTabRow();
+  if(d.ok === false){
+    body.innerHTML = html + `<div class="gst-empty">${hrEsc(d.error||"Не удалось собрать задания")}</div>`;
+    gstWireTabs(); return;
+  }
+  const cards = [];
+  if(d.requests) cards.push(gstTaskCard("req","Подтвердить заявки", d.requests,
+    "Гости ждут ответа. Показаны обе площадки — заявку нельзя пропустить.", "warn"));
+  if(d.cancels) cards.push(gstTaskCard("req","Гости отменили", d.cancels,
+    "Столы освободились — можно отдать другим.", "warn"));
+  cards.push(gstTaskCard("call","Обзвон", `${d.calls||0} / ${d.norm||20}`,
+    (d.calls||0) >= (d.norm||20) ? "Норма за смену сделана." :
+    `Осталось ${Math.max(0,(d.norm||20)-(d.calls||0))} звонков до нормы.`,
+    (d.calls||0) >= (d.norm||20) ? "ok" : "warn"));
+  if(d.recall) cards.push(gstTaskCard("recall","Просили перезвонить", d.recall,
+    "Сами сказали набрать позже — это самые тёплые номера.", "warn"));
+  if(d.newbies) cards.push(gstTaskCard("newbie","Спасибо новичкам", d.newbies,
+    "Были впервые за последние дни. Звонок сейчас поднимает возвращаемость сильнее всего."));
+  if(d.birthdays && gstCanClient()) cards.push(gstTaskCard("bd","Дни рождения", d.birthdays,
+    "На ближайшую неделю — повод позвать компанию."));
+  if(gstCanClient()) cards.push(gstTaskCard("today","Сегодня придут", d.today||0,
+    (d.today ? "Брони на вечер — подтвердить до прихода." : "Броней на вечер пока нет."),
+    d.today ? "ok" : "cold"));
+  html += `<div class="gst-tasks">${cards.join("")}</div>`;
+  body.innerHTML = html;
+  gstWireTabs();
+  body.querySelectorAll("[data-task]").forEach(el=>{
+    el.onclick = ()=>{
+      const k = el.dataset.task;
+      if(k === "req"){ if(typeof bkOpenRequests==="function") bkOpenRequests(); return; }
+      if(k === "newbie" || k === "recall"){ CALL_SEG = k==="recall" ? "recall" : "newbie"; GST_TAB = "call"; gstRender(); return; }
+      GST_TAB = k; gstRender();
+    };
+  });
+  document.getElementById("bkm-sub").textContent =
+    (gstVen() ? GST_VLBL[gstVen()] : "обе площадки") + " · " + (ME.name||"");
+}
+
 function gstRender(){
-  if(!gstCanClient()) GST_TAB = "call";
+  if(!gstCanClient() && !GST_TABS_BASE.includes(GST_TAB)) GST_TAB = "task";
+  if(GST_TAB === "task")  return gstTasks();
   if(GST_TAB === "back")  return gstBack();
   if(GST_TAB === "today") return gstToday();
   if(GST_TAB === "find")  return gstFind();
@@ -6277,6 +6557,8 @@ async function callOpen(){
   document.getElementById("bkm-sub").textContent = "загрузка…";
   document.getElementById("bkm-body").innerHTML = "";
   document.getElementById("bk-modal").classList.add("open");
+  const card = document.querySelector("#bk-modal .bk-modal-card");
+  if(card) card.classList.add("wide");          // на компьютере окно шире
   if(typeof bkCurrentTable!=="undefined"){ bkCurrentTable=null; bkCurrentBooking=null; }
   await gstRender();
 }
@@ -6286,9 +6568,11 @@ async function callRender(){
   let rows=[], done=[], st=null;
   try{
     const [a,b,c] = await Promise.all([
-      GST_SEGS.includes(seg)
-        ? sb.rpc("gst_segment", {p_key: seg, p_venue: gstVen(), p_limit: 15})
-        : sb.rpc("call_segment_list", {p_segment: seg, p_venue: CALL_VENUE, p_limit: 15}),
+      seg === "recall"
+        ? sb.rpc("pc_recall", {p_venue: gstVen(), p_limit: 30})
+        : (GST_SEGS.includes(seg)
+            ? sb.rpc("gst_segment", {p_key: seg, p_venue: gstVen(), p_limit: 15})
+            : sb.rpc("call_segment_list", {p_segment: seg, p_venue: CALL_VENUE, p_limit: 15})),
       sb.rpc("call_recent", {p_segment: seg, p_venue: CALL_VENUE}),
       sb.rpc("call_month_stats"),
     ]);
@@ -6313,14 +6597,15 @@ async function callRender(){
     .cres button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:4px 9px;font-size:11.5px;cursor:pointer}
     .ccall{background:rgba(31,191,122,.15);border:1px solid var(--emerald);color:var(--emerald);border-radius:10px;padding:7px 12px;font-size:12.5px;text-decoration:none;font-weight:700;white-space:nowrap}
   </style>
-  <div class="cw-src" id="cw-seg">${segBtn("sleeping")}${segBtn("newbie")}${segBtn("bigparty")}${
+  <div class="cw-src" id="cw-seg">${segBtn("recall")}${segBtn("sleeping")}${segBtn("newbie")}${segBtn("bigparty")}${
     gstCanClient() ? GST_SEGS.map(segBtn).join("") : ""}</div>
-  <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${CALL_SEG_NOTE[seg]} · показано ${rows.length} (порциями по 15)</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${CALL_SEG_NOTE[seg]} · показано ${rows.length}${seg==="recall"?"":" (порциями по 15)"}</div>
   <details style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;padding:0 12px">
     <summary style="cursor:pointer;padding:9px 0;font-size:12.5px;font-weight:700;color:var(--gold)">📋 Скрипт разговора</summary>
     <div class="cscr" style="padding-bottom:10px">${CALL_SCRIPTS[seg]}</div>
   </details>`;
   if(!rows.length) html += `<div class="ccard" style="color:var(--muted)">В этом сегменте сейчас некому звонить — все обзвонены или пусто.</div>`;
+  html += `<div class="cw-cards">`;
   rows.forEach(r=>{
     html += `<div class="ccard" id="cc-${r.guest_id}">
       <div class="crow">
@@ -6334,6 +6619,7 @@ async function callRender(){
         `<button type="button" onclick="callResult('${r.guest_id}','${r.phone_tel}','${k}',this)">${l}</button>`).join("")}</div>
     </div>`;
   });
+  html += `</div>`;
   if(done.length){
     html += `<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px">Обзвонены за 7 дней</div>`;
     done.forEach(d=>{
@@ -6367,7 +6653,20 @@ async function callResult(gid, phone, res, btn){
 }
 // показать полный номер на планшете (для набора на рабочем телефоне) + журнал раскрытий
 async function callReveal(gid, phone, btn){
-  btn.outerHTML = `<span style="font-weight:800;font-size:15px;color:var(--emerald);white-space:nowrap">${phone}</span>`;
+  if(PC_MODE){
+    // на компьютере звонят с мобильного рядом: крупный номер и QR
+    const id = "pcq-" + gid;
+    btn.outerHTML = `<div style="text-align:center">
+      <div class="pc-tel">${phone}</div>
+      <div style="font-size:11px;color:var(--muted)">наведите телефоном — наберётся сам</div>
+      <div class="pc-qr" id="${id}"></div>
+      <button type="button" class="ccall" style="cursor:pointer;margin-top:8px"
+        onclick="navigator.clipboard&&navigator.clipboard.writeText('${phone}');this.textContent='скопировано'">Скопировать</button>
+    </div>`;
+    pcQrInto(document.getElementById(id), phone);
+  } else {
+    btn.outerHTML = `<span style="font-weight:800;font-size:15px;color:var(--emerald);white-space:nowrap">${phone}</span>`;
+  }
   try{
     await sb.from("call_views").insert({
       tg_id: Number(ME.tg_id||ME.telegram_id||0), viewer_name: ME.name,
@@ -6375,6 +6674,44 @@ async function callReveal(gid, phone, btn){
   }catch(_){}
 }
 window.callReveal = callReveal;
+
+/* ===== КОМПЬЮТЕР: смена учётной записи и выход ===== */
+const PC_ROLE_LBL = {host:"Хостес", man:"Менеджер", upr:"Управляющий"};
+function pcClearSession(){
+  try{ sessionStorage.removeItem("spl_tablet_me"); }catch(_){}
+  try{ localStorage.removeItem("spl_tablet_me"); }catch(_){}
+}
+function pcSwitch(role){
+  if(!confirm(`Выйти и войти как ${PC_ROLE_LBL[role]||"другой сотрудник"}?`)) return;
+  pcClearSession();
+  location.replace("tablet.html#r=" + encodeURIComponent(role));
+}
+function pcLogout(){
+  if(!confirm("Выйти из программы? Для входа понадобится PIN или код из бота.")) return;
+  pcClearSession();
+  location.replace("tablet.html");
+}
+function pcInitBar(){
+  if(!PC_MODE) return;
+  const who = document.getElementById("pc-who");
+  if(who) who.textContent = (ME && ME.name ? ME.name : "—") + (ME && ME.role ? " · " + (CAPS[ME.role]||{}).label : "");
+  document.querySelectorAll("#pc-bar [data-pcr]").forEach(b=>{
+    b.onclick = ()=>pcSwitch(b.dataset.pcr);
+  });
+  const out = document.getElementById("pc-out");
+  if(out) out.onclick = pcLogout;
+}
+window.pcSwitch = pcSwitch; window.pcLogout = pcLogout;
+
+/* крупный номер и QR: навести телефоном - наберётся сам */
+function pcQrInto(box, tel){
+  if(!box) return;
+  try{
+    const qr = window.qrcode(0, "M");
+    qr.addData("tel:" + tel); qr.make();
+    box.innerHTML = qr.createImgTag(4, 0);
+  }catch(_){ box.style.display = "none"; }
+}
 window.callOpen = callOpen; window.callResult = callResult;
 // ===== СТАТИСТИКА «ОТКУДА УЗНАЛИ О НАС» (админ) =====
 let BK_SRC_ROWS = null, BK_SRC_PERIOD = "this";
