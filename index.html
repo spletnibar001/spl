@@ -1406,7 +1406,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 26.10 · сборка 72";
+const APP_VERSION = "v 24.10 · сборка 73";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1427,7 +1427,55 @@ const APP_VERSION = "v 26.10 · сборка 72";
 })();
 const ROLES = ["Официант","Бармен","Старший бармен","Бар-менеджер","Хостес","Повар","Шеф",
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
-const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля
+const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля (по должности)
+/* ===== ФИКС-ОКЛАД ПЕРСОНАЛЬНО + ДОПЛАТА ЗА СМЕНУ СВЕРХ НОРМЫ (24.10.2026) =====
+   Фикс-оклад задавался только должностью. Менеджер Анвар — фикс, а другие менеджеры
+   посменные, поэтому держим персональный список: совпадение по части имени, без учёта
+   регистра. Чтобы перевести ещё кого-то — допишите строку сюда.
+   Доплата: за каждую смену СВЕРХ НОРМЫ в расчётной неделе (ср–вт). Правило общее для
+   всех фикс-окладников и действует только с FIX_BONUS_FROM — прошлые месяцы не трогаем.
+   Норму считаем по всем отработанным сменам недели, а платим только за те смены сверх
+   нормы, что попали в период действия правила. */
+const FIX_SALARY_EMP  = ["анвар"];     // часть имени; добавляйте сюда новых фикс-окладников
+const FIX_WEEK_NORM   = 6;             // норма смен в расчётной неделе
+const FIX_EXTRA_BONUS = 500000;        // доплата за каждую смену сверх нормы
+const FIX_BONUS_FROM  = "2026-11-01";  // правило действует со смен от этой даты
+function isFixEmp(e){
+  if(!e) return false;
+  const n = String(e.name||"").toLowerCase();
+  return FIX_SALARY_EMP.some(x=>n.includes(String(x).toLowerCase()));
+}
+function isNoRate(e){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmp(e)); }
+// смены сверх нормы за ОДНУ расчётную неделю: [{d, a}]
+function fixExtraShifts(emp, fromS, toS){
+  if(!isNoRate(emp)) return [];
+  const paidThru = paidThroughDate();
+  const days = [];
+  for(const s of shiftRows){
+    if(s.employee_id!==emp.id || s.status===2) continue;
+    if(s.work_date<fromS || s.work_date>toS) continue;
+    if(s.work_date>paidThru) continue;                 // смена ещё не отработана
+    days.push(s.work_date);
+  }
+  days.sort();
+  return days.slice(FIX_WEEK_NORM)
+             .filter(d=>d>=FIX_BONUS_FROM)
+             .map(d=>({d, a:FIX_EXTRA_BONUS}));
+}
+// то же за месяц — проходим все расчётные недели, что задевают месяц
+function fixExtraShiftsMonth(emp, mk){
+  if(!isNoRate(emp)) return [];
+  const f = mk+"-01";
+  const t = iso(new Date(Number(mk.slice(0,4)), Number(mk.slice(5,7)), 0));   // последний день месяца
+  const out = [];
+  let ws = iso(payWeekStart(fromIso(f))), guard = 0;
+  while(ws <= t && guard++ < 8){
+    const we = iso(addDays(fromIso(ws), 6));
+    for(const x of fixExtraShifts(emp, ws, we)) if(x.d>=f && x.d<=t) out.push(x);
+    ws = iso(addDays(fromIso(ws), 7));
+  }
+  return out;
+}
 /* автографик: какие дни недели проставить (JS getDay: 0=Вс..6=Сб); null = нет */
 function autoWorkDays(e){
   const all = [0,1,2,3,4,5,6];
@@ -1873,6 +1921,11 @@ async function pushPlansToKassa(weekKey){
           for(const p of penRows) if(p.employee_id===e.id && p.pen_date>=f && p.pen_date<=t && penApplied(p)){
             mp+=p.amount; items.push({t:"p", d:p.pen_date, a:Math.round(p.amount), n:String(p.note||""), by:String(p.created_by||"")});
           }
+          /* доплата за выходы в выходной — за ВЕСЬ месяц, а не за текущую неделю:
+             план месяца перезаписывается целиком, и недельная сумма затёрла бы остальные. */
+          for(const x of fixExtraShiftsMonth(e, m)){
+            mb += x.a; items.push({t:"b", d:x.d, a:x.a, n:"выход в выходной · смена сверх нормы "+FIX_WEEK_NORM, by:"табель"});
+          }
           items.sort((x,y)=>String(x.d).localeCompare(String(y.d)));
           /* Расшифровку (дата, за что, кто поставил) кладём в period_label как JSON:
              отдельного поля в payroll_plan нет, а это поле у месячных планов не
@@ -1950,7 +2003,7 @@ function rateForDate(empId, dateS){
   return en.rate;
 }
 function earnedInPeriod(emp, fromS, toS){
-  const noPay = NO_RATE_ROLES.includes(emp.emp_role);
+  const noPay = isNoRate(emp);
   const paidThru = paidThroughDate();  // оклад начислен по эту дату; смена текущего дня — только после 17:00
   let cnt=0, base=0, absent=0, cntPlan=0, basePlan=0;
   for(const s of shiftRows){
@@ -1986,7 +2039,11 @@ function earnedInPeriod(emp, fromS, toS){
   const own = (typeof SC_OWN!=="undefined") && SC_OWN;
   const pen = (CAP.money||CAP.pen||own) ? penaltiesIn(emp.id, fromS, toS).reduce((t,p)=>t+p.amount,0) : 0;
   const bon = (CAP.money||CAP.bonus||own) ? bonusesIn(emp.id, fromS, toS).reduce((t,b)=>t+b.amount,0) : 0;
-  return {cnt, base, cntPlan, basePlan, extra, extraLbl, noPay, absent, pen, bon, sum: noPay ? 0 : base+extra+bon-pen};
+  const fixX = fixExtraShifts(emp, fromS, toS);                 // выходы в выходной
+  const fixExtra = fixX.reduce((t,x)=>t+x.a, 0);
+  return {cnt, base, cntPlan, basePlan, extra, extraLbl, noPay, absent, pen, bon,
+          fixExtra, fixCnt: fixX.length,
+          sum: noPay ? 0 : base+extra+bon-pen};
 }
 
 /* автографик сотруднику на отображаемую неделю */
@@ -2091,7 +2148,8 @@ function applyRoleDefaults(){
     $("fix-note").textContent = "";
   }
   if(!CAP.money) return;
-  const noRate = NO_RATE_ROLES.includes(role);
+  // фикс-оклад бывает и персональным (FIX_SALARY_EMP), не только по должности
+  const noRate = NO_RATE_ROLES.includes(role) || isFixEmp({name: ($("f-name")&&$("f-name").value)||""});
   $("f-rate").disabled = noRate;
   const monAllowed = role==="Бармен" && !noRate;
   $("f-rate-mon").disabled = !monAllowed;
@@ -2146,7 +2204,7 @@ async function addOrSaveEmployee(){
   const role = $("f-role").value;
   const name = $("f-name").value.trim();
   const pos = FIXED_POS[role] || $("f-pos").value;
-  const noRate = NO_RATE_ROLES.includes(role);
+  const noRate = NO_RATE_ROLES.includes(role) || isFixEmp({name});
   let rate = null, mondayRate = null, clubRate = null;
   if(CAP.money){
     rate = noRate ? 0 : parseNum($("f-rate").value);
@@ -2504,7 +2562,7 @@ function render(){
         saleCell=`<td class="sale"><span class="dash">—</span></td>`;
         stepsCell=`<td class="steps"><span class="dash">—</span></td>`;
       }
-      const noPay = NO_RATE_ROLES.includes(e.emp_role);
+      const noPay = isNoRate(e);
       const monNote = !noPay && en.mondayRate!=null?` · Пн <b>${money(en.mondayRate)}</b>`:"";
       const rateNote = noPay
         ? (en.rate>0 ? `<b>${money(en.rate)}</b>/мес · фикс` : "фикс. оклад · 2 р/мес")
@@ -2512,6 +2570,7 @@ function render(){
       const cntTxt = (!noPay && r.cntPlan>r.cnt) ? `${r.cnt} из ${r.cntPlan} смен` : `${r.cnt} смен`;
       let det = r.extraLbl && !noPay ? `${cntTxt} · ${r.extraLbl}` : cntTxt;
       if(r.absent) det += ` · <span class="penal">неявки: ${r.absent}</span>`;
+      if(r.fixExtra) det += ` · <span class="bonal">выходы в выходной: ${r.fixCnt} · +${fmtNum(r.fixExtra)}</span>`;
       if(r.bon) det += ` · <span class="bonal">бонусы +${fmtNum(r.bon)}</span>`;
       if(r.pen) det += ` · <span class="penal">штрафы −${fmtNum(r.pen)}</span>`;
       const wkKey = iso(viewStart);
@@ -2607,7 +2666,7 @@ function render(){
     // сводка выплат по ВИДИМОМУ списку: сколько уже выплачено и сколько осталось (по полной неделе)
     let paidSum=0, leftSum=0;
     for(const e of list){
-      if(NO_RATE_ROLES.includes(e.emp_role)) continue;  // фикс. оклад не считаем
+      if(isNoRate(e)) continue;  // фикс. оклад не считаем
       const rr = earnedInPeriod(e, weekKey, wkTo);
       let extraAmt = 0;
       if(e.emp_role==="Официант") extraAmt = Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT);
@@ -3166,7 +3225,7 @@ function renderStaffCabinet(cardsArg){
   // блок одной карточки (роли)
   function cardBlock(me, idx){
     const r = earnedInPeriod(me, fromS, toS);
-    const noPay = NO_RATE_ROLES.includes(me.emp_role);
+    const noPay = isNoRate(me);
 
     // строки заработка
     let earnRows = "";
@@ -3346,7 +3405,7 @@ function renderStaffCabinet(cardsArg){
         const net = rows.reduce((a,p)=>a+(p.type==="out"?1:-1)*p.amount, 0);
         const mLbl = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"][viewStart.getMonth()];
         document.getElementById("sc-adv-sum-"+c.id).textContent = fmtNum(net);
-        const kindLbl = NO_RATE_ROLES.includes(c.emp_role) ? "аванс · " : "";
+        const kindLbl = isNoRate(c) ? "аванс · " : "";
         document.getElementById("sc-adv-sub-"+c.id).textContent = kindLbl+"за "+mLbl+(rows.length?` · ${rows.length} выпл.`:" · выплат не было");
         rows.sort((a,b)=> a.date>b.date ? -1 : a.date<b.date ? 1 : 0);
         ACK_ROWS = ACK_ROWS.filter(r=>r.cardId!==c.id).concat(rows.map(r=>({...r, cardId:c.id})));
@@ -3505,7 +3564,7 @@ function renderStaffCabinet(cardsArg){
     : `${myCards[0].emp_role} · ${POS_NAME[myCards[0].pos]}`;
 
   // все ли карточки — на фиксированном окладе (без посменной оплаты)
-  const allFixed = myCards.every(c=>NO_RATE_ROLES.includes(c.emp_role));
+  const allFixed = myCards.every(c=>isNoRate(c));
   const fixRate = allFixed ? rateForDate(myCards[0].id, isoBizToday()) : 0;
   const earnVal = allFixed ? (fixRate>0 ? fmtNum(fixRate)+" /мес" : "Фикс. оклад") : fmtNum(grandSum);
   const earnNote = allFixed
@@ -3926,7 +3985,7 @@ function renderDayTotals(days, roster){
   const buckets = {karaoke:[0,0,0,0,0,0,0], club:[0,0,0,0,0,0,0], both:[0,0,0,0,0,0,0]};
   for(const id of roster){
     const e = byId(id); if(!e) continue;
-    const noPay = NO_RATE_ROLES.includes(e.emp_role);
+    const noPay = isNoRate(e);
     const b = buckets[e.pos] || (buckets[e.pos]=[0,0,0,0,0,0,0]);
     for(let i=0;i<7;i++){
       const ds = iso(days[i]);
@@ -4073,7 +4132,7 @@ async function exportPayrollXlsx(){
     .map(p=>`−${fmtNum(p.amount)}: ${p.note||"штраф"} (${p.created_by||"?"}, ${fmtD(fromIso(p.pen_date))})`)
     .join("; ");
 
-  const isPiece = e => !NO_RATE_ROLES.includes(e.emp_role);
+  const isPiece = e => !isNoRate(e);
   const roster = rosterOf(weekKey).map(byId).filter(Boolean)
     .filter(e=>posFilter==="all"||e.pos===posFilter);
   const piece = roster.filter(isPiece);
@@ -4098,7 +4157,7 @@ async function exportPayrollXlsx(){
     const r = earnedInPeriod(e, fromS, toS);
     const wv = wvOf(e.id, weekKey);
     const steps = e.emp_role==="Официант" ? Math.round((wv.sales||0)*STEPS_PCT) : 0;
-    const noPay = NO_RATE_ROLES.includes(e.emp_role);
+    const noPay = isNoRate(e);
     const baseZP = noPay ? 0 : Math.round(r.sum - (r.bon||0) + (r.pen||0) - steps);
     const pen = Math.round(r.pen||0);
     const bon = Math.round(r.bon||0);
