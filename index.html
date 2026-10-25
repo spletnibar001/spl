@@ -1,4 +1,4 @@
-<!-- SPLETNI · программа персонала · сборка 76 · 25.10.2026 -->
+<!-- сборка 77 · 25.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1481,7 +1481,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.10 · сборка 76";
+const APP_VERSION = "v 25.10 · сборка 77";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4798,7 +4798,7 @@ function bkInit(){
   document.getElementById("ms-booking").onclick = function(){ bkSetMode("booking"); };
   // если у роли нет брони, прячем кнопку «Брони»
   document.getElementById("ms-booking").style.display = BK.bkRole ? "" : "none";
-  document.getElementById("bk-tab-kar").onclick = function(){ BK.venue="karaoke"; bkRenderVenueTabs(); bkRender(); };
+  document.getElementById("bk-tab-kar").onclick = function(){ bkSetVenue("karaoke"); };
   // горячие клавиши на компьютере: 1 — караоке, 2 — клуб
   document.addEventListener("keydown", function(ev){
     if(ev.ctrlKey || ev.altKey || ev.metaKey) return;
@@ -4808,10 +4808,9 @@ function bkInit(){
     const root = document.getElementById("booking-root");
     if(!root || root.style.display === "none") return;
     ev.preventDefault();
-    BK.venue = (ev.key === "1") ? "karaoke" : "club";
-    bkRenderVenueTabs(); bkRender();
+    bkSetVenue(ev.key === "1" ? "karaoke" : "club");
   });
-  document.getElementById("bk-tab-club").onclick = function(){ BK.venue="club"; bkRenderVenueTabs(); bkRender(); };
+  document.getElementById("bk-tab-club").onclick = function(){ bkSetVenue("club"); };
   document.getElementById("bk-prev").onclick = function(){ BK.date=bkAddDays(BK.date,-1); bkLoadAndRender(); };
   document.getElementById("bk-next").onclick = function(){ BK.date=bkAddDays(BK.date, 1); bkLoadAndRender(); };
   // тап по дате -> открыть собственный календарь (работает и на десктопе)
@@ -4994,6 +4993,21 @@ function bkAlignDateCard(){
   }catch(_){}
 }
 window.addEventListener("resize", function(){ if(BK.mode==="booking") bkAlignDateCard(); });
+
+// переключение площадки: в режиме «Депозиты» перечитываем суммы и номера
+// заказов — сервер отдаёт их отдельно для караоке и для клуба, и без
+// перечтения на экране оставались строки прошлой площадки
+async function bkSetVenue(v){
+  BK.venue = v;
+  bkRenderVenueTabs();
+  if(BK.view === "dep"){
+    const c = document.getElementById("bk-content");
+    if(c) c.innerHTML = '<div class="bk-empty">Загрузка…</div>';
+    try{ await dpLoad(); }catch(_){}
+  }
+  bkRender();
+}
+window.bkSetVenue = bkSetVenue;
 
 function bkRenderVenueTabs(){
   document.getElementById("bk-tab-kar").classList.toggle("active",BK.venue==="karaoke");
