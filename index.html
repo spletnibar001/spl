@@ -1,4 +1,4 @@
-<!-- сборка 77 · 25.10.2026 -->
+<!-- сборка 78 · 25.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -461,6 +461,15 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 #bk-venue-tabs button,#bk-view-tabs button{border:none;background:transparent;color:var(--muted);padding:7px 16px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 #bk-venue-tabs button.active,#bk-view-tabs button.active{background:var(--emerald);color:#0c1410}
 #bk-src-btn{border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:7px 14px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer}
+#bk-ya-btn{border:1px solid var(--violet);background:rgba(183,154,238,.12);color:var(--violet);padding:7px 14px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer}
+.ya-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.ya-row button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:7px 14px;font-size:12.5px;cursor:pointer}
+.ya-row button.on{background:var(--emerald);border-color:var(--emerald);color:#08130d;font-weight:700}
+.ya-card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px}
+.ya-card .nm{font-weight:700;font-size:14px;margin-bottom:3px}
+.ya-card .fx{font-size:12px;color:var(--muted);line-height:1.55}
+.ya-card button{margin-top:9px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);
+  color:var(--emerald);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
 #bk-reqs-btn{border:1px solid var(--gold);background:rgba(217,176,76,.12);color:var(--gold);padding:7px 14px;
   font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-radius:9px;display:inline-flex;align-items:center;gap:7px}
 .bk-reqs-badge{background:var(--gold);color:#0c1410;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;min-width:18px;text-align:center}
@@ -1050,6 +1059,7 @@ body.pc #pc-bar{display:flex;flex-wrap:wrap}
         <button id="bk-src-btn" style="display:none">📊 Источники</button>
         <button id="bk-spec-btn" style="display:none">★ Особые даты</button>
         <button id="btn-bk-stats" style="display:none">📈 Аналитика</button>
+        <button id="bk-ya-btn" style="display:none">⬇ Для Директа</button>
       </div>
     </div>
     <div class="bk-datecard">
@@ -1481,7 +1491,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.10 · сборка 77";
+const APP_VERSION = "v 25.10 · сборка 78";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -10512,6 +10522,7 @@ function bsExport(){
 window.bsExport = bsExport;
 
 function bsWire(){
+  try{ yaWire(); }catch(_){}
   const b = $("btn-bk-stats");
   if(b && bsCanSee()){
     b.style.display = "";
@@ -10521,6 +10532,116 @@ function bsWire(){
   }
 }
 window.bsSetDays = bsSetDays; window.bsOpen = bsOpen;
+
+/* ============================================================
+   ВЫГРУЗКА ДЛЯ ЯНДЕКС ДИРЕКТА (только админ TMR)
+   Телефоны уходят из базы уже как SHA-256 — в браузер и в файл
+   попадают только хеши, самих номеров там нет. Яндекс с 2025 года
+   принимает SHA-256; MD5 не поддерживается.
+   Серверная часть: yandex-vygruzka.sql
+   ============================================================ */
+let YA_DAYS = 730;
+function yaDl(name, text, bom){
+  const blob = new Blob([(bom?"\ufeff":"") + text], {type:"text/csv;charset=utf-8"});
+  try{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+    return true;
+  }catch(e){
+    try{ window.open(URL.createObjectURL(blob), "_blank"); return true; }
+    catch(_){ alert("Не удалось скачать. Откройте программу в обычном браузере."); return false; }
+  }
+}
+const yaCsv = v => {
+  const t = (v===null || v===undefined) ? "" : String(v);
+  return /[",;\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t;
+};
+async function yaAudience(kind){
+  const msg = document.getElementById("ya-msg");
+  if(msg) msg.textContent = "Собираю…";
+  await ensureToken();
+  const r = await sb.rpc("ya_audience", { p_kind: kind, p_days: YA_DAYS });
+  const d = (r && r.data) || {};
+  if(d.ok === false){ if(msg) msg.textContent = d.error || "Не получилось"; return; }
+  const rows = d.rows || [];
+  if(!rows.length){ if(msg) msg.textContent = "В этом сегменте нет номеров"; return; }
+  // Яндекс не принимает сегмент меньше 100 записей
+  const warn = rows.length < 100
+    ? ` Внимание: Яндекс не примет сегмент меньше 100 записей, здесь ${rows.length}.` : "";
+  const name = {club:"yandex-klub", karaoke:"yandex-karaoke", all:"yandex-vse-gosti"}[kind] || "yandex";
+  const csv = ["phone_SHA256"].concat(rows.map(x=>x.phone_sha256)).join("\r\n");
+  if(yaDl(`${name}_${YA_DAYS||"vse"}.csv`, csv, false) && msg)
+    msg.textContent = `Готово: ${rows.length} номеров.` + warn;
+}
+async function yaVisits(){
+  const msg = document.getElementById("ya-msg");
+  if(msg) msg.textContent = "Собираю…";
+  await ensureToken();
+  const r = await sb.rpc("ya_visits", { p_days: YA_DAYS });
+  const d = (r && r.data) || {};
+  if(d.ok === false){ if(msg) msg.textContent = d.error || "Не получилось"; return; }
+  const rows = d.rows || [];
+  if(!rows.length){ if(msg) msg.textContent = "Визитов за этот период нет"; return; }
+  const head = ["дата","день","выходной","площадка","зона","человек","депозит",
+                "откуда узнал","повод","гость","визит №"];
+  const body = rows.map(x=>[x.date, x.dow, x.weekend?"да":"нет", x.venue, x.zone, x.pax,
+                            x.deposit, x.source, x.occasion, x.guest, x.visit_no].map(yaCsv).join(";"));
+  const csv = [head.join(";")].concat(body).join("\r\n");
+  if(yaDl(`vizity_${YA_DAYS||"vse"}.csv`, csv, true) && msg)
+    msg.textContent = `Готово: ${rows.length} визитов.`;
+}
+function yaOpen(){
+  if(!isOwner()) return;
+  document.getElementById("bkm-title").textContent = "Выгрузка для Директа";
+  document.getElementById("bkm-sub").textContent = "телефоны уходят только как SHA-256";
+  const per = n=>`<button type="button" data-yad="${n}" class="${YA_DAYS===n?'on':''}">${
+    n===365?"год":(n===730?"2 года":"всё время")}</button>`;
+  document.getElementById("bkm-body").innerHTML = `
+    <div class="ya-row">${per(365)}${per(730)}${per(0)}</div>
+    <div class="ya-card">
+      <div class="nm">Гости клуба · для Яндекс Аудиторий</div>
+      <div class="fx">Файл с одной колонкой phone_SHA256. При создании сегмента выберите
+        «Данные CRM», включите «Хешированные данные» и алгоритм SHA-256.</div>
+      <button type="button" onclick="yaAudience('club')">Скачать клуб</button>
+    </div>
+    <div class="ya-card">
+      <div class="nm">Гости караоке · для Яндекс Аудиторий</div>
+      <div class="fx">То же самое по караоке. Два отдельных сегмента нужны затем,
+        что это разные люди: пересечение между залами почти нулевое.</div>
+      <button type="button" onclick="yaAudience('karaoke')">Скачать караоке</button>
+    </div>
+    <div class="ya-card">
+      <div class="nm">Все гости · для look-alike</div>
+      <div class="fx">Общая база под похожую аудиторию. Для look-alike берите 1-2%.</div>
+      <button type="button" onclick="yaAudience('all')">Скачать всех</button>
+    </div>
+    <div class="ya-card">
+      <div class="nm">Визиты · для анализа в Excel</div>
+      <div class="fx">Строка на каждый визит: дата, день недели, площадка, зона, сколько человек,
+        депозит, откуда узнал, повод. Ни имён, ни телефонов — только «Г-000123», чтобы считать повторы.</div>
+      <button type="button" onclick="yaVisits()">Скачать визиты</button>
+    </div>
+    <div class="fx" id="ya-msg" style="font-size:12.5px;color:var(--emerald);min-height:18px"></div>
+    <div class="fx" style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:8px">
+      Сегмент меньше 100 записей Яндекс не примет. Загрузка хешей законнее и безопаснее
+      открытых номеров, но это всё равно передача персональных данных третьей стороне —
+      решение за вами.</div>`;
+  document.getElementById("bk-modal").classList.add("open");
+  document.querySelectorAll("[data-yad]").forEach(b=>{
+    b.onclick = ()=>{ YA_DAYS = Number(b.dataset.yad); yaOpen(); };
+  });
+}
+window.yaOpen = yaOpen; window.yaAudience = yaAudience; window.yaVisits = yaVisits;
+function yaWire(){
+  const b = document.getElementById("bk-ya-btn");
+  if(b && typeof isOwner==="function" && isOwner()){
+    b.style.display = "";
+    b.addEventListener("click", yaOpen);
+  }
+}
 
 </script>
 </body>
