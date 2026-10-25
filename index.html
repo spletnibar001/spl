@@ -1,4 +1,4 @@
-<!-- сборка 78 · 25.10.2026 -->
+<!-- сборка 79 · 25.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1491,7 +1491,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.10 · сборка 78";
+const APP_VERSION = "v 25.10 · сборка 79";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -7265,7 +7265,7 @@ function bkModalNew(){
     <div class="bkm-field"><label>Повод визита <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
       <div class="bkm-src" id="bkm-occ">${bkOccChips()}</div>
       <div id="bkm-occd"></div></div>
-    <div class="bkm-field"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
+    <div class="bkm-field" id="bkm-src-wrap" style="display:none"><label>Откуда узнали о нас? <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--gold)">· гость у нас впервые</span></label>
       <div class="bkm-src" id="bkm-src">${bkSrcChips()}</div></div>
     <div class="bkm-msg" id="bkm-msg"></div>
     <div class="bkm-actions">
@@ -7679,6 +7679,30 @@ function bkSrcSelected(){
   return el ? el.dataset.v : null;
 }
 // локальный переключатель чипов (без записи в базу)
+/* «Откуда узнали» спрашиваем только у нового гостя: у постоянного этот
+   ответ ничего не значит, а когда поле висит на каждой броне, его просто
+   перестают заполнять. Показываем по результату поиска по телефону. */
+function bkSrcShow(on){
+  const w = document.getElementById("bkm-src-wrap");
+  if(!w) return;
+  w.style.display = on ? "" : "none";
+  if(!on){
+    const sel = w.querySelector("button.on");
+    if(sel) sel.classList.remove("on");
+    BK_SRC_SKIP = false;
+  }
+}
+// один мягкий вопрос при сохранении, если у нового гостя источник не отмечен
+let BK_SRC_SKIP = false;
+function bkSrcAsked(){
+  const w = document.getElementById("bkm-src-wrap");
+  if(!w || w.style.display === "none") return true;      // не спрашивали — и не надо
+  if(bkSrcSelected()) return true;
+  if(BK_SRC_SKIP) return true;                           // второй раз — пропускаем
+  BK_SRC_SKIP = true;
+  bkMsg("Гость новый — спросите, откуда узнал. Если не знаете, нажмите «Создать бронь» ещё раз.");
+  return false;
+}
 function bkSrcWireLocal(){
   const w = document.getElementById("bkm-src");
   if(!w) return;
@@ -7739,7 +7763,11 @@ async function bkLookupGuest(){
   const raw=document.getElementById("bkm-phone").value;
   const info=document.getElementById("bkm-guestinfo");
   const norm = bkNormPhone(raw);
-  if(!norm || norm.length<9){ info.textContent=""; info.className="bkm-guestinfo"; return; }
+  if(!norm || norm.length<9){
+    info.textContent=""; info.className="bkm-guestinfo";
+    bkSrcShow(false);                      // телефона ещё нет — не о чем спрашивать
+    return;
+  }
   try{
     const {data} = await sb.from("guests").select("id,name,visits_kar_base,visits_club_base,visits_base").eq("phone_norm",norm).maybeSingle();
     if(data){
@@ -7747,8 +7775,10 @@ async function bkLookupGuest(){
       const txt = await bkVisitsText(data);
       info.textContent = `${data.name||"Гость"} · ${txt}`;
       info.className="bkm-guestinfo known";
+      bkSrcShow(false);                    // гость уже был — вопрос не имеет смысла
     }else{
       info.textContent="новый гость"; info.className="bkm-guestinfo new";
+      bkSrcShow(true);                     // вот тут и спрашиваем
     }
   }catch(_){ info.textContent=""; }
 }
@@ -7820,6 +7850,7 @@ async function bkActionCreate(){
   if(phoneDigits.startsWith("998")) phoneDigits=phoneDigits.slice(3);
   const hasPhone = phoneDigits.length>=9;
   if(!name && !hasPhone){ bkMsg("Укажите имя или телефон гостя"); return; }
+  if(!bkSrcAsked()) return;
   const phoneNorm = hasPhone ? bkNormPhone(rawPhone) : null;
   document.getElementById("bkm-save").disabled=true;
   bkMsg("Сохранение…", true);
