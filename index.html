@@ -1,4 +1,4 @@
-<!-- сборка 79 · 25.10.2026 -->
+<!-- сборка 80 · 27.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -470,6 +470,8 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .ya-card .fx{font-size:12px;color:var(--muted);line-height:1.55}
 .ya-card button{margin-top:9px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);
   color:var(--emerald);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+#ya-open{margin-top:10px;border:1px solid var(--gold);background:rgba(217,176,76,.14);color:var(--gold);
+  border-radius:10px;padding:10px 18px;font-size:14px;font-weight:800;cursor:pointer;width:100%}
 #bk-reqs-btn{border:1px solid var(--gold);background:rgba(217,176,76,.12);color:var(--gold);padding:7px 14px;
   font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-radius:9px;display:inline-flex;align-items:center;gap:7px}
 .bk-reqs-badge{background:var(--gold);color:#0c1410;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:800;min-width:18px;text-align:center}
@@ -1491,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 25.10 · сборка 79";
+const APP_VERSION = "v 27.10 · сборка 80";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -10572,7 +10574,17 @@ window.bsSetDays = bsSetDays; window.bsOpen = bsOpen;
    Серверная часть: yandex-vygruzka.sql
    ============================================================ */
 let YA_DAYS = 730;
-function yaDl(name, text, bom){
+/* Внутри Telegram ссылка на файл, собранный в самой странице, не сохраняется:
+   встроенный браузер просто ничего не делает, и выглядит это как «не качает».
+   Поэтому в Telegram кладём файл в закрытый бакет Supabase и отдаём временную
+   ссылку: её Telegram умеет и скачать, и открыть во внешнем браузере.
+   Серверная часть: vygruzka-hranilishche.sql */
+function yaInTelegram(){
+  const tg = window.Telegram && window.Telegram.WebApp;
+  return !!(tg && tg.initData && tg.initData.length > 5);
+}
+// обычный браузер: файл сразу уходит в загрузки
+function yaDlBrowser(name, text, bom){
   const blob = new Blob([(bom?"\ufeff":"") + text], {type:"text/csv;charset=utf-8"});
   try{
     const url = URL.createObjectURL(blob);
@@ -10583,8 +10595,52 @@ function yaDl(name, text, bom){
     return true;
   }catch(e){
     try{ window.open(URL.createObjectURL(blob), "_blank"); return true; }
-    catch(_){ alert("Не удалось скачать. Откройте программу в обычном браузере."); return false; }
+    catch(_){ return false; }
   }
+}
+// Telegram: файл в хранилище -> временная ссылка -> кнопка «Открыть файл»
+async function yaDlTelegram(name, text, bom){
+  const msg = document.getElementById("ya-msg");
+  const blob = new Blob([(bom?"\ufeff":"") + text], {type:"text/csv;charset=utf-8"});
+  const path = "yandex/" + name;
+  const up = await sb.storage.from("exports").upload(path, blob,
+    { contentType:"text/csv;charset=utf-8", upsert:true });
+  if(up && up.error){
+    if(msg) msg.textContent = "Файл собран, но не загрузился в хранилище: " + up.error.message;
+    return false;
+  }
+  const sg = await sb.storage.from("exports").createSignedUrl(path, 3600, { download: name });
+  const url = sg && sg.data && sg.data.signedUrl;
+  if(!url){
+    if(msg) msg.textContent = "Не удалось получить ссылку на файл";
+    return false;
+  }
+  // ссылку открываем по отдельному нажатию: Telegram разрешает это только
+  // как ответ на действие пользователя
+  const box = document.getElementById("ya-link");
+  if(box){
+    box.innerHTML = `<button type="button" id="ya-open">Открыть файл · ${hrEsc(name)}</button>
+      <div class="fx" style="font-size:11.5px;color:var(--muted);margin-top:6px">
+        Ссылка живёт час и доступна только вам.</div>`;
+    const b = document.getElementById("ya-open");
+    b.onclick = ()=>{
+      const tg = window.Telegram && window.Telegram.WebApp;
+      try{
+        if(tg && typeof tg.downloadFile === "function") tg.downloadFile({url, file_name:name});
+        else if(tg && typeof tg.openLink === "function") tg.openLink(url);
+        else window.open(url, "_blank");
+      }catch(_){ window.open(url, "_blank"); }
+    };
+  }
+  return true;
+}
+async function yaDl(name, text, bom){
+  const box = document.getElementById("ya-link");
+  if(box) box.innerHTML = "";
+  if(yaInTelegram()) return await yaDlTelegram(name, text, bom);
+  if(yaDlBrowser(name, text, bom)) return true;
+  alert("Не удалось скачать. Откройте программу в обычном браузере.");
+  return false;
 }
 const yaCsv = v => {
   const t = (v===null || v===undefined) ? "" : String(v);
@@ -10604,7 +10660,8 @@ async function yaAudience(kind){
     ? ` Внимание: Яндекс не примет сегмент меньше 100 записей, здесь ${rows.length}.` : "";
   const name = {club:"yandex-klub", karaoke:"yandex-karaoke", all:"yandex-vse-gosti"}[kind] || "yandex";
   const csv = ["phone_SHA256"].concat(rows.map(x=>x.phone_sha256)).join("\r\n");
-  if(yaDl(`${name}_${YA_DAYS||"vse"}.csv`, csv, false) && msg)
+  if(msg) msg.textContent = `Собрано ${rows.length} номеров, готовлю файл…`;
+  if(await yaDl(`${name}_${YA_DAYS||"vse"}.csv`, csv, false) && msg)
     msg.textContent = `Готово: ${rows.length} номеров.` + warn;
 }
 async function yaVisits(){
@@ -10621,7 +10678,8 @@ async function yaVisits(){
   const body = rows.map(x=>[x.date, x.dow, x.weekend?"да":"нет", x.venue, x.zone, x.pax,
                             x.deposit, x.source, x.occasion, x.guest, x.visit_no].map(yaCsv).join(";"));
   const csv = [head.join(";")].concat(body).join("\r\n");
-  if(yaDl(`vizity_${YA_DAYS||"vse"}.csv`, csv, true) && msg)
+  if(msg) msg.textContent = `Собрано ${rows.length} визитов, готовлю файл…`;
+  if(await yaDl(`vizity_${YA_DAYS||"vse"}.csv`, csv, true) && msg)
     msg.textContent = `Готово: ${rows.length} визитов.`;
 }
 function yaOpen(){
@@ -10656,6 +10714,7 @@ function yaOpen(){
       <button type="button" onclick="yaVisits()">Скачать визиты</button>
     </div>
     <div class="fx" id="ya-msg" style="font-size:12.5px;color:var(--emerald);min-height:18px"></div>
+    <div id="ya-link"></div>
     <div class="fx" style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:8px">
       Сегмент меньше 100 записей Яндекс не примет. Загрузка хешей законнее и безопаснее
       открытых номеров, но это всё равно передача персональных данных третьей стороне —
