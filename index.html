@@ -1493,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 27.10 · сборка 80";
+const APP_VERSION = "v 27.10 · сборка 82";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1526,16 +1526,31 @@ const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. окл�
 const FIX_SALARY_EMP  = ["анвар"];     // часть имени; добавляйте сюда новых фикс-окладников
 const FIX_WEEK_NORM   = 6;             // норма смен в расчётной неделе
 const FIX_EXTRA_BONUS = 500000;        // доплата за каждую смену сверх нормы
-const FIX_BONUS_FROM  = "2026-11-01";  // правило действует со смен от этой даты
+const FIX_BONUS_FROM  = "2026-11-01";  // доплата за смены сверх нормы — со смен от этой даты
+/* 27.10.2026: персональный фикс включался сразу, и за ОКТЯБРЬ табель перестал слать
+   недельные планы, а прислал месячный (носитель бонусов). В кассе у человека оказались
+   и недельные, и месячный планы — одна выплата вычиталась дважды, вылезла «переплата
+   6 800 000». Теперь фикс вступает в силу с конкретной расчётной недели: всё, что
+   раньше, считается по сменам, как было. */
+const FIX_FROM        = "2026-11-01";  // с этого дня человек из списка на фиксе; раньше — по сменам
 function isFixEmp(e){
   if(!e) return false;
   const n = String(e.name||"").toLowerCase();
   return FIX_SALARY_EMP.some(x=>n.includes(String(x).toLowerCase()));
 }
-function isNoRate(e){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmp(e)); }
+/* Пограничная неделя 28.10–03.11 делится по дням: смены до 31.10 платим по ставке,
+   с 01.11 человек на окладе. Поэтому проверка идёт по КОНКРЕТНОМУ дню (27.10.2026). */
+function isFixEmpOn(e, dateS){
+  if(!isFixEmp(e)) return false;
+  const d = String(dateS || ((typeof viewStart!=="undefined" && viewStart) ? iso(viewStart) : ""));
+  return !d || d >= FIX_FROM;
+}
+// на фиксе ли человек в конкретный день смены
+function noPayOnDay(e, dayS){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmpOn(e, dayS)); }
+function isNoRate(e, dateS){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmpOn(e, dateS)); }
 // смены сверх нормы за ОДНУ расчётную неделю: [{d, a}]
 function fixExtraShifts(emp, fromS, toS){
-  if(!isNoRate(emp)) return [];
+  if(!isFixEmp(emp) && !NO_RATE_ROLES.includes(emp && emp.emp_role)) return [];
   const paidThru = paidThroughDate();
   const days = [];
   for(const s of shiftRows){
@@ -1551,7 +1566,7 @@ function fixExtraShifts(emp, fromS, toS){
 }
 // то же за месяц — проходим все расчётные недели, что задевают месяц
 function fixExtraShiftsMonth(emp, mk){
-  if(!isNoRate(emp)) return [];
+  if(!isFixEmp(emp) && !NO_RATE_ROLES.includes(emp && emp.emp_role)) return [];   // проверку по дате делает fixExtraShifts
   const f = mk+"-01";
   const t = iso(new Date(Number(mk.slice(0,4)), Number(mk.slice(5,7)), 0));   // последний день месяца
   const out = [];
@@ -2000,6 +2015,9 @@ async function pushPlansToKassa(weekKey){
     const cp = kassaCp(e); if(!cp) continue;                 // роль без связи с кассой — пропускаем
     const rr = earnedInPeriod(e, weekKey, wkTo);
     try{
+      /* 27.10.2026: пограничная неделя даёт и то, и другое — месячный план с бонусами
+         (ноябрьская часть) и обычный недельный план на смены до перехода. Поэтому
+         после месячного пуша выходим только если сменных денег в неделе не осталось. */
       if(rr.noPay){                                          // Бар-менеджер (Зоха): оклад с кассы, из табеля — бонусы/штрафы за месяц
         /* Две правки 05.10.2026:
            1) поле penalty не передавалось вовсе — штраф уходил только внутрь planned,
@@ -2030,7 +2048,7 @@ async function pushPlansToKassa(weekKey){
           const label = JSON.stringify({label:m, items}).slice(0, 4000);
           if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:m,period_label:label,oklad:0,bonus:Math.round(mb),penalty:Math.round(mp),planned:Math.round(mb-mp),status:"confirmed"}});
         }
-        continue;
+        if(!(rr.basePlan > 0)) continue;                     // сменных денег в неделе нет — дальше нечего слать
       }
       let extraAmt=0;
       if(e.emp_role==="Официант") extraAmt=Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT/5000)*5000; // шаги 1% кратно 5000
@@ -2099,7 +2117,7 @@ function rateForDate(empId, dateS){
   return en.rate;
 }
 function earnedInPeriod(emp, fromS, toS){
-  const noPay = isNoRate(emp);
+  const noPay = isNoRate(emp, toS);          // на фиксе ли к концу периода (для подписей и пуша)
   const paidThru = paidThroughDate();  // оклад начислен по эту дату; смена текущего дня — только после 17:00
   let cnt=0, base=0, absent=0, cntPlan=0, basePlan=0;
   for(const s of shiftRows){
@@ -2107,7 +2125,7 @@ function earnedInPeriod(emp, fromS, toS){
     if(s.work_date>=fromS && s.work_date<=toS){
       if(s.status === 2){ absent++; }
       else {
-        const rate = noPay ? 0 : rateForDate(emp.id,s.work_date);
+        const rate = noPayOnDay(emp, s.work_date) ? 0 : rateForDate(emp.id,s.work_date);
         cntPlan++; basePlan += rate;                 // весь план недели
         if(s.work_date<=paidThru){ cnt++; base += rate; } // только уже отработанные (смена дня — после 17:00)
       }
