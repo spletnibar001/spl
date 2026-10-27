@@ -285,7 +285,7 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
 <div class="modal" id="xModal" hidden>
   <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="xH">
     <h3 id="xH">Тестовый режим</h3>
-    <p>Пока он включён, вкладку «Песни» в гостевом приложении видят и заказывают только тестовые Telegram-аккаунты, бот пишет только им, а планшет звука открывается руководству и тестировщикам.</p>
+    <p>Пока он включён, вкладку «Песни» в гостевом приложении видят и заказывают только тестовые Telegram-аккаунты, бот пишет только им, а планшет звука и кнопка «Песни» в табеле - только у администратора.</p>
     <div class="m-list" id="xBody"></div>
     <button type="button" class="btn" id="xClose" style="margin-top:10px;flex:none">Закрыть</button>
   </div>
@@ -323,7 +323,7 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
 "use strict";
 const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
-const ZVUK_VERSION = "сборка 4";
+const ZVUK_VERSION = "сборка 5";
 const WISH = { duet: "дуэт", lower: "тон ниже", higher: "тон выше", female: "женская версия", male: "мужская версия" };
 const wishTags = w => (w || []).map(x => '<span class="wtag">' + esc(WISH[x] || x) + "</span>").join("");
 const minFmt = m => m < 60 ? m + " мин" : Math.floor(m / 60) + " ч " + String(m % 60).padStart(2, "0") + " мин";
@@ -356,7 +356,7 @@ async function login(){
   if (!initData){ $("#auth-msg").innerHTML = "Откройте очередь песен из табеля в Telegram (кнопка «Песни»)."; return false; }
   const d = await fnCall({ action: "login", app: "staff", initData });
   if (!d.token){
-    $("#auth-msg").innerHTML = d.error === "not_staff" ? "Доступ только для звукооператоров и руководства." : d.error === "test_mode" ? "Очередь песен пока в тестовом режиме: планшет звука открыт руководству и тестовым аккаунтам." : ("Не удалось войти: " + esc(d.error || "ошибка"));
+    $("#auth-msg").innerHTML = d.error === "not_staff" ? "Доступ только для звукооператоров и руководства." : d.error === "test_mode" ? "Очередь песен пока в тестовом режиме: планшет звука открыт только администратору." : ("Не удалось войти: " + esc(d.error || "ошибка"));
     return false;
   }
   TOKEN = d.token;
@@ -377,7 +377,7 @@ async function api(action, args, retry){
   return d || {};
 }
 function apply(d){
-  if (d && d.error === "test_mode" && !d.queue){ $("#app").hidden = true; $("#auth").hidden = false; $("#auth-msg").textContent = "Очередь песен в тестовом режиме: доступ у руководства и тестовых аккаунтов."; return; }
+  if (d && d.error === "test_mode" && !d.queue){ $("#app").hidden = true; $("#auth").hidden = false; $("#auth-msg").textContent = "Очередь песен в тестовом режиме: планшет звука открыт только администратору."; return; }
   if (!d || d.error && !d.queue){ if (d && d.error) toast(ERR[d.error] || ("Ошибка: " + d.error)); return; }
   if (d.error) toast(ERR[d.error] || ("Ошибка: " + d.error));
   ST = d; OFFSET = new Date(d.now).getTime() - Date.now();
@@ -410,7 +410,7 @@ function renderTest(x){
   let h = '<div class="row2"><div><b>' + (x.test_mode ? "Сейчас: тестовый режим" : "Сейчас: открыто всем гостям") + "</b><span>" +
     (x.test_mode ? "Гости без доступа вкладку «Песни» не видят" : "Вкладка «Песни» у всех гостей") + '</span></div><button type="button" class="btn ' + (x.test_mode ? "on" : "gold") + '" data-xmode="' + (x.test_mode ? "0" : "1") + '">' +
     (x.test_mode ? "Открыть всем гостям" : "Вернуть тестовый режим") + "</button></div>";
-  h += '<div class="sub-lbl">Тестовые аккаунты</div>';
+  h += '<div class="sub-lbl">Тестовые аккаунты · видят «Песни» в гостевом приложении</div>';
   h += (x.testers || []).map(t => '<div class="row2"><div><b>' + esc(t.name) + "</b><span>Telegram ID " + t.tg + (String(t.tg) === String(x.me) ? " · это вы" : "") + '</span></div><button type="button" class="btn" data-xdel="' + t.tg + '" aria-label="Убрать из тестовых">×</button></div>').join("") || '<div class="note">Пока никого</div>';
   if (!ids.has(String(x.me))) h += '<button type="button" class="btn main" data-xme="1" style="width:100%;margin-top:8px">Добавить меня (этот Telegram)</button>';
   h += '<div class="sub-lbl">Добавить сотрудника</div><div class="form" style="grid-template-columns:minmax(0,1fr) auto"><select id="xStaff" aria-label="Сотрудник"><option value="">Выберите…</option>' +
