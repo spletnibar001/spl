@@ -1,4 +1,4 @@
-<!-- сборка 80 · 27.10.2026 -->
+<!-- сборка 82 · 28.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -159,10 +159,6 @@ window.__xlsxReady = (function(){
   tfoot td.earn{color:var(--emerald)}
   .empty{color:var(--muted);text-align:center;padding:24px 0}
   .hint{color:var(--muted);font-size:11px;margin-top:8px;line-height:1.5}
-  .kp-chip{font-size:11px;padding:3px 10px;border-radius:9px;border:1px solid var(--line);white-space:nowrap}
-  .kp-chip.ok{border-color:var(--emerald);color:var(--emerald)}
-  .kp-chip.bad{border-color:var(--red);color:var(--red);cursor:pointer}
-  .kp-chip.wait{border-color:var(--gold);color:var(--gold)}
   .btn-approve{background:var(--emerald);border-color:var(--emerald);color:#0c1410;font-weight:700}
   .btn-approve.unlock{background:var(--gold);border-color:var(--gold)}
   .lock-badge{display:inline-flex;margin-left:8px;font-size:10px;font-weight:700;
@@ -217,9 +213,8 @@ window.__xlsxReady = (function(){
   .penbon-menu .pb-pen{color:var(--red);font-weight:800}
   .penbon-menu .pb-bon{color:var(--emerald);font-weight:800}
   .bonal{color:var(--gold)}
-  /* подтверждённое состояние — цветом, а не галочкой: кружок сам зелёный (22.10.2026) */
   .cellwrap .chk-mark{position:absolute;top:-4px;left:-4px;width:14px;height:14px;border-radius:50%;
-    background:var(--emerald);font-size:0;line-height:14px;text-align:center;
+    background:#fff;color:var(--emerald);font-size:9px;font-weight:900;line-height:14px;text-align:center;
     border:1.5px solid var(--panel);pointer-events:none}
   td.actions .penbon-btn:active{transform:scale(.96)}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
@@ -560,7 +555,7 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .bk-t.booked .tn{color:var(--emerald)}
 .bk-t.seated{border-color:var(--red);background:rgba(226,92,92,.16);box-shadow:0 0 12px rgba(226,92,92,.2)}
 .bk-t.seated .tn{color:var(--red)} .bk-t.seated .g{color:var(--red)}
-.bk-t .paid{position:absolute;top:-6px;right:-6px;width:15px;height:15px;border-radius:50%;background:var(--emerald);font-size:0;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel)}
+.bk-t .paid{position:absolute;top:-6px;right:-6px;width:15px;height:15px;border-radius:50%;background:var(--emerald);color:#0a0b0e;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel)}
 /* караоке: кабинки/малый/летка — сетки */
 .bk-kab{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .bk-kab .bk-t{height:88px}
@@ -1202,8 +1197,6 @@ body.pc #pc-bar{display:flex;flex-wrap:wrap}
           <button id="wk-next">▶</button>
         </span>
         <button id="btn-approve" class="btn-approve">Утвердить</button>
-        <button id="btn-tokassa" class="btn-mini" style="display:none" title="Передать в кассу смены, штрафы и бонусы этой недели — без снятия утверждения">⟳ Передать в кассу</button>
-        <span id="kp-state" class="kp-chip" style="display:none"></span>
         <button id="btn-copyweek" class="btn-mini" style="display:none">⧉ Скопировать прошлую неделю</button>
       </div>
     </div>
@@ -1217,7 +1210,7 @@ body.pc #pc-bar{display:flex;flex-wrap:wrap}
       </span>
       <button class="btn-mini money-only" id="btn-export">⬇ Excel</button>
       <button class="btn-mini money-only" id="btn-export-pay" style="display:none">⬇ Итоги ЗП</button>
-      <button class="btn-mini" id="btn-checkin" style="display:none">Отметить приход</button>
+      <button class="btn-mini" id="btn-checkin" style="display:none">✓ Отметить приход</button>
       <button class="btn-mini" id="btn-remove" style="display:none">✕ Убрать из графика</button>
       <button class="btn-mini" id="btn-hr-shift" style="display:none">⚠ Нарушения смены</button>
       <button class="btn-mini" id="btn-hr-top" style="display:none">Выговоры и основания</button>
@@ -1500,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 27.10 · сборка 83";
+const APP_VERSION = "v 28.10 · сборка 82";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1533,31 +1526,16 @@ const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. окл�
 const FIX_SALARY_EMP  = ["анвар"];     // часть имени; добавляйте сюда новых фикс-окладников
 const FIX_WEEK_NORM   = 6;             // норма смен в расчётной неделе
 const FIX_EXTRA_BONUS = 500000;        // доплата за каждую смену сверх нормы
-const FIX_BONUS_FROM  = "2026-11-01";  // доплата за смены сверх нормы — со смен от этой даты
-/* 27.10.2026: персональный фикс включался сразу, и за ОКТЯБРЬ табель перестал слать
-   недельные планы, а прислал месячный (носитель бонусов). В кассе у человека оказались
-   и недельные, и месячный планы — одна выплата вычиталась дважды, вылезла «переплата
-   6 800 000». Теперь фикс вступает в силу с конкретной расчётной недели: всё, что
-   раньше, считается по сменам, как было. */
-const FIX_FROM        = "2026-11-01";  // с этого дня человек из списка на фиксе; раньше — по сменам
+const FIX_BONUS_FROM  = "2026-11-01";  // правило действует со смен от этой даты
 function isFixEmp(e){
   if(!e) return false;
   const n = String(e.name||"").toLowerCase();
   return FIX_SALARY_EMP.some(x=>n.includes(String(x).toLowerCase()));
 }
-/* Пограничная неделя 28.10–03.11 делится по дням: смены до 31.10 платим по ставке,
-   с 01.11 человек на окладе. Поэтому проверка идёт по КОНКРЕТНОМУ дню (27.10.2026). */
-function isFixEmpOn(e, dateS){
-  if(!isFixEmp(e)) return false;
-  const d = String(dateS || ((typeof viewStart!=="undefined" && viewStart) ? iso(viewStart) : ""));
-  return !d || d >= FIX_FROM;
-}
-// на фиксе ли человек в конкретный день смены
-function noPayOnDay(e, dayS){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmpOn(e, dayS)); }
-function isNoRate(e, dateS){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmpOn(e, dateS)); }
+function isNoRate(e){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmp(e)); }
 // смены сверх нормы за ОДНУ расчётную неделю: [{d, a}]
 function fixExtraShifts(emp, fromS, toS){
-  if(!isFixEmp(emp) && !NO_RATE_ROLES.includes(emp && emp.emp_role)) return [];
+  if(!isNoRate(emp)) return [];
   const paidThru = paidThroughDate();
   const days = [];
   for(const s of shiftRows){
@@ -1573,7 +1551,7 @@ function fixExtraShifts(emp, fromS, toS){
 }
 // то же за месяц — проходим все расчётные недели, что задевают месяц
 function fixExtraShiftsMonth(emp, mk){
-  if(!isFixEmp(emp) && !NO_RATE_ROLES.includes(emp && emp.emp_role)) return [];   // проверку по дате делает fixExtraShifts
+  if(!isNoRate(emp)) return [];
   const f = mk+"-01";
   const t = iso(new Date(Number(mk.slice(0,4)), Number(mk.slice(5,7)), 0));   // последний день месяца
   const out = [];
@@ -1912,42 +1890,12 @@ async function loadAll(){
   // авто-обновление плана ЗП в кассе: держим «заработано на сегодня» актуальным при каждом открытии.
   // Пушим не только просматриваемую неделю, но и все утверждённые недели за последние ~6 недель —
   // чтобы задним числом добавленный график (напр. новый официант на прошлой неделе) подтянулся в кассу.
-  /* 27.10.2026 (повторно — правка терялась при слиянии): условием пуша стояло
-     KASSA_PAID!==null. Если запрос «get» к кассе хоть раз не прошёл (нет initData,
-     сеть, функция не ответила), автопередача молча выключалась на всю сессию, и
-     обновлённые смены доезжали до кассы только после повторного «Утвердить» —
-     в кассе висел старый план («3 смены» вместо семи). Теперь пуш не зависит от
-     «get», результат виден в шапке и повторяется кнопкой. */
-  if(CAP.money) pushApprovedWeeks(weekKey, false);        // фоном, не ждём
-}
-let KASSA_PUSH = { at:0, ok:null, err:"", n:0, busy:false };
-async function pushApprovedWeeks(weekKey, manual){
-  if(!CAP.money) return;
-  if(KASSA_PUSH.busy) return;
-  const cutoff = iso(addDays(fromIso(weekKey), -42));     // окно: текущая и ~6 предыдущих недель
-  const weeks = [...new Set(approvals.map(a=>a.week_start))].filter(ws=>ws>=cutoff && ws<=weekKey);
-  if(!weeks.includes(weekKey) && approvals.some(a=>a.week_start===weekKey)) weeks.push(weekKey);
-  if(!weeks.length){ if(manual) showMsg("Эта неделя не утверждена — сначала «Утвердить»"); return; }
-  KASSA_PUSH.busy = true; paintKassaPush();
-  let done = 0, err = "";
-  for(const ws of weeks){
-    try{ await pushPlansToKassa(ws); done++; }
-    catch(e){ err = (e && e.message) || String(e); }
+  if(CAP.money && KASSA_PAID!==null){
+    const cutoff = iso(addDays(fromIso(weekKey), -42));   // окно: текущая и ~6 предыдущих недель
+    const weeks = [...new Set(approvals.map(a=>a.week_start))].filter(ws=>ws>=cutoff && ws<=weekKey);
+    if(!weeks.includes(weekKey) && approvals.some(a=>a.week_start===weekKey)) weeks.push(weekKey);
+    (async()=>{ for(const ws of weeks){ try{ await pushPlansToKassa(ws); }catch(_){} } })();  // фоном, последовательно
   }
-  KASSA_PUSH = { at: Date.now(), ok: !err, err, n: done, busy:false };
-  paintKassaPush();
-  if(manual) showMsg(err ? ("В кассу передать не удалось: "+err) : ("Передано в кассу · недель: "+done), !err);
-}
-function paintKassaPush(){
-  const el = document.getElementById("kp-state"); if(!el) return;
-  if(!CAP.money){ el.style.display = "none"; return; }
-  el.style.display = "";
-  el.onclick = function(){ pushApprovedWeeks(iso(viewStart), true); };
-  if(KASSA_PUSH.busy){ el.textContent = "передаю в кассу…"; el.className = "kp-chip wait"; return; }
-  if(KASSA_PUSH.ok === null){ el.textContent = "в кассу ещё не передавали"; el.className = "kp-chip wait"; return; }
-  const t = new Date(KASSA_PUSH.at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
-  if(KASSA_PUSH.ok){ el.textContent = "план в кассе · " + t + (KASSA_PUSH.n>1 ? (" · недель "+KASSA_PUSH.n) : ""); el.className = "kp-chip ok"; }
-  else { el.textContent = "в кассу не передан · " + (KASSA_PUSH.err || "ошибка") + " · нажмите, чтобы повторить"; el.className = "kp-chip bad"; }
 }
 /* ===== мост в кассу (kassa-payroll): авто-«ВЫДАНО» + запись плана ЗП ===== */
 /* --- буфер и бой посуды: только просмотр, данные считает касса (экшен my_buffer) --- */
@@ -2052,9 +2000,6 @@ async function pushPlansToKassa(weekKey){
     const cp = kassaCp(e); if(!cp) continue;                 // роль без связи с кассой — пропускаем
     const rr = earnedInPeriod(e, weekKey, wkTo);
     try{
-      /* 27.10.2026: пограничная неделя даёт и то, и другое — месячный план с бонусами
-         (ноябрьская часть) и обычный недельный план на смены до перехода. Поэтому
-         после месячного пуша выходим только если сменных денег в неделе не осталось. */
       if(rr.noPay){                                          // Бар-менеджер (Зоха): оклад с кассы, из табеля — бонусы/штрафы за месяц
         /* Две правки 05.10.2026:
            1) поле penalty не передавалось вовсе — штраф уходил только внутрь planned,
@@ -2085,7 +2030,7 @@ async function pushPlansToKassa(weekKey){
           const label = JSON.stringify({label:m, items}).slice(0, 4000);
           if(mb||mp) await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"month",period_key:m,period_label:label,oklad:0,bonus:Math.round(mb),penalty:Math.round(mp),planned:Math.round(mb-mp),status:"confirmed"}});
         }
-        if(!(rr.basePlan > 0)) continue;                     // сменных денег в неделе нет — дальше нечего слать
+        continue;
       }
       let extraAmt=0;
       if(e.emp_role==="Официант") extraAmt=Math.round((wvOf(e.id,weekKey).sales||0)*STEPS_PCT/5000)*5000; // шаги 1% кратно 5000
@@ -2154,7 +2099,7 @@ function rateForDate(empId, dateS){
   return en.rate;
 }
 function earnedInPeriod(emp, fromS, toS){
-  const noPay = isNoRate(emp, toS);          // на фиксе ли к концу периода (для подписей и пуша)
+  const noPay = isNoRate(emp);
   const paidThru = paidThroughDate();  // оклад начислен по эту дату; смена текущего дня — только после 17:00
   let cnt=0, base=0, absent=0, cntPlan=0, basePlan=0;
   for(const s of shiftRows){
@@ -2162,7 +2107,7 @@ function earnedInPeriod(emp, fromS, toS){
     if(s.work_date>=fromS && s.work_date<=toS){
       if(s.status === 2){ absent++; }
       else {
-        const rate = noPayOnDay(emp, s.work_date) ? 0 : rateForDate(emp.id,s.work_date);
+        const rate = noPay ? 0 : rateForDate(emp.id,s.work_date);
         cntPlan++; basePlan += rate;                 // весь план недели
         if(s.work_date<=paidThru){ cnt++; base += rate; } // только уже отработанные (смена дня — после 17:00)
       }
@@ -2612,9 +2557,6 @@ function render(){
     ab.textContent = "Утвердить"; ab.classList.remove("unlock");
     ab.style.display = CAP.approve ? "" : "none";
   }
-  const tk = $("btn-tokassa");
-  if(tk) tk.style.display = (CAP.money && locked) ? "" : "none";
-  paintKassaPush();
   $("grid").classList.toggle("locked", locked);
 
   const todayS = iso(businessNow());  // «сегодня» с учётом смены до 05:00
@@ -2695,7 +2637,7 @@ function render(){
         const ci = checkinRows.find(c=>c.employee_id===e.id && c.work_date===ds);
         if(ci){
           const t = new Date(ci.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
-          chkMark = `<span class="chk-mark" title="Пришёл, отметился в ${t}"></span>`;
+          chkMark = `<span class="chk-mark" title="Пришёл, отметился в ${t}">✓</span>`;
           if(!tip) tip = `title="Отметился о приходе в ${t}"`;
         }
       }
@@ -2745,7 +2687,7 @@ function render(){
           const weekTotal = Math.round((r.basePlan||0) + (r.bon||0) - (r.pen||0)) + extraAmt;
           const kp = kassaPaidFor(e);
           let cls='', txt='ожидает кассу';
-          if(kp>0 && weekTotal>0 && kp>=weekTotal){ cls='on'; txt='выплачено'; }
+          if(kp>0 && weekTotal>0 && kp>=weekTotal){ cls='on'; txt='✓ выплачено'; }
           else if(kp>0){ cls='on'; txt='аванс '+money(kp); }
           payTag = `<span class="pay-chip ro ${cls}" title="Статус из кассы — по факту выплат">${txt}</span>`;
         }
@@ -2755,16 +2697,16 @@ function render(){
         const paidExtra = isPaidOut(e.id, wkKey, 'extra');
         if(!noPay){
           if(CAP.sales){
-            payTag = `<button class="pay-chip${paidZp?' on':''}" onclick="togglePayout('${e.id}','zp')" title="${paidZp?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidZp?'выплачено':'выплатить'}</button>`;
+            payTag = `<button class="pay-chip${paidZp?' on':''}" onclick="togglePayout('${e.id}','zp')" title="${paidZp?'ЗП выплачена — отменить':'Отметить выплату ЗП'}">${paidZp?'✓ выплачено':'выплатить'}</button>`;
           }else if(paidZp){
-            payTag = `<span class="pay-chip on ro">выплачено</span>`;
+            payTag = `<span class="pay-chip on ro">✓ выплачено</span>`;
           }
         }
         if(extraAmt>0){
           if(CAP.sales){
-            extraTag = `<button class="pay-chip${paidExtra?' on':''}" onclick="togglePayout('${e.id}','extra')" title="${paidExtra?'Шаги/бонус выплачены — отменить':'Отметить выплату шагов/бонуса'}">${paidExtra?'выпл.':'выплатить'}</button>`;
+            extraTag = `<button class="pay-chip${paidExtra?' on':''}" onclick="togglePayout('${e.id}','extra')" title="${paidExtra?'Шаги/бонус выплачены — отменить':'Отметить выплату шагов/бонуса'}">${paidExtra?'✓ выпл.':'выплатить'}</button>`;
           }else if(paidExtra){
-            extraTag = `<span class="pay-chip on ro">выпл.</span>`;
+            extraTag = `<span class="pay-chip on ro">✓ выпл.</span>`;
           }
         }
       }
@@ -3559,7 +3501,7 @@ function renderStaffCabinet(cardsArg){
         const zalBadge = sh.place && PLACES[sh.place]
           ? `<span class="sc-badge" style="background:var(--panel2);color:var(--muted)">${PLACES[sh.place].label}</span>` : "";
         if(chk){
-          right = `<div class="sc-checked"><div>отмечен</div><div class="t">в ${new Date(chk.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</div></div>`;
+          right = `<div class="sc-checked"><div>отмечен</div><div class="t">в ${new Date(chk.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})} ✓</div></div>`;
         }else if(isToday){
           right = `<button class="sc-btn" onclick="staffCheckin('${ds}','${me.id}')">Я на смене</button>`;
         }else{
@@ -3932,7 +3874,7 @@ async function staffCheckin(ds, empId){
     const code = error.code || "";
     const dup = code==="23505" || /duplicate key|unique constraint/i.test(error.message||"");
     if(dup){
-      alert("Вы уже отметились на сегодня");
+      alert("Вы уже отметились на сегодня ✓");
     } else {
       alert("Не удалось отметиться: "+error.message);
       return;
@@ -3983,7 +3925,7 @@ function renderCheckinList(ds){
     const tm = done ? new Date(ci.checked_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     return `<div class="chk-row ${done?'done':''}">
       <div class="chk-nm"><b>${e.name}</b><span>${e.emp_role}${e.pos==="club"?" · клуб":(e.pos==="karaoke"?" · караоке":"")}</span></div>
-      ${done?`<span class="chk-tag">${tm}</span>`:""}
+      ${done?`<span class="chk-tag">✓ ${tm}</span>`:""}
       <input type="time" id="chk-t-${e.id}" value="${nowHHMM}">
       <button class="chk-btn ${done?'re':''}" onclick="doManualCheckin('${e.id}','${ds}')">${done?'Изменить':'Отметить'}</button>
     </div>`;
@@ -4369,7 +4311,7 @@ async function exportXlsx(){
       fmtNum(en.rate)+(en.mondayRate!=null?` (Пн ${fmtNum(en.mondayRate)})`:""),
       ...days.map(d=>{const sh=shiftOf(e.id,iso(d));
         if(!sh) return ""; if(sh.status===2) return "Н";
-        return sh.place && PLACES[sh.place] ? PLACES[sh.place].short : "\u25CF";}),
+        return sh.place && PLACES[sh.place] ? PLACES[sh.place].short : "✓";}),
       r.cnt, saleTxt, r.extra?Math.round(r.extra):"",
       r.pen?Math.round(r.pen):"", r.bon?Math.round(r.bon):"",
       r.noPay?"":Math.round(r.base), r.noPay?"":Math.round(r.sum)]);
@@ -4668,20 +4610,36 @@ async function startApp(){
   }
   $("wk-prev").addEventListener("click", async ()=>{ viewStart=addDays(viewStart,-7); syncPickersToWeek(); await refresh(); });
   $("wk-next").addEventListener("click", async ()=>{ viewStart=addDays(viewStart, 7); syncPickersToWeek(); await refresh(); });
+  // Утверждение недели. Передача плана в кассу занимает секунды, и за это
+  // время успевают нажать второй раз - поэтому кнопка блокируется на всё
+  // время операции, а запись идёт upsert: повторное утверждение той же
+  // недели не должно падать с ошибкой «уже есть».
+  let approveBusy = false;
   $("btn-approve").addEventListener("click", async ()=>{
+    if(approveBusy) return;
     const weekKey = iso(viewStart);
-    if(isApproved(weekKey)){
-      if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
-      if(!confirm("Снять утверждение недели?")) return;
-      const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
-      if(error) showMsg(error.message);
-    }else{
-      if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
-      const {error} = await sb.from("approvals").insert({week_start:weekKey});
-      if(error) showMsg(error.message);
-      else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
+    const btn = $("btn-approve");
+    const label = btn.textContent;
+    approveBusy = true; btn.disabled = true;
+    try{
+      if(isApproved(weekKey)){
+        if(!CAP.unapprove){ showMsg("Снять утверждение могут администратор и управляющий"); return; }
+        if(!confirm("Снять утверждение недели?")) return;
+        const {error} = await sb.from("approvals").delete().eq("week_start",weekKey);
+        if(error) showMsg(error.message);
+      }else{
+        if(!CAP.approve){ showMsg("Утверждать график могут кассир и администратор"); return; }
+        btn.textContent = "Утверждаем…";
+        const {error} = await sb.from("approvals")
+          .upsert({week_start:weekKey}, {onConflict:"week_start"});
+        if(error) showMsg(error.message);
+        else { try{ await pushPlansToKassa(weekKey); showMsg("Неделя утверждена · план ЗП передан в кассу", true); }
+               catch(e){ showMsg("Неделя утверждена. План в кассу передать не удалось: "+e.message); } }
+      }
+      await refresh();
+    } finally {
+      approveBusy = false; btn.disabled = false; btn.textContent = label;
     }
-    await refresh();
   });
   $("pen-add").addEventListener("click", addPenalty);
   $("pen-close").addEventListener("click", closePenalty);
@@ -5356,7 +5314,7 @@ function bkTableCell(t, weekend){
   const b=bkBookingFor(t.id);
   const cls=bkTableCls(b);
   const wasOcc = !b && bkWasOccupied(t.id);
-  const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid" title="Оплачено"></div>' : "";
+  const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid">✓</div>' : "";
   let inner = `<div class="tn">${t.name}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
@@ -5826,7 +5784,7 @@ function bkSchemaCell(code, style, opts){
   const b = bkBookingFor(t.id);
   const cls = bkTableCls(b);
   const wasOcc = !b && bkWasOccupied(t.id);
-  const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid" title="Оплачено"></div>' : "";
+  const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid">✓</div>' : "";
   const num0 = opts.label!=null ? opts.label : t.name.replace('Стол ','').replace('Каб. слева ','').replace('Каб. справа ','').replace('Кокт. ','').replace('Подиум ','').replace('ВИП ','ВИП ');
   const num = num0;
   if(BK.view==="dep") return dpCellHtml(t, num, style, !!opts.round);
@@ -5994,10 +5952,10 @@ function bkBookingList(title){
     const star = (typeof rcIsCandidateBooking==="function" && rcIsCandidateBooking(b))
       ? `<span class="rc-star" title="Кандидат на отзыв">⭐</span> ` : "";
     const dep = (BK.seeMoney && b.deposit_amount>0) ? `<span class="dep">депозит ${bkFmtMoney(b.deposit_amount)}</span>` : "";
-    // караоке: оплату не отслеживаем. Клуб: показываем только «оплачено» после оплаты,
+    // караоке: оплату не отслеживаем. Клуб: показываем только «✓ оплачено» после оплаты,
     // метку «не оплачено» не показываем нигде.
     const isKar = b.venue_key === "karaoke";
-    const pay = (BK.seeMoney && !isKar && b.deposit_amount>0 && b.is_paid) ? '<span class="paid-tag">оплачено</span>' : "";
+    const pay = (BK.seeMoney && !isKar && b.deposit_amount>0 && b.is_paid) ? '<span class="paid-tag">✓ оплачено</span>' : "";
     const phone = b.display_phone? " · "+bkFmtPhone(b.display_phone) : "";
     // автор брони — только в виде "Сетка"
     const author = (BK.view==="grid" && b.created_by_name) ? `<div class="bl-meta" style="opacity:.8">поставил: ${b.created_by_name}</div>` : "";
@@ -6733,7 +6691,7 @@ async function callResult(gid, phone, res, btn){
   if(error){ alert(error.message); btn.disabled=false; return; }
   const card = document.getElementById("cc-"+gid);
   if(card){ card.style.opacity=".55"; card.querySelector(".cres").innerHTML =
-    `<span style="color:var(--emerald);font-size:12px;font-weight:700">${names[res]}</span>`; }
+    `<span style="color:var(--emerald);font-size:12px;font-weight:700">✓ ${names[res]}</span>`; }
 }
 // показать полный номер на планшете (для набора на рабочем телефоне) + журнал раскрытий
 async function callReveal(gid, phone, btn){
@@ -8399,7 +8357,7 @@ function barPaint(pid, vol, keepLit){
     if(u) u.textContent = "расход: "+barFmt(used)+(p.method==="weight"?" л":" шт");
     // локальная подсветка только «невозможного роста»; норму считает сервер при сохранении
     if(used < -0.01){ card.classList.add("bad"); vv.className="brx-bad"; vv.textContent="⚠ остаток вырос — проверьте"; }
-    else { card.classList.remove("bad"); vv.className="brx-ok"; vv.textContent="норма"; }
+    else { card.classList.remove("bad"); vv.className="brx-ok"; vv.textContent="✓"; }
   }
   const done = Object.keys(BAR.items).length;
   const btn = $("brx-done");
@@ -8432,7 +8390,7 @@ function barSignScreen(anoms){
   const sc = $("bar-screen");
   sc.innerHTML = `<div class="brx-head"><h2>Замер сохранён</h2><button class="brx-close" onclick="barClose()">✕</button></div>
   <div class="brx-card ${anoms?"bad":""}">
-    <div class="brx-nm">${anoms?("⚠ Аномалий: "+anoms):"Аномалий нет"}</div>
+    <div class="brx-nm">${anoms?("⚠ Аномалий: "+anoms):"Аномалий нет ✓"}</div>
     <div class="brx-sub" style="margin-top:6px">Теперь нужна подпись проверяющего: попросите коллегу на смене
     (бармена, администратора или менеджера) открыть «Табель» → кнопка «🍸 Бар» → «Проверить и подписать».</div>
   </div>
@@ -8468,14 +8426,14 @@ async function barReview(shiftId){
 async function barSign(shiftId){
   try{
     const d = await barApi("shift_sign",{shift_id:shiftId});
-    alert("Подписано"+(d.anomalies?(" · аномалий: "+d.anomalies):""));
+    alert("Подписано ✓"+(d.anomalies?(" · аномалий: "+d.anomalies):""));
     barOpen();
   }catch(e){ alert(e.message); }
 }
 
 async function barBatchConfirm(bid){
   if(!confirm("Подтверждаете получение? Товар пересчитан по факту.")) return;
-  try{ await barApi("batch_confirm",{batch_id:bid}); alert("Принято"); barOpen(); }
+  try{ await barApi("batch_confirm",{batch_id:bid}); alert("Принято ✓"); barOpen(); }
   catch(e){ alert(e.message); }
 }
 
@@ -8531,7 +8489,7 @@ async function barInitialSave(){
   const items = barCollect("brx-in");
   if(!items.length){ alert("Введите хотя бы одну позицию"); return; }
   if(!confirm(`Записать начальные остатки по ${items.length} позициям? Действие одноразовое.`)) return;
-  try{ await barApi("initial_stock",{items}); alert("Склад заведён"); barWarehouse(); }
+  try{ await barApi("initial_stock",{items}); alert("Склад заведён ✓"); barWarehouse(); }
   catch(e){ alert(e.message==="not_empty"?"Склад уже не пуст — начальный ввод недоступен":e.message); }
 }
 function barSupply(){
@@ -8555,7 +8513,7 @@ async function barSupplySave(){
     const d = await barApi("supply_create",{items,
       supplier:$("brx-sup-name").value.trim()||null,
       invoice_no:$("brx-sup-inv").value.trim()||null});
-    alert(`Приход №${d.batch_id} проведён`);
+    alert(`Приход №${d.batch_id} проведён ✓`);
     barWarehouse();
   }catch(e){ alert(e.message); }
 }
@@ -8590,7 +8548,7 @@ async function barLog(){
   (rows||[]).forEach(r=>{
     html += `<div class="brx-card ${r.anomalies?"bad":""}"><div class="brx-row1">
       <span class="brx-nm">${r.bar_locations?.name||""} · ${r.business_date}</span>
-      <span class="brx-sub">${r.anomalies?("⚠ "+r.anomalies):"без аномалий"}${r.no_reviewer?" · без пров.":""}</span></div>
+      <span class="brx-sub">${r.anomalies?("⚠ "+r.anomalies):"✓"}${r.no_reviewer?" · без пров.":""}</span></div>
       <div class="brx-sub">расход ${barFmt(r.consumed_uzs,0)} UZS · ${r.kind==="open"?"открытие":r.kind==="close"?"закрытие":"пересменка"}</div>
     </div>`;
   });
@@ -8931,7 +8889,7 @@ function rcBodyManager(){
             <span class="rc-tag">ждёт администратора</span></div>`;
         }
         return `<div class="rc-row wait"><div class="rc-nm"><b>${nm}</b><span>${sub||"ждёт проверки"}</span></div>
-          ${pic}<button class="rc-btn gr" onclick="rcConfirm('${i.id}')">Видел отзыв</button>
+          ${pic}<button class="rc-btn gr" onclick="rcConfirm('${i.id}')">✓ Видел отзыв</button>
           <button class="rc-btn gh" onclick="rcReject('${i.id}')">нет</button></div>`;
       }).join("");
     }
@@ -9969,10 +9927,33 @@ async function awOpen(){
   // месяц не годится — блок и месяц не совпадают, и бонус можно было
   // выдать дважды почти за те же недели.
   if(AW.best && AW.best.period_key) AW.month = AW.best.period_key;
-  // период — 4 платёжные недели, а не календарный месяц
-  if(AW.best) $("hr-aw-sub").textContent =
-    `Бонусы устава · ${fmtD(fromIso(AW.best.from))} — ${fmtD(fromIso(AW.best.till))} · ${AW.best.weeks} недели`;
+  // период — 4 платёжные недели, а не календарный месяц.
+  // Блок закрывается и дальше две недели висит на экране, пока не
+  // доработает следующий. Без подписи это читается как «период идёт»,
+  // и «проходит по уставу» выглядит преждевременным — поэтому пишем прямо,
+  // закрыт период или ещё считается.
+  if(AW.best) $("hr-aw-sub").textContent = awPeriodText(AW.best);
   awRender();
+}
+// подпись периода: закрыт он или ещё идёт, и что будет следующим
+function awPeriodText(B){
+  const base = `Бонусы устава · ${fmtD(fromIso(B.from))} — ${fmtD(fromIso(B.till))} · ${B.weeks} недели`;
+  try{
+    const till = fromIso(B.till);
+    const today = fromIso(isoBizToday());
+    if(today <= till){
+      const day = Math.floor((today - fromIso(B.from)) / 86400000) + 1;
+      const all = Math.floor((till - fromIso(B.from)) / 86400000) + 1;
+      return base + ` · идёт, день ${day} из ${all}`;
+    }
+    // период закрыт — показываем, когда доработает следующий
+    const nFrom = addDays(till, 1);
+    const nTill = addDays(till, Number(B.weeks || 4) * 7);
+    const day = Math.floor((today - nFrom) / 86400000) + 1;
+    const all = Math.floor((nTill - nFrom) / 86400000) + 1;
+    return base + ` · период закрыт, можно награждать · следующий ${
+      fmtD(nFrom)} — ${fmtD(nTill)}, идёт день ${day} из ${all}`;
+  }catch(_){ return base; }
 }
 function awClose(){ $("hr-aw-modal").classList.remove("open"); }
 function awMsg(t, ok){
@@ -10065,9 +10046,12 @@ function awRender(){
   const B = AW.best;
   html += `<div class="hr-sec">Лучший сотрудник месяца</div>`;
   if(B){
+    const closed = (function(){ try{ return fromIso(isoBizToday()) > fromIso(B.till); }catch(_){ return false; } })();
     html += `<div class="hr-note" style="margin:0 0 10px">За 4 платёжные недели:
-      <b>${fmtD(fromIso(B.from))} — ${fmtD(fromIso(B.till))}</b>. Система считает смены, продажи,
-      опоздания и штрафы; выбираете вы.</div>`;
+      <b>${fmtD(fromIso(B.from))} — ${fmtD(fromIso(B.till))}</b>${
+        closed ? ` <span style="color:var(--emerald)">· период закрыт ${fmtD(fromIso(B.till))}, цифры окончательные</span>`
+               : ` <span style="color:var(--gold)">· период ещё идёт, цифры неполные</span>`}.
+      Система считает смены, продажи, опоздания и штрафы; выбираете вы.</div>`;
   }
   if(given.length){
     html += given.map(b=>{
