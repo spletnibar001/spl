@@ -1,4 +1,4 @@
-<!-- сборка 83 · 29.10.2026 -->
+<!-- сборка 84 · 29.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1493,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 29.10 · сборка 83";
+const APP_VERSION = "v 29.10 · сборка 84";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -7818,11 +7818,13 @@ async function bkLookupGuest(){
     return;
   }
   try{
-    const {data} = await sb.from("guests").select("id,name,visits_kar_base,visits_club_base,visits_base").eq("phone_norm",norm).maybeSingle();
-    if(data){
+    // Раньше тут читалась таблица guests напрямую, из-за чего вся база
+    // (~2700 имён и телефонов) была открыта любому вошедшему. Теперь
+    // сервер отдаёт ровно одну строку по точному номеру.
+    const {data} = await sb.rpc("bk_guest_lookup", { p_phone: norm });
+    if(data && data.found){
       const nm=document.getElementById("bkm-name"); if(nm && !nm.value) nm.value=data.name||"";
-      const txt = await bkVisitsText(data);
-      info.textContent = `${data.name||"Гость"} · ${txt}`;
+      info.textContent = `${data.name||"Гость"} · ${data.visits_text||""}`;
       info.className="bkm-guestinfo known";
       bkSrcShow(false);                    // гость уже был — вопрос не имеет смысла
     }else{
@@ -7907,12 +7909,10 @@ async function bkActionCreate(){
     // найти/создать гостя
     let guestId=null;
     if(phoneNorm && phoneNorm.length>=9){
-      const {data:g} = await sb.from("guests").select("id").eq("phone_norm",phoneNorm).maybeSingle();
-      if(g) guestId=g.id;
-      else{
-        const {data:ng,error:ge} = await sb.from("guests").insert({phone_norm:phoneNorm, name:name||null, source:"manual"}).select("id").single();
-        if(!ge && ng) guestId=ng.id;
-      }
+      // найти или завести - на сервере, чтобы приложению не нужно было
+      // ни читать таблицу гостей, ни получать строку обратно после вставки
+      const {data:ge} = await sb.rpc("bk_guest_ensure", { p_phone: phoneNorm, p_name: name||null });
+      if(ge && ge.ok && ge.id) guestId = ge.id;
     }
     // дата брони из формы (можно бронировать на другой день)
     const bizDate = bkFormDate();
@@ -7970,12 +7970,10 @@ async function bkActionWalkin(){
     // найти/создать гостя, только если указали телефон
     let guestId=null;
     if(phoneNorm && phoneNorm.length>=9){
-      const {data:g} = await sb.from("guests").select("id").eq("phone_norm",phoneNorm).maybeSingle();
-      if(g) guestId=g.id;
-      else{
-        const {data:ng,error:ge} = await sb.from("guests").insert({phone_norm:phoneNorm, name:name||null, source:"manual"}).select("id").single();
-        if(!ge && ng) guestId=ng.id;
-      }
+      // найти или завести - на сервере, чтобы приложению не нужно было
+      // ни читать таблицу гостей, ни получать строку обратно после вставки
+      const {data:ge} = await sb.rpc("bk_guest_ensure", { p_phone: phoneNorm, p_name: name||null });
+      if(ge && ge.ok && ge.id) guestId = ge.id;
     }
     // посадка по факту — всегда на текущий бизнес-день
     const bizDate = bkToday();
