@@ -1,4 +1,4 @@
-<!-- сборка 82 · 28.10.2026 -->
+<!-- сборка 83 · 29.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1493,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 28.10 · сборка 82";
+const APP_VERSION = "v 29.10 · сборка 83";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -3350,6 +3350,35 @@ async function loadStaff(){
   rates = rt.data||[]; wvRows = wv.data||[]; penRows = pen.data||[]; bonRows = bon.data||[];
   await loadCabinSeatings();
   myCheckins = chk.data||[]; approvals = appr.data||[];
+
+  /* Раньше здесь полагались на RLS: «сотруднику база отдаёт только его строки».
+     29.10.2026 выяснилось, что это перестало выполняться - в кабинете Доси
+     показались все сотрудники сразу, с чужими сменами и суммами.
+     Теперь кабинет отбирает свои карточки сам, по telegram_id. Если база
+     присылает лишнее, на экран это уже не попадёт. Саму причину на сервере
+     это не отменяет - её надо чинить отдельно. */
+  const myTg = Number(ME.tg_id || ME.telegram_id || 0);
+  if(myTg){
+    const mine = employees.filter(e => Number(e.telegram_id) === myTg && !e.archived);
+    if(mine.length){
+      const ids = mine.map(c => c.id);
+      if(mine.length !== employees.length){
+        console.warn("Личный кабинет: база прислала " + employees.length +
+                     " карточек вместо " + mine.length + " - лишнее отфильтровано");
+      }
+      employees  = mine;
+      shiftRows  = shiftRows.filter(x => ids.includes(x.employee_id));
+      rates      = rates.filter(x => ids.includes(x.employee_id));
+      wvRows     = wvRows.filter(x => ids.includes(x.employee_id));
+      penRows    = penRows.filter(x => ids.includes(x.employee_id));
+      bonRows    = bonRows.filter(x => ids.includes(x.employee_id));
+      myCheckins = myCheckins.filter(x => ids.includes(x.employee_id));
+    } else if(employees.length > 1){
+      // своей карточки не нашли, а чужие пришли - показывать их нельзя
+      employees = []; shiftRows = []; rates = []; wvRows = [];
+      penRows = []; bonRows = []; myCheckins = [];
+    }
+  }
 }
 function myEmployeeCards(){
   // карточки, принадлежащие текущему пользователю (по telegram_id)
@@ -3405,6 +3434,8 @@ function renderStaffCabinet(cardsArg){
   SC_OWN = true;   // личный кабинет: считаем бонусы/штрафы в «Итого»
   // ВСЕ карточки этого человека. Для staff RLS вернул только его строки → берём все.
   // Для руководителя (свой кабинет) передаём явно его карточки.
+  // employees на этом экране уже отфильтрован в loadStaff; слайс оставлен
+  // на случай прямого вызова, но без своих карточек рисовать нечего
   const myCards = cardsArg || employees.slice();
   if(!myCards.length){
     box.innerHTML = `<div class="card"><h2>Кабинет сотрудника</h2>
@@ -5319,7 +5350,7 @@ function bkTableCell(t, weekend){
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const depTxt = (BK.seeMoney && b.deposit_amount>0) ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
-    inner += `<div class="g">${hrEsc(b.guest_name||b.display_name||"")}${tm?("<br>~"+tm):""}</div>${depTxt}`;
+    inner += `<div class="g">${b.guest_name||b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
   }else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   }else{
@@ -5792,7 +5823,7 @@ function bkSchemaCell(code, style, opts){
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const depTxt = (BK.seeMoney && b.deposit_amount>0) ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
-    inner += `<div class="g">${hrEsc(b.guest_name||b.display_name||"")}${tm?("<br>~"+tm):""}</div>${depTxt}`;
+    inner += `<div class="g">${b.guest_name||b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
   } else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   } else if(opts.showDep!==false){
@@ -5918,7 +5949,7 @@ function bkUpcomingList(){
     const tm=b.arrive_at?new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}):"";
     rows += `<div class="bk-up-row" data-d="${b.business_date}">
       <span class="u-tbl">${b.table_name}<span class="u-zone">${b.zone_title||""}</span></span>
-      <span class="u-name">${hrEsc(b.guest_name||b.display_name||"—")}</span>
+      <span class="u-name">${b.guest_name||b.display_name||"—"}</span>
       <span class="u-time">${seated?"сели":("~"+tm)}</span></div>`;
   });
   return `<div class="bk-blist"><div class="bk-bl-head">Все брони вперёд <span>${list.length}</span></div>
@@ -5962,11 +5993,11 @@ function bkBookingList(title){
     // иконка звонка — только для роли phone и только если есть номер
     const telRaw = b.display_phone ? String(b.display_phone).replace(/[^\d+]/g,"") : "";
     const callBtn = (BK.canCall && telRaw)
-      ? `<a class="bk-call" href="tel:${telRaw}" title="Позвонить ${hrEsc(b.display_phone)}" onclick="event.stopPropagation()">📞</a>`
+      ? `<a class="bk-call" href="tel:${telRaw}" title="Позвонить ${b.display_phone}" onclick="event.stopPropagation()">📞</a>`
       : "";
     return `<div class="bk-brow ${finished?"b-finished":(seated?"b-seated":"b-booked")}">
       <div class="bk-when"><div class="t-tbl">${b.table_name}</div><div class="t-zone">${b.zone_title||""}</div><div class="t-time">${when}</div></div>
-      <div class="bk-bmain"><div class="bl-name">${star}${hrEsc(b.guest_name||b.display_name||"—")} ${vc}</div>
+      <div class="bk-bmain"><div class="bl-name">${star}${b.guest_name||b.display_name||"—"} ${vc}</div>
         <div class="bl-meta">${b.guests_count||"?"} гостей${phone}</div>
         ${author}
         <div class="bk-bpay">${dep} ${pay}</div></div>
@@ -6993,7 +7024,7 @@ function bkOpenRequests(){
           <div class="bk-req-when">${venue}${r.zone_title?(" · "+r.zone_title):""} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}</div>
           <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):"число гостей не указано"}</div>
         </div>
-        <div class="bk-req-name">${hrEsc(r.guest_name||"Гость")}${r.phone?` · <a href="tel:${String(r.phone).replace(/[^\d+]/g,"")}" style="color:var(--emerald)">${hrEsc(r.phone)}</a>`:""}</div>
+        <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
         ${note?`<div class="bk-req-note">${note}</div>`:""}
         ${gComment?`<div class="bk-req-comment">${gComment}</div>`:""}
         <div class="bk-req-actions">
@@ -7016,7 +7047,7 @@ function bkOpenRequests(){
             <div class="bk-req-when">✕ ${venue} · ${bkFmtDate(fromIso(r.business_date))}${tm?(" · ~"+tm):""}${place?(" · "+place):""}</div>
             <div class="bk-req-guests">${r.guests_count?(r.guests_count+" гост."):"число гостей не указано"}</div>
           </div>
-          <div class="bk-req-name">${hrEsc(r.guest_name||"Гость")}${r.phone?` · <a href="tel:${String(r.phone).replace(/[^\d+]/g,"")}" style="color:var(--emerald)">${hrEsc(r.phone)}</a>`:""}</div>
+          <div class="bk-req-name">${(r.guest_name||"Гость").replace(/</g,"&lt;")}${r.phone?` · <a href="tel:${r.phone}" style="color:var(--emerald)">${r.phone}</a>`:""}</div>
           ${reason?`<div class="bk-req-comment">${reason}</div>`:""}
           ${when?`<div class="bk-req-note">Отменено: ${when}</div>`:""}
           <div class="bk-req-actions">
@@ -7092,7 +7123,7 @@ async function bkConfirmRequest(rid){
   document.getElementById("bkm-title").textContent = "Подтвердить заявку";
   document.getElementById("bkm-sub").textContent = (venueKey==="club"?"Клуб":"Караоке")+" · "+bkFmtDate(fromIso(r.business_date));
   document.getElementById("bkm-body").innerHTML = `
-    <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${hrEsc(r.guest_name||"Гость")}${r.phone?` · ${hrEsc(bkFmtPhone(r.phone))}`:""}</div></div>
+    <div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>
     ${noteMeta?`<div class="bkm-field"><label>Заявка</label><div>${noteMeta}</div></div>`:""}
     ${guestComment?`<div class="bkm-field"><label>Комментарий гостя</label><div class="bkm-comment">${guestComment}</div></div>`:""}
     <div class="bkm-field"><label>Дата</label>
@@ -7181,7 +7212,7 @@ function bkRejectRequest(rid){
   document.getElementById("bkm-title").textContent = "Отклонить заявку";
   document.getElementById("bkm-sub").textContent = sub;
   document.getElementById("bkm-body").innerHTML = `
-    ${r?`<div class="bkm-field"><label>Гость</label><div style="font-weight:700">${hrEsc(r.guest_name||"Гость")}${r.phone?` · ${hrEsc(bkFmtPhone(r.phone))}`:""}</div></div>`:""}
+    ${r?`<div class="bkm-field"><label>Гость</label><div style="font-weight:700">${(r.guest_name||"Гость")}${r.phone?` · ${bkFmtPhone(r.phone)}`:""}</div></div>`:""}
     <div class="bkm-field"><label>Причина отказа (необязательно — увидит гость)</label>
       <div class="rej-quick" id="bk-rej-quick">
         <button type="button" data-rej="К сожалению, на эту дату свободных мест нет.">Нет мест</button>
@@ -7464,7 +7495,7 @@ function bkModalExisting(){
   const commentE = (cmE ? cmE[1].trim() : (/Заявка с сайта/.test(noteRawE) ? "" : noteRawE.trim())).replace(/</g,"&lt;");
   return `
     <div class="bkm-field"><label>Гость</label>
-      <div style="font-size:16px;font-weight:700">${hrEsc(b.guest_name||b.display_name||"—")} <span style="font-size:12px;color:var(--blue,#4ea6e2);font-weight:400">${vc}</span></div>
+      <div style="font-size:16px;font-weight:700">${b.guest_name||b.display_name||"—"} <span style="font-size:12px;color:var(--blue,#4ea6e2);font-weight:400">${vc}</span></div>
       <div style="font-size:13px;color:var(--muted);margin-top:3px">${b.display_phone?bkFmtPhone(b.display_phone):"телефон не указан"}</div></div>
     ${commentE?`<div class="bkm-field"><label>Комментарий</label><div class="bkm-comment">${commentE}</div></div>`:""}
     <div class="bkm-row">
