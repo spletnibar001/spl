@@ -1697,7 +1697,7 @@ function renderDress(){
 // что на карточках «Залы», поэтому расходиться они не могут.
 function faqDepTable(){
   const Z = ZONE_DEP_NOTE;
-  const esc = v => String(v==null?"":v).replace(/</g,"&lt;");
+  const esc = v => String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const money = v => Number(v)>0 ? bkfMoney(v) : "—";
   const rows = [];
   bkfZonesFor(FAQ_VENUE).forEach(zone=>{
@@ -2195,7 +2195,7 @@ function bkfStatusCard(b){
     const reason = (b.cancel_reason||"").trim();
     const selfCancel = /^Отмена гостем/i.test(reason);
     const reasonBlock = (reason && !selfCancel)
-      ? `<div class="bk-res-reason"><b>${t('bk_lbl_reason')}:</b> ${reason.replace(/</g,"&lt;")}</div>`
+      ? `<div class="bk-res-reason"><b>${t('bk_lbl_reason')}:</b> ${esc(reason)}</div>`
       : "";
     // контакты заведения заявки (караоке/клуб) — чтобы гость мог связаться
     const {venue} = bkfResolveTable(b.table_id);
@@ -2386,7 +2386,7 @@ function bkfDrawForm(){
                 value="${BK_STATE.date||quick[0]}"></label>`;
 
   const zoneBtns = `<div class="bk-zones">` + zones.map(z=>
-    `<button data-bz="${z.id}" class="${BK_STATE.zoneId===z.id?'on':''}">${z.title}</button>`
+    `<button data-bz="${z.id}" class="${BK_STATE.zoneId===z.id?'on':''}">${esc(z.title)}</button>`
   ).join("") + `</div>`;
 
   // интервалы времени с шагом 30 мин: караоке с 18:00, клуб с 22:00/23:00 по дню недели
@@ -2474,10 +2474,10 @@ function bkfDrawForm(){
     ${depBlock}
 
     <label class="bk-lbl">${t('bk_phone')}</label>
-    <input id="bk-phone" class="bk-input" type="tel" inputmode="tel" placeholder="+998 __ ___ __ __" value="${BK_STATE.phone||''}">
+    <input id="bk-phone" class="bk-input" type="tel" inputmode="tel" placeholder="+998 __ ___ __ __" value="${esc(BK_STATE.phone||'')}">
 
     <label class="bk-lbl">${t('bk_comment')}</label>
-    <textarea id="bk-comment" class="bk-input" rows="2" placeholder="${t('bk_comment_ph')}">${BK_STATE.comment||''}</textarea>
+    <textarea id="bk-comment" class="bk-input" rows="2" placeholder="${t('bk_comment_ph')}">${esc(BK_STATE.comment||'')}</textarea>
 
     <div class="bk-msg" id="bk-msg"></div>
     <button class="bk-submit" id="bk-submit">${t('bk_submit')}</button>`;
@@ -2711,15 +2711,15 @@ function renderZones(){
     // подставляется после загрузки справочников (bkfFillZoneDeps); пока — «по запросу»
     tags.push(`<span class="zone-tag" id="zdep-${z.id}">${pick(Z.deposit)}: <b>${pick(Z.request)}</b></span>`);
 
-    const note = z.note ? `<div class="zone-note">${pick(z.note)}</div>` : "";
+    const note = z.note ? `<div class="zone-note">${esc(pick(z.note))}</div>` : "";
 
     return `<div class="zone-card">
       ${gallery}
       <div class="zone-body">
-        <h3>${pick(z.name)}</h3>
+        <h3>${esc(pick(z.name))}</h3>
         <div class="zone-meta">${tags.join("")}</div>
         ${note}
-        <div class="zone-desc">${pick(z.desc)}</div>
+        <div class="zone-desc">${esc(pick(z.desc))}</div>
         <button class="zone-book-btn" data-zbook="${z.id}">${IC.book}${pick(Z.book)}</button>
       </div>
     </div>`;
