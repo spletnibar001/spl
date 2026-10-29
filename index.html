@@ -1,4 +1,4 @@
-<!-- сборка 84 · 29.10.2026 -->
+<!-- сборка 85 · 29.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1493,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 29.10 · сборка 84";
+const APP_VERSION = "v 29.10 · сборка 85";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -8205,7 +8205,11 @@ function barFmt(n,dig){ return (n==null)?"—":Number(n).toLocaleString("ru-RU",
 
 async function initBarModule(){
   if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;     // планшет хостес — без бара
+  // 29.10.2026: бар и склад ещё не запущены, кнопку видит только админ.
+  // Когда запустим — вернуть прежний список ролей (он ниже, закомментирован).
+  if(!(ME && ME.role === "admin")) return;
   try{ BAR.st = await barApi("state",{}); }catch(_){ return; }
+  // было: BAR.st.me.bartender || ["admin","upr","dir","manager","bar_manager"].includes(BAR.st.me.role)
   const canSee = BAR.st?.me && (BAR.st.me.bartender || ["admin","upr","dir","manager","bar_manager"].includes(BAR.st.me.role));
   if(!canSee || !(BAR.st.locations||[]).length) return;
   if(document.getElementById("bar-fab")) return;
