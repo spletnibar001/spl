@@ -1,4 +1,4 @@
-<!-- сборка 85 · 29.10.2026 -->
+<!-- сборка 86 · 29.10.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1493,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 29.10 · сборка 85";
+const APP_VERSION = "v 29.10 · сборка 86";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5794,13 +5794,23 @@ function dpAsk(bookingId){
   };
 }
 // столы, которые только что посадили, а номера нет — спрашиваем сами
+/* Окно «введите номер заказа» всплывает само, чтобы менеджер не забыл
+   сверить депозит с айко. Админу оно не нужно: номера заводит менеджер
+   смены, а админ в это время обычно просто смотрит сетку - и получал
+   всплывающее окно каждые полминуты по каждому столу.
+   Плюс пауза между показами, чтобы несколько посаженных столов не
+   выстраивались в очередь из окон. */
+const DP_PROMPT_ROLES = ["manager","bar_manager","dir","upr"];
+let dpLastPrompt = 0;
 function dpPrompt(){
   if(!dpCanSee()) return;
+  if(!ME || !DP_PROMPT_ROLES.includes(ME.role)) return;     // админа не дёргаем
+  if(Date.now() - dpLastPrompt < 3*60*1000) return;          // не чаще раза в 3 минуты
   if(document.getElementById("bk-modal").classList.contains("open")) return;
   if(bkIso(BK.date) !== bkIso(bkToday())) return;      // только текущая смена
   const r = DP.rows.find(x=> x.status==="seated" && !x.order_no
                              && Number(x.deposit)>0 && !DP.asked[String(x.booking_id)]);
-  if(r) dpAsk(r.booking_id);
+  if(r){ dpLastPrompt = Date.now(); dpAsk(r.booking_id); }
 }
 window.dpCsv = dpCsv; window.dpAsk = dpAsk;
 
