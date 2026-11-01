@@ -146,6 +146,14 @@ nav button .ic{font-size:20px;line-height:1}nav button.on{color:var(--gold)}
 .cd.today{background:#ff3b30;color:#fff;font-weight:700}
 .calnote{text-align:center;color:#8e8e93;font-size:12.5px;margin-top:14px}
 input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.6);opacity:.85;cursor:pointer}
+.vsal-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
+.vsal-nav{background:transparent;border:1px solid var(--line);color:var(--cream);border-radius:9px;
+  padding:5px 13px;font-size:14px;cursor:pointer}
+.vsal-nav.off{opacity:.25;cursor:default}
+.vsal-mon{flex:1;text-align:center}
+.vsal-mon b{color:var(--gold);font-size:13.5px}
+.vsal-sub{font-size:10.5px;color:var(--ash);margin-top:2px}
+.vsal-sub a{color:var(--gold-dim)}
 </style></head>
 <body>
 
@@ -190,7 +198,7 @@ const MON = ["января","февраля","марта","апреля","мая
 let S = { entries:[], days:{} };
 let CATALOG = [];
 function setData(s, catalog){ S = s || {entries:[],days:{}}; CATALOG = catalog || []; }
-const VIEW_VER = "v46";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
+const VIEW_VER = "v47";   // видимая метка версии просмотрщика (в бейдже роли) — чтобы отличать от кэша
 function shortNum(n){ n=Math.round(Math.abs(n)); if(n>=1e9) return [(n/1e9).toFixed(2).replace(".",","),"млрд"]; if(n>=1e6) return [String(Math.round(n/1e6)),"млн"]; if(n>=1e3) return [String(Math.round(n/1e3)),"тыс"]; return [fmt(n),""]; }
 function forecastDonutV(pKar,pClub,isForecast){
   const KAR="#E8C97A",CLUB="#7FB0E8"; const tot=pKar+pClub,C=2*Math.PI*80,GAP=3;
@@ -388,6 +396,9 @@ function hydrate(data){
   GEN = data.generatedAt;
   ROLE = data.role || "admin";
   MYSAL = data.mySalary || null;
+  MYSAL_M = Array.isArray(data.mySalaryMonths) && data.mySalaryMonths.length
+            ? data.mySalaryMonths : (MYSAL ? [Object.assign({mk:String(data.generatedAt||"").slice(0,7)}, MYSAL)] : []);
+  VSAL_I = 0;
   VIEWERCP = data.viewerCp || "";
   const roName = {admin:"админ", upr:"управляющий", dir:"директор"}[ROLE] || ROLE;
   document.getElementById("roBadge").textContent = "🔒 просмотр · " + roName + " · " + VIEW_VER;
@@ -1323,14 +1334,32 @@ function renderExpenses(){
 }
 
 /* ==== своя ЗП (для upr/dir) — итоги считает сервер, тут только показ ==== */
+let MYSAL_M = [], VSAL_I = 0;
+function vsalNav(n){
+  const i = VSAL_I + n;
+  if(i < 0 || i >= MYSAL_M.length) return;
+  VSAL_I = i; renderSalary(); window.scrollTo(0,0);
+}
 function renderSalary(){
   const box=document.getElementById("tab-salary");
-  if(!MYSAL){ box.innerHTML='<div class="empty">Данные по зарплате недоступны.</div>'; return; }
-  const s=MYSAL, mk=(GEN?String(GEN):"").slice(0,7);
+  if(!MYSAL_M.length){ box.innerHTML='<div class="empty">Данные по зарплате недоступны.</div>'; return; }
+  if(VSAL_I < 0) VSAL_I = 0;
+  if(VSAL_I > MYSAL_M.length-1) VSAL_I = MYSAL_M.length-1;
+  const s=MYSAL_M[VSAL_I], mk=String(s.mk||"");
+  const canOlder = VSAL_I < MYSAL_M.length-1, canNewer = VSAL_I > 0;
+  const nb=(d,t,on)=> on ? '<button class="vsal-nav" onclick="vsalNav('+d+')">'+t+'</button>'
+                         : '<span class="vsal-nav off">'+t+'</span>';
+  const navRow = MYSAL_M.length>1
+    ? '<div class="vsal-bar">'+nb(1,"\u25C0",canOlder)+
+      '<div class="vsal-mon"><b>'+esc(expMonthLabel(mk))+'</b>'+
+      (VSAL_I?'<div class="vsal-sub">прошлый месяц · <a href="#" onclick="event.preventDefault();VSAL_I=0;renderSalary()">к текущему</a></div>'
+             :'<div class="vsal-sub">текущий месяц</div>')+'</div>'+
+      nb(-1,"\u25B6",canNewer)+'</div>'
+    : '';
   const parts=(s.parts||[]).filter(p=>p.amount);
   const rest=s.rest;
   box.innerHTML =
-    '<div class="sect">Моя зарплата'+(mk?' · '+mk:'')+'</div>'+
+    '<div class="sect">Моя зарплата'+(mk?' · '+mk:'')+'</div>'+ navRow +
     '<div class="kpis">'+
       '<div class="kpi"><div class="t">Начислено за месяц</div><div class="v" style="color:var(--gold)">'+fmt(s.accrued)+'</div>'+
         ((s.parts&&s.parts.length>1)?'<div class="s">'+s.parts.map(p=>esc(p.label)+' '+fmt(p.amount)).join(' · ')+'</div>':'')+'</div>'+
