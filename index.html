@@ -1,4 +1,4 @@
-<!-- сборка 86 · 29.10.2026 -->
+<!-- сборка 87 · 01.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1493,7 +1493,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 29.10 · сборка 86";
+const APP_VERSION = "v 01.11 · сборка 87";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1516,26 +1516,31 @@ const ROLES = ["Официант","Бармен","Старший бармен","
   "Охрана","Кассир","Звукооператор","Свето-оператор","Менеджер"];
 const NO_RATE_ROLES = ["Бар-менеджер","Шеф"]; // фикс. оклад — вне табеля (по должности)
 /* ===== ФИКС-ОКЛАД ПЕРСОНАЛЬНО + ДОПЛАТА ЗА СМЕНУ СВЕРХ НОРМЫ (24.10.2026) =====
-   Фикс-оклад задавался только должностью. Менеджер Анвар — фикс, а другие менеджеры
-   посменные, поэтому держим персональный список: совпадение по части имени, без учёта
-   регистра. Чтобы перевести ещё кого-то — допишите строку сюда.
+   Два РАЗНЫХ списка, их нельзя путать:
+     FIX_SALARY_EMP - человек без ставки, смены не оплачиваются, зарплату считает касса;
+     AUTO_BONUS_EMP - ставка обычная, но за смены сверх нормы идёт доплата.
+   Раньше это был один список, и снять с человека фикс означало потерять и автобонус
+   (01.11.2026). Совпадение по части имени, без учёта регистра.
    Доплата: за каждую смену СВЕРХ НОРМЫ в расчётной неделе (ср–вт). Правило общее для
    всех фикс-окладников и действует только с FIX_BONUS_FROM — прошлые месяцы не трогаем.
    Норму считаем по всем отработанным сменам недели, а платим только за те смены сверх
    нормы, что попали в период действия правила. */
-const FIX_SALARY_EMP  = ["анвар"];     // часть имени; добавляйте сюда новых фикс-окладников
+const FIX_SALARY_EMP  = [];            // БЕЗ СТАВКИ: смены не оплачиваются, зарплату целиком считает касса
+const AUTO_BONUS_EMP  = ["анвар"];     // АВТОБОНУС за смены сверх нормы, ставка при этом обычная
 const FIX_WEEK_NORM   = 6;             // норма смен в расчётной неделе
 const FIX_EXTRA_BONUS = 500000;        // доплата за каждую смену сверх нормы
 const FIX_BONUS_FROM  = "2026-11-01";  // правило действует со смен от этой даты
-function isFixEmp(e){
+function nameHas(e, list){
   if(!e) return false;
   const n = String(e.name||"").toLowerCase();
-  return FIX_SALARY_EMP.some(x=>n.includes(String(x).toLowerCase()));
+  return list.some(x=>n.includes(String(x).toLowerCase()));
 }
+function isFixEmp(e){ return nameHas(e, FIX_SALARY_EMP); }
+function isAutoBonusEmp(e){ return nameHas(e, AUTO_BONUS_EMP); }
 function isNoRate(e){ return !!e && (NO_RATE_ROLES.includes(e.emp_role) || isFixEmp(e)); }
 // смены сверх нормы за ОДНУ расчётную неделю: [{d, a}]
 function fixExtraShifts(emp, fromS, toS){
-  if(!isNoRate(emp)) return [];
+  if(!(isAutoBonusEmp(emp) || isNoRate(emp))) return [];
   const paidThru = paidThroughDate();
   const days = [];
   for(const s of shiftRows){
@@ -1551,7 +1556,7 @@ function fixExtraShifts(emp, fromS, toS){
 }
 // то же за месяц — проходим все расчётные недели, что задевают месяц
 function fixExtraShiftsMonth(emp, mk){
-  if(!isNoRate(emp)) return [];
+  if(!(isAutoBonusEmp(emp) || isNoRate(emp))) return [];
   const f = mk+"-01";
   const t = iso(new Date(Number(mk.slice(0,4)), Number(mk.slice(5,7)), 0));   // последний день месяца
   const out = [];
@@ -2037,7 +2042,7 @@ async function pushPlansToKassa(weekKey){
       else if(e.emp_role===SOUND_BIG) extraAmt=Math.round(rr.extra||0);
       const earned=Math.round(rr.base||0);        // заработано на сегодня (отработанные смены)
       const planWeek=Math.round(rr.basePlan||0);  // план на всю неделю
-      const bonus=Math.round(rr.bon||0), pen=Math.round(rr.pen||0);
+      const bonus=Math.round((rr.bon||0)+(rr.fixExtra||0)), pen=Math.round(rr.pen||0);   // + выходы в выходной
       const planned=earned+extraAmt+bonus-pen;    // итого к выплате на сегодня
       await kpCall("upsert",{plan:{person:cp,position:e.emp_role,period_type:"week",period_key:weekKey,period_label:weekLabel(weekKey),shifts:rr.cnt||0,oklad:earned,plan_week:planWeek,percent_amount:extraAmt,bonus,penalty:pen,planned:Math.round(planned),status:"confirmed"}});
     }catch(err){ /* сбой по одному не рушит остальных */ }
@@ -2139,7 +2144,9 @@ function earnedInPeriod(emp, fromS, toS){
   const fixExtra = fixX.reduce((t,x)=>t+x.a, 0);
   return {cnt, base, cntPlan, basePlan, extra, extraLbl, noPay, absent, pen, bon,
           fixExtra, fixCnt: fixX.length,
-          sum: noPay ? 0 : base+extra+bon-pen};
+          // у посменного автобонус входит в итог недели; у «без ставки» он уходит
+          // месячным планом (ветка noPay в pushPlansToKassa), тут сумма всегда 0
+          sum: noPay ? 0 : base+extra+bon+fixExtra-pen};
 }
 
 /* автографик сотруднику на отображаемую неделю */
