@@ -73,8 +73,18 @@
     browserAddress: 'или в браузере: %1',
     noNetwork: 'Нет сети - подключите телевизор к Wi-Fi',
     noPhone: 'Приём с телефона недоступен - введите ссылку пультом',
-    channel: 'Канал %1'
+    channel: 'Канал %1',
+    epgNone: 'Нет программы',
+    epgLoading: 'Программа загружается…',
+    epgNoChannel: 'Для этого канала нет программы',
+    epgEmptyDay: 'На этот день программы нет',
+    leftMin: 'ещё %1 мин',
+    leftHours: 'ещё %1 ч %2 мин',
+    today: 'СЕГОДНЯ',
+    tomorrow: 'ЗАВТРА',
+    yesterday: 'ВЧЕРА'
   };
+  var WEEKDAYS = ['ВОСКРЕСЕНЬЕ', 'ПОНЕДЕЛЬНИК', 'ВТОРНИК', 'СРЕДА', 'ЧЕТВЕРГ', 'ПЯТНИЦА', 'СУББОТА'];
 
   // ---------- Мелочи ----------
 
@@ -405,10 +415,15 @@
     list: $('list'), emptyText: $('emptyText'),
     menu: $('menu'), menuTitle: $('menuTitle'), menuItems: $('menuItems'),
     setup: $('setup'), qr: $('qr'), serverAddress: $('serverAddress'), urlInput: $('urlInput'),
-    loadBtn: $('loadBtn'), setupStatus: $('setupStatus')
+    loadBtn: $('loadBtn'), setupStatus: $('setupStatus'),
+    osdEpg: $('osdEpg'), osdNowTime: $('osdNowTime'), osdNowTitle: $('osdNowTitle'), osdNowBar: $('osdNowBar'),
+    osdNowLeft: $('osdNowLeft'), osdNext: $('osdNext'), osdNextTime: $('osdNextTime'), osdNextTitle: $('osdNextTitle'),
+    info: $('info'), infoNumber: $('infoNumber'), infoName: $('infoName'), infoClock: $('infoClock'),
+    infoNow: $('infoNow'), infoNowTime: $('infoNowTime'), infoNowTitle: $('infoNowTitle'), infoNowBar: $('infoNowBar'),
+    infoNowLeft: $('infoNowLeft'), infoDesc: $('infoDesc'), infoDay: $('infoDay'), infoList: $('infoList'), infoEmpty: $('infoEmpty')
   };
 
-  var mode = 'watch'; // watch | panel | menu | setup
+  var mode = 'watch'; // watch | panel | menu | setup | info
   var channels = [];
   var current = null;
 
@@ -455,6 +470,117 @@
   }
 
   function sameChannel(a, b) { return !!a && !!b && a.name === b.name; }
+
+  // ---------- Телепрограмма (данные от службы на ТВ) ----------
+
+  var EPG_POLL_MS = 20000;
+  var epgData = { inited: false, ready: false, cache: {}, timer: null };
+
+  function hhmm(ms) {
+    var d = new Date(ms);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function leftText(stop, now) {
+    var min = Math.max(1, Math.round((stop - now) / 60000));
+    if (min < 60) return fmt(T.leftMin, min);
+    return fmt(T.leftHours, Math.floor(min / 60), min % 60);
+  }
+  function percent(p, now) {
+    if (!p || p[1] <= p[0]) return 0;
+    return clamp((now - p[0]) / (p[1] - p[0]) * 100, 0, 100);
+  }
+
+  function uniqueNames(list) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i].name;
+      if (!seen[n]) {
+        seen[n] = true;
+        out.push(n);
+      }
+    }
+    return out;
+  }
+
+  /** Сообщает службе каналы плейлиста; служба сама скачивает и обновляет программу. */
+  function epgStart() {
+    if (!hasService() || !channels.length) return;
+    epgData.cache = {};
+    var b = luna('epgInit', { names: uniqueNames(channels) }, function (r) {
+      releaseBridge(b);
+      if (!r.returnValue) return;
+      epgData.inited = true;
+      epgData.ready = !!r.ready;
+      if (!r.ready) epgPoll();
+      else epgRefreshScreen();
+    });
+  }
+
+  function epgPoll() {
+    clearTimeout(epgData.timer);
+    epgData.timer = later(function () {
+      var names = current ? [current.name] : [];
+      var b = luna('epgNow', { names: names }, function (r) {
+        releaseBridge(b);
+        if (r.needInit) { epgStart(); return; }
+        if (r.ready) {
+          epgData.ready = true;
+          epgData.cache = {};
+          epgRefreshScreen();
+        } else {
+          epgPoll();
+        }
+      });
+    }, EPG_POLL_MS);
+  }
+
+  /** Данные о передачах из памяти: undefined - ещё не спрашивали, 0 - программы нет. */
+  function epgOf(name) {
+    var c = epgData.cache[name];
+    return c ? c.d : undefined;
+  }
+
+  function epgStale(name, now) {
+    var c = epgData.cache[name];
+    if (!c) return true;
+    if (c.d === undefined) return now - c.t > 10000; // ответ ещё в пути
+    if (c.d === 0) return now - c.t > (epgData.ready ? 30 * 60000 : EPG_POLL_MS);
+    if (c.d.c && c.d.c[1] <= now) return true;
+    if (!c.d.c && c.d.n && c.d.n[0] <= now) return true;
+    return false;
+  }
+
+  /** Подтягивает текущие передачи для имён; cb(true), если что-то изменилось. */
+  function epgFetch(names, cb) {
+    if (!hasService() || !epgData.inited) { if (cb) cb(false); return; }
+    var now = Date.now();
+    var need = [];
+    for (var i = 0; i < names.length; i++) if (epgStale(names[i], now)) need.push(names[i]);
+    if (!need.length) { if (cb) cb(false); return; }
+    for (i = 0; i < need.length; i++) {
+      // помечаем, чтобы не спрашивать одно и то же дважды, пока идёт ответ
+      if (!epgData.cache[need[i]]) epgData.cache[need[i]] = { d: undefined, t: now };
+    }
+    var b = luna('epgNow', { names: need, at: now }, function (r) {
+      releaseBridge(b);
+      if (r.needInit) { epgStart(); return; }
+      if (!r.returnValue || !r.items) { if (cb) cb(false); return; }
+      if (r.ready && !epgData.ready) epgData.ready = true;
+      var t = Date.now();
+      for (var k = 0; k < need.length; k++) {
+        var v = r.items[need[k]];
+        epgData.cache[need[k]] = { d: v ? v : 0, t: t };
+      }
+      if (cb) cb(true);
+    });
+  }
+
+  function epgRefreshScreen() {
+    if (shown(el.osd) && osdChannel) showOsdEpg(osdChannel);
+    if (mode === 'panel' || mode === 'menu') renderList(true);
+    if (mode === 'info') renderInfo();
+  }
 
   // ---------- Видео ----------
 
@@ -574,8 +700,36 @@
 
   // ---------- Сообщения на экране ----------
 
+  var osdChannel = null;
+
+  function showOsdEpg(ch) {
+    var d = epgOf(ch.name);
+    if (!d || !d.c) {
+      hide(el.osdEpg);
+      return;
+    }
+    var now = Date.now();
+    el.osdNowTime.textContent = hhmm(d.c[0]) + ' - ' + hhmm(d.c[1]);
+    el.osdNowTitle.textContent = d.c[2];
+    el.osdNowBar.style.width = percent(d.c, now) + '%';
+    el.osdNowLeft.textContent = leftText(d.c[1], now);
+    if (d.n) {
+      el.osdNextTime.textContent = hhmm(d.n[0]);
+      el.osdNextTitle.textContent = d.n[2];
+      show(el.osdNext);
+    } else {
+      hide(el.osdNext);
+    }
+    show(el.osdEpg);
+  }
+
   function showOsd(ch) {
-    if (mode === 'panel' || mode === 'menu' || mode === 'setup') return;
+    if (mode === 'panel' || mode === 'menu' || mode === 'setup' || mode === 'info') return;
+    osdChannel = ch;
+    showOsdEpg(ch);
+    epgFetch([ch.name], function (changed) {
+      if (changed && osdChannel === ch && shown(el.osd)) showOsdEpg(ch);
+    });
     el.osdNumber.textContent = String(ch.number);
     el.osdName.textContent = ch.name;
     el.osdGroup.textContent = ch.group || '';
@@ -586,7 +740,7 @@
     el.osdClock.textContent = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
     show(el.osd);
     clearTimeout(timers.osd);
-    timers.osd = later(function () { hide(el.osd); }, OSD_MS);
+    timers.osd = later(function () { hide(el.osd); }, shown(el.osdEpg) ? OSD_MS + 1500 : OSD_MS);
   }
 
   function hideOsd() {
@@ -653,6 +807,7 @@
     if (!previous || previous.url !== target.url || previous.name !== target.name) play(target, !previous);
     else current = target;
     if (mode === 'panel') refreshRows();
+    epgStart();
   }
 
   function saveCache(text) {
@@ -905,7 +1060,7 @@
 
   function measureList() {
     var h = el.list.clientHeight;
-    var step = remPx(4.5);
+    var step = remPx(5.7);
     visibleRows = Math.max(3, Math.floor(h / step));
   }
 
@@ -935,9 +1090,18 @@
     if (force || topIndex !== renderedTop || rowsVersion !== renderedVersion) {
       el.list.innerHTML = '';
       var end = Math.min(rows.length, topIndex + visibleRows);
-      for (var i = topIndex; i < end; i++) el.list.appendChild(buildRow(rows[i], i));
+      var names = [];
+      for (var i = topIndex; i < end; i++) {
+        el.list.appendChild(buildRow(rows[i], i));
+        if (rows[i].type === 'ch') names.push(rows[i].ch.name);
+      }
       renderedTop = topIndex;
       renderedVersion = rowsVersion;
+      if (names.length) {
+        epgFetch(names, function (changed) {
+          if (changed && (mode === 'panel' || mode === 'menu')) updateRowsEpg();
+        });
+      }
     }
     var nodes = el.list.childNodes;
     for (var j = 0; j < nodes.length; j++) {
@@ -970,10 +1134,22 @@
       badge.appendChild(img);
       r.appendChild(badge);
       setBadge(ini, img, ch);
+      r.classList.add('ch');
+      var text = document.createElement('div');
+      text.className = 'text';
       var name = document.createElement('div');
       name.className = 'name';
       name.textContent = ch.name;
-      r.appendChild(name);
+      text.appendChild(name);
+      var prog = document.createElement('div');
+      prog.className = 'prog';
+      text.appendChild(prog);
+      var mini = document.createElement('div');
+      mini.className = 'mini';
+      mini.appendChild(document.createElement('div'));
+      text.appendChild(mini);
+      r.appendChild(text);
+      fillRowEpg(r, ch.name);
       if (playing) r.appendChild(svg('bars', '0 0 24 24', BARS));
       if (isFav(ch)) r.appendChild(svg('star', '0 0 24 24', [STAR]));
     } else {
@@ -986,6 +1162,40 @@
     r.addEventListener('mouseenter', onRowHover);
     r.addEventListener('click', onRowClick);
     return r;
+  }
+
+  function fillRowEpg(r, name) {
+    var prog = r.querySelector('.prog');
+    var mini = r.querySelector('.mini');
+    if (!prog) return;
+    var d = epgOf(name);
+    prog.innerHTML = '';
+    prog.classList.remove('none');
+    mini.style.visibility = 'hidden';
+    if (d === 0 && epgData.ready) {
+      prog.textContent = T.epgNone;
+      prog.classList.add('none');
+    } else if (d && (d.c || d.n)) {
+      var p = d.c || d.n;
+      var t = document.createElement('span');
+      t.className = 'pt';
+      t.textContent = hhmm(p[0]);
+      prog.appendChild(t);
+      prog.appendChild(document.createTextNode(p[2]));
+      if (d.c) {
+        mini.style.visibility = 'visible';
+        mini.firstChild.style.width = percent(d.c, Date.now()) + '%';
+      }
+    }
+  }
+
+  function updateRowsEpg() {
+    var nodes = el.list.childNodes;
+    for (var i = 0; i < nodes.length; i++) {
+      var idx = parseInt(nodes[i].getAttribute('data-index'), 10);
+      var row = rows[idx];
+      if (row && row.type === 'ch') fillRowEpg(nodes[i], row.ch.name);
+    }
   }
 
   function onRowHover(e) {
@@ -1011,6 +1221,7 @@
 
   function openPanel() {
     if (!channels.length) return;
+    closeInfo();
     if (pendingIndex >= 0) commitSwitch();
     hideOsd();
     hiddenMode = false;
@@ -1098,6 +1309,155 @@
     focusRow(position);
   }
 
+  // ---------- О передаче и расписание ----------
+
+  var DAY = 24 * 3600000;
+  var infoChannel = null;
+  var infoDay = 0;        // 0 - сегодня, 1 - завтра, -1 - вчера
+  var infoItems = [];
+  var infoTop = 0;
+  var infoRequest = 0;
+
+  function dayStart(offset) {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() + offset * DAY;
+  }
+
+  function dayLabel(offset) {
+    var start = new Date(dayStart(offset));
+    var name = offset === 0 ? T.today : (offset === 1 ? T.tomorrow : (offset === -1 ? T.yesterday : ''));
+    var wd = WEEKDAYS[start.getDay()];
+    return name ? name + ', ' + wd : wd;
+  }
+
+  function openInfo() {
+    if (!current) return;
+    if (pendingIndex >= 0) commitSwitch();
+    hideOsd();
+    infoChannel = current;
+    infoDay = 0;
+    mode = 'info';
+    el.centerBox.classList.add('info-open');
+    el.toast.classList.add('info-open');
+    show(el.info);
+    epgFetch([current.name], function () { if (mode === 'info') renderInfoNow(); });
+    loadInfoDay(true);
+  }
+
+  function closeInfo() {
+    if (mode !== 'info') return;
+    hide(el.info);
+    el.centerBox.classList.remove('info-open');
+    el.toast.classList.remove('info-open');
+    mode = 'watch';
+    infoChannel = null;
+  }
+
+  function loadInfoDay(scrollToNow) {
+    var ch = infoChannel;
+    var req = ++infoRequest;
+    infoItems = [];
+    renderInfo();
+    if (!hasService() || !epgData.inited) return;
+    var from = dayStart(infoDay);
+    var b = luna('epgRange', { name: ch.name, from: from, to: from + DAY }, function (r) {
+      releaseBridge(b);
+      if (req !== infoRequest || mode !== 'info') return;
+      infoItems = r && r.items ? r.items : [];
+      infoTop = 0;
+      if (scrollToNow) {
+        var now = Date.now();
+        for (var i = 0; i < infoItems.length; i++) {
+          if (infoItems[i][1] > now) { infoTop = Math.max(0, i - 1); break; }
+        }
+      }
+      renderInfo();
+    });
+  }
+
+  function renderInfoNow() {
+    var ch = infoChannel;
+    var d = epgOf(ch.name);
+    if (d && d.c) {
+      var now = Date.now();
+      el.infoNowTime.textContent = hhmm(d.c[0]) + ' - ' + hhmm(d.c[1]);
+      el.infoNowTitle.textContent = d.c[2];
+      el.infoNowBar.style.width = percent(d.c, now) + '%';
+      el.infoNowLeft.textContent = leftText(d.c[1], now);
+      el.infoDesc.textContent = d.c[3] || '';
+      if (d.c[3]) show(el.infoDesc); else hide(el.infoDesc);
+      show(el.infoNow);
+    } else {
+      hide(el.infoNow);
+    }
+  }
+
+  function infoVisibleRows() {
+    return Math.max(3, Math.floor(el.infoList.clientHeight / remPx(3.8)));
+  }
+
+  function renderInfo() {
+    var ch = infoChannel;
+    if (!ch) return;
+    el.infoNumber.textContent = String(ch.number);
+    el.infoName.textContent = ch.name;
+    el.infoClock.textContent = hhmm(Date.now());
+    renderInfoNow();
+    el.infoDay.textContent = dayLabel(infoDay);
+    el.infoList.innerHTML = '';
+    if (!infoItems.length) {
+      var d = epgOf(ch.name);
+      el.infoEmpty.textContent = !epgData.ready ? T.epgLoading : (d === 0 ? T.epgNoChannel : T.epgEmptyDay);
+      show(el.infoEmpty);
+      hide(el.infoList);
+      return;
+    }
+    hide(el.infoEmpty);
+    show(el.infoList);
+    var now = Date.now();
+    var visible = infoVisibleRows();
+    infoTop = clamp(infoTop, 0, Math.max(0, infoItems.length - visible));
+    var end = Math.min(infoItems.length, infoTop + visible);
+    for (var i = infoTop; i < end; i++) {
+      var p = infoItems[i];
+      var row = document.createElement('div');
+      row.className = 'info-row' + (p[1] <= now ? ' past' : (p[0] <= now ? ' now' : ''));
+      var t = document.createElement('span');
+      t.className = 't';
+      t.textContent = hhmm(p[0]);
+      var n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = p[2];
+      row.appendChild(t);
+      row.appendChild(n);
+      el.infoList.appendChild(row);
+    }
+  }
+
+  function infoKey(code) {
+    if (code === KEY.UP) {
+      if (infoTop > 0) { infoTop--; renderInfo(); }
+    } else if (code === KEY.DOWN) {
+      if (infoTop < infoItems.length - infoVisibleRows()) { infoTop++; renderInfo(); }
+    } else if (code === KEY.PAGE_UP || code === KEY.CH_UP || code === KEY.PAGE_DOWN || code === KEY.CH_DOWN) {
+      var down = code === KEY.PAGE_DOWN || code === KEY.CH_DOWN;
+      infoTop += down ? infoVisibleRows() - 1 : -(infoVisibleRows() - 1);
+      renderInfo();
+    } else if (code === KEY.LEFT || code === KEY.RIGHT) {
+      var next = infoDay + (code === KEY.LEFT ? -1 : 1);
+      if (next >= -1 && next <= 2) {
+        infoDay = next;
+        loadInfoDay(next === 0);
+      }
+    } else if (isBack(code) || code === KEY.INFO || code === KEY.GUIDE) {
+      closeInfo();
+    } else {
+      return false;
+    }
+    return true;
+  }
+
   // ---------- Меню канала ----------
 
   function openMenu(ch) {
@@ -1182,6 +1542,7 @@
   // ---------- Подключение плейлиста ----------
 
   function openSetup() {
+    closeInfo();
     mode = 'setup';
     hideOsd();
     hide(el.panel);
@@ -1358,6 +1719,7 @@
 
     var handled = true;
     if (mode === 'setup') handled = setupKey(code);
+    else if (mode === 'info') handled = infoKey(code);
     else if (mode === 'menu') handled = menuKey(code);
     else if (mode === 'panel') handled = panelKey(code);
     else handled = watchKey(code);
@@ -1388,6 +1750,8 @@
       else loadUrl(el.urlInput.value);
     } else if (mode === 'menu') {
       activateMenu();
+    } else if (mode === 'info') {
+      closeInfo();
     } else if (mode === 'panel') {
       if (focusIndex === -1) el.searchInput.focus();
       else activateRow(focusIndex);
@@ -1516,7 +1880,7 @@
     else if (code === KEY.PAGE_DOWN || code === KEY.CH_DOWN) switchChannel(-1);
     else if (code === KEY.LEFT || code === KEY.GUIDE) openPanel();
     else if (code === KEY.RIGHT || code === KEY.INFO) {
-      if (current) showOsd(current);
+      openInfo();
     } else if (code === KEY.RED) {
       if (current) toggleFavorite(current);
     } else if (code === KEY.PLAY || code === KEY.PAUSE || code === KEY.PLAY_PAUSE) {
@@ -1579,7 +1943,8 @@
     bumpPanelTimer();
   });
   video.addEventListener('click', function () {
-    if (mode === 'watch') openPanel();
+    if (mode === 'info') closeInfo();
+    else if (mode === 'watch') openPanel();
     else if (mode === 'panel') closePanel();
   });
   el.menu.addEventListener('click', function (e) {

@@ -71,4 +71,22 @@
     <string name="tf_error_download">Не удалось скачать файл - попробуйте ещё раз</string>
     <string name="tf_error_page">Страница не открылась - проверьте код и интернет</string>
     <string name="tf_no_webview">На этом телевизоре нет встроенного браузера (Android System WebView), поэтому transfiles недоступен</string>
+
+    <!-- Программа передач -->
+    <string name="epg_now">СЕЙЧАС</string>
+    <string name="epg_next">ДАЛЕЕ</string>
+    <string name="epg_none">Нет программы</string>
+    <string name="epg_loading">Программа загружается…</string>
+    <string name="epg_no_channel">Для этого канала нет программы</string>
+    <string name="epg_empty_day">На этот день программы нет</string>
+    <string name="epg_left_min">ещё %1$d мин</string>
+    <string name="epg_left_hours">ещё %1$d ч %2$d мин</string>
+    <string name="epg_today">СЕГОДНЯ, %1$s</string>
+    <string name="epg_tomorrow">ЗАВТРА, %1$s</string>
+    <string name="epg_yesterday">ВЧЕРА, %1$s</string>
+    <string name="key_right">▶</string>
+    <string name="key_scroll">▲ ▼</string>
+    <string name="hint_info">о передаче и расписание</string>
+    <string name="hint_day">день</string>
+    <string name="hint_scroll">листать</string>
 </resources>

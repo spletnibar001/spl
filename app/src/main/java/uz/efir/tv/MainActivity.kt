@@ -70,6 +70,8 @@ class MainActivity : AppCompatActivity() {
         private const val OK_LONG_MS = 700L
         private const val PAGE = 8
         private const val PANEL_WIDTH_DP = 440
+        private const val EPG_CHECK_MS = 30 * 60_000L
+        private const val DAY_MS = 24 * 3_600_000L
     }
 
     private lateinit var b: ActivityMainBinding
@@ -109,6 +111,12 @@ class MainActivity : AppCompatActivity() {
     private val fontSemibold by lazy { ResourcesCompat.getFont(this, R.font.golos_semibold) }
 
     private val hideOsdRunnable = Runnable { b.osd.visibility = View.GONE }
+    private val epgCheckRunnable = object : Runnable {
+        override fun run() {
+            startEpg()
+            handler.postDelayed(this, EPG_CHECK_MS)
+        }
+    }
     private val hideToastRunnable = Runnable { b.toast.visibility = View.GONE }
     private val panelIdleRunnable = Runnable { onPanelIdle() }
     private val retryRunnable = Runnable { current?.let { startPlayback(it) } }
@@ -152,10 +160,13 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         initPlayer()
         current?.let { startPlayback(it) }
+        handler.removeCallbacks(epgCheckRunnable)
+        handler.postDelayed(epgCheckRunnable, EPG_CHECK_MS)
     }
 
     override fun onStop() {
         handler.removeCallbacks(retryRunnable)
+        handler.removeCallbacks(epgCheckRunnable)
         releasePlayer()
         super.onStop()
     }
@@ -214,6 +225,7 @@ class MainActivity : AppCompatActivity() {
             current = target
         }
         if (b.panel.visibility == View.VISIBLE) refreshRows()
+        startEpg()
     }
 
     private fun refresh(userInitiated: Boolean) {
@@ -384,7 +396,7 @@ class MainActivity : AppCompatActivity() {
     // ---------- Сообщения на экране ----------
 
     private fun showOsd(channel: Channel) {
-        if (b.panel.visibility == View.VISIBLE) return
+        if (b.panel.visibility == View.VISIBLE || b.info.visibility == View.VISIBLE) return
         b.osdNumber.text = channel.number.toString()
         b.osdName.text = channel.name
         val group = channel.group
@@ -394,9 +406,208 @@ class MainActivity : AppCompatActivity() {
         Logos.show(b.osdLogo, b.osdInitials, channel.logo)
         b.osdFav.visibility = if (store.isFavorite(channel)) View.VISIBLE else View.GONE
         b.osdClock.text = clock.format(Date())
+        val withEpg = fillOsdEpg(channel)
+        osdChannel = channel
         b.osd.visibility = View.VISIBLE
         handler.removeCallbacks(hideOsdRunnable)
-        handler.postDelayed(hideOsdRunnable, OSD_MS)
+        handler.postDelayed(hideOsdRunnable, if (withEpg) OSD_MS + 1_500L else OSD_MS)
+    }
+
+    // ---------- Программа передач ----------
+
+    private var osdChannel: Channel? = null
+
+    private fun startEpg() {
+        if (channels.isEmpty()) return
+        Epg.start(this, lifecycleScope, channels.map { it.name }.distinct()) { onEpgChanged() }
+    }
+
+    private fun onEpgChanged() {
+        if (b.osd.visibility == View.VISIBLE) osdChannel?.let { fillOsdEpg(it) }
+        if (b.panel.visibility == View.VISIBLE) adapter.notifyItemRangeChanged(0, adapter.itemCount)
+        if (b.info.visibility == View.VISIBLE) renderInfo()
+    }
+
+    private fun leftText(stop: Long, now: Long): String {
+        val min = maxOf(1L, Math.round((stop - now) / 60_000.0)).toInt()
+        return if (min < 60) getString(R.string.epg_left_min, min) else getString(R.string.epg_left_hours, min / 60, min % 60)
+    }
+
+    private fun setProgress(bar: View, p: Programme, now: Long) {
+        val part = if (p.stop > p.start) ((now - p.start) * 1000 / (p.stop - p.start)).coerceIn(0, 1000) else 0
+        (bar.layoutParams as LinearLayout.LayoutParams).weight = part.toFloat()
+        bar.requestLayout()
+    }
+
+    /** Заполняет нижнюю часть строки канала; false - программы нет. */
+    private fun fillOsdEpg(channel: Channel): Boolean {
+        val now = System.currentTimeMillis()
+        val nn = Epg.index?.nowNext(channel.name, now)
+        val cur = nn?.now
+        if (cur == null) {
+            b.osdEpg.visibility = View.GONE
+            return false
+        }
+        b.osdNowTime.text = clock.format(Date(cur.start)) + " - " + clock.format(Date(cur.stop))
+        b.osdNowTitle.text = cur.title
+        setProgress(b.osdNowBar, cur, now)
+        b.osdNowLeft.text = leftText(cur.stop, now)
+        val next = nn?.next
+        if (next != null) {
+            b.osdNextTime.text = clock.format(Date(next.start))
+            b.osdNextTitle.text = next.title
+            b.osdNext.visibility = View.VISIBLE
+        } else {
+            b.osdNext.visibility = View.INVISIBLE
+        }
+        b.osdEpg.visibility = View.VISIBLE
+        return true
+    }
+
+    // ---------- О передаче и расписание ----------
+
+    private var infoChannel: Channel? = null
+    private var infoDay = 0
+    private var infoItems: List<Programme> = emptyList()
+    private var infoTop = 0
+    private val weekdayFormat = SimpleDateFormat("EEEE", Locale("ru"))
+
+    private fun dayStart(offset: Int): Long {
+        val c = java.util.Calendar.getInstance()
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        c.set(java.util.Calendar.MINUTE, 0)
+        c.set(java.util.Calendar.SECOND, 0)
+        c.set(java.util.Calendar.MILLISECOND, 0)
+        c.add(java.util.Calendar.DAY_OF_YEAR, offset)
+        return c.timeInMillis
+    }
+
+    private fun openInfo() {
+        val ch = current ?: return
+        if (pendingIndex >= 0) commitSwitch()
+        hideOsd()
+        infoChannel = ch
+        infoDay = 0
+        b.info.visibility = View.VISIBLE
+        loadInfoDay(scrollToNow = true)
+    }
+
+    private fun closeInfo() {
+        b.info.visibility = View.GONE
+        infoChannel = null
+    }
+
+    private fun loadInfoDay(scrollToNow: Boolean) {
+        val ch = infoChannel ?: return
+        val from = dayStart(infoDay)
+        infoItems = Epg.index?.range(ch.name, from, from + DAY_MS) ?: emptyList()
+        infoTop = 0
+        if (scrollToNow) {
+            val now = System.currentTimeMillis()
+            val i = infoItems.indexOfFirst { it.stop > now }
+            if (i >= 0) infoTop = maxOf(0, i - 1)
+        }
+        renderInfo()
+        // высота списка известна только после разметки
+        b.infoListBox.post { if (b.info.visibility == View.VISIBLE) renderInfo() }
+    }
+
+    private fun infoVisibleRows(): Int = maxOf(3, b.infoListBox.height / dp(38))
+
+    private fun renderInfo() {
+        val ch = infoChannel ?: return
+        val now = System.currentTimeMillis()
+        b.infoNumber.text = ch.number.toString()
+        b.infoName.text = ch.name
+        b.infoClock.text = clock.format(Date(now))
+        val cur = Epg.index?.nowNext(ch.name, now)?.now
+        if (cur != null) {
+            b.infoNowTime.text = clock.format(Date(cur.start)) + " - " + clock.format(Date(cur.stop))
+            b.infoNowTitle.text = cur.title
+            setProgress(b.infoNowBar, cur, now)
+            b.infoNowLeft.text = leftText(cur.stop, now)
+            b.infoDesc.text = cur.desc
+            b.infoDesc.visibility = if (cur.desc.isEmpty()) View.GONE else View.VISIBLE
+            b.infoNow.visibility = View.VISIBLE
+        } else {
+            b.infoNow.visibility = View.GONE
+        }
+        val weekday = weekdayFormat.format(Date(dayStart(infoDay))).uppercase(Locale("ru"))
+        b.infoDay.text = when (infoDay) {
+            0 -> getString(R.string.epg_today, weekday)
+            1 -> getString(R.string.epg_tomorrow, weekday)
+            -1 -> getString(R.string.epg_yesterday, weekday)
+            else -> weekday
+        }
+        b.infoList.removeAllViews()
+        if (infoItems.isEmpty()) {
+            val index = Epg.index
+            b.infoEmpty.text = getString(
+                when {
+                    index == null -> R.string.epg_loading
+                    !index.has(ch.name) -> R.string.epg_no_channel
+                    else -> R.string.epg_empty_day
+                }
+            )
+            b.infoEmpty.visibility = View.VISIBLE
+            return
+        }
+        b.infoEmpty.visibility = View.GONE
+        val visible = infoVisibleRows()
+        infoTop = infoTop.coerceIn(0, maxOf(0, infoItems.size - visible))
+        val end = minOf(infoItems.size, infoTop + visible)
+        for (i in infoTop until end) b.infoList.addView(scheduleRow(infoItems[i], now))
+    }
+
+    private fun scheduleRow(p: Programme, now: Long): View {
+        val past = p.stop <= now
+        val live = !past && p.start <= now
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.setPadding(dp(12), 0, dp(12), 0)
+        row.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)).also { it.bottomMargin = dp(2) }
+        if (live) row.background = ContextCompat.getDrawable(this, R.drawable.bg_schedule_now)
+        val time = TextView(this)
+        time.text = clock.format(Date(p.start))
+        time.typeface = ResourcesCompat.getFont(this, R.font.plex_mono_medium)
+        time.textSize = 14f
+        time.setTextColor(ContextCompat.getColor(this, if (past) R.color.past else if (live) R.color.accent else R.color.muted2))
+        time.layoutParams = LinearLayout.LayoutParams(dp(56), ViewGroup.LayoutParams.WRAP_CONTENT)
+        val title = TextView(this)
+        title.text = p.title
+        title.typeface = if (live) fontSemibold else fontRegular
+        title.textSize = 15f
+        title.maxLines = 1
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        title.setTextColor(ContextCompat.getColor(this, if (past) R.color.past else R.color.text))
+        title.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        row.addView(time)
+        row.addView(title)
+        return row
+    }
+
+    private fun handleInfoKey(event: KeyEvent): Boolean {
+        val code = event.keyCode
+        val down = event.action == KeyEvent.ACTION_DOWN
+        val up = event.action == KeyEvent.ACTION_UP
+        when (code) {
+            KeyEvent.KEYCODE_DPAD_UP -> if (down && infoTop > 0) { infoTop--; renderInfo() }
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (down && infoTop < infoItems.size - infoVisibleRows()) { infoTop++; renderInfo() }
+            KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP -> if (down) { infoTop -= infoVisibleRows() - 1; renderInfo() }
+            KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> if (down) { infoTop += infoVisibleRows() - 1; renderInfo() }
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> if (down && event.repeatCount == 0) {
+                val next = infoDay + if (code == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
+                if (next in -1..2) {
+                    infoDay = next
+                    loadInfoDay(scrollToNow = next == 0)
+                }
+            }
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_GUIDE,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> if (up) closeInfo()
+            else -> return false
+        }
+        return true
     }
 
     private fun hideOsd() {
@@ -508,6 +719,8 @@ class MainActivity : AppCompatActivity() {
         adapter = ChannelAdapter(
             isFavorite = { store.isFavorite(it) },
             isPlaying = { it.key == current?.key },
+            epgFor = { Epg.index?.nowNext(it.name, System.currentTimeMillis()) },
+            epgReady = { Epg.index != null },
             onClick = { onRowClick(it) },
             onLongClick = { onRowLongClick(it) }
         )
@@ -722,6 +935,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openPanel() {
         if (channels.isEmpty()) return
+        closeInfo()
         if (pendingIndex >= 0) commitSwitch()
         hideOsd()
         hiddenMode = false
@@ -886,7 +1100,9 @@ class MainActivity : AppCompatActivity() {
     // ---------- Пульт ----------
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val handled = if (b.panel.visibility == View.VISIBLE) {
+        val handled = if (b.info.visibility == View.VISIBLE) {
+            handleInfoKey(event)
+        } else if (b.panel.visibility == View.VISIBLE) {
             if (event.action == KeyEvent.ACTION_DOWN) bumpPanelTimer()
             if (b.actionMenu.visibility == View.VISIBLE) handleMenuKey(event) else handlePanelKey(event)
         } else {
@@ -989,7 +1205,7 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_INFO -> {
-                if (down && event.repeatCount == 0) current?.let { showOsd(it) }
+                if (up) openInfo()
                 return true
             }
             KeyEvent.KEYCODE_MENU -> {

@@ -36,6 +36,7 @@ body {
   text-align: center; z-index: 5;
 }
 .center-box.shifted { margin-left: 22rem; }
+.center-box.info-open { margin-left: -24rem; }
 .spinner {
   width: 5.2rem; height: 5.2rem; margin: 0 auto;
   border: 0.5rem solid rgba(242, 169, 59, 0.25); border-top-color: #F2A93B; border-radius: 50%;
@@ -55,13 +56,17 @@ body {
   max-width: 48rem; padding: 1.1rem 2rem; font-size: 1.6rem; text-align: center;
 }
 .toast.shifted { left: 44rem; }
+.toast.info-open { right: 48rem; }
 
 /* ---------- Строка канала при переключении ---------- */
 .osd {
-  position: fixed; left: 3.6rem; right: 3.6rem; bottom: 3rem; height: 9.6rem; z-index: 4;
+  position: fixed; left: 3.6rem; right: 3.6rem; bottom: 3rem; z-index: 4;
   background: rgba(11, 13, 18, 0.9); border-radius: 1.6rem;
-  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
   padding: 0 2.7rem 0 2.4rem;
+}
+.osd-top {
+  height: 9.6rem;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
 }
 .osd-number {
   min-width: 7.2rem; text-align: right; line-height: 1;
@@ -83,6 +88,56 @@ body {
 .osd-group { margin-top: 0.4rem; font-size: 1.6rem; color: #9AA1B2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .osd-fav { width: 2.5rem; height: 2.5rem; margin: 0 1.8rem 0 1.6rem; fill: #F2A93B; stroke: #F2A93B; stroke-width: 1.6; stroke-linejoin: round; }
 .osd-clock { font-family: "PlexMono", monospace; font-weight: 500; font-size: 2.5rem; color: #C9CEDA; }
+
+/* ---------- Программа передач в строке канала ---------- */
+.osd-epg {
+  display: -webkit-flex; display: flex; -webkit-align-items: flex-start; align-items: flex-start;
+  border-top: 0.1rem solid #262D3B; padding: 1.4rem 0 1.8rem 0.4rem;
+}
+.osd-now { -webkit-flex: 3; flex: 3; min-width: 0; }
+.osd-next { -webkit-flex: 2; flex: 2; min-width: 0; margin-left: 3rem; padding-left: 2.4rem; border-left: 0.1rem solid #262D3B; }
+.epg-head { white-space: nowrap; }
+.epg-label { font-weight: 600; font-size: 1.15rem; letter-spacing: 0.12em; color: #9AA1B2; }
+.epg-label.now { color: #F2A93B; }
+.epg-time { margin-left: 1.1rem; font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.45rem; color: #9AA1B2; }
+.epg-title { margin-top: 0.6rem; font-weight: 600; font-size: 2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.epg-next-title { margin-top: 0.6rem; font-weight: 500; font-size: 1.7rem; color: #C9CEDA; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.epg-progress-row { margin-top: 0.9rem; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.progress { -webkit-flex: 1; flex: 1; height: 0.5rem; border-radius: 0.25rem; background: #2A3242; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: #F2A93B; }
+.epg-left { margin-left: 1.2rem; font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.3rem; color: #9AA1B2; white-space: nowrap; }
+.epg-hint { margin-top: 1rem; font-size: 1.25rem; color: #8A92A4; white-space: nowrap; }
+.epg-hint .keycap, .info-day-hint .keycap { margin-right: 0.4rem; }
+
+/* ---------- О передаче и расписание ---------- */
+.info {
+  position: fixed; right: 0; top: 0; bottom: 0; width: 48rem; z-index: 8;
+  background: rgba(11, 13, 18, 0.96);
+  padding: 2.7rem 3rem 2rem 3rem;
+  display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column;
+}
+.info-head { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.info-number { font-family: "PlexMono", monospace; font-weight: 600; font-size: 2.4rem; color: #F2A93B; margin-right: 1.2rem; }
+.info-name { -webkit-flex: 1; flex: 1; min-width: 0; font-weight: 600; font-size: 1.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.info-clock { margin-left: 1.2rem; font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.8rem; color: #C9CEDA; }
+.info-now { margin-top: 2rem; }
+.info-title { margin-top: 0.7rem; font-weight: 600; font-size: 2.6rem; line-height: 1.15; max-height: 6rem; overflow: hidden; }
+.info-desc { margin-top: 1.1rem; font-size: 1.4rem; line-height: 1.45; color: #B4BACA; max-height: 8.2rem; overflow: hidden; }
+.info-line { height: 0.1rem; background: #262D3B; margin-top: 1.8rem; -webkit-flex-shrink: 0; flex-shrink: 0; }
+.info-day-row { margin-top: 1.6rem; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: space-between; justify-content: space-between; }
+.info-day-hint { font-size: 1.2rem; color: #8A92A4; white-space: nowrap; }
+.info-list { -webkit-flex: 1; flex: 1; min-height: 0; margin-top: 1rem; overflow: hidden; position: relative; }
+.info-row {
+  height: 3.6rem; padding: 0 1.2rem; border-radius: 0.9rem; border: 0.2rem solid transparent;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+}
+.info-row .t { width: 5.6rem; -webkit-flex-shrink: 0; flex-shrink: 0; font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.45rem; color: #9AA1B2; }
+.info-row .n { -webkit-flex: 1; flex: 1; min-width: 0; font-size: 1.55rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.info-row.past .t, .info-row.past .n { color: #5C6477; }
+.info-row.now { background: #232A38; border-color: #F2A93B; }
+.info-row.now .t { color: #F2A93B; }
+.info-row.now .n { font-weight: 600; }
+.info-empty { margin-top: 2rem; font-size: 1.5rem; color: #9AA1B2; }
 
 /* ---------- Список поверх видео ---------- */
 .panel {
@@ -130,6 +185,18 @@ body {
 .row .badge .initials { font-size: 1rem; color: inherit; }
 .row.focused .badge .initials { color: #0B0D12; }
 .row .name { -webkit-flex: 1; flex: 1; min-width: 0; margin-left: 1.2rem; font-weight: 500; font-size: 1.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.ch { height: 5.4rem; }
+.row .text { -webkit-flex: 1; flex: 1; min-width: 0; margin-left: 1.2rem; }
+.row .text .name { margin-left: 0; display: block; line-height: 2.1rem; }
+.row .prog { margin-top: 0.2rem; height: 1.8rem; line-height: 1.8rem; font-size: 1.3rem; color: #B4BACA; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .prog .pt { font-family: "PlexMono", monospace; font-weight: 500; font-size: 1.2rem; color: #8A92A4; margin-right: 0.8rem; }
+.row .prog.none { color: #6E7689; }
+.row .mini { margin-top: 0.3rem; height: 0.3rem; border-radius: 0.15rem; background: #2A3242; overflow: hidden; }
+.row .mini div { height: 100%; width: 0; background: #F2A93B; }
+.row.focused .prog { color: #2B1E08; }
+.row.focused .prog .pt { color: #2B1E08; }
+.row.focused .mini { background: rgba(11, 13, 18, 0.18); }
+.row.focused .mini div { background: #0B0D12; }
 .row.playing .name, .row.playing .num { color: #F2A93B; }
 .row.focused.playing .name { color: #0B0D12; }
 .row.focused.playing .num { color: #2B1E08; }

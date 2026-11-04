@@ -17,4 +17,10 @@
     <color name="on_accent">#0B0D12</color>
     <color name="number_on_accent">#2B1E08</color>
     <color name="badge_on_accent">#290B0D12</color>
+    <color name="info">#F50B0D12</color>
+    <color name="track">#2A3242</color>
+    <color name="divider">#262D3B</color>
+    <color name="desc">#B4BACA</color>
+    <color name="past">#5C6477</color>
+    <color name="none">#6E7689</color>
 </resources>

@@ -10,6 +10,8 @@ import uz.efir.tv.databinding.ItemChannelBinding
 class ChannelAdapter(
     private val isFavorite: (Channel) -> Boolean,
     private val isPlaying: (Channel) -> Boolean,
+    private val epgFor: (Channel) -> NowNext?,
+    private val epgReady: () -> Boolean,
     private val onClick: (Row) -> Unit,
     private val onLongClick: (Row) -> Unit
 ) : RecyclerView.Adapter<ChannelAdapter.Holder>() {
@@ -68,6 +70,8 @@ class ChannelAdapter(
                 )
                 b.playing.visibility = if (playing) View.VISIBLE else View.GONE
                 b.fav.visibility = if (isFavorite(c)) View.VISIBLE else View.GONE
+                bindEpg(b, c)
+                setHeight(holder.itemView, 54)
             }
             is Row.Action -> bindPlain(b, row.title)
             is Row.Restore -> bindPlain(b, row.title)
@@ -79,8 +83,50 @@ class ChannelAdapter(
         }
     }
 
+    private val clock = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+
+    private fun bindEpg(b: ItemChannelBinding, c: Channel) {
+        val ctx = b.root.context
+        val nn = epgFor(c)
+        val p = nn?.now ?: nn?.next
+        when {
+            p != null -> {
+                b.prog.text = clock.format(java.util.Date(p.start)) + "  " + p.title
+                b.prog.setTextColor(AppCompatResources.getColorStateList(ctx, R.color.row_prog))
+                b.prog.visibility = View.VISIBLE
+            }
+            epgReady() -> {
+                b.prog.text = ctx.getString(R.string.epg_none)
+                b.prog.setTextColor(AppCompatResources.getColorStateList(ctx, R.color.row_icon_muted))
+                b.prog.visibility = View.VISIBLE
+            }
+            else -> b.prog.visibility = View.GONE
+        }
+        val now = nn?.now
+        if (now != null && now.stop > now.start) {
+            val part = ((System.currentTimeMillis() - now.start) * 1000 / (now.stop - now.start)).coerceIn(0, 1000)
+            (b.progBar.layoutParams as android.widget.LinearLayout.LayoutParams).weight = part.toFloat()
+            b.progBar.requestLayout()
+            b.progTrack.visibility = View.VISIBLE
+        } else {
+            b.progTrack.visibility = if (b.prog.visibility == View.VISIBLE) View.INVISIBLE else View.GONE
+        }
+    }
+
+    private fun setHeight(view: View, dpValue: Int) {
+        val px = (dpValue * view.resources.displayMetrics.density).toInt()
+        val lp = view.layoutParams ?: return
+        if (lp.height != px) {
+            lp.height = px
+            view.layoutParams = lp
+        }
+    }
+
     private fun bindPlain(b: ItemChannelBinding, title: String) {
         val ctx = b.root.context
+        setHeight(b.root, 42)
+        b.prog.visibility = View.GONE
+        b.progTrack.visibility = View.GONE
         b.number.visibility = View.INVISIBLE
         b.badge.visibility = View.GONE
         b.name.text = title

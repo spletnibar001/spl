@@ -54,8 +54,26 @@ var upstream = http.createServer(function (req, res) {
   }
   if (req.url === '/redir') { res.writeHead(302, { Location: '/list.m3u' }); res.end(); return; }
   if (req.url === '/big.m3u') { res.end(big); return; }
+  if (req.url === '/epg.xml.gz') { res.end(zlib.gzipSync(Buffer.from(epgXml(), 'utf8'))); return; }
   res.writeHead(404); res.end('nope');
 });
+
+// Маленькая телепрограмма: передачи по часу вокруг текущего момента
+function epgXml() {
+  function ts(ms) { return new Date(ms).toISOString().replace(/[-:T]/g, '').substring(0, 14) + ' +0000'; }
+  var h = 3600000;
+  var base = Math.floor(Date.now() / h) * h;
+  var x = '<?xml version="1.0"?><tv><channel id="p1"><display-name>Первый канал</display-name></channel>';
+  for (var k = -2; k < 5; k++) x += '<programme start="' + ts(base + k * h) + '" stop="' + ts(base + (k + 1) * h) + '" channel="p1"><title>Передача ' + k + '</title><desc>Описание ' + k + '</desc></programme>';
+  return x + '</tv>';
+}
+
+function waitEpg(names, tries) {
+  return callOnce('epgNow', { names: names }).then(function (r) {
+    if (r.ready || tries <= 0) return r;
+    return new Promise(function (res) { setTimeout(res, 100); }).then(function () { return waitEpg(names, tries - 1); });
+  });
+}
 
 function collect(r) {
   var parts = [r.first];
@@ -151,6 +169,29 @@ upstream.listen(0, function () {
           }
         });
       });
+    })
+    .then(function () {
+      var epg = require(path.join(__dirname, '..', 'service', 'epg.js'));
+      epg.SOURCES.length = 0;
+      epg.SOURCES.push(base + '/missing', base + '/epg.xml.gz');
+      return callOnce('epgNow', { names: ['Первый канал HD'] });
+    })
+    .then(function (r) { assert.ok(r.needInit, 'epgNow без epgInit просит инициализацию'); })
+    .then(function () { return callOnce('epgInit', { names: ['Первый канал HD', 'НТВ'] }); })
+    .then(function (r) { assert.ok(r.returnValue); return waitEpg(['Первый канал HD', 'НТВ'], 50); })
+    .then(function (r) {
+      assert.ok(r.ready, 'программа загрузилась');
+      assert.strictEqual(r.items['Первый канал HD'].c[2], 'Передача 0');
+      assert.strictEqual(r.items['Первый канал HD'].c[3], 'Описание 0');
+      assert.strictEqual(r.items['Первый канал HD'].n[2], 'Передача 1');
+      assert.strictEqual(r.items['НТВ'], 0, 'нет программы - 0');
+      var h = 3600000;
+      var base0 = Math.floor(Date.now() / h) * h;
+      return callOnce('epgRange', { name: 'Первый канал HD', from: base0 - 2 * h, to: base0 + 2 * h });
+    })
+    .then(function (r) {
+      assert.deepStrictEqual(r.items.map(function (p) { return p[2]; }), ['Передача -2', 'Передача -1', 'Передача 0', 'Передача 1']);
+      ok('epg: init, now/next, range, fallback to second source');
     })
     .then(function () {
       console.log(results.join('\n'));

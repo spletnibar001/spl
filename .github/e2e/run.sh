@@ -106,6 +106,24 @@ shot 19-search-result-focus 1
 key KEYCODE_DPAD_CENTER
 shot 20-search-picked 8
 
+# Программа передач: ждём, пока скачается и разберётся
+for i in $(seq 1 48); do
+  adb logcat -d -s EFIR-EPG:I | grep -q "loaded" && break
+  sleep 5
+done
+note "epg: $(adb logcat -d -s EFIR-EPG:I EFIR-EPG:W | grep -E 'loaded|http' | tail -4 | tr '\n' ' ')"
+key KEYCODE_1
+shot 20a-epg-osd 3
+key KEYCODE_DPAD_RIGHT
+shot 20b-epg-info 2
+key KEYCODE_DPAD_DOWN
+key KEYCODE_DPAD_RIGHT
+shot 20c-epg-info-tomorrow 1.5
+key KEYCODE_BACK
+key KEYCODE_DPAD_CENTER
+shot 20d-epg-list 2
+key KEYCODE_BACK
+
 # Смена плейлиста: Настройки -> Сменить плейлист -> файл с «телефона»
 key KEYCODE_DPAD_CENTER
 key KEYCODE_DPAD_LEFT

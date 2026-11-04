@@ -53,18 +53,60 @@
             android:scaleType="fitCenter" />
     </FrameLayout>
 
-    <TextView
-        android:id="@+id/name"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
         android:layout_weight="1"
         android:duplicateParentState="true"
-        android:ellipsize="end"
-        android:fontFamily="@font/golos_medium"
-        android:maxLines="1"
-        android:textColor="@color/row_text"
-        android:textSize="17sp" />
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:fontFamily="@font/golos_medium"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/row_text"
+            android:textSize="17sp" />
+
+        <TextView
+            android:id="@+id/prog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:fontFamily="@font/golos_regular"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/row_prog"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/progTrack"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_track_row"
+            android:duplicateParentState="true"
+            android:orientation="horizontal"
+            android:visibility="invisible"
+            android:weightSum="1000">
+
+            <View
+                android:id="@+id/progBar"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0"
+                android:background="@drawable/bg_bar_row"
+                android:duplicateParentState="true" />
+        </LinearLayout>
+    </LinearLayout>
 
     <ImageView
         android:id="@+id/playing"

@@ -71,17 +71,23 @@
     <LinearLayout
         android:id="@+id/osd"
         android:layout_width="match_parent"
-        android:layout_height="96dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_marginStart="36dp"
         android:layout_marginEnd="36dp"
         android:layout_marginBottom="30dp"
         android:background="@drawable/bg_osd"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingStart="24dp"
         android:paddingEnd="27dp"
         android:visibility="gone">
+
+    <LinearLayout
+        android:id="@+id/osdTop"
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/osdNumber"
@@ -166,6 +172,324 @@
             android:fontFamily="@font/plex_mono_medium"
             android:textColor="@color/light"
             android:textSize="25sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/osdEpg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_line_top"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="18dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/EpgLabel"
+                    android:text="@string/epg_now"
+                    android:textColor="@color/accent" />
+
+                <TextView
+                    android:id="@+id/osdNowTime"
+                    style="@style/EpgTime" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/osdNowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/golos_semibold"
+                android:maxLines="1"
+                android:textColor="@color/text"
+                android:textSize="20sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/osdNowTrack"
+                    android:layout_width="0dp"
+                    android:layout_height="5dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_track"
+                    android:orientation="horizontal"
+                    android:weightSum="1000">
+
+                    <View
+                        android:id="@+id/osdNowBar"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:background="@drawable/bg_bar" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/osdNowLeft"
+                    style="@style/EpgTime"
+                    android:layout_marginStart="12dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/osdNext"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="30dp"
+            android:layout_weight="2"
+            android:background="@drawable/bg_line_start"
+            android:orientation="vertical"
+            android:paddingStart="24dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/EpgLabel"
+                    android:text="@string/epg_next" />
+
+                <TextView
+                    android:id="@+id/osdNextTime"
+                    style="@style/EpgTime" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/osdNextTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/golos_medium"
+                android:maxLines="1"
+                android:textColor="@color/light"
+                android:textSize="17sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/Keycap"
+                    android:text="@string/key_right" />
+
+                <TextView
+                    style="@style/KeyHint"
+                    android:text="@string/hint_info" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/info"
+        android:layout_width="480dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:background="@color/info"
+        android:orientation="vertical"
+        android:paddingStart="30dp"
+        android:paddingTop="27dp"
+        android:paddingEnd="30dp"
+        android:paddingBottom="20dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/infoNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:fontFamily="@font/plex_mono_semibold"
+                android:textColor="@color/accent"
+                android:textSize="24sp" />
+
+            <TextView
+                android:id="@+id/infoName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="@font/golos_semibold"
+                android:maxLines="1"
+                android:textColor="@color/text"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/infoClock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/plex_mono_medium"
+                android:textColor="@color/light"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/infoNow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/EpgLabel"
+                    android:text="@string/epg_now"
+                    android:textColor="@color/accent" />
+
+                <TextView
+                    android:id="@+id/infoNowTime"
+                    style="@style/EpgTime" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/infoNowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/golos_semibold"
+                android:maxLines="2"
+                android:textColor="@color/text"
+                android:textSize="26sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="5dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_track"
+                    android:orientation="horizontal"
+                    android:weightSum="1000">
+
+                    <View
+                        android:id="@+id/infoNowBar"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:background="@drawable/bg_bar" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/infoNowLeft"
+                    style="@style/EpgTime"
+                    android:layout_marginStart="12dp"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/infoDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="11dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/golos_regular"
+                android:lineSpacingMultiplier="1.15"
+                android:maxLines="4"
+                android:textColor="@color/desc"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="18dp"
+            android:background="@color/divider" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/infoDay"
+                style="@style/EpgLabel"
+                android:layout_width="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                style="@style/Keycap"
+                android:text="@string/key_groups" />
+
+            <TextView
+                style="@style/KeyHint"
+                android:layout_marginEnd="8dp"
+                android:text="@string/hint_day" />
+
+            <TextView
+                style="@style/Keycap"
+                android:text="@string/key_scroll" />
+
+            <TextView
+                style="@style/KeyHint"
+                android:layout_marginEnd="0dp"
+                android:text="@string/hint_scroll" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/infoListBox"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="10dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:id="@+id/infoList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/infoEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="@font/golos_regular"
+                android:textColor="@color/muted2"
+                android:textSize="15sp"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 
     <LinearLayout

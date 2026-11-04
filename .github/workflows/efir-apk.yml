@@ -51,7 +51,9 @@ jobs:
           cat apk-info.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Test webOS service
-        run: node webos/test/service-test.js
+        run: |
+          node webos/test/epg-test.js
+          node webos/test/service-test.js
 
       - name: Package webOS app
         run: |
