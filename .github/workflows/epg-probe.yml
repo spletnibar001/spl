@@ -1,0 +1,18 @@
+name: EPG probe
+on:
+  push:
+    branches: [ efir-epg-probe ]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Probe
+        run: |
+          for u in https://iptvx.one/epg/epg_lite.xml.gz http://epg.it999.ru/edem.xml.gz http://epg.one/epg_lite.xml.gz http://epg.it999.ru/epg_lite.xml.gz https://iptvx.one/epg/epg_noarch.xml.gz; do
+            echo "== $u"; curl -sL -m 120 -A "Mozilla/5.0" -o f.gz "$u" -w "http %{http_code} size %{size_download}\n"; (gunzip -c f.gz 2>/dev/null | wc -c) || true
+          done
+          node webos/test/epg-probe.js .github/e2e/channel-names.txt https://iptvx.one/epg/epg_lite.xml.gz http://epg.one/epg_lite.xml.gz | grep -v MISSING
