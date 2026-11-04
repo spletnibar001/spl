@@ -450,15 +450,6 @@
 
             <TextView
                 style="@style/Keycap"
-                android:text="@string/key_groups" />
-
-            <TextView
-                style="@style/KeyHint"
-                android:layout_marginEnd="8dp"
-                android:text="@string/hint_day" />
-
-            <TextView
-                style="@style/Keycap"
                 android:text="@string/key_scroll" />
 
             <TextView

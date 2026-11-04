@@ -117,8 +117,8 @@ shot 20a-epg-osd 3
 key KEYCODE_DPAD_RIGHT
 shot 20b-epg-info 2
 key KEYCODE_DPAD_DOWN
-key KEYCODE_DPAD_RIGHT
-shot 20c-epg-info-tomorrow 1.5
+key KEYCODE_DPAD_DOWN
+shot 20c-epg-info-scrolled 1.5
 key KEYCODE_BACK
 key KEYCODE_DPAD_CENTER
 shot 20d-epg-list 2

@@ -172,7 +172,7 @@ upstream.listen(0, function () {
     })
     .then(function () {
       var epg = require(path.join(__dirname, '..', 'service', 'epg.js'));
-      try { require('fs').unlinkSync('/tmp/efir-epg.json'); } catch (e) { /* нет кэша от прошлого запуска */ }
+      ['/tmp/efir-epg.json', '/media/developer/temp/efir-epg.json'].forEach(function (f) { try { require('fs').unlinkSync(f); } catch (e) { /* нет кэша */ } });
       epg.SOURCES.length = 0;
       epg.SOURCES.push(base + '/missing', base + '/epg.xml.gz');
       return callOnce('epgNow', { names: ['Первый канал HD'] });

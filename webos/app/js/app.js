@@ -1445,11 +1445,7 @@
       infoTop += down ? infoVisibleRows() - 1 : -(infoVisibleRows() - 1);
       renderInfo();
     } else if (code === KEY.LEFT || code === KEY.RIGHT) {
-      var next = infoDay + (code === KEY.LEFT ? -1 : 1);
-      if (next >= -1 && next <= 2) {
-        infoDay = next;
-        loadInfoDay(next === 0);
-      }
+      // только сегодняшний день
     } else if (isBack(code) || code === KEY.INFO || code === KEY.GUIDE) {
       closeInfo();
     } else {

@@ -18,8 +18,8 @@ var SOURCES = [
   'http://epg.one/epg2.xml.gz'
 ];
 
-var KEEP_BEFORE = 8 * 3600 * 1000;    // уже прошедшее сегодня
-var KEEP_AFTER = 2 * 24 * 3600 * 1000; // сегодня и завтра
+var KEEP_BEFORE = 14 * 3600 * 1000;   // с утра сегодняшнего дня
+var KEEP_AFTER = 26 * 3600 * 1000;    // до конца сегодняшнего дня (и ночь)
 var DESC_MAX = 300;
 var MAX_AGE = 12 * 3600 * 1000;       // раз в 12 часов скачиваем заново
 var USER_AGENT = 'Mozilla/5.0 (Web0S; Linux/SmartTV) EFIR/1.1';
@@ -81,6 +81,18 @@ function decode(s) {
   });
 }
 
+/** Быстрое чтение атрибута без регулярного выражения: channel="..." */
+function quickAttr(tag, name) {
+  var k = tag.indexOf(' ' + name + '=');
+  if (k < 0) return attr(tag, name);
+  var q = tag.charAt(k + name.length + 2);
+  if (q !== '"' && q !== "'") return attr(tag, name);
+  var e = tag.indexOf(q, k + name.length + 3);
+  if (e < 0) return null;
+  var v = tag.substring(k + name.length + 3, e);
+  return v.indexOf('&') >= 0 ? decode(v) : v;
+}
+
 function attr(tag, name) {
   var re = new RegExp('\\s' + name + '\\s*=\\s*("([^"]*)"|\'([^\']*)\')');
   var m = re.exec(tag);
@@ -121,31 +133,41 @@ XmltvParser.prototype.feed = function (text) {
   var b = this.buf;
   var pos = 0;
   for (;;) {
-    var open = b.indexOf('<', pos);
-    if (open < 0) { pos = b.length; break; }
-    var isProg = b.substr(open, 10) === '<programme';
-    var isChan = !isProg && b.substr(open, 8) === '<channel';
-    if (!isProg && !isChan) {
-      // не наш тег - пропускаем до следующего «<»
-      if (open + 10 > b.length) { pos = open; break; }
-      pos = open + 1;
-      continue;
+    // ищем сразу нужные теги, а не каждый «<»: так в несколько раз быстрее на слабом ТВ
+    var open = b.indexOf('<programme', pos);
+    var isProg = true;
+    if (!this.seenProgramme) {
+      var ch = b.indexOf('<channel', pos);
+      if (ch >= 0 && (open < 0 || ch < open)) {
+        open = ch;
+        isProg = false;
+      }
     }
-    var closeTag = isProg ? '</programme>' : '</channel>';
+    if (open < 0) {
+      // хвост может содержать начало тега - оставляем его до следующего куска
+      pos = Math.max(pos, b.length - 12);
+      break;
+    }
     var headEnd = b.indexOf('>', open);
     if (headEnd < 0) { pos = open; break; }
+    var head = b.substring(open, headEnd + 1);
+    var selfClosed = b.charAt(headEnd - 1) === '/';
+    var closeTag = isProg ? '</programme>' : '</channel>';
     var end;
-    if (b.charAt(headEnd - 1) === '/') {
+    if (selfClosed) {
       end = headEnd + 1;
     } else {
       var c = b.indexOf(closeTag, headEnd);
       if (c < 0) { pos = open; break; }
       end = c + closeTag.length;
     }
-    var block = b.substring(open, end);
-    var head = b.substring(open, headEnd + 1);
-    if (isProg) this.programme(head, block);
-    else this.channel(head, block);
+    if (isProg) {
+      this.seenProgramme = true;
+      var id = quickAttr(head, 'channel');
+      if (id !== null && (!this.wanted || this.wanted(id))) this.programme(head, b.substring(open, end), id);
+    } else {
+      this.channel(head, b.substring(open, end));
+    }
     pos = end;
   }
   this.buf = b.substring(pos);
@@ -163,11 +185,10 @@ XmltvParser.prototype.channel = function (head, block) {
   }
   this.onChannel(id, names);
 };
-XmltvParser.prototype.programme = function (head, block) {
-  var id = attr(head, 'channel');
+XmltvParser.prototype.programme = function (head, block, id) {
   if (!id) return;
-  var start = parseTime(attr(head, 'start'));
-  var stop = parseTime(attr(head, 'stop'));
+  var start = parseTime(quickAttr(head, 'start'));
+  var stop = parseTime(quickAttr(head, 'stop'));
   if (isNaN(start)) return;
   this.onProgramme(id, start, stop, block);
 };
@@ -192,6 +213,7 @@ function Collector(names, now) {
   var self = this;
   this.parser = new XmltvParser(function (id, list) { self.addChannel(id, list); },
     function (id, s, e, block) { self.addProgramme(id, s, e, block); });
+  this.parser.wanted = function (id) { return self.idToKey.hasOwnProperty(id); };
 }
 Collector.prototype.addChannel = function (id, list) {
   var cand = list.slice();

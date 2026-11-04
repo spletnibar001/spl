@@ -179,8 +179,8 @@ class EpgIndex(
 class XmltvCollector(names: Collection<String>, private val now: Long = System.currentTimeMillis()) {
 
     companion object {
-        const val KEEP_BEFORE = 8 * 3_600_000L
-        const val KEEP_AFTER = 2 * 24 * 3_600_000L
+        const val KEEP_BEFORE = 14 * 3_600_000L
+        const val KEEP_AFTER = 26 * 3_600_000L
         const val DESC_MAX = 300
 
         private val entity = Regex("&(#x[0-9a-fA-F]+|#\\d+|[a-zA-Z]+);")

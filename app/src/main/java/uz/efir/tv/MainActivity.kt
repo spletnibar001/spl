@@ -596,13 +596,7 @@ class MainActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_DPAD_DOWN -> if (down && infoTop < infoItems.size - infoVisibleRows()) { infoTop++; renderInfo() }
             KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP -> if (down) { infoTop -= infoVisibleRows() - 1; renderInfo() }
             KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> if (down) { infoTop += infoVisibleRows() - 1; renderInfo() }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> if (down && event.repeatCount == 0) {
-                val next = infoDay + if (code == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
-                if (next in -1..2) {
-                    infoDay = next
-                    loadInfoDay(scrollToNow = next == 0)
-                }
-            }
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> Unit // только сегодняшний день
             KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_GUIDE,
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> if (up) closeInfo()
             else -> return false

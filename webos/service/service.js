@@ -148,18 +148,20 @@ service.register('server', function (message) {
 
 // ---------- Телепрограмма ----------
 
-var CACHE_FILES = ['/tmp/efir-epg.json', path.join(__dirname, 'efir-epg.json')];
+// /media/developer переживает выключение телевизора, /tmp - нет
+var CACHE_FILES = ['/media/developer/temp/efir-epg.json', '/tmp/efir-epg.json', path.join(__dirname, 'efir-epg.json')];
 var epgState = { index: null, names: [], sig: null, loading: false, lastTry: 0, error: null };
 var RETRY_MS = 10 * 60 * 1000;
 
 function readCache(sig) {
+  var best = null;
   for (var i = 0; i < CACHE_FILES.length; i++) {
     try {
       var data = JSON.parse(fs.readFileSync(CACHE_FILES[i], 'utf8'));
-      if (data && data.sig === sig && data.index && data.index.chan) return data.index;
+      if (data && data.sig === sig && data.index && data.index.chan && (!best || data.index.updated > best.updated)) best = data.index;
     } catch (e) { /* нет файла */ }
   }
-  return null;
+  return best;
 }
 
 function writeCache(sig, index) {
