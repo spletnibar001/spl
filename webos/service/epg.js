@@ -214,7 +214,7 @@ Collector.prototype.addProgramme = function (id, start, stop, block) {
   if (!keys) return;
   if (isNaN(stop)) stop = start + 3600000;
   if (stop < this.now - KEEP_BEFORE || start > this.now + KEEP_AFTER) return;
-  var title = firstText(block, 'title');
+  var title = firstText(block, 'title').replace(/^[>\s]+/, '');
   if (!title) return;
   var desc = firstText(block, 'desc');
   if (desc.length > DESC_MAX) desc = desc.substring(0, DESC_MAX - 1).replace(/\s+\S*$/, '') + '…';

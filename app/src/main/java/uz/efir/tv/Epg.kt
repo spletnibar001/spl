@@ -300,7 +300,7 @@ class XmltvCollector(names: Collection<String>, private val now: Long = System.c
         val start = parseTime(attr(head, "start")) ?: return
         val stop = parseTime(attr(head, "stop")) ?: (start + 3_600_000L)
         if (stop < now - KEEP_BEFORE || start > now + KEEP_AFTER) return
-        val title = firstText(block, "title")
+        val title = firstText(block, "title").trimStart('>', ' ')
         if (title.isEmpty()) return
         var desc = firstText(block, "desc")
         if (desc.length > DESC_MAX) desc = desc.substring(0, DESC_MAX - 1).replace(Regex("\\s+\\S*$"), "") + "…"
