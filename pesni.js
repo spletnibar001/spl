@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 6 · 06.11.2026 (кнопка «Не напоминать» из сообщения бота: ?noremind=1)
    Сборка 5 · 07.10.2026 (пожелание к песне, повтор, подборки, карточка вечера, «искали и не нашли»)
    - каталог AST-250 (songs.json), поиск, топ недели, новинки, подборки звукооператора
    - избранное и «История» (что и когда спето) + карточка вечера для сторис
@@ -822,6 +823,10 @@ async function init(){
   let sp = null; try{ sp = Telegram.WebApp.initDataUnsafe.start_param || null; }catch(_){}
   const q = new URLSearchParams(location.search);
   if (q.get("card")) PS.pendingCard = q.get("card");     // из сообщения бота после визита
+  // «Не напоминать» под сообщением-напоминанием (сборка 7.3, 06.11.2026)
+  if (q.get("noremind") === "1") call("my_noremind", { off: true }).then(d => {
+    toast(d && d.ok ? "Хорошо, больше не будем напоминать" : "Не получилось - попробуйте ещё раз");
+  });
   if (q.get("tab") === "songs" || q.get("card") || (sp && /^stol-/i.test(sp))) go("songs");
 }
 window.PesniInit = init;

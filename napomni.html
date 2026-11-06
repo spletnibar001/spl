@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SPLETNI · Напоминания гостям</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#0b0d10; --panel:#15181d; --line:#262a31; --text:#eef1f4; --muted:#9aa3ad; --soft:#c5ccd3;
+  --emerald:#1fbf7a; --gold:#c9a14a; --red:#e2655c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:560px;margin:0 auto;padding:16px 14px 110px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.head h1{margin:0;font-size:21px;font-weight:800}
+.ib{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0}
+.ib svg{width:20px;height:20px}
+.test{padding:9px 12px;border-radius:10px;background:rgba(201,161,74,.12);border:1px solid var(--gold);color:#e8cf8f;font-size:13px;margin-bottom:12px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;min-width:0;padding:10px 2px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs button.on{border-color:var(--emerald);color:var(--emerald);background:rgba(31,191,122,.10)}
+.hint{font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.4}
+.list{display:flex;flex-direction:column;gap:8px}
+.card{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+.card.on{border-color:var(--emerald);background:rgba(31,191,122,.08)}
+.pick{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;background:transparent;border:0;padding:0;text-align:left}
+.pick .top{display:flex;justify-content:space-between;gap:8px}
+.pick b{font-size:15px}
+.pick .ph{font-size:12px;color:var(--muted);white-space:nowrap}
+.pick .v{font-size:13px;color:var(--soft)}
+.pick .w{font-size:12px;color:var(--muted)}
+.pick .txt{margin-top:6px;padding:9px 10px;border-radius:9px;background:var(--bg);border:1px solid var(--line);font-size:13px;line-height:1.45;color:var(--soft);white-space:pre-line}
+.x{width:40px;height:40px;flex:none;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0}
+.x svg{width:16px;height:16px}
+.link{min-height:40px;padding:0 2px;border:0;background:transparent;color:var(--emerald);font-size:13px;font-weight:700;margin-top:6px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;line-height:1.5}
+.empty b{display:block;color:var(--text);font-size:15px;margin-bottom:4px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(11,13,16,0),var(--bg) 30%);padding:18px 14px 16px}
+.bar .in{max-width:560px;margin:0 auto;display:flex;gap:8px}
+.btn{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:14px;font-weight:700;padding:0 14px}
+.btn.main{border:0;background:var(--emerald);color:#0b0d10;font-size:15px;font-weight:800}
+.btn[disabled]{opacity:.4;cursor:default}
+.grow{flex:1}.grow2{flex:1.6}
+.form{display:flex;flex-direction:column;gap:12px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+label.f input,label.f textarea{padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:15px}
+label.f textarea{background:var(--bg);font-size:13.5px;line-height:1.4;resize:vertical;min-height:84px}
+.kind{padding:12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.kind .kh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.kind .kh b{font-size:15px}
+.sw{width:52px;height:30px;flex:none;border-radius:15px;border:1px solid var(--line);background:var(--bg);padding:2px;display:flex;justify-content:flex-start}
+.sw span{width:24px;height:24px;border-radius:50%;background:#4a515b;display:block}
+.sw[aria-checked="true"]{border-color:var(--emerald);background:rgba(31,191,122,.35);justify-content:flex-end}
+.sw[aria-checked="true"] span{background:var(--emerald)}
+.vars{font-size:12px;color:var(--muted);line-height:1.5}
+#auth{padding:40px 20px;text-align:center;color:var(--muted);line-height:1.5}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1f242b;border:1px solid var(--emerald);color:var(--text);padding:11px 16px;border-radius:12px;font-size:14px;display:none;z-index:9;max-width:90vw}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="auth">Загружаем…</div>
+  <div id="app" hidden>
+    <div id="vList">
+      <div class="head">
+        <h1>Напоминания гостям</h1>
+        <button type="button" class="ib" id="goSet" aria-label="Настройки" hidden>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="test" id="testBar" hidden>Тестовый режим: уйдёт только на тестовые номера</div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <p class="hint" id="hint"></p>
+      <div class="list" id="list"></div>
+      <button type="button" class="link" id="showTxt" hidden>Показать текст сообщений</button>
+    </div>
+    <div id="vSet" hidden>
+      <div class="head">
+        <button type="button" class="ib" id="goBack" aria-label="Назад">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h1 style="flex:1">Настройки</h1>
+      </div>
+      <div class="form">
+        <div class="row2">
+          <label class="f">Предлагать через, дней<input type="number" inputmode="numeric" min="1" max="180" id="sDays"></label>
+          <label class="f">Одному гостю не чаще, дней<input type="number" inputmode="numeric" min="7" max="365" id="sEvery"></label>
+        </div>
+        <label class="f">«Давно не были» - не приходил, дней<input type="number" inputmode="numeric" min="7" max="365" id="sSleep"></label>
+        <label class="f">Комплимент (подставляется в {комплимент}; пусто - фраза с ним не отправляется)<input type="text" maxlength="200" id="sComp"></label>
+        <div id="kinds" class="form"></div>
+        <div class="vars">Подстановки: {имя} {друзья} {место} {избранное} {комплимент}</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="bar" id="bar" hidden><div class="in" id="barIn"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* SPLETNI · напоминания гостям (napomni.html) · сборка 1 · 06.11.2026
+   Программа только ПРЕДЛАГАЕТ: гости, подходящие по сроку; отправляет сотрудник.
+   Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; данные: rpc song_call, действия back_* */
+"use strict";
+const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const KINDS = [
+  { k: "company", tab: "Компании", title: "Компании", hint: "Были с друзьями. Отметьте, кому отправить «Соберёте ту же компанию снова?»." },
+  { k: "solo", tab: "Один гость", title: "Один гость", hint: "Приходили одни. Отметьте, кому напомнить о SPLETNI." },
+  { k: "sleep", tab: "Давно не были", title: "Давно не были (есть избранное)", hint: "Давно не приходили, а в избранном ждут песни." }
+];
+const ERR = { forbidden: "Нет доступа", test_mode: "Пока работает в тестовом режиме: только у администратора", network: "Нет связи, попробуйте ещё раз", auth: "Сессия устарела - откройте заново" };
+let TOKEN = null, ST = null, TAB = "company", SEL = new Set(), SHOW = false, busy = false;
+
+function toast(m){ const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 3000); }
+const keyOf = it => it.kind + ":" + it.tg + ":" + (it.booking == null ? "" : it.booking);
+const fmtDate = d => { if (!d) return ""; const p = String(d).split("-"); const m = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"]; return +p[2] + " " + m[+p[1] - 1]; };
+
+async function fnCall(body){
+  try{
+    const r = await fetch(SB_URL + "/functions/v1/songs", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify(body) });
+    let d = {}; try{ d = await r.json(); }catch(_){}
+    if (!r.ok && !d.error) d.error = "http_" + r.status;
+    return d;
+  }catch(e){ return { error: "network" }; }
+}
+async function login(){
+  const tg = window.Telegram && window.Telegram.WebApp;
+  let initData = tg && tg.initData;
+  if (!initData){ try{ initData = sessionStorage.getItem("spl_initData") || ""; }catch(_){} }
+  if (!initData){ $("#auth").textContent = "Откройте напоминания из бота табеля в Telegram (кнопка «Открыть напоминания»)."; return false; }
+  const d = await fnCall({ action: "login", app: "staff", initData });
+  if (!d.token){
+    $("#auth").textContent = d.error === "not_staff" ? "Доступ только для хостес и руководства."
+      : d.error === "test_mode" ? "Напоминания пока в тестовом режиме: открыты только администратору."
+      : "Не получилось войти: " + (d.error || "ошибка");
+    return false;
+  }
+  TOKEN = d.token;
+  return true;
+}
+async function api(action, args, retry){
+  if (!TOKEN && !(await login())) return { error: "auth" };
+  let d;
+  try{
+    const r = await fetch(SB_URL + "/rest/v1/rpc/song_call", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON },
+      body: JSON.stringify({ p_token: TOKEN, p_action: action, p_args: args || {} }) });
+    d = await r.json();
+    if (!r.ok) d = { error: (d && d.message) || ("http_" + r.status) };
+  }catch(e){ d = { error: "network" }; }
+  if (d && d.error === "auth" && !retry){ TOKEN = null; return api(action, args, true); }
+  return d || {};
+}
+function apply(d){
+  if (!d || d.error){
+    if (!ST){ $("#auth").hidden = false; $("#app").hidden = true; $("#auth").textContent = ERR[d && d.error] || ("Ошибка: " + (d && d.error)); }
+    else toast(ERR[d && d.error] || ("Ошибка: " + (d && d.error)));
+    return false;
+  }
+  ST = d;
+  const keys = new Set(d.items.map(keyOf));
+  for (const k of [...SEL]) if (!keys.has(k)) SEL.delete(k);
+  $("#auth").hidden = true; $("#app").hidden = false;
+  if (d.outbox_due) fnCall({ action: "flush", token: TOKEN });
+  render();
+  return true;
+}
+
+function render(){
+  const s = ST; if (!s) return;
+  $("#testBar").hidden = !s.test_mode;
+  $("#goSet").hidden = !s.can_edit;
+  const by = k => s.items.filter(i => i.kind === k);
+  $("#tabs").innerHTML = KINDS.map(K => '<button type="button" role="tab" data-tab="' + K.k + '" aria-selected="' + (TAB === K.k) + '" class="' + (TAB === K.k ? "on" : "") + '">' + K.tab + " · " + by(K.k).length + "</button>").join("");
+  const K = KINDS.find(x => x.k === TAB);
+  const off = !s.settings[TAB + "_on"];
+  $("#hint").textContent = off ? "Этот вид напоминаний выключен в настройках." : K.hint;
+  const items = by(TAB);
+  $("#list").innerHTML = items.length ? items.map(it => {
+    const k = keyOf(it), on = SEL.has(k);
+    const visit = it.kind === "sleep" ? (it.date ? "последний визит " + fmtDate(it.date) : "ещё не был в зале") : fmtDate(it.date) + " · " + it.place;
+    const w = it.kind === "company" ? "с компанией: " + it.friends : it.kind === "sleep" ? it.friends : "";
+    return '<div class="card' + (on ? " on" : "") + '"><button type="button" class="pick" data-k="' + esc(k) + '" aria-pressed="' + on + '">' +
+      '<span class="top"><b>' + esc(it.name) + '</b><span class="ph">' + esc(it.phone) + "</span></span>" +
+      '<span class="v">' + esc(visit) + "</span>" + (w ? '<span class="w">' + esc(w) + "</span>" : "") +
+      (SHOW ? '<span class="txt">' + esc(it.text) + "</span>" : "") +
+      '</button><button type="button" class="x" data-skip="' + esc(k) + '" aria-label="Не предлагать ' + esc(it.name) + '">' +
+      '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>';
+  }).join("") : '<div class="empty"><b>Сейчас некому напоминать</b>Гости появятся здесь, когда подойдёт срок.</div>';
+  $("#showTxt").hidden = !items.length;
+  $("#showTxt").textContent = SHOW ? "Скрыть текст сообщений" : "Показать текст сообщений";
+  renderBar();
+}
+function renderBar(){
+  const inSet = !$("#vSet").hidden;
+  if (inSet){
+    $("#bar").hidden = false;
+    $("#barIn").innerHTML = '<button type="button" class="btn main grow" id="save">Сохранить</button>';
+    return;
+  }
+  const items = ST.items.filter(i => i.kind === TAB);
+  const n = items.filter(i => SEL.has(keyOf(i))).length;
+  $("#bar").hidden = !items.length;
+  const all = n === items.length && n > 0;
+  $("#barIn").innerHTML = '<button type="button" class="btn grow" id="selAll">' + (all ? "Снять всех" : "Выбрать всех") + "</button>" +
+    '<button type="button" class="btn main grow2" id="send"' + (n ? "" : " disabled") + ">Отправить · " + n + "</button>";
+}
+
+function renderSet(){
+  const st = ST.settings;
+  $("#sDays").value = st.days; $("#sEvery").value = st.every; $("#sSleep").value = st.sleep_days; $("#sComp").value = st.compliment || "";
+  $("#kinds").innerHTML = KINDS.map(K =>
+    '<div class="kind"><div class="kh"><b id="kt-' + K.k + '">' + K.title + '</b>' +
+    '<button type="button" class="sw" role="switch" data-sw="' + K.k + '" aria-checked="' + !!st[K.k + "_on"] + '" aria-labelledby="kt-' + K.k + '"><span></span></button></div>' +
+    '<label class="f">Текст<textarea rows="3" maxlength="1000" id="t-' + K.k + '">' + esc(st[K.k + "_text"]) + "</textarea></label></div>").join("");
+}
+
+async function send(){
+  if (busy) return;
+  const items = ST.items.filter(i => i.kind === TAB && SEL.has(keyOf(i))).map(i => ({ kind: i.kind, tg: i.tg, booking: i.booking }));
+  if (!items.length) return;
+  busy = true; $("#send").disabled = true; $("#send").textContent = "Отправляем…";
+  try{
+    const d = await api("back_send", { items });
+    if (apply(d)){ toast("Отправлено: " + d.done + (ST.test_mode ? " (тестовый режим)" : "")); fnCall({ action: "flush", token: TOKEN }); }
+  } finally { busy = false; renderBar(); }
+}
+async function skip(k){
+  if (busy) return;
+  const it = ST.items.find(i => keyOf(i) === k); if (!it) return;
+  busy = true;
+  try{ const d = await api("back_skip", { items: [{ kind: it.kind, tg: it.tg, booking: it.booking }] }); if (apply(d)) toast(it.name + " - больше не предлагаем по этому поводу"); }
+  finally { busy = false; }
+}
+async function save(){
+  if (busy) return;
+  const a = { days: +$("#sDays").value || null, every: +$("#sEvery").value || null, sleep_days: +$("#sSleep").value || null, compliment: $("#sComp").value.trim() };
+  for (const K of KINDS){
+    a[K.k + "_on"] = document.querySelector('[data-sw="' + K.k + '"]').getAttribute("aria-checked") === "true";
+    a[K.k + "_text"] = $("#t-" + K.k).value;
+  }
+  busy = true; $("#save").disabled = true; $("#save").textContent = "Сохраняем…";
+  try{ const d = await api("back_save", a); if (apply(d)){ toast("Сохранено"); showList(); } }
+  finally { busy = false; if ($("#save")){ $("#save").disabled = false; $("#save").textContent = "Сохранить"; } }
+}
+function showList(){ $("#vSet").hidden = true; $("#vList").hidden = false; render(); window.scrollTo(0, 0); }
+function showSet(){ $("#vList").hidden = true; $("#vSet").hidden = false; renderSet(); renderBar(); window.scrollTo(0, 0); }
+
+document.addEventListener("click", e => {
+  const t = e.target;
+  const tab = t.closest("[data-tab]"); if (tab){ TAB = tab.dataset.tab; render(); return; }
+  const p = t.closest(".pick"); if (p){ const k = p.dataset.k; if (SEL.has(k)) SEL.delete(k); else SEL.add(k); render(); return; }
+  const x = t.closest("[data-skip]"); if (x){ skip(x.dataset.skip); return; }
+  const sw = t.closest("[data-sw]"); if (sw){ sw.setAttribute("aria-checked", sw.getAttribute("aria-checked") === "true" ? "false" : "true"); return; }
+  if (t.closest("#showTxt")){ SHOW = !SHOW; render(); return; }
+  if (t.closest("#selAll")){
+    const items = ST.items.filter(i => i.kind === TAB), all = items.every(i => SEL.has(keyOf(i)));
+    items.forEach(i => all ? SEL.delete(keyOf(i)) : SEL.add(keyOf(i))); render(); return;
+  }
+  if (t.closest("#send")){ send(); return; }
+  if (t.closest("#goSet")){ showSet(); return; }
+  if (t.closest("#goBack")){ showList(); return; }
+  if (t.closest("#save")){ save(); return; }
+});
+
+(async function start(){
+  try{ const tg = window.Telegram && window.Telegram.WebApp; if (tg){ tg.ready(); tg.expand(); } }catch(_){}
+  if (!(await login())) return;
+  apply(await api("back_list"));
+  const first = KINDS.find(K => ST && ST.items.some(i => i.kind === K.k));
+  if (first){ TAB = first.k; render(); }
+})();
+</script>
+</body>
+</html>
