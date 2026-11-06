@@ -414,7 +414,8 @@ const favxKey = (t, a, yt) => yt ? "yt:" + yt : "l:" + String(t || "").trim().to
 function favxOf(t, a, yt){ const k = favxKey(t, a, yt); return ((PS.me && PS.me.favx) || []).find(f => favxKey(f.t, f.a, f.yt) === k) || null; }
 function xRow(t, a, yt, under){        // песня не из AST: YouTube или файл кабинки
   const fx = favxOf(t, a, yt);
-  return '<div class="sg-row">' + srcBadge(yt) + '<div class="sg-t"><b>' + esc(t) + "</b><span>" + esc(a) + "</span>" + zonePill(false) + (under || "") + "</div>" +
+  const v = cleanYt(t, a);   // «Sherali Jo'rayev - Gulbadan» + канал «Milliy Karaoke» -> исполнитель и название отдельно
+  return '<div class="sg-row">' + srcBadge(yt) + '<div class="sg-t"><b>' + esc(v.t) + "</b><span>" + esc(v.a) + "</span>" + zonePill(false) + (under || "") + "</div>" +
     '<button type="button" class="sg-ic' + (fx ? " on" : "") + '" data-fx="1" data-t="' + esc(t) + '" data-a="' + esc(a) + '" data-yt="' + esc(yt || "") + '" aria-label="' + (fx ? "Убрать из избранного" : "В избранное") + '">' + STAR + "</button>" +
     (inCabin() ? "<span></span>" : '<span class="sg-cabtxt">в кабинке</span>') + "</div>";
 }
