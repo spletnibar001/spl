@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 8 · 07.11.2026 (вкладка «Сегодня»: зал или кабинка по брони, бронь кабинки до посадки)
    Сборка 7 · 07.11.2026 («Мои песни»: список + избранное, песни с YouTube для кабинок, «Вы в кабинке»)
    Сборка 6 · 06.11.2026 (кнопка «Не напоминать» из сообщения бота: ?noremind=1)
    Сборка 5 · 07.10.2026 (пожелание к песне, повтор, подборки, карточка вечера, «искали и не нашли»)
@@ -57,7 +58,7 @@ const ERR = {
   list_full: "В списке уже 100 песен - уберите лишние",
   fav_limit: "В избранном уже 500 песен",
   not_in_cabin: "Вы сейчас не в кабинке",
-  need_phone: "Сначала поделитесь номером во вкладке «Мой стол»",
+  need_phone: "Сначала поделитесь номером во вкладке «Сегодня»",
   retry: "Новый код можно взять через минуту"
 };
 const errText = e => ERR[e] || ("Ошибка: " + e);
@@ -357,7 +358,7 @@ function songData(n){
 function orderNote(){
   const tb = table();
   if (!PS.me) return "";
-  if (!PS.me.reg && !tb) return '<div class="sg-note">Чтобы заказывать песни на свой стол, откройте <b>«Мой стол»</b> и поделитесь номером - тем, на который бронь.</div>';
+  if (!PS.me.reg && !tb) return '<div class="sg-note">Чтобы заказывать песни на свой стол, откройте <b>«Сегодня»</b> и поделитесь номером - тем, на который бронь.</div>';
   if (!tb) return "";
   if (tb.status !== "seated") return '<div class="sg-note warn">Стол ' + tb.table_no + ': заказ откроется, когда хостес отметит, что вы сели. Пока можно собрать избранное.</div>';
   if (!PS.me.open) return '<div class="sg-note warn">Звукооператор временно не принимает заявки.</div>';
@@ -472,7 +473,7 @@ function histDay(d){
 function scrHist(){
   const me = PS.me || {};
   const hist = me.history || [];
-  if (!hist.length) return '<div class="sg-empty"><b>Здесь будет ваша история</b>' + (me.reg ? "Что и когда вы спели в SPLETNI - появится тут после первой песни" : "Поделитесь номером во вкладке «Мой стол» - и мы покажем, что вы пели в прошлые визиты") + "</div>";
+  if (!hist.length) return '<div class="sg-empty"><b>Здесь будет ваша история</b>' + (me.reg ? "Что и когда вы спели в SPLETNI - появится тут после первой песни" : "Поделитесь номером во вкладке «Сегодня» - и мы покажем, что вы пели в прошлые визиты") + "</div>";
   const total = hist.reduce((s, v) => s + v.songs.length, 0);
   let h = '<div class="sg-hsum">' + total + " " + plural(total, "песня", "песни", "песен") + " за " + hist.length + " " + plural(hist.length, "вечер", "вечера", "вечеров") + (hist.length >= 20 ? " (последние)" : "") + "</div>";
   hist.forEach(v => {
@@ -491,11 +492,19 @@ function pollBlock(){
   const tb = table(), my = tb ? tb.booking_id : null;
   return '<div class="sg-poll"><h3>Голосование: ' + esc(pl.title) + '</h3><div class="sub">Поставьте лайк лучшему исполнению - результаты прямо сейчас на экране зала' + (pl.left ? " · осталось " + pl.left + " сек" : "") + "</div>" +
     (pl.candidates || []).map(c => { const x = Object.assign({}, c, { mine: my != null && c.booking_id === my }); return '<div class="sg-hall' + (x.mine ? " mine" : "") + '"><span class="sg-hp">стол ' + x.table_no + '</span><div class="sg-t"><b>' + esc(x.t) + "</b><span>" + esc(x.a) + "</span></div>" + (tb ? likeBtn(x) : '<span class="sg-like mine">' + HEART + "<span>" + x.likes + "</span></span>") + "</div>"; }).join("") +
-    (tb ? "" : '<div class="sub" style="margin-top:6px">Голосуют гости за столами Большого зала - поделитесь номером в «Мой стол».</div>') + "</div>";
+    (tb ? "" : '<div class="sub" style="margin-top:6px">Голосуют гости за столами Большого зала - поделитесь номером в «Сегодня».</div>') + "</div>";
 }
 function pollBanner(){
   const pl = PS.me && PS.me.poll; if (!pl || PS.tab === "table") return "";
   return '<button type="button" class="sg-pb" data-tab="table">Идёт голосование: ' + esc(pl.title) + "<span>голосовать →</span></button>";
+}
+// где гость сегодня - для шапки «Песни» (сборка 8)
+function headWhere(tb){
+  const me = PS.me || {};
+  if (tb) return "Большой зал · стол " + tb.table_no;
+  if (me.cabin) return "Кабинка " + me.cabin;
+  if (me.cab_bk) return "Кабинка " + me.cab_bk.cabin + (me.cab_bk.at ? " · сегодня в " + me.cab_bk.at : " · сегодня");
+  return "Зал и кабинки";
 }
 function scrTable(){
   const me = PS.me;
@@ -507,15 +516,25 @@ function scrTable(){
   }
   if (!me.reg && !tb){
     h += '<div class="sg-card"><div style="font-weight:800;font-size:16px;margin-bottom:6px">Заказ песен на свой стол</div>' +
-      '<div style="color:var(--muted);font-size:13.5px;line-height:1.5">Поделитесь номером Telegram - мы найдём вашу бронь в Большом зале. Когда хостес отметит, что вы сели, сможете ставить песни в очередь, видеть, когда ваш черёд, и звать друзей за стол.</div>' +
+      '<div style="color:var(--muted);font-size:13.5px;line-height:1.5">Поделитесь номером Telegram - мы найдём вашу бронь в Большом зале или в кабинке. В зале - заказ песен на стол и очередь, в кабинке - ваш список сразу на экране.</div>' +
       '<button type="button" class="sg-btn" id="sg-share">Поделиться номером</button><div id="sg-share-msg"></div></div>';
     h += '<div class="sg-sec">Есть код стола от друга?</div><div class="sg-in"><input id="sg-code" maxlength="8" placeholder="Например K7Q2MX" autocomplete="off" aria-label="Код стола"><button type="button" id="sg-join">Войти</button></div><div id="sg-join-msg"></div>';
     return h;
   }
-  if (!tb){
-    h += '<div class="sg-card"><div style="font-weight:800">На сегодня брони в Большом зале не нашли</div><div style="color:var(--muted);font-size:13.5px;margin-top:4px;line-height:1.5">Ищем по номеру ' + esc(me.phone || "") + '. Если бронь на другой номер - попросите того, на кого бронь, добавить вас за стол, или введите его код.</div></div>';
+  if (!tb && me.cab_bk){      // бронь в кабинке, ещё не сели (сборка 8)
+    const cb = me.cab_bk;
+    h += '<div class="sg-card"><div style="font-weight:800;font-size:16px">Ваша бронь: Кабинка ' + cb.cabin + ', сегодня' + (cb.at ? " в " + esc(cb.at) : "") + '</div>' +
+      '<div style="color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5">Когда хостес отметит посадку, ваш список и избранное сразу появятся на экране кабинки. Соберите песни заранее - во вкладке «Мои песни».</div>' +
+      '<button type="button" class="sg-btn" id="sg-gofav">Мои песни</button></div>';
+    return h;
+  }
+  if (!tb){                   // брони на сегодня нет (сборка 8: зал и кабинки)
+    h += '<div class="sg-card"><div style="font-weight:800">На сегодня брони не нашли</div><div style="color:var(--muted);font-size:13.5px;margin-top:4px;line-height:1.5">Ищем по номеру ' + esc(me.phone || "") + ' - в Большом зале и в кабинках. Если бронь на другой номер - попросите того, на кого бронь, добавить вас, или введите код стола.</div></div>';
+    h += '<div class="sg-card"><div style="font-weight:800">В Большом зале</div><div style="color:var(--muted);font-size:13.5px;margin-top:4px;line-height:1.5">Заказ песен на свой стол, очередь зала и примерное время до вашей песни.</div></div>';
+    h += '<div class="sg-card"><div style="font-weight:800">В кабинке</div><div style="color:var(--muted);font-size:13.5px;margin-top:4px;line-height:1.5">Ваш список сразу на экране, друзья входят по своему номеру. Песни можно собрать заранее во вкладке «Мои песни».</div></div>';
+    h += '<button type="button" class="sg-btn" id="sg-gobook">Забронировать</button>';
     h += '<div class="sg-sec">Код стола от друга</div><div class="sg-in"><input id="sg-code" maxlength="8" placeholder="Например K7Q2MX" autocomplete="off" aria-label="Код стола"><button type="button" id="sg-join">Войти</button></div><div id="sg-join-msg"></div>';
-    return h + hallBlock();
+    return h;
   }
   const mine = me.mine || [];
   const queued = mine.filter(x => x.status === "queued");
@@ -589,12 +608,12 @@ function render(){
   const active = document.activeElement && document.activeElement.id;
   const keepScroll = window.scrollY;
   let body = PS.tab === "cat" ? scrCat() : PS.tab === "fav" ? scrFav() : PS.tab === "hist" ? scrHist() : scrTable();
-  const head = '<div class="sg-h"><h2>Песни</h2><span>' + (!tb && PS.me && PS.me.cabin ? "Кабинка " + PS.me.cabin + " · AST + YouTube" : "Большой зал · AST-250") + "</span></div>" +
+  const head = '<div class="sg-h"><h2>Песни</h2><span>' + headWhere(tb) + "</span></div>" +
     '<div class="sg-tabs" role="tablist">' +
     '<button type="button" data-tab="cat" class="' + (PS.tab === "cat" ? "on" : "") + '"><span class="tl">Каталог</span></button>' +
     '<button type="button" data-tab="fav" class="' + (PS.tab === "fav" ? "on" : "") + '"><span class="tl">Мои песни</span></button>' +
     '<button type="button" data-tab="hist" class="' + (PS.tab === "hist" ? "on" : "") + '"><span class="tl">История</span></button>' +
-    '<button type="button" data-tab="table" class="' + (PS.tab === "table" ? "on" : "") + '"><span class="tl">' + (!tb && PS.me && PS.me.cabin ? "Кабинка" : "Мой стол") + "</span>" + (tb && qn ? '<span class="sg-badge">' + qn + "</span>" : "") + "</button></div>" +
+    '<button type="button" data-tab="table" class="' + (PS.tab === "table" ? "on" : "") + '"><span class="tl">' + "Сегодня" + "</span>" + (tb && qn ? '<span class="sg-badge">' + qn + "</span>" : "") + "</button></div>" +
     '<div id="sg-pb">' + pollBanner() + "</div>";
   // при поиске не трогаем поле ввода - перерисовываем только список
   if (PS.tab === "cat" && document.getElementById("sg-q") && sec.dataset.tab === "cat"){
@@ -943,6 +962,8 @@ function onClick(e){
   const mu = t.closest("[data-mlup]"); if (mu){ moveUp(+mu.dataset.mlup); return; }
   const fx = t.closest("[data-fx]"); if (fx){ fx.disabled = true; toggleFx(fx.dataset.t, fx.dataset.a, fx.dataset.yt || null); return; }
   if (t.closest("#sg-ytopen")){ openYt(); return; }
+  if (t.closest("#sg-gofav")){ PS.tab = "fav"; render(); window.scrollTo(0, 0); return; }
+  if (t.closest("#sg-gobook")){ try{ if (typeof go === "function") go("book"); }catch(_){} return; }
   if (t.closest("#sg-copen")){ call("cabin_open").then(d => { if (d.error) toast(errText(d.error)); else { haptic("success"); toast("Ваш список поднят на экране Кабинки " + d.cabin); } }); return; }
   if (t.closest("#sg-ccode")){ cabinCode(); return; }
   const a = t.closest("[data-add]"); if (a && !a.disabled){ openSheet({ mode: "add", n: +a.dataset.add }); return; }
@@ -970,7 +991,7 @@ function onClick(e){
       const box = document.getElementById("sg-linkbox"); if (!box) return;
       if (d.error){ box.innerHTML = '<div class="sg-msg">' + esc(errText(d.error)) + "</div>"; return; }
       const link = (window.SONGS_INVITE_BASE ? window.SONGS_INVITE_BASE + "stol-" + d.code : "");
-      box.innerHTML = '<div class="sg-code">' + esc(d.code) + '</div><div style="font-size:13px;color:var(--muted);line-height:1.45;text-align:center">Друг открывает приложение SPLETNI → «Песни» → «Мой стол» и вводит этот код. Код действует до конца вечера.</div>' +
+      box.innerHTML = '<div class="sg-code">' + esc(d.code) + '</div><div style="font-size:13px;color:var(--muted);line-height:1.45;text-align:center">Друг открывает приложение SPLETNI → «Песни» → «Сегодня» и вводит этот код. Код действует до конца вечера.</div>' +
         (link ? '<button type="button" class="sg-btn" id="sg-sendlink" data-link="' + esc(link) + '">Отправить ссылку в Telegram</button>' : "");
     });
     return;
