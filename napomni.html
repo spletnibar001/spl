@@ -68,7 +68,10 @@ label.f textarea{background:var(--bg);font-size:13.5px;line-height:1.4;resize:ve
   <div id="app" hidden>
     <div id="vList">
       <div class="head">
-        <h1>Напоминания гостям</h1>
+        <a href="index.html" class="ib" id="toTabel" aria-label="Назад в табель" hidden>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <h1 style="flex:1">Напоминания гостям</h1>
         <button type="button" class="ib" id="goSet" aria-label="Настройки" hidden>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
@@ -102,7 +105,7 @@ label.f textarea{background:var(--bg);font-size:13.5px;line-height:1.4;resize:ve
 <div class="bar" id="bar" hidden><div class="in" id="barIn"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
-/* SPLETNI · напоминания гостям (napomni.html) · сборка 1 · 06.11.2026
+/* SPLETNI · напоминания гостям (napomni.html) · сборка 2 · 07.11.2026 (назад в табель)
    Программа только ПРЕДЛАГАЕТ: гости, подходящие по сроку; отправляет сотрудник.
    Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; данные: rpc song_call, действия back_* */
 "use strict";
@@ -273,6 +276,7 @@ document.addEventListener("click", e => {
 
 (async function start(){
   try{ const tg = window.Telegram && window.Telegram.WebApp; if (tg){ tg.ready(); tg.expand(); } }catch(_){}
+  if (new URLSearchParams(location.search).get("from") === "tabel") $("#toTabel").hidden = false;   // открыто из табеля
   if (!(await login())) return;
   apply(await api("back_list"));
   const first = KINDS.find(K => ST && ST.items.some(i => i.kind === K.k));
