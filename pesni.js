@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 7 · 07.11.2026 («Мои песни»: список + избранное, песни с YouTube для кабинок, «Вы в кабинке»)
    Сборка 6 · 06.11.2026 (кнопка «Не напоминать» из сообщения бота: ?noremind=1)
    Сборка 5 · 07.10.2026 (пожелание к песне, повтор, подборки, карточка вечера, «искали и не нашли»)
    - каталог AST-250 (songs.json), поиск, топ недели, новинки, подборки звукооператора
@@ -14,7 +15,7 @@
 const FN_URL = SB_URL + "/functions/v1/songs";
 const RPC_URL = SB_URL + "/rest/v1/rpc/song_call";
 const PS = {
-  token: null, me: null, cat: null, catErr: "", tab: "cat", fmode: "fav", mode: "all", q: "",
+  token: null, me: null, cat: null, catErr: "", tab: "cat", fmode: null, mode: "all", q: "", ccode: null,
   limit: 60, poll: null, busy: false, err: "", startParam: null, joinedFromLink: false,
   favSet: new Set(), lastMe: 0, sheet: null, missSent: new Set(), pendingCard: null
 };
@@ -51,7 +52,13 @@ const ERR = {
   tg_send: "Бот не смог написать вам. Откройте чат с ботом SPLETNI, нажмите «Старт» и попробуйте ещё раз",
   bad_image: "Не получилось нарисовать карточку",
   unknown_action: "Эта функция появится после обновления сервера",
-  not_found: "Песня уже не в очереди"
+  not_found: "Песня уже не в очереди",
+  bad_song: "Укажите название песни",
+  list_full: "В списке уже 100 песен - уберите лишние",
+  fav_limit: "В избранном уже 500 песен",
+  not_in_cabin: "Вы сейчас не в кабинке",
+  need_phone: "Сначала поделитесь номером во вкладке «Мой стол»",
+  retry: "Новый код можно взять через минуту"
 };
 const errText = e => ERR[e] || ("Ошибка: " + e);
 
@@ -144,7 +151,7 @@ const CSS = `
 .sg-pb{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:0 0 12px;padding:10px 12px;border:1px solid rgba(255,111,154,.55);background:rgba(255,111,154,.08);border-radius:12px;color:var(--text);font-size:13.5px;font-weight:700;text-align:left}
 .sg-pb span{color:#ff8fb0;white-space:nowrap}
 /* сборка 5: пожелания, повтор, подборки, карточка вечера */
-.sg-t span.sg-eta,.sg-t span.sg-w,.sg-t span.sg-tag{display:inline-block}
+.sg-t span.sg-eta,.sg-t span.sg-w,.sg-t span.sg-tag,.sg-t span.sg-zone{display:inline-block}
 .sg-rep{display:block;font-size:11.5px;font-weight:700;color:var(--gold);margin-top:2px}
 .sg-w{display:inline-block;margin:4px 4px 0 0;font-size:11px;font-weight:800;color:var(--emerald);border:1px solid rgba(31,191,122,.6);border-radius:5px;padding:0 6px}
 .sg-wbtn{display:inline-block;margin-top:5px;padding:3px 9px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;font-weight:700}
@@ -168,6 +175,30 @@ const CSS = `
 #sg-cardov .row{display:flex;gap:8px;width:min(440px,100%)}
 #sg-cardov .row .sg-btn{margin-top:0}
 #sg-cardov .row .sg-btn.ghost{width:auto;padding:13px 18px}
+/* сборка 7: «Мои песни», YouTube, кабинка */
+.sg-src{display:inline-grid;place-items:center;width:40px;height:24px;border-radius:6px;font-size:11px;font-weight:800;background:var(--panel2);color:var(--muted)}
+.sg-src.yt{background:rgba(226,101,92,.15);color:#ec8079}
+.sg-zone{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;border-radius:8px;padding:0 7px;border:1px solid rgba(31,191,122,.5);color:var(--emerald)}
+.sg-zone.cab{border-color:rgba(201,161,74,.55);color:var(--gold)}
+.sg-wbtn.in{border-color:var(--emerald);color:var(--emerald)}
+.sg-wbtn + .sg-wbtn{margin-left:6px}
+.sg-cabtxt{font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+.sg-cab{border:1px solid rgba(31,191,122,.45);background:rgba(31,191,122,.07);border-radius:14px;padding:13px 14px;margin-bottom:12px}
+.sg-cab .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sg-cab .top b{font-size:16px}
+.sg-cab .top span,.sg-cab p{font-size:12.5px;color:var(--muted)}
+.sg-cab p{margin:6px 0 10px;line-height:1.4}
+.sg-cab .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.sg-cab .two .sg-btn{margin-top:0;padding:12px 6px;font-size:14px}
+.sg-cab .two .sg-btn.full{background:var(--emerald);color:#06130d}
+.sg-digits{display:flex;justify-content:center;gap:10px;margin:12px 0 8px}
+.sg-digits span{width:54px;height:66px;border-radius:12px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;font-size:34px;font-weight:900;font-variant-numeric:tabular-nums}
+.sg-cnote{font-size:12.5px;color:var(--muted);text-align:center;line-height:1.45}
+.sg-ytadd{display:block;width:100%;margin-top:12px;padding:13px;border:1px dashed var(--line);background:transparent;color:var(--text);border-radius:12px;font-size:14px;font-weight:700}
+.sg-sh label{display:block;font-size:12.5px;color:var(--muted);margin-top:10px}
+.sg-sh label input{display:block;width:100%;box-sizing:border-box;margin-top:5px;height:44px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;padding:0 12px;font-size:15px;outline:none;font-family:inherit}
+.sg-sh label input:focus{border-color:var(--emerald)}
+.sg-sh .acts.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 #sg-toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);max-width:min(92vw,520px);z-index:90;background:#eef1f4;color:#0d0f12;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.4);display:none;text-align:center}
 `;
 
@@ -177,6 +208,7 @@ function injectCss(){
   const t = document.createElement("div"); t.id = "sg-toast"; document.body.appendChild(t);
   const sh = document.createElement("div"); sh.id = "sg-sheet"; sh.hidden = true; document.body.appendChild(sh);
   sh.addEventListener("click", onSheetClick);
+  sh.addEventListener("input", onSheetInput);
   const co = document.createElement("div"); co.id = "sg-cardov"; co.hidden = true; document.body.appendChild(co);
   co.addEventListener("click", onCardClick);
 }
@@ -229,6 +261,10 @@ async function call(action, args, retry){
 }
 async function refresh(){
   const d = await call("me");
+  if (d && !d.error && d.my === undefined){   // сервер без сборки 7.4: список и кабинку берём отдельно
+    const l = await call("my_list");
+    if (l && l.ok){ d.my = l.list || []; d.cabin = l.cabin || null; }
+  }
   if (d && !d.error){
     PS.me = d; PS.lastMe = Date.now();
     PS.favSet = new Set((d.favs || []).map(f => f[0]));
@@ -290,17 +326,23 @@ function inMine(n){ return !!(PS.me && (PS.me.mine || []).some(x => x.n === n &&
 // сегодня эту песню уже пели (или она в очереди зала)?
 function tonight(n){ const m = PS.me && PS.me.tonight; return m ? m[String(n)] || null : null; }
 function repTxt(r){ return !r ? "" : r.s === "q" ? "уже в очереди зала · стол " + r.t : "сегодня уже пели" + (r.at ? " в " + r.at : "") + " · стол " + r.t; }
-function songRow(n, t, a, d, extra, noRep){
+function addBtn(n){
+  const tb = table();
+  if (!(tb && tb.status === "seated")) return "";
+  const full = (PS.me.mine || []).filter(x => x.status === "queued").length >= tb.limit;
+  return inMine(n) ? '<button type="button" class="sg-add in" disabled>На столе</button>'
+    : '<button type="button" class="sg-add" data-add="' + n + '"' + (!canOrder() || full ? " disabled" : "") + ">На стол</button>";
+}
+// «Мой список» (сборка 7): песня AST уже в списке?
+const myList = () => (PS.me && PS.me.my) || [];
+const inMy = n => myList().find(x => x.song_no === n) || null;
+const inCabin = () => !!(PS.me && PS.me.cabin);
+function songRow(n, t, a, d, extra, noRep, under){
   const fav = PS.favSet.has(n);
   const rep = noRep ? "" : repTxt(tonight(n));
-  const tb = table();
-  let add = "";
-  if (tb && tb.status === "seated"){
-    const full = (PS.me.mine || []).filter(x => x.status === "queued").length >= tb.limit;
-    add = inMine(n) ? '<button type="button" class="sg-add in" disabled>На столе</button>'
-      : '<button type="button" class="sg-add" data-add="' + n + '"' + (!canOrder() || full ? " disabled" : "") + ">На стол</button>";
-  }
-  return '<div class="sg-row"><span class="sg-num">' + n + '</span><div class="sg-t"><b>' + esc(t) + '</b><span>' + esc(a) + (d ? " · " + mmss(d) : "") + (extra || "") + "</span>" + (rep ? '<span class="sg-rep">' + esc(rep) + "</span>" : "") + "</div>" +
+  const add = addBtn(n);
+  const ml = PS.me && PS.me.my ? (inMy(n) ? '<button type="button" class="sg-wbtn in" data-ml="' + n + '">В моём списке</button>' : '<button type="button" class="sg-wbtn" data-ml="' + n + '">В мой список</button>') : "";
+  return '<div class="sg-row"><span class="sg-num">' + n + '</span><div class="sg-t"><b>' + esc(t) + '</b><span>' + esc(a) + (d ? " · " + mmss(d) : "") + (extra || "") + "</span>" + (rep ? '<span class="sg-rep">' + esc(rep) + "</span>" : "") + (under != null ? under : ml) + "</div>" +
     '<button type="button" class="sg-ic' + (fav ? " on" : "") + '" data-fav="' + n + '" aria-label="' + (fav ? "Убрать из избранного" : "В избранное") + '">' + STAR + '</button>' + (add || "<span></span>") + "</div>";
 }
 const SONG_CACHE = new Map();
@@ -365,10 +407,54 @@ function noteMiss(q){
   }, 2500);
 }
 
+// «Мои песни» (сборка 7): переключатель «Список» / «Избранное». Один список на зал и кабинки.
+function zonePill(ast){ return inCabin() ? "" : (ast ? '<span class="sg-zone">зал и кабинка</span>' : '<span class="sg-zone cab">только кабинка</span>'); }
+function srcBadge(yt){ return '<span class="sg-src' + (yt ? " yt" : "") + '">' + (yt ? "YT" : "файл") + "</span>"; }
+const favxKey = (t, a, yt) => yt ? "yt:" + yt : "l:" + String(t || "").trim().toLowerCase() + "|" + String(a || "").trim().toLowerCase();
+function favxOf(t, a, yt){ const k = favxKey(t, a, yt); return ((PS.me && PS.me.favx) || []).find(f => favxKey(f.t, f.a, f.yt) === k) || null; }
+function xRow(t, a, yt, under){        // песня не из AST: YouTube или файл кабинки
+  const fx = favxOf(t, a, yt);
+  return '<div class="sg-row">' + srcBadge(yt) + '<div class="sg-t"><b>' + esc(t) + "</b><span>" + esc(a) + "</span>" + zonePill(false) + (under || "") + "</div>" +
+    '<button type="button" class="sg-ic' + (fx ? " on" : "") + '" data-fx="1" data-t="' + esc(t) + '" data-a="' + esc(a) + '" data-yt="' + esc(yt || "") + '" aria-label="' + (fx ? "Убрать из избранного" : "В избранное") + '">' + STAR + "</button>" +
+    (inCabin() ? "<span></span>" : '<span class="sg-cabtxt">в кабинке</span>') + "</div>";
+}
+function cabinBanner(){
+  const me = PS.me; if (!me || !me.cabin) return "";
+  return '<div class="sg-cab"><div class="top"><b>Вы в Кабинке ' + me.cabin + '</b><span>список уже на экране</span></div>' +
+    '<p>Нажмите «Открыть в кабинке» - плеер поднимет ваш список наверх.</p>' +
+    '<div class="two"><button type="button" class="sg-btn full" id="sg-copen">Открыть в кабинке</button><button type="button" class="sg-btn ghost" id="sg-ccode">Код для входа</button></div>' +
+    '<div id="sg-cbox">' + codeBox() + "</div></div>";
+}
+function codeBox(){
+  const c = PS.ccode; if (!c) return "";
+  const left = Math.max(0, Math.round((c.until - Date.now()) / 1000));
+  if (!left) return '<div class="sg-cnote" style="margin-top:10px">Код истёк - возьмите новый</div>';
+  return '<div class="sg-digits">' + String(c.code).split("").map(x => "<span>" + esc(x) + "</span>").join("") + "</div>" +
+    '<div class="sg-cnote">Действует ещё ' + mmss(left) + " · номер ··· " + esc(c.tail || "") + '<br>Сели в кабинку по брони друзей? На экране кабинки - «+ Добавить друга», ваш номер и этот код.</div>';
+}
 function scrFav(){
   const me = PS.me || {};
-  let h = orderNote();
-  h += (me.favs || []).length ? (me.favs.map(f => songRow(f[0], f[1], f[2], f[3])).join("")) : '<div class="sg-empty"><b>Пока пусто</b>Отмечайте песни звёздочкой в каталоге - соберите список дома, а в зале заказывайте в одно касание</div>';
+  const my = myList(), favs = me.favs || [], favx = me.favx || [];
+  if (!PS.fmode) PS.fmode = my.length || !(favs.length + favx.length) ? "list" : "fav";
+  let h = cabinBanner() + '<div class="sg-chips">' +
+    '<button type="button" class="' + (PS.fmode === "list" ? "on" : "") + '" data-fm="list">Список · ' + my.length + "</button>" +
+    '<button type="button" class="' + (PS.fmode === "fav" ? "on" : "") + '" data-fm="fav">Избранное · ' + (favs.length + favx.length) + "</button></div>";
+  if (!inCabin()) h += '<div class="sg-note">Один список на зал и кабинки. Песни с пометкой <b>только кабинка</b> (YouTube, файлы кабинки) в зале не ставятся - они откроются на экране кабинки.</div>';
+  h += orderNote();
+  if (PS.fmode === "list"){
+    if (!me.my) h += '<div class="sg-empty"><b>Загрузка…</b></div>';
+    else if (!my.length) h += '<div class="sg-empty"><b>Список пока пуст</b>В каталоге нажмите «В мой список» под песней - соберите песни на вечер. Порядок можно менять.</div>';
+    else h += my.map((x, i) => {
+      const under = (i > 0 ? '<button type="button" class="sg-wbtn" data-mlup="' + x.id + '">Выше</button>' : "") + '<button type="button" class="sg-wbtn" data-mldel="' + x.id + '">Убрать</button>';
+      if (x.song_no > 0) return songRow(x.song_no, x.title, x.artist, x.dur, "", false, (inCabin() ? "" : zonePill(true) + "<br>") + under);
+      return xRow(x.title, x.artist, x.ytId, "<br>" + under);
+    }).join("");
+  } else {
+    if (!favs.length && !favx.length) h += '<div class="sg-empty"><b>Пока пусто</b>Отмечайте песни звёздочкой в каталоге или на экране кабинки - соберите список дома, а в зале заказывайте в одно касание</div>';
+    h += favs.map(f => songRow(f[0], f[1], f[2], f[3])).join("");
+    h += favx.map(f => xRow(f.t, f.a, f.yt)).join("");
+  }
+  h += '<button type="button" class="sg-ytadd" id="sg-ytopen">+ Добавить с YouTube (для кабинки)</button>';
   return h;
 }
 // История: что пел гость и когда - по вечерам, у каждой песни время и лайки зала
@@ -415,6 +501,9 @@ function scrTable(){
   if (!me) return '<div class="sg-empty"><b>Загрузка…</b></div>';
   const tb = me.table;
   let h = pollBlock();
+  if (!tb && me.cabin){      // гость сидит в кабинке (сборка 7)
+    return h + cabinBanner() + '<div class="sg-note">Песни в кабинке ставятся на экране плеера. Здесь - ваш список и код для входа. Список и избранное - во вкладке «Мои песни».</div>';
+  }
   if (!me.reg && !tb){
     h += '<div class="sg-card"><div style="font-weight:800;font-size:16px;margin-bottom:6px">Заказ песен на свой стол</div>' +
       '<div style="color:var(--muted);font-size:13.5px;line-height:1.5">Поделитесь номером Telegram - мы найдём вашу бронь в Большом зале. Когда хостес отметит, что вы сели, сможете ставить песни в очередь, видеть, когда ваш черёд, и звать друзей за стол.</div>' +
@@ -499,12 +588,12 @@ function render(){
   const active = document.activeElement && document.activeElement.id;
   const keepScroll = window.scrollY;
   let body = PS.tab === "cat" ? scrCat() : PS.tab === "fav" ? scrFav() : PS.tab === "hist" ? scrHist() : scrTable();
-  const head = '<div class="sg-h"><h2>Песни</h2><span>Большой зал · AST-250</span></div>' +
+  const head = '<div class="sg-h"><h2>Песни</h2><span>' + (!tb && PS.me && PS.me.cabin ? "Кабинка " + PS.me.cabin + " · AST + YouTube" : "Большой зал · AST-250") + "</span></div>" +
     '<div class="sg-tabs" role="tablist">' +
     '<button type="button" data-tab="cat" class="' + (PS.tab === "cat" ? "on" : "") + '"><span class="tl">Каталог</span></button>' +
-    '<button type="button" data-tab="fav" class="' + (PS.tab === "fav" ? "on" : "") + '"><span class="tl">Избранное</span></button>' +
+    '<button type="button" data-tab="fav" class="' + (PS.tab === "fav" ? "on" : "") + '"><span class="tl">Мои песни</span></button>' +
     '<button type="button" data-tab="hist" class="' + (PS.tab === "hist" ? "on" : "") + '"><span class="tl">История</span></button>' +
-    '<button type="button" data-tab="table" class="' + (PS.tab === "table" ? "on" : "") + '"><span class="tl">Мой стол</span>' + (tb && qn ? '<span class="sg-badge">' + qn + "</span>" : "") + "</button></div>" +
+    '<button type="button" data-tab="table" class="' + (PS.tab === "table" ? "on" : "") + '"><span class="tl">' + (!tb && PS.me && PS.me.cabin ? "Кабинка" : "Мой стол") + "</span>" + (tb && qn ? '<span class="sg-badge">' + qn + "</span>" : "") + "</button></div>" +
     '<div id="sg-pb">' + pollBanner() + "</div>";
   // при поиске не трогаем поле ввода - перерисовываем только список
   if (PS.tab === "cat" && document.getElementById("sg-q") && sec.dataset.tab === "cat"){
@@ -540,7 +629,114 @@ function findInMe(n){
   if (f) return { n: f[0], t: f[1], a: f[2], d: f[3] };
   for (const v of (me.history || [])) for (const x of v.songs) if (x[0] === n) return { n: x[0], t: x[1], a: x[2], d: x[3] };
   for (const c of (me.colls || [])) for (const x of (c.songs || [])) if (x[0] === n) return { n: x[0], t: x[1], a: x[2], d: x[3] };
+  const m = (me.my || []).find(x => x.song_no === n);
+  if (m) return { n, t: m.title, a: m.artist, d: m.dur || 240 };
   return null;
+}
+
+/* ---------- «Мои песни»: список, избранное YouTube, кабинка (сборка 7) ---------- */
+async function myCall(action, args, okMsg){
+  const d = await call(action, args);
+  if (d.error){ toast(errText(d.error)); haptic("error"); return d; }
+  if (d.list && PS.me) PS.me.my = d.list;
+  if (okMsg){ haptic("success"); toast(okMsg); }
+  render();
+  return d;
+}
+function toggleMy(n){
+  const ex = inMy(n);
+  if (ex) return myCall("my_del", { id: ex.id }, "Убрано из списка");
+  const s = songData(n) || findInMe(n); if (!s) return;
+  return myCall("my_add", { song_no: s.n, title: s.t, artist: s.a, dur: s.d }, "Добавлено в мой список");
+}
+function moveUp(id){
+  const ids = myList().map(x => x.id), i = ids.indexOf(id);
+  if (i < 1) return;
+  [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]];
+  const byId = new Map(myList().map(x => [x.id, x]));
+  PS.me.my = ids.map(x => byId.get(x)); render();
+  myCall("my_move", { ids });
+}
+async function toggleFx(t, a, yt){
+  const fx = favxOf(t, a, yt);
+  const d = await call("my_fav", fx ? { k: fx.k } : { title: t, artist: a, ytId: yt || undefined, add: true });
+  if (d.error){ toast(errText(d.error)); haptic("error"); }
+  else { haptic("success"); toast(d.fav ? "Добавлено в избранное" : "Убрано из избранного"); }
+  await refresh();
+}
+let codeTimer = null;
+async function cabinCode(){
+  const d = await call("cabin_code");
+  if (d.error){ toast(d.retryIn ? "Новый код можно взять через " + d.retryIn + " сек" : errText(d.error)); return; }
+  PS.ccode = { code: d.code, tail: d.tail, until: Date.now() + (d.expiresIn || 300) * 1000 };
+  haptic("success");
+  const tick = () => { const b = document.getElementById("sg-cbox"); if (b) b.innerHTML = codeBox(); if (!PS.ccode || Date.now() > PS.ccode.until){ clearInterval(codeTimer); codeTimer = null; } };
+  clearInterval(codeTimer); codeTimer = setInterval(tick, 1000); tick();
+}
+// добавление с YouTube: ссылка -> id видео, название подтягиваем из YouTube (oEmbed), гость может поправить
+function ytId(s){
+  s = String(s || "").trim();
+  const m = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/);
+  if (m) return m[1];
+  return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : null;
+}
+function cleanYt(title, author){
+  let t = String(title || "").replace(/\s*[(\[][^)\]]*(karaoke|караоке|минус|instrumental|lyrics|текст|official|клип|video|audio)[^)\]]*[)\]]/gi, "").replace(/\s*\|.*$/, "").trim();
+  let a = "";
+  const p = t.split(/\s+[-–—]\s+/);
+  if (p.length >= 2){ a = p.shift().trim(); t = p.join(" - ").trim(); }
+  else a = String(author || "").replace(/\s*-\s*topic$/i, "").trim();
+  return { t: t || String(title || ""), a };
+}
+async function ytInfo(id){
+  const u = encodeURIComponent("https://www.youtube.com/watch?v=" + id);
+  for (const url of ["https://www.youtube.com/oembed?format=json&url=" + u, "https://noembed.com/embed?url=" + u]){
+    try{ const r = await fetch(url); if (!r.ok) continue; const j = await r.json(); if (j && j.title) return cleanYt(j.title, j.author_name); }catch(_){}
+  }
+  return null;
+}
+function openYt(){
+  PS.sheet = { mode: "yt", id: null };
+  const el = document.getElementById("sg-sheet");
+  el.innerHTML = '<div class="sg-sh" role="dialog" aria-modal="true" aria-label="Добавить с YouTube">' +
+    '<div style="font-size:18px;font-weight:800">Добавить с YouTube</div>' +
+    '<label>Ссылка на видео<input id="sg-ytl" type="url" inputmode="url" placeholder="youtu.be/…" autocomplete="off"></label>' +
+    '<div style="font-size:12px;color:var(--muted);margin-top:5px">В приложении YouTube: «Поделиться» - «Копировать ссылку»</div>' +
+    '<div id="sg-ytm"></div>' +
+    '<label>Название<input id="sg-ytt" type="text" maxlength="200" autocomplete="off"></label>' +
+    '<label>Исполнитель<input id="sg-yta" type="text" maxlength="200" autocomplete="off"></label>' +
+    '<div class="sg-note warn" style="margin-top:12px">Песни с YouTube поются только в кабинках. В Большом и Малом залах - только каталог AST.</div>' +
+    '<div class="acts two"><button type="button" class="sg-btn" id="sg-ytlist">В мой список</button><button type="button" class="sg-btn ghost" id="sg-ytfav">В избранное</button></div>' +
+    '<button type="button" class="sg-btn ghost" id="sg-shx">Отмена</button></div>';
+  el.hidden = false;
+  setTimeout(() => { const i = document.getElementById("sg-ytl"); if (i) i.focus(); }, 50);
+}
+let ytTimer = null;
+function onSheetInput(e){
+  if (e.target.id !== "sg-ytl" || !PS.sheet || PS.sheet.mode !== "yt") return;
+  clearTimeout(ytTimer);
+  ytTimer = setTimeout(async () => {
+    const id = ytId(e.target.value), m = document.getElementById("sg-ytm");
+    PS.sheet.id = id;
+    if (!m) return;
+    if (!id){ m.innerHTML = e.target.value.trim() ? '<div class="sg-msg">Это не похоже на ссылку YouTube</div>' : ""; return; }
+    m.innerHTML = '<div class="sg-msg ok">Ищем название…</div>';
+    const info = await ytInfo(id);
+    if (!PS.sheet || PS.sheet.id !== id) return;
+    const ti = document.getElementById("sg-ytt"), ai = document.getElementById("sg-yta");
+    if (info){ if (ti && !ti.value) ti.value = info.t; if (ai && !ai.value) ai.value = info.a; m.innerHTML = '<div class="sg-msg ok">Видео найдено - проверьте название и исполнителя</div>'; }
+    else m.innerHTML = '<div class="sg-msg ok">Ссылка принята. Впишите название и исполнителя</div>';
+  }, 350);
+}
+async function ytSave(kind){
+  const sh = PS.sheet; if (!sh) return;
+  const l = document.getElementById("sg-ytl"), t = (document.getElementById("sg-ytt").value || "").trim(), a = (document.getElementById("sg-yta").value || "").trim();
+  const id = ytId(l && l.value);
+  if (!id){ toast("Вставьте ссылку на видео YouTube"); return; }
+  if (!t){ toast(errText("bad_song")); return; }
+  closeSheet();
+  if (kind === "list"){ PS.fmode = "list"; await myCall("my_add", { ytId: id, title: t, artist: a }, "Добавлено в мой список - откроется в кабинке"); }
+  else { const d = await call("my_fav", { ytId: id, title: t, artist: a, add: true }); if (d.error) toast(errText(d.error)); else { haptic("success"); toast("Добавлено в избранное"); PS.fmode = "fav"; } await refresh(); }
 }
 
 /* ---------- окно заказа: пожелание звукооператору + «сегодня уже пели» ---------- */
@@ -565,6 +761,10 @@ async function onSheetClick(e){
   const t = e.target, sh = PS.sheet;
   if (!sh) return;
   if (t.id === "sg-sheet" || t.closest("#sg-shx")){ closeSheet(); return; }
+  if (sh.mode === "yt"){
+    if (t.closest("#sg-ytlist")) ytSave("list"); else if (t.closest("#sg-ytfav")) ytSave("fav");
+    return;
+  }
   const w = t.closest("[data-w]");
   if (w){
     const k = w.dataset.w;
@@ -735,6 +935,15 @@ function onClick(e){
   const m = t.closest("[data-mode]"); if (m){ PS.mode = m.dataset.mode; PS.limit = 60; if (PS.mode !== "all") PS.q = ""; const i = document.getElementById("sg-q"); if (i && PS.mode !== "all") i.value = ""; document.querySelectorAll("#sec-songs [data-mode]").forEach(b => b.classList.toggle("on", b === m)); renderList(); return; }
   const more = t.closest("[data-more]"); if (more){ PS.limit += 60; renderList(); return; }
   const f = t.closest("[data-fav]"); if (f){ toggleFav(+f.dataset.fav); return; }
+  // сборка 7: «Мои песни»
+  const fm = t.closest("[data-fm]"); if (fm){ PS.fmode = fm.dataset.fm; render(); return; }
+  const ml = t.closest("[data-ml]"); if (ml){ ml.disabled = true; toggleMy(+ml.dataset.ml); return; }
+  const md = t.closest("[data-mldel]"); if (md){ md.disabled = true; myCall("my_del", { id: +md.dataset.mldel }, "Убрано из списка"); return; }
+  const mu = t.closest("[data-mlup]"); if (mu){ moveUp(+mu.dataset.mlup); return; }
+  const fx = t.closest("[data-fx]"); if (fx){ fx.disabled = true; toggleFx(fx.dataset.t, fx.dataset.a, fx.dataset.yt || null); return; }
+  if (t.closest("#sg-ytopen")){ openYt(); return; }
+  if (t.closest("#sg-copen")){ call("cabin_open").then(d => { if (d.error) toast(errText(d.error)); else { haptic("success"); toast("Ваш список поднят на экране Кабинки " + d.cabin); } }); return; }
+  if (t.closest("#sg-ccode")){ cabinCode(); return; }
   const a = t.closest("[data-add]"); if (a && !a.disabled){ openSheet({ mode: "add", n: +a.dataset.add }); return; }
   const wb = t.closest("[data-wish]"); if (wb){ const it = ((PS.me && PS.me.mine) || []).find(x => x.id === +wb.dataset.wish); if (it) openSheet({ mode: "edit", item: it }); return; }
   const cb = t.closest("[data-card]"); if (cb){ openCard(cb.dataset.card); return; }
@@ -798,6 +1007,7 @@ async function open(){
   if (sp && /^stol-/i.test(sp) && !PS.joinedFromLink){ PS.joinedFromLink = true; await join(sp.slice(5)); }
   await refresh();
   if (PS.me && PS.me.table && !PS.openedOnce) PS.tab = "table";
+  else if (PS.me && PS.me.cabin && !PS.openedOnce) PS.tab = "fav";   // сидит в кабинке - сразу «Мои песни»
   PS.openedOnce = true;
   if (PS.pendingCard && PS.me){ PS.tab = "hist"; render(); openCard(PS.pendingCard); PS.pendingCard = null; }
   render();
