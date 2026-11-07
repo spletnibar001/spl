@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 12 · 07.11.2026 (каталог: «Ничего не нашлось» - поиск на YouTube с пометкой «только в кабинках»; поиск кириллицей по латинским названиям)
    Сборка 11 · 07.11.2026 (YouTube: исполнитель и название чище - без «KARAOKE», дат, исполнитель из соседних результатов)
    Сборка 10 · 07.11.2026 (поиск YouTube в «Добавить с YouTube»: функция songs, действие ytsearch)
    Сборка 9 · 07.11.2026 («Позвать компанию»: приглашения друзьям по брони ?invite=, ответы ?inv=&a=)
@@ -329,6 +330,9 @@ async function loadCat(){
   if (PS.tab === "cat") renderList();
 }
 const MONTHS = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+// кириллица -> латиница: «шерали» находит «Sherali» (узбекские исполнители в каталоге латиницей)
+const CYR = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"yo",ж:"j",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sh",ъ:"",ы:"i",ь:"",э:"e",ю:"yu",я:"ya",ў:"o",қ:"q",ғ:"g",ҳ:"h" };
+const toLat = s => String(s).split("").map(ch => CYR[ch] != null ? CYR[ch] : ch).join("");
 function searchCat(){
   const c = PS.cat; if (!c) return [];
   const q = norm(PS.q);
@@ -338,11 +342,11 @@ function searchCat(){
     if (PS.mode.startsWith("m")){ const m = +PS.mode.slice(1); for (let i = 0; i < c.N; i++) if (c.dt[i] === m) out.push(i); return out; }
     return [];
   }
-  const toks = q.split(" "), toks2 = toks.map(translit);
-  const alt = toks2.join(" ") !== toks.join(" ");
+  const toks = q.split(" "), toks2 = toks.map(translit), toks3 = toks.map(toLat);
+  const alt = toks2.join(" ") !== toks.join(" "), alt3 = toks3.join(" ") !== toks.join(" ");
   for (let i = 0; i < c.N && out.length < 600; i++){
     const h = c.hay[i];
-    if (toks.every(t => h.includes(t)) || (alt && toks2.every(t => h.includes(t)))) out.push(i);
+    if (toks.every(t => h.includes(t)) || (alt && toks2.every(t => h.includes(t))) || (alt3 && toks3.every(t => h.includes(t)))) out.push(i);
   }
   return out;
 }
@@ -416,7 +420,9 @@ function listHtml(){
   if (!PS.cat) return '<div class="sg-empty"><b>Загружаем каталог…</b>63 000 песен AST-250</div>';
   const res = searchCat();
   if (!PS.q.trim() && PS.mode === "all") return '<div class="sg-empty"><b>63 000+ песен с номерами AST-250</b>Начните вводить название, исполнителя или номер. Можно латиницей.</div>';
-  if (!res.length){ noteMiss(PS.q); return '<div class="sg-empty"><b>Ничего не нашлось</b>Попробуйте иначе: часть названия или фамилию исполнителя</div>'; }
+  if (!res.length){ noteMiss(PS.q); return '<div class="sg-empty"><b>Ничего не нашлось</b>Попробуйте иначе: часть названия или фамилию исполнителя</div>' +
+    '<div class="sg-note warn" style="text-align:center">В каталоге AST этой песни нет. Можно найти её на YouTube - <b>такие песни поются только в кабинках</b>, в залах их не поставить.' +
+    '<button type="button" class="sg-btn ghost" id="sg-ytcat" style="margin-top:10px">Найти «' + esc(PS.q.trim().slice(0, 40)) + '» на YouTube</button></div>'; }
   const c = PS.cat;
   let h = res.slice(0, PS.limit).map(i => songRow(c.n[i], c.t[i], c.A[c.a[i]], c.d[i])).join("");
   if (res.length > PS.limit) h += '<button type="button" class="sg-more" data-more="1">Показать ещё (' + (res.length - PS.limit) + ")</button>";
@@ -805,7 +811,7 @@ async function ytInfo(id){
   }
   return null;
 }
-function openYt(){
+function openYt(q){
   PS.sheet = { mode: "yt", id: null };
   const el = document.getElementById("sg-sheet");
   el.innerHTML = '<div class="sg-sh" role="dialog" aria-modal="true" aria-label="Добавить с YouTube">' +
@@ -820,7 +826,7 @@ function openYt(){
     '<div class="acts two"><button type="button" class="sg-btn" id="sg-ytlist">В мой список</button><button type="button" class="sg-btn ghost" id="sg-ytfav">В избранное</button></div>' +
     '<button type="button" class="sg-btn ghost" id="sg-shx">Отмена</button></div>';
   el.hidden = false;
-  setTimeout(() => { const i = document.getElementById("sg-ytl"); if (i) i.focus(); }, 50);
+  setTimeout(() => { const i = document.getElementById("sg-ytl"); if (!i) return; if (q){ i.value = q; ytFind(); } else i.focus(); }, 50);
 }
 let ytTimer = null;
 function onSheetInput(e){
@@ -1088,6 +1094,7 @@ function onClick(e){
   const mu = t.closest("[data-mlup]"); if (mu){ moveUp(+mu.dataset.mlup); return; }
   const fx = t.closest("[data-fx]"); if (fx){ fx.disabled = true; toggleFx(fx.dataset.t, fx.dataset.a, fx.dataset.yt || null); return; }
   if (t.closest("#sg-ytopen")){ openYt(); return; }
+  if (t.closest("#sg-ytcat")){ openYt(PS.q.trim()); return; }      // из «Ничего не нашлось» в каталоге
   if (t.closest("#sg-gofav")){ PS.tab = "fav"; render(); window.scrollTo(0, 0); return; }
   // сборка 9: «Позвать компанию»
   const gi = t.closest("#sg-goinv"); if (gi){ PS.inv = gi.dataset.bk; PS.invSel.clear(); loadInv(); window.scrollTo(0, 0); return; }
