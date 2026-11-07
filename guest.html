@@ -1125,7 +1125,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 07.11 · сборка 17";
+const GUEST_VERSION = "v 07.11 · сборка 18";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1506,7 +1506,17 @@ let SB = null;           // клиент supabase (создаётся после
 let GUEST = null;        // { tg_id, name } — данные гостя из Telegram
 let BK_REF = null;       // справочники: { venues, zones }
 let BK_STATE = { venue:"karaoke", date:null, zoneId:null, guests:null };
-let BK_GOTO_FORM = false;   // true = гость нажал «Забронировать» в карточке зоны → сразу форма
+let BK_GOTO_FORM = false;
+// «Забронировать снова» из сообщения бота: ?rebook=<бронь>&zone=<зона>&g=<гостей>&card=cab3 (сборка 18)
+let BK_REBOOK = null;
+try{
+  const q = new URLSearchParams(location.search);
+  if(q.get("rebook")){
+    const card = q.get("card") || "";
+    BK_REBOOK = { zone: Number(q.get("zone")) || null, g: Number(q.get("g")) || null,
+                  card: /^(cab|vip)\d{1,2}$/.test(card) ? card : null };
+  }
+}catch(_){}   // true = гость нажал «Забронировать» в карточке зоны → сразу форма
 let BK_AUTH_TRIED = false;
 let BK_AUTH_ERR = "";
 
@@ -2044,6 +2054,19 @@ async function renderBook(force){
     return;
   }
   await bkfLoadRef();
+
+  // «Забронировать снова»: та же зона (кабинка - та же), то же число гостей; дату и время гость выбирает сам
+  if(BK_REBOOK){
+    const rb = BK_REBOOK; BK_REBOOK = null;
+    const z = rb.zone ? (BK_REF.zones||[]).find(x=>x.id===rb.zone) : null;
+    const v = z ? (BK_REF.venues||[]).find(x=>x.id===z.venue_id) : null;
+    if(z && v){
+      BK_STATE.venue = v.key; ZONE_VENUE = v.key;
+      BK_STATE.zoneId = z.id; BK_STATE.card = rb.card; BK_STATE.time = null;
+      if(rb.g){ const steps=[1,2,3,4,5,6,8,10,12,15,20]; BK_STATE.guests = steps.find(s=>s>=rb.g) || "more"; }
+      BK_GOTO_FORM = true;
+    }
+  }
 
   // самая релевантная заявка этого гостя (booked > request > cancelled)
   let last=null;
@@ -3082,6 +3105,8 @@ renderAll();
 <script>
 // «Песни»: тестовый режим - вкладка только у тестовых аккаунтов; открыть сразу по ?tab=songs или приглашению startapp=stol-КОД
 if(window.PesniInit) window.PesniInit();
+// «Забронировать снова» из напоминания - сразу форма брони (сборка 18)
+if(typeof BK_REBOOK!=="undefined" && BK_REBOOK) go("book");
 </script>
 </body>
 </html>
