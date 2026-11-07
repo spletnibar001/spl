@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 11 · 07.11.2026 (YouTube: исполнитель и название чище - без «KARAOKE», дат, исполнитель из соседних результатов)
    Сборка 10 · 07.11.2026 (поиск YouTube в «Добавить с YouTube»: функция songs, действие ytsearch)
    Сборка 9 · 07.11.2026 («Позвать компанию»: приглашения друзьям по брони ?invite=, ответы ?inv=&a=)
    Сборка 8 · 07.11.2026 (вкладка «Сегодня»: зал или кабинка по брони, бронь кабинки до посадки)
@@ -776,12 +777,25 @@ function ytId(s){
   if (m) return m[1];
   return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : null;
 }
-function cleanYt(title, author){
-  let t = String(title || "").replace(/\s*[(\[][^)\]]*(karaoke|караоке|минус|instrumental|lyrics|текст|official|клип|video|audio)[^)\]]*[)\]]/gi, "").replace(/\s*\|.*$/, "").trim();
+function cleanYt(title, author, known){
+  // «KARAOKE Sherali Jo'rayev - Tushumda (Karaoke 2022)», «… Birinchi Muhabbatim (minus-karaoke) 23.06.24» -> исполнитель и название
+  let t = String(title || "")
+    .replace(/\s*[(\[][^)\]]*(karaoke|караоке|минус|minus|instrumental|lyrics|текст|official|клип|video|audio)[^)\]]*[)\]]/gi, "")
+    .replace(/\s*\|.*$/, "")
+    .replace(/^\s*(karaoke|караоке)\b[\s:._-]*/i, "")
+    .replace(/[\s_-]*\b(karaoke|караоке|minus|минус)\s*$/i, "")
+    .replace(/\s*\b\d{1,2}\.\d{1,2}\.\d{2,4}\s*$/, "")
+    .replace(/\s{2,}/g, " ").trim();
   let a = "";
   const p = t.split(/\s+[-–—]\s+/);
   if (p.length >= 2){ a = p.shift().trim(); t = p.join(" - ").trim(); }
-  else a = String(author || "").replace(/\s*-\s*topic$/i, "").trim();
+  else {
+    // без тире: исполнитель из соседних результатов поиска («Sherali Jo‘rayev - …»), иначе - канал
+    const nk = s => String(s).toLowerCase().replace(/[’‘ʻʼ`´]/g, "'");
+    const k = (known || []).filter(Boolean).sort((x, y) => y.length - x.length).find(x => nk(t).startsWith(nk(x) + " "));
+    if (k){ a = t.slice(0, k.length).trim(); t = t.slice(k.length).trim(); }
+    else a = String(author || "").replace(/\s*-\s*topic$/i, "").trim();
+  }
   return { t: t || String(title || ""), a };
 }
 async function ytInfo(id){
@@ -852,7 +866,8 @@ function ytPick(i){
   const sh = PS.sheet, x = sh && sh.items && sh.items[i]; if (!x) return;
   sh.id = x.ytId;
   document.querySelectorAll("#sg-ytr [data-ytpick]").forEach(b => b.classList.toggle("on", +b.dataset.ytpick === i));
-  const v = cleanYt(x.title, x.channel);
+  const known = (sh.items || []).map(y => cleanYt(y.title, "").a);
+  const v = cleanYt(x.title, x.channel, known);
   const ti = document.getElementById("sg-ytt"), ai = document.getElementById("sg-yta");
   if (ti) ti.value = v.t; if (ai) ai.value = v.a;
   const m = document.getElementById("sg-ytm"); if (m) m.innerHTML = '<div class="sg-msg ok">Выбрано - проверьте название и исполнителя</div>';
