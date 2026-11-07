@@ -83,7 +83,7 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
-/* SPLETNI · тестеры песен (testery.html) · сборка 1 · 07.11.2026
+/* SPLETNI · тестеры песен (testery.html) · сборка 2 · 07.11.2026 (ссылка на бота @spletni_ai_bot)
    Список song_settings.test_tg - кому открыт тест песен. Видит и меняет только владелец (song_settings.owner_tg),
    проверка на сервере (song_test_api). Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; rpc song_call, test_* */
 "use strict";
@@ -173,7 +173,7 @@ async function find(){
   if (d.error){ toast(errText(d.error)); return; }
   if (d.not_found){
     FOUND = null;
-    $("#res").innerHTML = '<div class="note"><b>Этот гость ещё не открывал бота</b><span>Пусть откроет бота SPLETNI в Telegram (гостевое приложение) и поделится номером. После этого найдите номер ещё раз.</span><span>Знаете Telegram ID? Переключитесь на «По Telegram ID» - добавится сразу.</span></div>';
+    $("#res").innerHTML = '<div class="note"><b>Этот гость ещё не открывал бота</b><span>Пусть откроет бота @spletni_ai_bot в Telegram и поделится номером. После этого найдите номер ещё раз.</span><button type="button" class="btn" id="copyBot" style="min-height:44px">Скопировать ссылку на бота</button><span>Знаете Telegram ID? Переключитесь на «По Telegram ID» - добавится сразу.</span></div>';
     return;
   }
   FOUND = d.guest;
@@ -188,6 +188,11 @@ async function addFound(){
   busy = true; const d = await api("test_add", { tg: String(FOUND.tg) }); busy = false;
   if (apply(d)){ toast("Добавлено: " + FOUND.name); FOUND = null; $("#res").innerHTML = ""; $("#q").value = ""; }
 }
+const BOT_URL = "https://t.me/spletni_ai_bot";
+async function copyBot(){
+  try{ await navigator.clipboard.writeText(BOT_URL); toast("Ссылка скопирована: " + BOT_URL); }
+  catch(_){ prompt("Скопируйте ссылку на бота", BOT_URL); }
+}
 async function del(tg){
   const x = (ST.testers || []).find(t => String(t.tg) === String(tg));
   if (!confirm("Убрать " + ((x && x.name) || ("Telegram " + tg)) + " из тестеров?")) return;
@@ -199,6 +204,7 @@ document.addEventListener("click", e => {
   const c = t.closest("#chips [data-by]"); if (c){ setBy(c.dataset.by); return; }
   if (t.closest("#find")){ find(); return; }
   if (t.closest("#addOk")){ addFound(); return; }
+  if (t.closest("#copyBot")){ copyBot(); return; }
   if (t.closest("#addNo")){ FOUND = null; $("#res").innerHTML = ""; return; }
   const d = t.closest("[data-del]"); if (d){ del(d.dataset.del); return; }
 });
