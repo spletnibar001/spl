@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 9 · 07.11.2026 («Позвать компанию»: приглашения друзьям по брони ?invite=, ответы ?inv=&a=)
    Сборка 8 · 07.11.2026 (вкладка «Сегодня»: зал или кабинка по брони, бронь кабинки до посадки)
    Сборка 7 · 07.11.2026 («Мои песни»: список + избранное, песни с YouTube для кабинок, «Вы в кабинке»)
    Сборка 6 · 06.11.2026 (кнопка «Не напоминать» из сообщения бота: ?noremind=1)
@@ -18,7 +19,8 @@ const RPC_URL = SB_URL + "/rest/v1/rpc/song_call";
 const PS = {
   token: null, me: null, cat: null, catErr: "", tab: "cat", fmode: null, mode: "all", q: "", ccode: null,
   limit: 60, poll: null, busy: false, err: "", startParam: null, joinedFromLink: false,
-  favSet: new Set(), lastMe: 0, sheet: null, missSent: new Set(), pendingCard: null
+  favSet: new Set(), lastMe: 0, sheet: null, missSent: new Set(), pendingCard: null,
+  inv: null, invData: null, invSel: new Set(), invErr: ""      // сборка 9: «Позвать компанию»
 };
 // пожелания к песне: метка -> текст; «ниже/выше» и «женская/мужская» - одно из двух
 const WISH = { duet: "Дуэт", lower: "Тон ниже", higher: "Тон выше", female: "Женская версия", male: "Мужская версия" };
@@ -59,7 +61,9 @@ const ERR = {
   fav_limit: "В избранном уже 500 песен",
   not_in_cabin: "Вы сейчас не в кабинке",
   need_phone: "Сначала поделитесь номером во вкладке «Сегодня»",
-  retry: "Новый код можно взять через минуту"
+  retry: "Новый код можно взять через минуту",
+  booking_closed: "Эта бронь уже закрыта",
+  bad_args: "Ссылка устарела - откройте последнее сообщение бота"
 };
 const errText = e => ERR[e] || ("Ошибка: " + e);
 
@@ -136,6 +140,16 @@ const CSS = `
 .sg-btn{display:block;width:100%;padding:13px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);border-radius:12px;font-size:15px;font-weight:800;margin-top:10px}
 .sg-btn.ghost{border-color:var(--line);background:transparent;color:var(--text)}
 .sg-btn[disabled]{opacity:.5}
+/* сборка 9: «Позвать компанию» - выбранный друг: зелёная рамка, без галочек */
+.sg-fr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;text-align:left;padding:11px 12px;margin-top:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:12px;font:inherit}
+.sg-fr.on{border-color:var(--emerald);background:rgba(31,191,122,.08)}
+.sg-fr b{display:block;font-size:15px}
+.sg-fr small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.sg-fr .st{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+.sg-fr .st.yes{color:var(--emerald)}
+.sg-fr .st.no{color:#ec8079}
+.sg-fr.off{opacity:.65}
+.sg-back{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;padding:0;margin:0 0 8px}
 .sg-in{display:flex;gap:8px;margin-top:8px}
 .sg-in input{flex:1;min-width:0;height:44px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;padding:0 12px;font-size:15px;outline:none}
 .sg-in input:focus{border-color:var(--emerald)}
@@ -525,7 +539,8 @@ function scrTable(){
     const cb = me.cab_bk;
     h += '<div class="sg-card"><div style="font-weight:800;font-size:16px">Ваша бронь: Кабинка ' + cb.cabin + ', сегодня' + (cb.at ? " в " + esc(cb.at) : "") + '</div>' +
       '<div style="color:var(--muted);font-size:13.5px;margin-top:6px;line-height:1.5">Когда хостес отметит посадку, ваш список и избранное сразу появятся на экране кабинки. Соберите песни заранее - во вкладке «Мои песни».</div>' +
-      '<button type="button" class="sg-btn" id="sg-gofav">Мои песни</button></div>';
+      '<button type="button" class="sg-btn" id="sg-gofav">Мои песни</button>' +
+      (cb.role === "owner" ? '<button type="button" class="sg-btn ghost" id="sg-goinv" data-bk="' + esc(cb.booking) + '">Позвать компанию</button>' : "") + "</div>";
     return h;
   }
   if (!tb){                   // брони на сегодня нет (сборка 8: зал и кабинки)
@@ -597,12 +612,61 @@ function hallBlock(){
   return h;
 }
 
+/* ---------- «Позвать компанию» (сборка 9) ---------- */
+const INV_ST = { yes: ["придёт", "yes"], no: ["не сможет", "no"], sent: ["ждём ответ", ""] };
+const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+function dm(d){ const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ""); return m ? (+m[3]) + " " + MON[+m[2] - 1] : ""; }
+function scrInvite(){
+  let h = '<button type="button" class="sg-back" id="sg-invback">← Назад к песням</button>' +
+    '<div class="sg-h"><h2>Позвать компанию</h2></div>';
+  if (PS.invErr) return h + '<div class="sg-empty"><b>' + esc(errText(PS.invErr)) + "</b></div>";
+  const d = PS.invData;
+  if (!d) return h + '<div class="sg-empty"><b>Загрузка…</b></div>';
+  const b = d.booking || {}, fr = d.friends || [];
+  h += '<div class="sg-card"><div style="font-weight:800;font-size:16px">' + esc(b.place) + "</div>" +
+    '<div style="color:var(--muted);font-size:13.5px;margin-top:4px">' + esc(b.when) + (b.guests ? " · " + b.guests + " " + plural(b.guests, "гость", "гостя", "гостей") : "") + "</div></div>";
+  if (!fr.length) return h + '<div class="sg-note">Пока не с кем: здесь появятся друзья, с которыми вы были в SPLETNI и кого добавляли к брони.</div>';
+  const can = fr.filter(f => f.bot && !f.status), sent = fr.filter(f => f.status), nobot = fr.filter(f => !f.bot && !f.status);
+  const yes = sent.filter(f => f.status === "yes").length;
+  if (sent.length) h += '<div class="sg-sec">Приглашены <span>придут: ' + yes + " из " + sent.length + "</span></div>" +
+    sent.map(f => { const st = INV_ST[f.status] || ["", ""]; return '<div class="sg-fr"><span><b>' + esc(f.name) + "</b></span><span class=\"st " + st[1] + '">' + st[0] + "</span></div>"; }).join("");
+  if (can.length){
+    h += '<div class="sg-sec">' + (sent.length ? "Позвать ещё" : "Та же компания") + ' <span><button type="button" class="sg-back" id="sg-invall" style="margin:0">' + (can.every(f => PS.invSel.has(f.tg)) ? "Снять всех" : "Выбрать всех") + "</button></span></div>";
+    h += can.map(f => '<button type="button" class="sg-fr' + (PS.invSel.has(f.tg) ? " on" : "") + '" data-fr="' + esc(f.tg) + '"><span><b>' + esc(f.name) + "</b><small>" +
+      f.times + " " + plural(f.times, "вечер", "вечера", "вечеров") + " вместе" + (f.last ? " · последний " + dm(f.last) : "") + "</small></span><span></span></button>").join("");
+    const n = can.filter(f => PS.invSel.has(f.tg)).length;
+    h += '<button type="button" class="sg-btn" id="sg-invsend"' + (n ? "" : " disabled") + ">Отправить приглашения" + (n ? " · " + n : "") + "</button>" +
+      '<div class="sg-note" style="margin-top:10px">Бот пришлёт каждому приглашение от вашего имени. Кто ответит «Приду» - ' +
+      (b.cabin ? "сразу появится на экране кабинки." : "сможет заказывать песни на ваш стол.") + " Ответы придут вам в бот.</div>";
+  }
+  if (nobot.length){
+    h += '<div class="sg-sec">Нет в боте SPLETNI</div>' +
+      nobot.map(f => '<div class="sg-fr off"><span><b>' + esc(f.name) + "</b><small>бот не может им написать</small></span><span></span></div>").join("") +
+      '<button type="button" class="sg-btn ghost" id="sg-invshare">Поделиться ссылкой</button>';
+  }
+  return h;
+}
+async function loadInv(){
+  PS.invErr = ""; PS.invData = null; render();
+  const d = await call("my_inv_list", { booking: PS.inv });
+  if (d.error) PS.invErr = d.error; else PS.invData = d;
+  render();
+}
+async function sendInv(btn){
+  const tgs = [...PS.invSel]; if (!tgs.length) return;
+  btn.disabled = true;
+  const d = await call("my_inv_send", { booking: PS.inv, tgs });
+  if (d.error){ toast(errText(d.error)); haptic("error"); btn.disabled = false; return; }
+  haptic("success"); toast(d.sent ? "Отправили " + d.sent + " " + plural(d.sent, "приглашение", "приглашения", "приглашений") + ". Ответы придут вам в бот" : "Этим друзьям приглашение уже отправлено");
+  PS.invSel.clear(); PS.invData = d; render();
+}
 function render(){
   const sec = SEC(); if (!sec) return;
   if (PS.err === "no_tg" || PS.err === "bad_init_data" || PS.err === "test_mode"){
     sec.innerHTML = '<div class="sg-h"><h2>Песни</h2></div><div class="sg-empty"><b>' + esc(errText(PS.err)) + "</b>Каталог песен и заказ на стол работают внутри Telegram</div>";
     return;
   }
+  if (PS.inv){ sec.innerHTML = scrInvite(); sec.dataset.tab = "inv"; return; }
   const tb = table();
   const qn = PS.me ? (PS.me.mine || []).filter(x => x.status === "queued").length : 0;
   const active = document.activeElement && document.activeElement.id;
@@ -963,6 +1027,18 @@ function onClick(e){
   const fx = t.closest("[data-fx]"); if (fx){ fx.disabled = true; toggleFx(fx.dataset.t, fx.dataset.a, fx.dataset.yt || null); return; }
   if (t.closest("#sg-ytopen")){ openYt(); return; }
   if (t.closest("#sg-gofav")){ PS.tab = "fav"; render(); window.scrollTo(0, 0); return; }
+  // сборка 9: «Позвать компанию»
+  const gi = t.closest("#sg-goinv"); if (gi){ PS.inv = gi.dataset.bk; PS.invSel.clear(); loadInv(); window.scrollTo(0, 0); return; }
+  if (t.closest("#sg-invback")){ PS.inv = null; PS.invData = null; PS.invErr = ""; PS.invSel.clear(); PS.tab = "table"; render(); window.scrollTo(0, 0); return; }
+  const fr = t.closest("[data-fr]"); if (fr){ const k = fr.dataset.fr; if (PS.invSel.has(k)) PS.invSel.delete(k); else PS.invSel.add(k); render(); return; }
+  if (t.closest("#sg-invall")){ const can = ((PS.invData && PS.invData.friends) || []).filter(f => f.bot && !f.status); const all = can.every(f => PS.invSel.has(f.tg)); can.forEach(f => all ? PS.invSel.delete(f.tg) : PS.invSel.add(f.tg)); render(); return; }
+  const isd = t.closest("#sg-invsend"); if (isd){ sendInv(isd); return; }
+  if (t.closest("#sg-invshare")){
+    const b = (PS.invData && PS.invData.booking) || {};
+    const url = "https://t.me/share/url?url=" + encodeURIComponent("https://t.me/spletni_ai_bot") + "&text=" + encodeURIComponent("Идём в SPLETNI: " + (b.place || "") + ", " + (b.when || "") + ". Приходи! Открой бота SPLETNI - там песни, бронь и приглашения");
+    try{ Telegram.WebApp.openTelegramLink(url); }catch(_){ window.open(url, "_blank"); }
+    return;
+  }
   if (t.closest("#sg-gobook")){ try{ if (typeof go === "function") go("book"); }catch(_){} return; }
   if (t.closest("#sg-copen")){ call("cabin_open").then(d => { if (d.error) toast(errText(d.error)); else { haptic("success"); toast("Ваш список поднят на экране Кабинки " + d.cabin); } }); return; }
   if (t.closest("#sg-ccode")){ cabinCode(); return; }
@@ -1032,6 +1108,7 @@ async function open(){
   else if (PS.me && PS.me.cabin && !PS.openedOnce) PS.tab = "fav";   // сидит в кабинке - сразу «Мои песни»
   PS.openedOnce = true;
   if (PS.pendingCard && PS.me){ PS.tab = "hist"; render(); openCard(PS.pendingCard); PS.pendingCard = null; }
+  if (PS.inv && !PS.invData && !PS.invErr) await loadInv();
   render();
   clearInterval(PS.poll);
   let ticks = 0;   // обычно раз в 8 сек, во время голосования - раз в 4 сек
@@ -1058,6 +1135,15 @@ async function init(){
   // «Не напоминать» под сообщением-напоминанием (сборка 7.3, 06.11.2026)
   if (q.get("noremind") === "1") call("my_noremind", { off: true }).then(d => {
     toast(d && d.ok ? "Хорошо, больше не будем напоминать" : "Не получилось - попробуйте ещё раз");
+  });
+  // сборка 9: «Позвать компанию» из сообщения бота (?invite=<бронь>) и ответ друга (?inv=<id>&a=yes|no|off)
+  if (/^\d{1,18}$/.test(q.get("invite") || "")) PS.inv = q.get("invite");
+  if (/^\d{1,18}$/.test(q.get("inv") || "") && ["yes", "no", "off"].includes(q.get("a"))) call("my_inv_answer", { inv: q.get("inv"), a: q.get("a") }).then(d => {
+    if (!d || d.error){ toast(d && d.error ? errText(d.error) : "Не получилось - попробуйте ещё раз"); return; }
+    if (d.off){ toast("Хорошо, приглашения больше присылать не будем"); return; }
+    haptic("success");
+    toast(d.answer === "yes" ? "Отлично! " + (d.owner || "Хозяин брони") + " узнает, что вы придёте: " + d.place + ", " + d.when : "Передали, что в этот раз не получится");
+    refresh();
   });
   if (q.get("tab") === "songs" || q.get("card") || (sp && /^stol-/i.test(sp))) go("songs");
 }
