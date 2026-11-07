@@ -223,7 +223,6 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
     <div class="stats" id="stats"></div>
     <div class="sp"></div>
     <button type="button" class="btn" id="openBtn">Приём заявок</button>
-    <button type="button" class="btn gold" id="testBtn" hidden>Тестовый режим</button>
     <button type="button" class="btn" id="collBtn">Подборки</button>
     <button type="button" class="btn" id="missBtn">Искали и не нашли</button>
     <button type="button" class="btn" id="repBtn">Отчёт за вечер</button>
@@ -282,14 +281,6 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
     <button type="button" class="btn" id="tClose" style="margin-top:10px;flex:none">Закрыть</button>
   </div>
 </div>
-<div class="modal" id="xModal" hidden>
-  <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="xH">
-    <h3 id="xH">Тестовый режим</h3>
-    <p>Пока он включён, вкладку «Песни» в гостевом приложении видят и заказывают только тестовые Telegram-аккаунты, бот пишет только им, а планшет звука и кнопка «Песни» в табеле - только у администратора.</p>
-    <div class="m-list" id="xBody"></div>
-    <button type="button" class="btn" id="xClose" style="margin-top:10px;flex:none">Закрыть</button>
-  </div>
-</div>
 <div class="modal" id="rModal" hidden>
   <div class="modal-in" role="dialog" aria-modal="true" aria-label="Отчёт за вечер">
     <h3>Отчёт за вечер</h3><p>Так он придёт владельцу в Telegram в 05:00. Сейчас - промежуточный.</p>
@@ -323,7 +314,7 @@ a.back{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;bo
 "use strict";
 const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
-const ZVUK_VERSION = "сборка 5";
+const ZVUK_VERSION = "сборка 6";
 const WISH = { duet: "дуэт", lower: "тон ниже", higher: "тон выше", female: "женская версия", male: "мужская версия" };
 const wishTags = w => (w || []).map(x => '<span class="wtag">' + esc(WISH[x] || x) + "</span>").join("");
 const minFmt = m => m < 60 ? m + " мин" : Math.floor(m / 60) + " ч " + String(m % 60).padStart(2, "0") + " мин";
@@ -397,29 +388,8 @@ function render(){
   $("#sub").textContent = "Большой зал · круг " + s.cur_round + " · " + ZVUK_VERSION;
   $("#stats").innerHTML = "<div><b>" + s.queue.length + "</b>в очереди</div><div><b>" + tw + "</b>столов ждут</div><div><b>" + s.done_count + "</b>за смену</div>";
   const ob = $("#openBtn"); ob.textContent = s.open ? "Приём заявок открыт" : "Приём заявок закрыт"; ob.className = "btn " + (s.open ? "on" : "off");
-  const tb = $("#testBtn"), admin = ["admin", "upr"].includes(s.me_role);
-  tb.hidden = !(s.test_mode || admin);
-  tb.textContent = s.test_mode ? "ТЕСТ: песни видят только тестовые аккаунты" : "Песни открыты всем гостям";
-  tb.className = "btn " + (s.test_mode ? "gold" : "on"); tb.disabled = !admin;
   renderNow(); renderQueue(); renderScreen(); renderScrList(); renderVotes(); renderTables();
 }
-/* ---------- тестовый режим (только admin / upr) ---------- */
-function renderTest(x){
-  if (!x || x.error){ $("#xBody").innerHTML = '<div class="err">' + esc((x && x.error) || "ошибка") + "</div>"; return; }
-  const ids = new Set((x.testers || []).map(t => String(t.tg)));
-  let h = '<div class="row2"><div><b>' + (x.test_mode ? "Сейчас: тестовый режим" : "Сейчас: открыто всем гостям") + "</b><span>" +
-    (x.test_mode ? "Гости без доступа вкладку «Песни» не видят" : "Вкладка «Песни» у всех гостей") + '</span></div><button type="button" class="btn ' + (x.test_mode ? "on" : "gold") + '" data-xmode="' + (x.test_mode ? "0" : "1") + '">' +
-    (x.test_mode ? "Открыть всем гостям" : "Вернуть тестовый режим") + "</button></div>";
-  h += '<div class="sub-lbl">Тестовые аккаунты · видят «Песни» в гостевом приложении</div>';
-  h += (x.testers || []).map(t => '<div class="row2"><div><b>' + esc(t.name) + "</b><span>Telegram ID " + t.tg + (String(t.tg) === String(x.me) ? " · это вы" : "") + '</span></div><button type="button" class="btn" data-xdel="' + t.tg + '" aria-label="Убрать из тестовых">×</button></div>').join("") || '<div class="note">Пока никого</div>';
-  if (!ids.has(String(x.me))) h += '<button type="button" class="btn main" data-xme="1" style="width:100%;margin-top:8px">Добавить меня (этот Telegram)</button>';
-  h += '<div class="sub-lbl">Добавить сотрудника</div><div class="form" style="grid-template-columns:minmax(0,1fr) auto"><select id="xStaff" aria-label="Сотрудник"><option value="">Выберите…</option>' +
-    (x.staff || []).filter(t => !ids.has(String(t.tg))).map(t => '<option value="' + t.tg + '">' + esc(t.name) + "</option>").join("") + '</select><button type="button" class="btn" data-xadd="staff">Добавить</button></div>';
-  h += '<div class="sub-lbl">Или по Telegram ID</div><div class="form" style="grid-template-columns:minmax(0,1fr) auto"><input id="xTg" inputmode="numeric" placeholder="Например 123456789" autocomplete="off" aria-label="Telegram ID"><button type="button" class="btn" data-xadd="tg">Добавить</button></div>' +
-    '<div class="note">Telegram ID гостя можно узнать, если он напишет боту @userinfobot. Один и тот же Telegram - и в табеле, и в гостевом приложении.</div>';
-  $("#xBody").innerHTML = h;
-}
-async function testAct(action, args){ const x = await api(action, args); renderTest(x); poll(); }
 function renderNow(){
   const p = ST.playing, nx = ST.queue[0];
   if (p){
@@ -614,16 +584,6 @@ $("#queue").addEventListener("click", e => {
   else if (d.del){ if (confirm("Убрать песню из очереди?")) act("remove", { id: +d.del }); }
 });
 $("#openBtn").addEventListener("click", () => { if (!ST) return; if (ST.open && !confirm("Закрыть приём заявок? Гости не смогут ставить новые песни, пока не откроете.")) return; act("open", { open: !ST.open }); });
-$("#testBtn").addEventListener("click", async () => { $("#xModal").hidden = false; $("#xBody").innerHTML = '<div class="note">Загрузка…</div>'; renderTest(await api("test_info")); });
-$("#xModal").addEventListener("click", e => {
-  if (e.target.id === "xModal" || e.target.id === "xClose"){ $("#xModal").hidden = true; return; }
-  const m = e.target.closest("[data-xmode]");
-  if (m){ const on = m.dataset.xmode === "1"; if (!on && !confirm("Открыть «Песни» всем гостям? Вкладка появится у всех в гостевом приложении, бот начнёт писать гостям.")) return; testAct("test_mode", { on }); return; }
-  const d = e.target.closest("[data-xdel]"); if (d){ testAct("test_del", { tg: +d.dataset.xdel }); return; }
-  if (e.target.closest("[data-xme]")){ testAct("test_add", { me: true }); return; }
-  const a = e.target.closest("[data-xadd]");
-  if (a){ const v = a.dataset.xadd === "staff" ? $("#xStaff").value : ($("#xTg").value || "").replace(/\D/g, ""); if (!v){ toast("Выберите сотрудника или введите Telegram ID"); return; } testAct("test_add", { tg: +v }); }
-});
 $("#repBtn").addEventListener("click", async () => { const r = await api("report"); $("#rBody").textContent = r.text || r.error || ""; $("#rModal").hidden = false; });
 $("#rClose").addEventListener("click", () => $("#rModal").hidden = true);
 $("#bdDur").addEventListener("click", e => { const x = e.target.closest("[data-v]"); if (x) $("#bdDur").querySelectorAll("button").forEach(y => y.classList.toggle("on", y === x)); });
@@ -654,7 +614,7 @@ $("#tModal").addEventListener("click", e => {
   const b = e.target.closest("[data-addn]"); if (b) addFromBtn(b);
 });
 $("#views").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (!b) return; $("#grid").dataset.v = b.dataset.v; $("#views").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
-addEventListener("keydown", e => { if (e.key === "Escape"){ $("#tModal").hidden = true; $("#rModal").hidden = true; $("#xModal").hidden = true; $("#cModal").hidden = true; $("#mModal").hidden = true; } });
+addEventListener("keydown", e => { if (e.key === "Escape"){ $("#tModal").hidden = true; $("#rModal").hidden = true; $("#cModal").hidden = true; $("#mModal").hidden = true; } });
 
 /* ---------- подборки для каталога гостей ---------- */
 let COLLS = [], cOpen = null, cQ = "";
