@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>SPLETNI · Тестеры песен</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#0b0d10; --panel:#15181d; --panel2:#1c2025; --line:#262a31; --text:#eef1f4; --muted:#9aa3ad;
+  --emerald:#1fbf7a; --gold:#c9a14a; --red:#e2655c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:560px;margin:0 auto;padding:16px 14px 60px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.head h1{margin:0;font-size:21px;font-weight:800;flex:1}
+.head span{font-size:12px;color:var(--muted)}
+.ib{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0}
+.ib svg{width:20px;height:20px}
+.mode{border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;flex-direction:column;gap:4px;border:1px solid rgba(201,161,74,.55);background:rgba(201,161,74,.08)}
+.mode b{font-size:15px;color:#e0bd6e}
+.mode.open{border-color:rgba(31,191,122,.45);background:rgba(31,191,122,.07)}
+.mode.open b{color:var(--emerald)}
+.mode span{font-size:12.5px;color:var(--muted);line-height:1.4}
+.lbl{display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:16px 0 4px}
+.lbl span{letter-spacing:0;text-transform:none;font-weight:600}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row b{display:block;font-size:14.5px}
+.row small{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.pill{font-size:12px;font-weight:700;color:var(--emerald);border:1px solid var(--emerald);border-radius:12px;padding:3px 10px}
+.btn{min-height:40px;padding:0 13px;border-radius:10px;border:1px solid var(--line);background:transparent;font-size:13px;font-weight:700}
+.btn.go{min-height:46px;border-color:var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);font-size:14px;font-weight:800}
+.btn.main{min-height:48px;border:0;background:var(--emerald);color:#06130d;font-size:15px;font-weight:800}
+.btn[disabled]{opacity:.45;cursor:default}
+.chips{display:flex;gap:6px;margin-bottom:10px}
+.chips button{padding:7px 14px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:18px;font-size:12.5px;font-weight:700}
+.chips button.on{border-color:var(--emerald);color:var(--emerald)}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted)}
+.in{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.in input{height:46px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:0 14px;font-size:15px;outline:none;min-width:0}
+.in input:focus{border-color:var(--emerald)}
+.note{margin-top:12px;border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:6px;border:1px solid rgba(201,161,74,.55);background:rgba(201,161,74,.08)}
+.note b{font-size:15px}
+.note span{font-size:13px;color:var(--muted);line-height:1.45}
+.found{margin-top:12px;border:1px solid var(--emerald);background:rgba(31,191,122,.07);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.found b{font-size:16px}
+.found small{font-size:13px;color:var(--muted)}
+.found .acts{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
+.foot{margin-top:22px;font-size:12px;color:var(--muted);text-align:center;line-height:1.45}
+.empty{padding:16px 0;color:var(--muted)}
+#auth{padding:40px 20px;text-align:center;color:var(--muted);line-height:1.5}
+#toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#1f242b;border:1px solid var(--emerald);color:var(--text);padding:11px 16px;border-radius:12px;font-size:14px;display:none;z-index:9;max-width:90vw;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="auth">Загружаем…</div>
+  <div id="app" hidden>
+    <div class="head">
+      <a href="index.html" class="ib" id="toTabel" aria-label="Назад в табель">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <h1>Тестеры</h1><span>песни · только для вас</span>
+    </div>
+    <div id="mode"></div>
+    <div class="lbl">Кому открыт тест <span id="cnt"></span></div>
+    <div id="list"></div>
+    <div class="lbl">Добавить</div>
+    <div class="chips" id="chips">
+      <button type="button" data-by="phone" class="on">По номеру</button>
+      <button type="button" data-by="tg">По Telegram ID</button>
+    </div>
+    <label class="f"><span id="inLbl">Номер гостя, 9 цифр без +998</span>
+      <div class="in"><input id="q" type="tel" inputmode="numeric" autocomplete="off" placeholder="90 123 45 67"><button type="button" class="btn go" id="find">Найти</button></div>
+    </label>
+    <div id="res"></div>
+    <div class="foot">Открыть песни всем гостям - отдельным решением в базе, здесь такой кнопки нет.</div>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* SPLETNI · тестеры песен (testery.html) · сборка 1 · 07.11.2026
+   Список song_settings.test_tg - кому открыт тест песен. Видит и меняет только владелец (song_settings.owner_tg),
+   проверка на сервере (song_test_api). Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; rpc song_call, test_* */
+"use strict";
+const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ERR = { forbidden: "Этот экран только у владельца", bad_phone: "Введите 9 цифр номера, например 90 123 45 67", bad_args: "Проверьте Telegram ID - только цифры",
+  owner: "Себя убрать нельзя", network: "Нет связи, попробуйте ещё раз", auth: "Сессия устарела - откройте заново из табеля" };
+const errText = e => ERR[e] || ("Ошибка: " + e);
+let TOKEN = null, ST = null, BY = "phone", FOUND = null, busy = false;
+
+function toast(m){ const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 3000); }
+const fmtDate = d => { if (!d) return ""; const x = new Date(d); return x.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }); };
+const phone = p => p ? String(p).replace(/^\+998 /, "") : "";
+
+async function fnCall(body){
+  try{
+    const r = await fetch(SB_URL + "/functions/v1/songs", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON }, body: JSON.stringify(body) });
+    let d = {}; try{ d = await r.json(); }catch(_){}
+    if (!r.ok && !d.error) d.error = "http_" + r.status;
+    return d;
+  }catch(e){ return { error: "network" }; }
+}
+async function login(){
+  const tg = window.Telegram && window.Telegram.WebApp;
+  let initData = tg && tg.initData;
+  if (!initData){ try{ initData = sessionStorage.getItem("spl_initData") || ""; }catch(_){} }
+  if (!initData){ $("#auth").textContent = "Откройте экран из табеля в Telegram (кнопка «Тестеры»)."; return false; }
+  const d = await fnCall({ action: "login", app: "staff", initData });
+  if (!d.token){ $("#auth").textContent = d.error === "not_staff" || d.error === "test_mode" ? "Этот экран только у владельца." : "Не получилось войти: " + (d.error || "ошибка"); return false; }
+  TOKEN = d.token; return true;
+}
+async function api(action, args, retry){
+  if (!TOKEN && !(await login())) return { error: "auth" };
+  let d;
+  try{
+    const r = await fetch(SB_URL + "/rest/v1/rpc/song_call", { method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SB_ANON, Authorization: "Bearer " + SB_ANON },
+      body: JSON.stringify({ p_token: TOKEN, p_action: action, p_args: args || {} }) });
+    d = await r.json();
+    if (!r.ok) d = { error: (d && d.message) || ("http_" + r.status) };
+  }catch(e){ d = { error: "network" }; }
+  if (d && d.error === "auth" && !retry){ TOKEN = null; return api(action, args, true); }
+  return d || {};
+}
+function apply(d){
+  if (!d || d.error){
+    if (!ST){ $("#auth").textContent = errText((d && d.error) || "ошибка"); $("#auth").hidden = false; $("#app").hidden = true; }
+    else toast(errText((d && d.error) || "ошибка"));
+    return false;
+  }
+  if (d.testers){ ST = d; $("#auth").hidden = true; $("#app").hidden = false; render(); }
+  return true;
+}
+function render(){
+  $("#mode").innerHTML = ST.test_mode
+    ? '<div class="mode"><b>Тестовый режим включён</b><span>«Песни», вход в кабинку по коду, списки в плеере и сообщения бота - только у людей из списка ниже.</span></div>'
+    : '<div class="mode open"><b>Песни открыты всем гостям</b><span>Список ниже сейчас ни на что не влияет - он заработает, если тестовый режим включат снова.</span></div>';
+  const t = ST.testers || [];
+  $("#cnt").textContent = t.length;
+  $("#list").innerHTML = t.length ? t.map(x => '<div class="row"><div><b>' + esc(x.name || ("Telegram " + x.tg)) + "</b><small>" +
+      (x.phone ? esc(phone(x.phone)) + " · " : "номер неизвестен · ") + "Telegram " + x.tg + "</small></div>" +
+      (x.owner ? '<span class="pill">вы</span>' : '<button type="button" class="btn" data-del="' + x.tg + '">Убрать</button>') + "</div>").join("")
+    : '<div class="empty">Пока никого</div>';
+}
+function setBy(by){
+  BY = by; FOUND = null; $("#res").innerHTML = "";
+  document.querySelectorAll("#chips button").forEach(b => b.classList.toggle("on", b.dataset.by === by));
+  const q = $("#q"); q.value = "";
+  if (by === "phone"){ $("#inLbl").textContent = "Номер гостя, 9 цифр без +998"; q.placeholder = "90 123 45 67"; q.type = "tel"; $("#find").textContent = "Найти"; }
+  else { $("#inLbl").textContent = "Telegram ID - только цифры"; q.placeholder = "Например 123456789"; q.type = "text"; $("#find").textContent = "Добавить"; }
+  q.focus();
+}
+async function find(){
+  if (busy) return;
+  const v = ($("#q").value || "").replace(/\D/g, "");
+  if (BY === "tg"){
+    if (v.length < 3){ toast(errText("bad_args")); return; }
+    busy = true; const d = await api("test_add", { tg: v }); busy = false;
+    if (apply(d)){ $("#q").value = ""; toast("Добавлено"); }
+    return;
+  }
+  if (v.replace(/^998/, "").length !== 9){ toast(errText("bad_phone")); return; }
+  busy = true; const d = await api("test_find", { phone: v }); busy = false;
+  if (d.error){ toast(errText(d.error)); return; }
+  if (d.not_found){
+    FOUND = null;
+    $("#res").innerHTML = '<div class="note"><b>Этот гость ещё не открывал бота</b><span>Пусть откроет бота SPLETNI в Telegram (гостевое приложение) и поделится номером. После этого найдите номер ещё раз.</span><span>Знаете Telegram ID? Переключитесь на «По Telegram ID» - добавится сразу.</span></div>';
+    return;
+  }
+  FOUND = d.guest;
+  const g = d.guest;
+  $("#res").innerHTML = '<div class="found"><b>' + esc(g.name) + "</b><small>" + esc(phone(g.phone)) + " · Telegram " + g.tg + "</small>" +
+    (g.seen ? "<small>Открывал(а) бота SPLETNI " + fmtDate(g.seen) + "</small>" : "") +
+    (g.already ? '<small style="color:var(--emerald)">Уже в списке тестеров</small>'
+      : '<small>Откроются вкладка «Песни», вход в кабинку по коду, списки в плеере и сообщения бота про песни.</small><div class="acts"><button type="button" class="btn main" id="addOk">Добавить</button><button type="button" class="btn" id="addNo">Отмена</button></div>') + "</div>";
+}
+async function addFound(){
+  if (!FOUND || busy) return;
+  busy = true; const d = await api("test_add", { tg: String(FOUND.tg) }); busy = false;
+  if (apply(d)){ toast("Добавлено: " + FOUND.name); FOUND = null; $("#res").innerHTML = ""; $("#q").value = ""; }
+}
+async function del(tg){
+  const x = (ST.testers || []).find(t => String(t.tg) === String(tg));
+  if (!confirm("Убрать " + ((x && x.name) || ("Telegram " + tg)) + " из тестеров?")) return;
+  busy = true; const d = await api("test_del", { tg: String(tg) }); busy = false;
+  if (apply(d)) toast("Убрано");
+}
+document.addEventListener("click", e => {
+  const t = e.target;
+  const c = t.closest("#chips [data-by]"); if (c){ setBy(c.dataset.by); return; }
+  if (t.closest("#find")){ find(); return; }
+  if (t.closest("#addOk")){ addFound(); return; }
+  if (t.closest("#addNo")){ FOUND = null; $("#res").innerHTML = ""; return; }
+  const d = t.closest("[data-del]"); if (d){ del(d.dataset.del); return; }
+});
+$("#q").addEventListener("keydown", e => { if (e.key === "Enter") find(); });
+(async function start(){
+  try{ const tg = window.Telegram && window.Telegram.WebApp; if (tg){ tg.ready(); tg.expand(); } }catch(_){}
+  if (!(await login())) return;
+  apply(await api("test_info"));
+})();
+</script>
+</body>
+</html>
