@@ -1,4 +1,5 @@
 /* SPLETNI · вкладка «Песни» в гостевом приложении (guest.html)
+   Сборка 10 · 07.11.2026 (поиск YouTube в «Добавить с YouTube»: функция songs, действие ytsearch)
    Сборка 9 · 07.11.2026 («Позвать компанию»: приглашения друзьям по брони ?invite=, ответы ?inv=&a=)
    Сборка 8 · 07.11.2026 (вкладка «Сегодня»: зал или кабинка по брони, бронь кабинки до посадки)
    Сборка 7 · 07.11.2026 («Мои песни»: список + избранное, песни с YouTube для кабинок, «Вы в кабинке»)
@@ -213,6 +214,16 @@ const CSS = `
 .sg-sh label{display:block;font-size:12.5px;color:var(--muted);margin-top:10px}
 .sg-sh label input{display:block;width:100%;box-sizing:border-box;margin-top:5px;height:44px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;padding:0 12px;font-size:15px;outline:none;font-family:inherit}
 .sg-sh label input:focus{border-color:var(--emerald)}
+.sg-ytq{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:5px}
+.sg-ytq input{height:44px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;padding:0 12px;font-size:15px;outline:none;font-family:inherit;min-width:0}
+.sg-ytq input:focus{border-color:var(--emerald)}
+.sg-ytq button{height:44px;padding:0 14px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);border-radius:11px;font-weight:800;white-space:nowrap}
+#sg-ytr{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:46vh;overflow:auto}
+#sg-ytr button{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;align-items:center;text-align:left;padding:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;font-family:inherit}
+#sg-ytr button.on{border-color:var(--emerald);background:rgba(31,191,122,.10)}
+#sg-ytr img{width:72px;height:54px;object-fit:cover;border-radius:7px;background:#000}
+#sg-ytr b{display:block;font-size:13.5px;line-height:1.25;overflow-wrap:anywhere}
+#sg-ytr span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .sg-sh .acts.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 #sg-toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);max-width:min(92vw,520px);z-index:90;background:#eef1f4;color:#0d0f12;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.4);display:none;text-align:center}
 `;
@@ -224,6 +235,7 @@ function injectCss(){
   const sh = document.createElement("div"); sh.id = "sg-sheet"; sh.hidden = true; document.body.appendChild(sh);
   sh.addEventListener("click", onSheetClick);
   sh.addEventListener("input", onSheetInput);
+  sh.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "sg-ytl"){ e.preventDefault(); ytFind(); } });
   const co = document.createElement("div"); co.id = "sg-cardov"; co.hidden = true; document.body.appendChild(co);
   co.addEventListener("click", onCardClick);
 }
@@ -784,9 +796,10 @@ function openYt(){
   const el = document.getElementById("sg-sheet");
   el.innerHTML = '<div class="sg-sh" role="dialog" aria-modal="true" aria-label="Добавить с YouTube">' +
     '<div style="font-size:18px;font-weight:800">Добавить с YouTube</div>' +
-    '<label>Ссылка на видео<input id="sg-ytl" type="url" inputmode="url" placeholder="youtu.be/…" autocomplete="off"></label>' +
-    '<div style="font-size:12px;color:var(--muted);margin-top:5px">В приложении YouTube: «Поделиться» - «Копировать ссылку»</div>' +
-    '<div id="sg-ytm"></div>' +
+    '<label for="sg-ytl" style="display:block;font-size:12.5px;color:var(--muted);margin-top:10px">Песня и исполнитель или ссылка на видео</label>' +
+    '<div class="sg-ytq"><input id="sg-ytl" type="search" placeholder="Например: Шерали Онагинам" autocomplete="off"><button type="button" id="sg-ytgo">Найти</button></div>' +
+    '<div style="font-size:12px;color:var(--muted);margin-top:5px">Ссылка - из приложения YouTube: «Поделиться» - «Копировать ссылку»</div>' +
+    '<div id="sg-ytm"></div><div id="sg-ytr"></div>' +
     '<label>Название<input id="sg-ytt" type="text" maxlength="200" autocomplete="off"></label>' +
     '<label>Исполнитель<input id="sg-yta" type="text" maxlength="200" autocomplete="off"></label>' +
     '<div class="sg-note warn" style="margin-top:12px">Песни с YouTube поются только в кабинках. В Большом и Малом залах - только каталог AST.</div>' +
@@ -800,10 +813,13 @@ function onSheetInput(e){
   if (e.target.id !== "sg-ytl" || !PS.sheet || PS.sheet.mode !== "yt") return;
   clearTimeout(ytTimer);
   ytTimer = setTimeout(async () => {
-    const id = ytId(e.target.value), m = document.getElementById("sg-ytm");
-    PS.sheet.id = id;
+    const v = e.target.value.trim(), m = document.getElementById("sg-ytm");
+    const looksLink = /youtu|https?:|^[A-Za-z0-9_-]{11}$/.test(v);
+    const id = looksLink ? ytId(v) : null;
+    if (looksLink || !v){ PS.sheet.id = id; const r = document.getElementById("sg-ytr"); if (r) r.innerHTML = ""; }
     if (!m) return;
-    if (!id){ m.innerHTML = e.target.value.trim() ? '<div class="sg-msg">Это не похоже на ссылку YouTube</div>' : ""; return; }
+    if (!looksLink){ m.innerHTML = v.length >= 2 ? '<div class="sg-msg ok">Нажмите «Найти» - покажем видео с YouTube</div>' : ""; return; }
+    if (!id){ m.innerHTML = '<div class="sg-msg">Это не похоже на ссылку YouTube</div>'; return; }
     m.innerHTML = '<div class="sg-msg ok">Ищем название…</div>';
     const info = await ytInfo(id);
     if (!PS.sheet || PS.sheet.id !== id) return;
@@ -812,11 +828,40 @@ function onSheetInput(e){
     else m.innerHTML = '<div class="sg-msg ok">Ссылка принята. Впишите название и исполнителя</div>';
   }, 350);
 }
+// поиск YouTube: ключ только на сервере (функция songs, действие ytsearch), бесплатный лимит ~100 поисков в день
+async function ytFind(){
+  const sh = PS.sheet; if (!sh || sh.mode !== "yt" || sh.busy) return;
+  const inp = document.getElementById("sg-ytl"), m = document.getElementById("sg-ytm"), box = document.getElementById("sg-ytr");
+  const q = (inp && inp.value || "").trim();
+  if (/youtu|https?:/.test(q)){ onSheetInput({ target: inp }); return; }
+  if (q.length < 2){ toast("Напишите песню или исполнителя"); return; }
+  if (!PS.token && !(await login())){ toast(errText(PS.err || "auth")); return; }
+  sh.busy = true; m.innerHTML = '<div class="sg-msg ok">Ищем на YouTube…</div>'; box.innerHTML = "";
+  let d = await fn({ action: "ytsearch", token: PS.token, q });
+  if (d && d.error === "auth" && (await login())) d = await fn({ action: "ytsearch", token: PS.token, q });
+  sh.busy = false;
+  if (!PS.sheet || PS.sheet !== sh) return;
+  if (!d || !d.ok){ m.innerHTML = '<div class="sg-msg">' + (d && d.error === "no_key" ? "Поиск пока не подключён - вставьте ссылку на видео" : "YouTube не ответил - попробуйте ещё раз или вставьте ссылку") + "</div>"; return; }
+  sh.items = d.items || [];
+  if (!sh.items.length){ m.innerHTML = '<div class="sg-msg">Ничего не нашлось - попробуйте иначе</div>'; return; }
+  m.innerHTML = '<div class="sg-msg ok">Выберите видео - название подставится само</div>';
+  box.innerHTML = sh.items.map((x, i) => '<button type="button" data-ytpick="' + i + '">' + (x.thumb ? '<img src="' + esc(x.thumb) + '" alt="" loading="lazy">' : "<span></span>") +
+    "<div><b>" + esc(x.title) + "</b><span>" + esc(x.channel) + "</span></div></button>").join("");
+}
+function ytPick(i){
+  const sh = PS.sheet, x = sh && sh.items && sh.items[i]; if (!x) return;
+  sh.id = x.ytId;
+  document.querySelectorAll("#sg-ytr [data-ytpick]").forEach(b => b.classList.toggle("on", +b.dataset.ytpick === i));
+  const v = cleanYt(x.title, x.channel);
+  const ti = document.getElementById("sg-ytt"), ai = document.getElementById("sg-yta");
+  if (ti) ti.value = v.t; if (ai) ai.value = v.a;
+  const m = document.getElementById("sg-ytm"); if (m) m.innerHTML = '<div class="sg-msg ok">Выбрано - проверьте название и исполнителя</div>';
+}
 async function ytSave(kind){
   const sh = PS.sheet; if (!sh) return;
   const l = document.getElementById("sg-ytl"), t = (document.getElementById("sg-ytt").value || "").trim(), a = (document.getElementById("sg-yta").value || "").trim();
-  const id = ytId(l && l.value);
-  if (!id){ toast("Вставьте ссылку на видео YouTube"); return; }
+  const id = sh.id || ytId(l && l.value);
+  if (!id){ toast("Найдите видео или вставьте ссылку YouTube"); return; }
   if (!t){ toast(errText("bad_song")); return; }
   closeSheet();
   if (kind === "list"){ PS.fmode = "list"; await myCall("my_add", { ytId: id, title: t, artist: a }, "Добавлено в мой список - откроется в кабинке"); }
@@ -846,6 +891,8 @@ async function onSheetClick(e){
   if (!sh) return;
   if (t.id === "sg-sheet" || t.closest("#sg-shx")){ closeSheet(); return; }
   if (sh.mode === "yt"){
+    const pk = t.closest("[data-ytpick]"); if (pk){ ytPick(+pk.dataset.ytpick); return; }
+    if (t.closest("#sg-ytgo")){ ytFind(); return; }
     if (t.closest("#sg-ytlist")) ytSave("list"); else if (t.closest("#sg-ytfav")) ytSave("fav");
     return;
   }
