@@ -696,9 +696,10 @@ body.pc #pc-bar{display:flex;flex-wrap:wrap}
   /* ===== МОДУЛЬ БАР-КОНТРОЛЯ ===== */
   /* песни (окно «Очередь песен», сборка 89): «🎤 Песни» -> zvuk.html, «Напоминания» -> napomni.html */
   #songs-fabs{position:fixed;left:14px;bottom:14px;z-index:70;display:flex;flex-direction:column-reverse;gap:8px;align-items:flex-start}
-  #songs-fab,#napomni-fab{border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  #songs-fab,#napomni-fab,#testery-fab{border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
   #songs-fab{background:var(--gold);color:#16130a;border:none}
   #napomni-fab{background:#15181d;color:var(--gold);border:1px solid var(--gold)}
+  #testery-fab{background:#15181d;color:#9aa3ad;border:1px solid #2a2f37}
   #bar-fab{position:fixed;right:14px;bottom:14px;z-index:70;background:var(--emerald);color:#0c1410;
     border:none;border-radius:24px;padding:12px 18px;font-weight:800;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
   #bar-screen{position:fixed;inset:0;z-index:80;background:var(--bg,#10141a);overflow-y:auto;display:none;padding:14px}
@@ -8261,6 +8262,7 @@ function barFmt(n,dig){ return (n==null)?"—":Number(n).toLocaleString("ru-RU",
 /* ===== ПЕСНИ (крючок окна «Очередь песен», правится только там) =====
    «🎤 Песни» -> zvuk.html: руководство (admin, upr, manager, sound) и звукооператоры.
    «Напоминания» -> napomni.html: руководство (admin, upr, manager) и хостес.
+   «Тестеры» -> testery.html: только владелец (song_settings.owner_tg, проверка на сервере), в тестовом режиме.
    Тестовый режим песен (song_flags.test_mode): обе кнопки только у роли admin. */
 function initSongsModule(){
   if(typeof TABLET_MODE!=="undefined" && TABLET_MODE) return;
@@ -8272,7 +8274,7 @@ function initSongsModule(){
     const songsOk = ["admin","upr","sound","manager"].includes(role) || emp==="Звукооператор";
     const backOk = ["admin","upr","manager"].includes(role) || emp==="Хостес";
     if(!songsOk && !backOk){ if(++tries < 10) setTimeout(check, 1000); return; }   // карточка сотрудника грузится не сразу
-    const show = (songs, back) => {
+    const show = (songs, back, tst) => {
       if(document.getElementById("songs-fabs") || (!songs && !back)) return;
       const box = document.createElement("div"); box.id = "songs-fabs";
       const mk = (id, text, href) => {
@@ -8286,6 +8288,7 @@ function initSongsModule(){
       };
       if(songs) mk("songs-fab", "🎤 Песни", "zvuk.html");
       if(back) mk("napomni-fab", "Напоминания", "napomni.html?from=tabel");
+      if(tst) mk("testery-fab", "Тестеры", "testery.html");
       document.body.appendChild(box);
     };
     const H = {"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:"Bearer "+SUPABASE_ANON_KEY};
@@ -8296,7 +8299,9 @@ function initSongsModule(){
         const initData = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData;
         if(!f || !initData) return;
         return fetch(SUPABASE_URL+"/functions/v1/songs", {method:"POST", headers:H, body:JSON.stringify({action:"login", app:"staff", initData})})
-          .then(r=>r.json()).then(d=>{ if(d && d.token){ try{ sessionStorage.setItem("zvuk_token", d.token); }catch(_){} show(true, true); } });
+          .then(r=>r.json()).then(d=>{ if(d && d.token){ try{ sessionStorage.setItem("zvuk_token", d.token); }catch(_){}
+            return fetch(SUPABASE_URL+"/rest/v1/rpc/song_call", {method:"POST", headers:H, body:JSON.stringify({p_token:d.token, p_action:"test_info", p_args:{}})})
+              .then(r=>r.json()).catch(()=>null).then(x=>show(true, true, !!(x && x.ok))); } });
       }).catch(()=>{});
   };
   check();
