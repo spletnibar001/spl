@@ -1,4 +1,4 @@
-<!-- сборка 97 · 08.11.2026 -->
+<!-- сборка 98 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1517,7 +1517,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 97";
+const APP_VERSION = "v 08.11 · сборка 98";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -6903,7 +6903,6 @@ function pc2Back(){
 function pc2Dev(){ try{ return localStorage.getItem("spl_pc_dev") || ""; }catch(_){ return ""; } }
 const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляющий", adm:"ADM"};
 async function pc2Init(){
-  document.documentElement.classList.add("pc-light");
   const bar = document.getElementById("pc-bar"); if(!bar) return;
   bar.innerHTML = `<div class="who">${PC2_LBL[ME.pc]||""}: <span>${pc2Esc(ME.pc==="host" ? ME.name : (ME.who||ME.name))}</span></div><div class="sp"></div>
     ${["host","upr","adm"].includes(ME.pc) ? `<button type="button" onclick="location.href='banket.html'">Банкеты</button>` : ""}
