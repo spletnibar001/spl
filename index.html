@@ -1,4 +1,4 @@
-<!-- сборка 93 · 08.11.2026 -->
+<!-- сборка 94 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1503,7 +1503,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 93";
+const APP_VERSION = "v 08.11 · сборка 94";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -6841,7 +6841,14 @@ function pc2Esc(v){ return String(v==null?"":v).replace(/[&<>"]/g, c=>({"&":"&am
 const PC2_ACT = {POST:"добавлено", PATCH:"изменено", DELETE:"удалено"};
 let PC2_SET = {saver_min:1, upr_min:1, mgr_min:1, adm_min:1}, pc2T = null;
 async function pcLogFetch(input, init){
-  const res = await fetch(input, init);
+  const m0 = String((init && init.method) || "GET").toUpperCase();
+  if(m0 !== "GET" && m0 !== "HEAD" && navigator.onLine === false){ pc2Net(true); throw new Error("Нет интернета - изменение не сохранено. Повторите, когда появится связь."); }
+  let res;
+  try{ res = await fetch(input, init); }
+  catch(err){ pc2Net(true); if(m0 !== "GET") throw new Error("Нет интернета - изменение не сохранено. Повторите, когда появится связь."); throw err; }
+  try{ if(/\/rest\/v1\//.test(typeof input === "string" ? input : input.url)){
+    if(res.headers.get("X-Spl-Offline")) pc2Net(true);
+    else if(res.ok && m0 === "GET"){ pc2Net(false); try{ localStorage.setItem("spl_pc_sync", String(Date.now())); }catch(_){} } } }catch(_){}
   try{
     const url = typeof input === "string" ? input : input.url, m = String((init && init.method) || "GET").toUpperCase();
     const mt = /\/rest\/v1\/(rpc\/)?([a-z_0-9]+)/.exec(url);
@@ -6856,6 +6863,29 @@ async function pcLogFetch(input, init){
   }catch(_){}
   return res;
 }
+/* --- нет интернета: полоса сверху, изменения блокируются, при возврате связи - обновление --- */
+let PC2_OFF = false;
+function pc2Net(off){
+  if(off === PC2_OFF) return; PC2_OFF = off;
+  let b = document.getElementById("pc2-net");
+  if(!b){ b = document.createElement("div"); b.id = "pc2-net";
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:8000;background:#3a2a08;color:#E8B84C;text-align:center;font-size:14px;font-weight:600;padding:7px 10px;display:none";
+    document.body.appendChild(b); }
+  if(off){ let t = ""; try{ const v = +localStorage.getItem("spl_pc_sync"); if(v){ const d = new Date(v); t = " · данные на " + d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"}) + " " + d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); } }catch(_){}
+    b.textContent = "Нет интернета" + t + " · можно смотреть, изменения не сохраняются"; b.style.display = "block"; }
+  else { b.style.display = "none"; pc2Back(); }
+}
+setInterval(async ()=>{   // без связи - раз в 20 секунд проверяем, вернулся ли интернет
+  if(!PC2_OFF || !ME || !ME.pc) return;
+  try{ const r = await fetch(SUPABASE_URL + "/rest/v1/pc_settings?select=id&id=eq.1", {headers:{apikey:SUPABASE_ANON_KEY, Authorization:"Bearer " + ME.token}, cache:"no-store"});
+    if(r.ok && !r.headers.get("X-Spl-Offline")) pc2Net(false); }catch(_){}
+}, 20000);
+function pc2TokExp(){ try{ return JSON.parse(atob(ME.token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).exp*1000; }catch(_){ return 0; } }
+function pc2Back(){
+  if(!ME || !ME.pc) return;
+  if(pc2TokExp() && pc2TokExp() < Date.now() + 60000){ pc2Out("idle"); return; }   // вход был без интернета и истёк - заново PIN
+  try{ if(typeof bkLoadAndRender === "function") bkLoadAndRender(); }catch(_){}
+}
 function pc2Dev(){ try{ return localStorage.getItem("spl_pc_dev") || ""; }catch(_){ return ""; } }
 const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляющий", adm:"ADM"};
 async function pc2Init(){
@@ -6868,6 +6898,9 @@ async function pc2Init(){
   const a = document.getElementById("pc2-adm"); if(a) a.onclick = pc2AdmOpen;
   try{ const {data} = await sb.from("pc_settings").select("data").eq("id",1).maybeSingle(); if(data && data.data) PC2_SET = Object.assign(PC2_SET, data.data); }catch(_){}
   ["pointerdown","keydown","mousemove","wheel","touchstart"].forEach(e=>document.addEventListener(e, pc2Idle, {capture:true, passive:true}));
+  window.addEventListener("offline", ()=>pc2Net(true)); window.addEventListener("online", ()=>pc2Net(false));
+  if(navigator.onLine === false) pc2Net(true);
+  if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(()=>{});
   pc2Idle();
 }
 function pc2Idle(){

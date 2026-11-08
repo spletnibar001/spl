@@ -1,8 +1,9 @@
 <!doctype html>
-<!-- сборка 1 · 08.11.2026 · компьютер хоста: заставка + вход по PIN -->
+<!-- сборка 2 · 08.11.2026 · компьютер хоста: заставка + вход по PIN -->
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SPLETNI · компьютер хоста</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="img/pc-192.png"><meta name="theme-color" content="#0B0B0D">
 <style>
 :root{--bg:#0B0B0D;--card:#151518;--card2:#1D1D21;--line:#26262B;--line2:#333338;--text:#F2F2F2;--muted:#9A9AA3;--red:#E3262B;--green:#2FD27A}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px Inter,system-ui,Arial,sans-serif}
@@ -24,7 +25,9 @@
 .adm{display:block;margin:16px auto 0;background:none;border:0;border-top:1px solid var(--line);width:100%;padding-top:10px;color:#5a5a62;letter-spacing:3px;font-size:11px;cursor:pointer}
 .back{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:0;margin-bottom:8px}
 .hide{display:none!important}
+.net{position:fixed;top:0;left:0;right:0;background:#3a2a08;color:#E8B84C;text-align:center;font-size:13px;padding:6px;z-index:5}
 </style></head><body>
+<div class="net hide" id="net">Нет интернета - войти могут только хосты, которые уже входили на этом компьютере</div>
 <div class="wrap"><div class="box" id="box"></div></div>
 <script src="zastavka.js"></script>
 <script>
@@ -35,12 +38,20 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 function dev(){ let d = ""; try{ d = localStorage.getItem("spl_pc_dev") || ""; }catch(_){}
   if(!d){ d = "pc-" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2)); try{ localStorage.setItem("spl_pc_dev", d); }catch(_){} } return d; }
 async function api(body){
-  const r = await fetch(SUPABASE_URL + "/functions/v1/pc-auth", { method:"POST",
+  let r;
+  try{ r = await fetch(SUPABASE_URL + "/functions/v1/pc-auth", { method:"POST",
     headers:{ "Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:"Bearer " + SUPABASE_ANON_KEY },
     body: JSON.stringify(Object.assign({ device: dev() }, body)) });
+  }catch(_){ setNet(true); return { offline:true }; }
+  setNet(false);
   let j = {}; try{ j = await r.json(); }catch(_){}
   return j;
 }
+function setNet(off){ const n = $("net"); if(n) n.classList.toggle("hide", !off); }
+/* вход без интернета: после каждого входа хоста онлайн запоминаем на этом компьютере проверку его PIN и вход (12 ч) */
+async function offHash(acc, pin){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("spl-off|" + dev() + "|" + acc + "|" + pin));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+function offGet(){ try{ return JSON.parse(localStorage.getItem("spl_pc_off") || "{}"); }catch(_){ return {}; } }
 let S = { accs:[], view:"list", sel:null, pin:"", msg:"", msgCls:"", busy:false, reg:false };
 let idleT = null;
 const POS = { club:"Клуб", karaoke:"Караоке" };
@@ -79,7 +90,8 @@ async function pick(acc){
   S.sel = a; S.pin = ""; S.view = "pin"; S.msg = ""; S.msgCls = "";
   if(a.kind === "code"){ S.msg = "Отправляю код в Telegram…"; render();
     const j = await api({ action:"send_code", acc });
-    if(j.error){ S.msg = j.error; S.msgCls = "bad"; } else { S.msg = j.again ? "Код уже отправлен - проверьте Telegram" : "Код отправлен в Telegram. Действует 5 минут."; S.msgCls = "ok"; } }
+    if(j.offline){ S.msg = "Нет интернета - код не отправить"; S.msgCls = "bad"; }
+    else if(j.error){ S.msg = j.error; S.msgCls = "bad"; } else { S.msg = j.again ? "Код уже отправлен - проверьте Telegram" : "Код отправлен в Telegram. Действует 5 минут."; S.msgCls = "ok"; } }
   render();
 }
 function key(k){
@@ -90,13 +102,20 @@ function key(k){
   S.pin += k; render();
   if(S.pin.length === 4) S.reg ? regDo() : login();
 }
-async function login(){
+async function login(){ /* j - let, может прийти из памяти */
   S.busy = true; S.msg = "Проверяю…"; S.msgCls = ""; render();
-  const j = await api({ action:"login", acc:S.sel.acc, pin:S.pin });
+  let j = await api({ action:"login", acc:S.sel.acc, pin:S.pin });
   S.busy = false;
+  if(j.offline){
+    if(S.sel.kind !== "host"){ S.pin = ""; S.msg = "Нет интернета - вход руководства недоступен"; S.msgCls = "bad"; render(); return; }
+    const o = offGet()[S.sel.acc];
+    if(!o || o.h !== await offHash(S.sel.acc, S.pin)){ S.pin = ""; S.msg = o ? "Неверный PIN" : "Нет интернета, а этот хост ещё не входил на этом компьютере"; S.msgCls = "bad"; render(); return; }
+    j = Object.assign({}, o.me, { offline:true });
+  }
   if(!j.token){ S.pin = ""; S.msg = j.error || "Ошибка входа"; S.msgCls = "bad"; render(); return; }
   try{ if(S.sel.group === "host") sessionStorage.setItem("spl_pc_last_acc", S.sel.acc); else sessionStorage.removeItem("spl_pc_last_acc"); }catch(_){}
-  const me = { token:j.token, role:j.role, name:j.name, tg_id:j.tg_id, pc:j.acc, who:j.who };
+  const me = { token:j.token, role:j.role, name:j.name, tg_id:j.tg_id, pc:j.acc || j.pc, who:j.who };
+  if(S.sel.group === "host" && !j.offline){ try{ const all = offGet(); all[S.sel.acc] = { h: await offHash(S.sel.acc, S.pin), me }; localStorage.setItem("spl_pc_off", JSON.stringify(all)); }catch(_){} }
   try{ sessionStorage.setItem("spl_tablet_me", JSON.stringify(me)); localStorage.removeItem("spl_tablet_me"); }catch(_){}
   location.replace("index.html#tablet&pc");
 }
@@ -106,7 +125,9 @@ async function regDo(){ S.busy = true; const j = await api({ action:"register", 
   if(!j.ok){ S.msg = j.error || "Ошибка"; S.msgCls = "bad"; render(); return; }
   S.reg = false; S.msg = "Компьютер зарегистрирован"; S.msgCls = "ok"; await load(); }
 async function load(){
-  const j = await api({ action:"accounts" });
+  let j = await api({ action:"accounts" });
+  if(j.offline){ try{ j = JSON.parse(localStorage.getItem("spl_pc_accs") || "null") || { error:"Нет интернета. Программа ещё ни разу не открывалась здесь с интернетом." }; }catch(_){} }
+  else if(j.accounts){ try{ localStorage.setItem("spl_pc_accs", JSON.stringify({ accounts: j.accounts.filter(a => a.group === "host").concat(j.accounts.filter(a => a.group !== "host")), settings: j.settings })); }catch(_){} }
   if(j.need_register){ S.reg = true; render(); return; }
   if(j.error){ $("box").innerHTML = `${logo()}<div class="msg bad">${esc(j.error)}</div>`; return; }
   S.accs = j.accounts || []; S.settings = j.settings || {};
@@ -120,6 +141,9 @@ function saver(){ if(S.reg) return; S.view = "list"; S.pin = ""; S.msg = ""; S.s
     if(last && S.accs.some(a => a.acc === last)){ S.sel = S.accs.find(a => a.acc === last); S.view = "pin"; S.pin = ""; S.msg = "Введите PIN или «назад» - другой хост"; render(); } } }); }
 ["pointerdown","keydown","mousemove"].forEach(e => document.addEventListener(e, resetIdle, true));
 document.addEventListener("keydown", e => { if(SplSaver.on || S.view !== "pin") return; if(/^[0-9]$/.test(e.key)) key(e.key); else if(e.key === "Backspace") key("del"); else if(e.key === "Escape") key("back"); });
+if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
+window.addEventListener("online", () => { setNet(false); if(!S.accs.length) load(); });
+window.addEventListener("offline", () => setNet(true));
 try{ sessionStorage.removeItem("spl_tablet_me"); }catch(_){}
 load().then(() => { if(!S.reg && !/switch/.test(location.hash)) saver(); else resetIdle(); });
 </script>
