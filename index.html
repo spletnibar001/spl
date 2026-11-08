@@ -1,4 +1,4 @@
-<!-- сборка 98 · 08.11.2026 -->
+<!-- сборка 99 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1517,7 +1517,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 98";
+const APP_VERSION = "v 08.11 · сборка 99";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -6853,7 +6853,7 @@ const PC2_TBL = {bookings:"Бронь", shifts:"Табель · смена", che
   pc_settings:"Настройки входа", call_views:"Просмотр номера"};
 function pc2Esc(v){ return String(v==null?"":v).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 const PC2_ACT = {POST:"добавлено", PATCH:"изменено", DELETE:"удалено"};
-let PC2_SET = {saver_min:1, upr_min:1, mgr_min:1, adm_min:1}, pc2T = null;
+let PC2_SET = {saver_min:1, upr_min:1, dir_min:1, mgr_min:1, adm_min:1}, pc2T = null;
 async function pcLogFetch(input, init){
   const m0 = String((init && init.method) || "GET").toUpperCase();
   if(m0 !== "GET" && m0 !== "HEAD" && navigator.onLine === false){ pc2Net(true); throw new Error("Нет интернета - изменение не сохранено. Повторите, когда появится связь."); }
@@ -6901,11 +6901,11 @@ function pc2Back(){
   try{ if(typeof bkLoadAndRender === "function") bkLoadAndRender(); }catch(_){}
 }
 function pc2Dev(){ try{ return localStorage.getItem("spl_pc_dev") || ""; }catch(_){ return ""; } }
-const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляющий", adm:"ADM"};
+const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляющий", dir:"Директор", adm:"ADM"};
 async function pc2Init(){
   const bar = document.getElementById("pc-bar"); if(!bar) return;
   bar.innerHTML = `<div class="who">${PC2_LBL[ME.pc]||""}: <span>${pc2Esc(ME.pc==="host" ? ME.name : (ME.who||ME.name))}</span></div><div class="sp"></div>
-    ${["host","upr","adm"].includes(ME.pc) ? `<button type="button" onclick="location.href='banket.html'">Банкеты</button>` : ""}
+    ${["host","upr","dir","adm"].includes(ME.pc) ? `<button type="button" onclick="location.href='banket.html'">Банкеты</button>` : ""}
     ${ME.pc==="adm" ? `<button type="button" id="pc2-adm">Настройки ADM</button>` : ""}
     <button type="button" id="pc2-sw">Сменить аккаунт</button>${ME.pc==="host" ? "" : `<button type="button" class="out" id="pc2-out">Выйти</button>`}`;
   document.getElementById("pc2-sw").onclick = ()=>pc2Out("switch");
@@ -6920,7 +6920,7 @@ async function pc2Init(){
 }
 function pc2Idle(){
   clearTimeout(pc2T);
-  const k = {host:"saver_min", mgr:"mgr_min", upr:"upr_min", adm:"adm_min"}[ME.pc] || "saver_min";
+  const k = {host:"saver_min", mgr:"mgr_min", upr:"upr_min", dir:"dir_min", adm:"adm_min"}[ME.pc] || "saver_min";
   const min = Math.max(1, Math.min(240, +PC2_SET[k] || 1));
   pc2T = setTimeout(()=>pc2Out("idle"), min*60000);
 }
@@ -6965,7 +6965,7 @@ function pc2AdmRender(hosts, err){
   <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">Настройки ADM</b><button type="button" onclick="document.getElementById('pc2-modal').remove()">Закрыть</button></div>
   ${err ? `<div style="color:var(--red);margin-top:8px">${pc2Esc(err)}</div>` : ""}
   <h3>Время без действий</h3>
-  ${num("saver_min","Заставка у хоста через")}${num("upr_min","Автовыход управляющего через")}${num("mgr_min","Автовыход менеджеров через")}${num("adm_min","Автовыход ADM через")}
+  ${num("saver_min","Заставка у хоста через")}${num("upr_min","Автовыход управляющего через")}${num("dir_min","Автовыход директора через")}${num("mgr_min","Автовыход менеджеров через")}${num("adm_min","Автовыход ADM через")}
   <div style="margin-top:10px"><button type="button" id="pc2-save">Сохранить время</button> <span id="pc2-saved" style="color:var(--emerald);font-size:13px"></span></div>
   <h3>PIN хостов</h3>
   <div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Новый PIN уходит хосту в Telegram. Вы его не видите - так в журнале честно видно, кто что делал.</div>
