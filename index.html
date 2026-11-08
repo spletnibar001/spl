@@ -1,4 +1,4 @@
-<!-- сборка 94 · 08.11.2026 -->
+<!-- сборка 95 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1503,7 +1503,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 94";
+const APP_VERSION = "v 08.11 · сборка 95";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -6891,6 +6891,7 @@ const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляю�
 async function pc2Init(){
   const bar = document.getElementById("pc-bar"); if(!bar) return;
   bar.innerHTML = `<div class="who">${PC2_LBL[ME.pc]||""}: <span>${pc2Esc(ME.pc==="host" ? ME.name : (ME.who||ME.name))}</span></div><div class="sp"></div>
+    ${["host","upr","adm"].includes(ME.pc) ? `<button type="button" onclick="location.href='banket.html'">Банкеты</button>` : ""}
     ${ME.pc==="adm" ? `<button type="button" id="pc2-adm">Настройки ADM</button>` : ""}
     <button type="button" id="pc2-sw">Сменить аккаунт</button>${ME.pc==="host" ? "" : `<button type="button" class="out" id="pc2-out">Выйти</button>`}`;
   document.getElementById("pc2-sw").onclick = ()=>pc2Out("switch");
