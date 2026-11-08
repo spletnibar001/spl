@@ -1,4 +1,4 @@
-<!-- сборка 95 · 08.11.2026 -->
+<!-- сборка 96 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -49,6 +49,20 @@ window.__xlsxReady = (function(){
     --violet:#b79aee; --red:#e25c5c; --radius:10px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  /* компьютер хоста (pc.html): светлая схема (08.11.2026) */
+  html.pc-light{--bg:#f4f4f6;--panel:#ffffff;--panel2:#f1f2f5;--line:#dcdfe5;--text:#1b1d22;--muted:#6b7280;
+    --emerald:#0e8f58;--gold:#9a7417;--violet:#6b46c1;--red:#c53030}
+  html.pc-light .bk-t,html.pc-light .bk-fx{background:#fff;border-color:#c5cad3}
+  html.pc-light .bk-t:hover{border-color:#8b93a1}
+  html.pc-light .bk-floor{background:#eef0f3}
+  html.pc-light .bk-t.booked{background:rgba(14,143,88,.10)}
+  html.pc-light .bk-t.seated{background:rgba(197,48,48,.10);box-shadow:none}
+  html.pc-light .bk-t .paid{color:#fff}
+  html.pc-light .hr-bars i,html.pc-light .bs-cell,html.pc-light .bs-bar,html.pc-light .bs-stack{background:#eef0f3}
+  html.pc-light #bs-tip{background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.12)}
+  html.pc-light #napomni-fab,html.pc-light #testery-fab,html.pc-light #kabinet-fab{background:#fff}
+  html.pc-light #pc2-net{background:#fff4d6!important;color:#8a5a00!important}
+  html.pc-light body.pc #pc-bar{margin-right:140px}
   body{background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
     font-size:14px;min-height:100vh;padding:12px}
@@ -1503,7 +1517,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 95";
+const APP_VERSION = "v 08.11 · сборка 96";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -6889,6 +6903,7 @@ function pc2Back(){
 function pc2Dev(){ try{ return localStorage.getItem("spl_pc_dev") || ""; }catch(_){ return ""; } }
 const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляющий", adm:"ADM"};
 async function pc2Init(){
+  document.documentElement.classList.add("pc-light");
   const bar = document.getElementById("pc-bar"); if(!bar) return;
   bar.innerHTML = `<div class="who">${PC2_LBL[ME.pc]||""}: <span>${pc2Esc(ME.pc==="host" ? ME.name : (ME.who||ME.name))}</span></div><div class="sp"></div>
     ${["host","upr","adm"].includes(ME.pc) ? `<button type="button" onclick="location.href='banket.html'">Банкеты</button>` : ""}

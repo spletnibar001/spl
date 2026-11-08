@@ -3,13 +3,13 @@
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SPLETNI · компьютер хоста</title>
-<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="img/pc-192.png"><meta name="theme-color" content="#0B0B0D">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="img/pc-192.png"><meta name="theme-color" content="#F4F4F6">
 <style>
-:root{--bg:#0B0B0D;--card:#151518;--card2:#1D1D21;--line:#26262B;--line2:#333338;--text:#F2F2F2;--muted:#9A9AA3;--red:#E3262B;--green:#2FD27A}
+:root{--bg:#F4F4F6;--card:#FFFFFF;--card2:#F1F1F4;--line:#E2E2E7;--line2:#D2D2D9;--text:#1A1A1E;--muted:#6B6B75;--red:#D3202A;--green:#11905A}
 *{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px Inter,system-ui,Arial,sans-serif}
 .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
 .box{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:22px;width:420px;max-width:100%}
-.lg{display:flex;justify-content:center;margin-bottom:14px}.lg svg{width:180px;height:auto;color:#fff}
+.lg{display:flex;justify-content:center;margin-bottom:14px}.lg svg{width:180px;height:auto;color:#111}
 .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 6px}
 .acc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .acc button,.kp button,.btn{font:inherit;color:var(--text);background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:12px 8px;cursor:pointer}
@@ -22,10 +22,10 @@
 .kp button.s{font-size:13px;color:var(--muted)}
 .msg{min-height:20px;text-align:center;font-size:13px;margin-top:10px;color:var(--muted)}.msg.ok{color:var(--green)}.msg.bad{color:#ff6b6f}
 .who{text-align:center;font-weight:600;margin-top:6px}
-.adm{display:block;margin:16px auto 0;background:none;border:0;border-top:1px solid var(--line);width:100%;padding-top:10px;color:#5a5a62;letter-spacing:3px;font-size:11px;cursor:pointer}
+.adm{display:block;margin:16px auto 0;background:none;border:0;border-top:1px solid var(--line);width:100%;padding-top:10px;color:#9A9AA3;letter-spacing:3px;font-size:11px;cursor:pointer}
 .back{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:0;margin-bottom:8px}
 .hide{display:none!important}
-.net{position:fixed;top:0;left:0;right:0;background:#3a2a08;color:#E8B84C;text-align:center;font-size:13px;padding:6px;z-index:5}
+.net{position:fixed;top:0;left:0;right:0;background:#FFF4D6;color:#8A5A00;text-align:center;font-size:13px;padding:6px;z-index:5}
 </style></head><body>
 <div class="net hide" id="net">Нет интернета - войти могут только хосты, которые уже входили на этом компьютере</div>
 <div class="wrap"><div class="box" id="box"></div></div>
