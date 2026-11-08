@@ -63,7 +63,7 @@ td input{padding:8px 9px}
 <div class="bar" id="bar" hidden><div><button type="button" class="save" id="save" disabled>Сохранить</button><button type="button" class="btn" id="cancel">Отмена</button></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
-/* SPLETNI · кабинет администратора (kabinet.html) · сборка 1 · 08.11.2026
+/* SPLETNI · кабинет администратора (kabinet.html) · сборка 2 · 08.11.2026 (комплименты по приглашениям)
    Все настройки программ для гостей в одном месте: уровни, комплименты, достижения, коллекции, тексты бота,
    напоминания, лимиты, песни (song_settings), журнал правок с откатом. Только владелец (song_settings.owner_tg) -
    проверка на сервере (song_adm_api). Вход: подпись Telegram (бот табеля) -> Edge Function songs -> токен; rpc song_call, adm_* */
@@ -94,14 +94,14 @@ const SETS = {
     ["cabin_post_visit", "b", "Писать после кабинки"], ["cabin_review_text", "t", "Просьба об отзыве - кабинка"], ["cabin_offer_text", "t", "Предложение - кабинка"]] },
   "s.back": { title: "Вернуть гостя", f: [
     ["back_days", "n", "Через сколько дней звать снова"], ["back_every", "n", "Не чаще раза в, дней"], ["back_sleep_days", "n", "«Уснувший» гость - нет визитов, дней"],
-    ["back_compliment", "x", "Комплимент в напоминании"],
-    ["back_company_on", "b", "Звать компанию"], ["back_company_text", "t", "Текст для компании"],
-    ["back_solo_on", "b", "Звать одного"], ["back_solo_text", "t", "Текст одному"],
-    ["back_sleep_on", "b", "Будить «уснувших»"], ["back_sleep_text", "t", "Текст «уснувшим»"]] }
+    ["back_gift_days", "n", "Комплимент действует, дней"],
+    ["back_company_on", "b", "Звать компанию"], ["back_compliment", "x", "Комплимент компании"], ["back_company_text", "t", "Текст для компании"],
+    ["back_solo_on", "b", "Звать одного"], ["back_compliment_solo", "x", "Комплимент одному"], ["back_solo_text", "t", "Текст одному"],
+    ["back_sleep_on", "b", "Будить «уснувших»"], ["back_compliment_sleep", "x", "Комплимент «уснувшим»"], ["back_sleep_text", "t", "Текст «уснувшим»"]] }
 };
 const MENU = [
   ["Гость", [["levels", "Уровни"], ["achievements", "Достижения"], ["compliments", "Комплименты"], ["collections", "Коллекции"]]],
-  ["Бот", [["bot_texts", "Тексты бота"], ["reminders", "Напоминания"], ["s.back", "Вернуть гостя"], ["s.after", "После визита"]]],
+  ["Бот", [["bot_texts", "Тексты бота"], ["reminders", "Напоминания"], ["s.back", "Вернуть гостя"], ["@gifts", "Комплименты по приглашениям"], ["s.after", "После визита"]]],
   ["Песни", [["s.queue", "Очередь в зале"], ["limits", "Лимиты"], ["@testery", "Тестеры"]]],
   ["", [["@log", "Журнал правок"]]]
 ];
@@ -151,6 +151,7 @@ async function api(action, args, retry){
 function preview(k){
   if (k === "@testery") return D.testers + " чел.";
   if (k === "@log") return D.log.length ? when(D.log[0].at) : "пусто";
+  if (k === "@gifts"){ const g = D.gifts || []; return g.length ? g.filter(x => x.st === "came").length + " пришли из " + g.length : "пока нет"; }
   if (SETS[k]) return SETS[k].f.filter(f => f[1] === "b").map(f => D.settings[f[0]] ? "вкл" : "выкл").slice(0, 2).join(" · ") || "";
   const c = cfg(k); if (!c) return "";
   const v = c.val;
@@ -178,7 +179,7 @@ function home(){
 function open(k){
   if (k === "@testery"){ location.href = "testery.html"; return; }
   VIEW = k;
-  if (k === "@log"){ DRAFT = null; $("#bar").hidden = true; }
+  if (k === "@log" || k === "@gifts"){ DRAFT = null; $("#bar").hidden = true; }
   else { DRAFT = SETS[k] ? Object.fromEntries(SETS[k].f.map(f => [f[0], D.settings[f[0]]])) : clone(cfg(k).val); $("#bar").hidden = false; }
   draw(); window.scrollTo(0, 0);
 }
@@ -188,7 +189,18 @@ const tog = (path, on) => '<button type="button" class="tg' + (on ? " on" : "") 
 
 function draw(){
   const k = VIEW, v = DRAFT; let h = "";
-  if (k === "@log"){
+  if (k === "@gifts"){
+    const g = D.gifts || [], cnt = st => g.filter(x => x.st === st).length;
+    h = head("Комплименты по приглашениям", "Комплимент закрепляется за гостем при отправке напоминания. Бронь в срок - в примечании брони «Комплимент от программы». Посадили - «пришёл».");
+    h += '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:6px 0 12px;border-bottom:1px solid var(--line)">' +
+      [["wait", "ждём"], ["booked", "бронь"], ["came", "пришли"], ["expired", "истекло"]].map(([s, t]) => '<div><b style="display:block;font-size:22px">' + cnt(s) + '</b><span style="font-size:13px;color:var(--muted)">' + t + "</span></div>").join("") + "</div>";
+    const ST = { wait: ["ждём бронь", "var(--muted)"], booked: ["есть бронь", "var(--gold)"], came: ["пришёл", "var(--emerald)"], expired: ["истекло", "var(--red)"], cancelled: ["заменён новым", "var(--muted)"] };
+    const KIND = { company: "компания", solo: "один", sleep: "давно не был" };
+    const d = x => new Date(x).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+    h += g.length ? g.map(x => '<div class="log"><div><b>' + esc(x.who) + "</b><small>" + esc(x.gift) + " · " + (KIND[x.kind] || x.kind) + "</small><small>отправлено " + d(x.sent_on) + ", действует до " + d(x.until_on) + "</small></div>" +
+      '<span style="font-size:13px;font-weight:700;color:' + (ST[x.st] || ST.wait)[1] + '">' + (ST[x.st] || [x.st])[0] + "</span></div>").join("")
+      : '<p class="hint">Пока никому не отправляли комплимент. Он появится здесь после отправки напоминания с заполненным комплиментом.</p>';
+  } else if (k === "@log"){
     h = head("Журнал правок", "Последние 50. «Вернуть» ставит значение, которое было до правки.");
     h += D.log.length ? D.log.map(l => '<div class="log"><div><b>' + esc(TITLE(l.key)) + "</b><small>" + when(l.at) + " · " + esc(l.who) + "</small><small>было: " + esc(short(l.old)) + "</small></div>" +
       '<button type="button" class="btn" data-undo="' + l.id + '">Вернуть</button></div>').join("") : '<p class="hint">Пока правок не было.</p>';
@@ -200,7 +212,7 @@ function draw(){
       else if (t === "x") h += '<div class="f"><label>' + l + "</label>" + inp(c, v[c] || "") + "</div>";
       else h += '<div class="f"><label>' + l + '</label><textarea data-p="' + c + '">' + esc(v[c] || "") + "</textarea></div>";
     }
-    if (k === "s.back") h += '<p class="hint">В текстах: {имя}, {друзья}, {место}, {комплимент}, {избранное}.</p>';
+    if (k === "s.back") h += '<p class="hint">В текстах: {имя}, {друзья}, {место}, {комплимент}, {срок} («до 13 ноября»), {избранное}. Пустой комплимент - фраза с ним в сообщение не попадёт.</p>';
   } else if (k === "levels"){
     h = head("Уровни", "Уровень даётся по числу визитов. Бонус гость видит в «Мой SPLETNI» и в сообщении бота.");
     h += "<table><tr><th>Название</th><th style=\"width:70px\">Визитов</th><th></th></tr>" + v.map((l, i) =>
