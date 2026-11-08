@@ -1041,6 +1041,18 @@ const KARAOKE_ZONES = [
     imgs: ["vip7_1.jpg","vip7_2.jpg","vip7_3.jpg"],
   },
   {
+    id: "terrace",
+    name: { ru: "Терраса", uz: "Terrasa", en: "Terrace" },
+    desc: {
+      ru: "Уютная закрытая терраса со своим баром и проектором - тепло в любую погоду. Столы на 3 и на 6 гостей, можно забронировать всю террасу под компанию.",
+      uz: "O'z bari va proyektori bor shinam yopiq terrasa - har qanday ob-havoda iliq. 3 va 6 kishilik stollar, butun terrasani kompaniya uchun band qilish mumkin.",
+      en: "A cosy enclosed terrace with its own bar and projector - warm in any weather. Tables for 3 and 6 guests; the whole terrace can be booked for your group.",
+    },
+    cap: { ru: "до 27 чел.", uz: "27 kishigacha", en: "up to 27" },
+    dep: "request",
+    imgs: [],
+  },
+  {
     id: "letka",
     off: { ru: "Неактивна до весны", uz: "Bahorgacha yopiq", en: "Closed until spring" },
     name: { ru: "Летка (Летняя чилл-аут зона)", uz: "Letka (Yozgi chill-out zona)", en: "Letka (Summer chill-out zone)" },
@@ -1052,18 +1064,6 @@ const KARAOKE_ZONES = [
     cap: { ru: "", uz: "", en: "" },
     dep: "request",
     imgs: ["letka_1.jpg","letka_2.jpg","letka_3.jpg","letka_4.jpg","letka_5.jpg"],
-  },
-  {
-    id: "terrace",
-    name: { ru: "Терраса", uz: "Terrasa", en: "Terrace" },
-    desc: {
-      ru: "Лаунж-терраса на свежем воздухе: столы на 3 и на 6 гостей.",
-      uz: "Ochiq havodagi lounge-terrasa: 3 va 6 kishilik stollar.",
-      en: "Open-air lounge terrace: tables for 3 and for 6 guests.",
-    },
-    cap: { ru: "до 27 чел.", uz: "27 kishigacha", en: "up to 27" },
-    dep: "request",
-    imgs: [],
   },
 ];
 
@@ -1134,7 +1134,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 08.11 · сборка 22";
+const GUEST_VERSION = "v 08.11 · сборка 23";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
