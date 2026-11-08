@@ -1,4 +1,4 @@
-<!-- сборка 91 · 08.11.2026 -->
+<!-- сборка 92 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -563,6 +563,9 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .bk-maly .bk-t{height:70px}
 .bk-letka{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .bk-letka .bk-t{height:74px}
+.bk-panel.bk-off{opacity:.5;filter:grayscale(1)}
+.bk-panel.bk-off .bk-t{cursor:default;border-style:dashed}
+.bk-off-note{font-size:11px;font-weight:700;color:var(--muted);text-transform:none;letter-spacing:0}
 /* универсальная адаптивная сетка для Большого зала и зон клуба */
 .bk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
 .bk-grid .bk-t{height:84px}
@@ -1500,7 +1503,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 91";
+const APP_VERSION = "v 08.11 · сборка 92";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5137,6 +5140,7 @@ async function bkLoadRef(){
   ]);
   BK.data.venues=v.data||[]; BK.data.zones=z.data||[];
   BK.data.tables=(t.data||[]).filter(x=>!x.archived);  // архивные столы скрыты везде
+  BK.data.tablesOff=(t.data||[]).filter(x=>x.archived); // для серой «Летки» - только показать
   BK.data.specials=sp.data||[];
   BK.data.closed=(cl && cl.data) ? cl.data : [];        // закрытые дни (нет таблицы — пусто)
 }
@@ -5388,6 +5392,14 @@ function bkMgmtHead(venueKey){
   return `<div class="bk-mgmt-head">${lines.join("")}</div>`;
 }
 
+/* Летка выключена (08.11): столы в архиве, показываем серыми, без брони */
+function bkLetkaOff(){
+  const z=(BK.data.zones||[]).find(x=>x.key==="letka"); if(!z) return "";
+  const off=(BK.data.tablesOff||[]).filter(t=>t.zone_id===z.id).sort((a,b)=>String(a.code).localeCompare(String(b.code),"ru",{numeric:true}));
+  if(!off.length) return "";
+  return `<div class="bk-panel bk-off"><div class="bk-zone-lbl"><span>Летка · шатры</span><span class="bk-off-note">Неактивна до весны</span></div>
+    <div class="bk-letka">${off.map(t=>`<div class="bk-t"><div class="tn">${t.name}</div><div class="dep">${t.capacity} чел.</div></div>`).join("")}</div></div>`;
+}
 function bkTableCell(t, weekend){
   if(BK.view==="dep") return dpCellHtml(t, t.name, "", false);
   const b=bkBookingFor(t.id);
@@ -5447,12 +5459,12 @@ function bkRenderKaraoke(){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Терраса ${bkStaffHead("terrace")}</span></div>
       <div class="bk-letka">${tr.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
-  // Летка - только если в базе снова есть её столы
+  // Летка: если столы снова в работе - как обычно, иначе серая «Неактивна до весны»
   const lt=Z("letka");
   if(lt && lt.tables.length){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
       <div class="bk-letka">${lt.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
-  }
+  } else html+=bkLetkaOff();
   html+=bkLegend()+bkBookingList("Караоке")+bkUpcomingList();
   return html;
 }
@@ -5934,7 +5946,7 @@ function bkSchemaKaraoke(){
     ${tr && tr.tables.length ? `<div class="bk-panel"><div class="bk-zone-lbl"><span>Терраса ${bkStaffHead("terrace")}</span></div>
       <div class="bk-letka">${tr.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>` : ""}
     ${lt && lt.tables.length ? `<div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
-      <div class="bk-letka">${lt.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>` : ""}
+      <div class="bk-letka">${lt.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>` : bkLetkaOff()}
   </div></div>`;
   html += bkLegend() + bkBookingList("Караоке") + bkUpcomingList();
   return html;

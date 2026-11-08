@@ -385,6 +385,9 @@ textarea.bk-input{resize:vertical;min-height:48px}
 .bk-act.tg{flex:0 0 auto;width:52px;background:rgba(74,155,226,.14);border-color:rgba(74,155,226,.4);color:#4a9be2}
 .bk-act.taxi{background:rgba(201,161,74,.14);border-color:rgba(201,161,74,.45);color:var(--gold)}
 .bk-act.map{background:var(--panel)}
+.zone-card.zone-off .zone-gallery{filter:grayscale(1);opacity:.55}
+.zone-card.zone-off .zone-body{opacity:.6}
+.zone-card.zone-off .zone-off-tag{color:#c9c9c9;border-color:#555}
 </style>
 </head>
 <body>
@@ -1038,6 +1041,19 @@ const KARAOKE_ZONES = [
     imgs: ["vip7_1.jpg","vip7_2.jpg","vip7_3.jpg"],
   },
   {
+    id: "letka",
+    off: { ru: "Неактивна до весны", uz: "Bahorgacha yopiq", en: "Closed until spring" },
+    name: { ru: "Летка (Летняя чилл-аут зона)", uz: "Letka (Yozgi chill-out zona)", en: "Letka (Summer chill-out zone)" },
+    desc: {
+      ru: "Летняя терраса под навесом: плетёные кресла, зелень, цветы и свежий воздух. Уютные беседки с экранами.",
+      uz: "Soyabon ostidagi yozgi terrasa: to'qilgan kreslolar, ko'kalamzor, gullar va toza havo. Ekranli shinam altanka.",
+      en: "A summer terrace under a canopy: wicker chairs, greenery, flowers and fresh air. Cosy gazebos with screens.",
+    },
+    cap: { ru: "", uz: "", en: "" },
+    dep: "request",
+    imgs: ["letka_1.jpg","letka_2.jpg","letka_3.jpg","letka_4.jpg","letka_5.jpg"],
+  },
+  {
     id: "terrace",
     name: { ru: "Терраса", uz: "Terrasa", en: "Terrace" },
     desc: {
@@ -1118,7 +1134,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 08.11 · сборка 21";
+const GUEST_VERSION = "v 08.11 · сборка 22";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -2026,7 +2042,8 @@ function bkfZonesFor(venueKey){
   if(!BK_REF) return [];
   const venue = BK_REF.venues.find(x=>x.key===venueKey);
   if(!venue) return [];
-  return BK_REF.zones.filter(z=>z.venue_id===venue.id);
+  // зоны без рабочих столов (например, Летка зимой - столы в архиве) гостю не предлагаем
+  return BK_REF.zones.filter(z=>z.venue_id===venue.id && BK_REF.tables.some(t=>t.zone_id===z.id));
 }
 
 async function renderBook(force){
@@ -2727,18 +2744,19 @@ function renderZones(){
       tags.push(`<span class="zone-tag"><svg class="zt-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 6a3 3 0 0 1 0 6M21 20c0-2.5-2-4-4-4.5"/></svg><b>${pick(z.cap)}</b></span>`);
     }
     // подставляется после загрузки справочников (bkfFillZoneDeps); пока — «по запросу»
-    tags.push(`<span class="zone-tag" id="zdep-${z.id}">${pick(Z.deposit)}: <b>${pick(Z.request)}</b></span>`);
+    if (z.off) tags.push(`<span class="zone-tag zone-off-tag">${esc(pick(z.off))}</span>`);
+    else tags.push(`<span class="zone-tag" id="zdep-${z.id}">${pick(Z.deposit)}: <b>${pick(Z.request)}</b></span>`);
 
     const note = z.note ? `<div class="zone-note">${esc(pick(z.note))}</div>` : "";
 
-    return `<div class="zone-card">
+    return `<div class="zone-card${z.off ? " zone-off" : ""}">
       ${gallery}
       <div class="zone-body">
         <h3>${esc(pick(z.name))}</h3>
         <div class="zone-meta">${tags.join("")}</div>
         ${note}
         <div class="zone-desc">${esc(pick(z.desc))}</div>
-        <button class="zone-book-btn" data-zbook="${z.id}">${IC.book}${pick(Z.book)}</button>
+        ${z.off ? "" : `<button class="zone-book-btn" data-zbook="${z.id}">${IC.book}${pick(Z.book)}</button>`}
       </div>
     </div>`;
   }).join("");
