@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Банкет в SPLETNI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0B0D;--card:#151518;--card2:#1D1D21;--line:#26262B;--line2:#333338;--text:#F2F2F2;--muted:#9A9AA3;--soft:#D8D8DD;--red:#E3262B;--red2:#FF6B6E;--green:#2FD27A;--green2:#1E6B44;--greenbg:#0F1A14}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:15px}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+.h{font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:1px}
+.wrap{max-width:720px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.logo{font-family:Oswald;font-weight:600;font-size:22px;letter-spacing:3px}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec>.h{font-size:15px;color:var(--red2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.cnt{display:flex;align-items:center;gap:18px}
+.cnt b{font-family:Oswald;font-size:46px;min-width:80px;text-align:center;font-weight:500}
+.q{width:52px;height:52px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);font-size:24px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:42px;padding:0 16px;border-radius:21px;background:var(--card);border:1px solid var(--line)}
+.chip.on{border:2px solid var(--green)}
+.places{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.pl{padding:0;border-radius:16px;background:var(--card);border:1px solid var(--line);overflow:hidden;text-align:left;display:flex;flex-direction:column}
+.pl.on{border:2px solid var(--green)}
+.pl.no{opacity:.4}
+.pl .im{height:110px;background:#222226 center/cover;display:flex;align-items:center;justify-content:center;color:#55555c;font-family:Oswald;letter-spacing:1px;text-transform:uppercase;font-size:12px}
+.pl .bd{padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.pl b{font-weight:600}
+.pl span{font-size:12px;color:var(--muted)}
+.pl .vid{font-size:12px;color:var(--green)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+label.full{grid-column:1/-1}
+.inp{height:46px;border-radius:12px;border:1px solid var(--line2);background:var(--card);padding:0 14px;outline:none;color:var(--text);color-scheme:dark}
+textarea.inp{height:auto;padding:12px 14px;resize:vertical}
+.inp.err{border-color:var(--red)}
+.cta{height:56px;border-radius:14px;border:0;background:var(--red);color:#fff;font-weight:600;font-size:16px}
+.muted{color:var(--muted)} .small{font-size:13px} .bad{color:var(--red2)}
+.done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:40px 0}
+.ring{width:72px;height:72px;border-radius:50%;border:3px solid var(--green)}
+.modal{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:9;overflow:hidden}
+/* вертикальное видео: на телефоне во весь экран, на компьютере по центру, по бокам - тот же ролик размытым фоном */
+.vstage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.vstage .vbg{position:absolute;inset:-40px;width:calc(100% + 80px);height:calc(100% + 80px);object-fit:cover;filter:blur(28px) brightness(.55) saturate(1.2);pointer-events:none}
+.vstage .vfg{position:relative;max-width:100%;max-height:100%;width:auto;height:100%;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,.6)}
+.vclose{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.45);color:#fff;font-size:22px;line-height:1}
+@media (max-width:560px){.form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div id="modal"></div>
+<script>
+function openVideo(u){
+  $("modal").innerHTML = `<div class="modal"><div class="vstage"><video class="vbg" src="${esc(u)}" muted playsinline autoplay loop aria-hidden="true"></video><video class="vfg" src="${esc(u)}" controls autoplay playsinline></video></div><button class="vclose" id="vclose" aria-label="Закрыть">×</button></div>`;
+  const fg = document.querySelector(".vfg"), bg = document.querySelector(".vbg");
+  const sync = () => { if (Math.abs(bg.currentTime - fg.currentTime) > .3) bg.currentTime = fg.currentTime; };
+  fg.onplay = () => { sync(); bg.play().catch(() => {}); }; fg.onpause = () => bg.pause(); fg.onseeked = sync; fg.ontimeupdate = sync;
+  $("vclose").onclick = () => { $("modal").innerHTML = ""; };
+}
+/* Гостевая заявка на банкет: гость выбирает только число гостей, дату и место. Меню собирает хост.
+   В боевой версии это вкладка guest.html, заявка уходит через серверную функцию в базу броней. */
+const SEED = {"settings":{"phone":"+998 90-063-88-88","occasions":[{"label":"День рождения","bonus":"Свечи на торт и песня от звукооператора"},{"label":"Корпоратив","bonus":"Табличка с названием компании на стол"},{"label":"Новый год","bonus":"Бой курантов на экранах и конфетти"},{"label":"Свадьба / помолвка","bonus":""},{"label":"Другое","bonus":""}]},"places":[{"id":"big","kind":"hall","title":"Большой зал","min":2,"max":55,"depWhole":40000000,"hourly":0,"weekendOnly":false,"about":"Общий зал со сценой","photo":"https://spletnibar001.github.io/spl/img/bz_1.jpg","video":"","W":948,"H":880,"adj":220,"zones":[{"x":0,"y":480,"w":132,"h":400,"label":"СЦЕНА"},{"x":772,"y":512,"w":176,"h":368,"label":"БАР"}],"tables":[{"id":"kbig_5","no":"5","x":0,"y":0,"w":240,"h":156,"min":1,"max":6,"depWd":1500000,"depWe":3000000,"merge":true},{"id":"kbig_4","no":"4","x":276,"y":0,"w":240,"h":108,"min":1,"max":6,"depWd":1000000,"depWe":2000000,"merge":true},{"id":"kbig_3","no":"3","x":708,"y":0,"w":240,"h":156,"min":1,"max":6,"depWd":1500000,"depWe":3000000,"merge":true},{"id":"kbig_2","no":"2","x":708,"y":180,"w":240,"h":108,"min":1,"max":6,"depWd":1000000,"depWe":2000000,"merge":true},{"id":"kbig_6","no":"6","x":0,"y":308,"w":240,"h":108,"min":1,"max":6,"depWd":1000000,"depWe":2000000,"merge":true},{"id":"kbig_7","no":"7","x":276,"y":308,"w":240,"h":108,"min":1,"max":6,"depWd":1000000,"depWe":2000000,"merge":true},{"id":"kbig_1","no":"1","x":708,"y":308,"w":240,"h":108,"min":1,"max":6,"depWd":1000000,"depWe":2000000,"merge":true},{"id":"kbig_9","no":"9","x":342,"y":496,"w":178,"h":176,"min":1,"max":6,"depWd":600000,"depWe":1000000,"merge":true},{"id":"kbig_10","no":"10","x":148,"y":688,"w":178,"h":176,"min":1,"max":6,"depWd":600000,"depWe":800000,"merge":true}]},{"id":"mid","kind":"hall","title":"Средний зал","min":2,"max":27,"depWhole":9000000,"hourly":0,"weekendOnly":false,"about":"3 стола по 9, 3 ТВ 75\" 4K","photo":"","video":"","W":1000,"H":520,"adj":120,"zones":[{"x":20,"y":20,"w":960,"h":60,"label":"ЭКРАНЫ"}],"tables":[{"id":"mid_1","no":"1","x":90,"y":220,"w":230,"h":100,"min":1,"max":9,"depWd":3000000,"depWe":3000000,"merge":true},{"id":"mid_2","no":"2","x":385,"y":220,"w":230,"h":100,"min":1,"max":9,"depWd":3000000,"depWe":3000000,"merge":true},{"id":"mid_3","no":"3","x":680,"y":220,"w":230,"h":100,"min":1,"max":9,"depWd":3000000,"depWe":3000000,"merge":true}]},{"id":"small","kind":"hall","title":"Малый зал","min":2,"max":25,"depWhole":5000000,"hourly":0,"weekendOnly":true,"about":"Кожаные диваны и свой бар","photo":"https://spletnibar001.github.io/spl/img/mz_1.jpg","video":"","W":1000,"H":620,"adj":120,"zones":[{"x":20,"y":20,"w":220,"h":130,"label":"БАР"}],"tables":[{"id":"ksm_1","no":"1","x":100,"y":200,"w":180,"h":90,"min":1,"max":5,"depWd":0,"depWe":800000,"merge":true},{"id":"ksm_2","no":"2","x":360,"y":200,"w":180,"h":90,"min":1,"max":5,"depWd":0,"depWe":800000,"merge":true},{"id":"ksm_3","no":"3","x":100,"y":380,"w":180,"h":90,"min":1,"max":5,"depWd":0,"depWe":800000,"merge":true},{"id":"ksm_4","no":"4","x":360,"y":380,"w":180,"h":90,"min":1,"max":5,"depWd":0,"depWe":800000,"merge":true}]},{"id":"terrace","kind":"hall","title":"Терраса","min":2,"max":27,"depWhole":0,"hourly":0,"weekendOnly":false,"about":"Уютная закрытая терраса со своим баром и проектором","photo":"","video":"","W":1000,"H":560,"adj":120,"zones":[{"x":20,"y":470,"w":960,"h":70,"label":"ВХОД"}],"tables":[{"id":"kter_1","no":"1","x":80,"y":90,"w":220,"h":100,"min":1,"max":6,"depWd":0,"depWe":0,"merge":true},{"id":"kter_2","no":"2","x":390,"y":90,"w":220,"h":100,"min":1,"max":6,"depWd":0,"depWe":0,"merge":true},{"id":"kter_3","no":"3","x":700,"y":90,"w":220,"h":100,"min":1,"max":6,"depWd":0,"depWe":0,"merge":true},{"id":"kter_4","no":"4","x":125,"y":300,"w":130,"h":90,"min":1,"max":3,"depWd":0,"depWe":0,"merge":true},{"id":"kter_5","no":"5","x":435,"y":300,"w":130,"h":90,"min":1,"max":3,"depWd":0,"depWe":0,"merge":true},{"id":"kter_6","no":"6","x":745,"y":300,"w":130,"h":90,"min":1,"max":3,"depWd":0,"depWe":0,"merge":true}]},{"id":"cab2","kind":"cabin","title":"Кабинка №2","min":1,"max":4,"depWd":500000,"depWe":800000,"depWhole":0,"hourly":100000,"weekendOnly":false,"about":"Отдельная комната","photo":"https://spletnibar001.github.io/spl/img/k2_1.jpg","video":""},{"id":"cab3","kind":"cabin","title":"Кабинка №3","min":1,"max":4,"depWd":500000,"depWe":800000,"depWhole":0,"hourly":100000,"weekendOnly":false,"about":"Отдельная комната","photo":"https://spletnibar001.github.io/spl/img/k3_1.jpg","video":""},{"id":"cab1","kind":"cabin","title":"Кабинка №1","min":1,"max":10,"depWd":1000000,"depWe":1500000,"depWhole":0,"hourly":200000,"weekendOnly":false,"about":"Отдельная комната","photo":"https://spletnibar001.github.io/spl/img/k1_1.jpg","video":""},{"id":"cab5","kind":"cabin","title":"Кабинка №5","min":1,"max":12,"depWd":1000000,"depWe":1500000,"depWhole":0,"hourly":200000,"weekendOnly":false,"about":"Отдельная комната","photo":"https://spletnibar001.github.io/spl/img/k5_1.jpg","video":""},{"id":"cab6","kind":"cabin","title":"Кабинка №6","min":1,"max":15,"depWd":1000000,"depWe":1500000,"depWhole":0,"hourly":200000,"weekendOnly":false,"about":"Отдельная комната","photo":"","video":""},{"id":"cab7","kind":"cabin","title":"Кабинка №7 (VIP)","min":1,"max":20,"depWd":2000000,"depWe":3000000,"depWhole":0,"hourly":200000,"weekendOnly":false,"about":"Отдельная комната","photo":"https://spletnibar001.github.io/spl/img/vip7_1.jpg","video":""},{"id":"cab8","kind":"cabin","title":"Кабинка №8","min":1,"max":20,"depWd":0,"depWe":0,"depWhole":0,"hourly":200000,"weekendOnly":false,"about":"Отдельная комната","photo":"","video":""},{"id":"big7","kind":"combo","title":"Большой зал + кабинка №7","min":30,"max":75,"depWhole":40000000,"parts":["big","cab7"],"about":"Весь зал и VIP-кабинка","photo":"https://spletnibar001.github.io/spl/img/bz_2.jpg","video":"","weekendOnly":false},{"id":"big7m","kind":"combo","title":"Большой + №7 + Средний","min":50,"max":102,"depWhole":49000000,"parts":["big","cab7","mid"],"about":"Три площадки под одну компанию","photo":"https://spletnibar001.github.io/spl/img/bz_3.jpg","video":"","weekendOnly":false},{"id":"club","kind":"combo","title":"Ночной клуб целиком","min":40,"max":100,"depWhole":50000000,"parts":[],"about":"Клуб под вашу компанию","photo":"https://spletnibar001.github.io/spl/img/club_vip_1.jpg","video":"","weekendOnly":false}]};
+const KEY = "spl_banket_v1";
+function data(){ try { const x = JSON.parse(localStorage.getItem(KEY) || "null"); if (x && x.v === 1) return x; } catch(e){} return null; }
+/* на сайте (https) - витрина залов и заявка через базу: гость видит только залы, вместимость, фото и видео */
+const SB_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const CLOUD = location.protocol === "https:" || /[?&]cloud=1/.test(location.search);
+async function rpc(fn, args){ const r = await fetch(SB_URL + "/rest/v1/rpc/" + fn, { method:"POST", headers:{ apikey:SB_KEY, Authorization:"Bearer " + SB_KEY, "Content-Type":"application/json" }, body:JSON.stringify(args || {}) });
+  if (!r.ok) throw new Error("Нет связи, попробуйте ещё раз"); return r.json(); }
+const D0 = CLOUD ? null : data();
+let PLACES = (D0 ? D0.places : SEED.places);
+let SET = D0 ? D0.settings : SEED.settings;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const isWeekend = s => { if (!s) return false; const w = new Date(s+"T12:00:00").getDay(); return w === 5 || w === 6; };
+const plural = (n,a,b,c) => { const m = n%10, h = n%100; return m===1&&h!==11?a:(m>=2&&m<=4&&(h<10||h>=20)?b:c); };
+let FILES = {};
+async function files(){ try { const db = await new Promise((res, rej) => { const r = indexedDB.open("spl_banket_files", 1); r.onupgradeneeded = () => r.result.createObjectStore("f"); r.onsuccess = () => res(r.result); r.onerror = () => rej(); });
+  await new Promise(res => { const rq = db.transaction("f").objectStore("f").openCursor(); rq.onsuccess = () => { const c = rq.result; if (c){ FILES[c.key] = URL.createObjectURL(c.value); c.continue(); } else res(); }; rq.onerror = res; }); } catch(e){} }
+const furl = id => !id ? "" : /^https?:\/\//.test(id) ? id : (FILES[id] || "");
+let S = { guests:10, date:"", place:"", occ: (SET.occasions[0]||{}).label || "", name:"", phone:"", wish:"", done:false, tried:false };
+
+function fits(p){ return S.guests >= (+p.min||1) && S.guests <= (+p.max||0) && !(p.weekendOnly && S.date && !isWeekend(S.date)); }
+function render(){
+  if (S.done){ $("app").innerHTML = `<div class="top"><div class="logo">SPLETNI</div></div><div class="done"><div class="ring"></div><div class="h" style="font-size:26px;text-transform:none;letter-spacing:0">Заявка отправлена</div>
+    <div class="muted" style="max-width:420px">Менеджер свяжется с вами, поможет собрать меню и пришлёт расчёт. Телефон для вопросов: ${esc(SET.phone)}</div></div>`; return; }
+  const ok = PLACES.filter(fits), rest = PLACES.filter(p => !fits(p));
+  const card = p => { const f = fits(p); const why = S.guests < (+p.min||1) ? "от " + p.min + " гостей" : S.guests > p.max ? "до " + p.max + " гостей" : "только пт-сб";
+    return `<button class="pl ${S.place===p.id?"on":""} ${f?"":"no"}" data-pl="${p.id}" ${f?"":"disabled"}>
+      <div class="im" ${furl(p.photo) ? `style="background-image:url('${esc(furl(p.photo))}')"` : ""}>${furl(p.photo) ? "" : esc(p.title)}</div>
+      <div class="bd"><b>${esc(p.title)}</b><span>${f ? (p.min||1) + "-" + p.max + " гостей" : why}</span>${p.about ? `<span>${esc(p.about)}</span>` : ""}
+      ${furl(p.video) ? `<span class="vid" data-vid="${p.id}">Смотреть видео</span>` : ""}</div></button>`; };
+  const bad = k => S.tried && ((k === "date" && !S.date) || (k === "place" && !S.place) || (k === "name" && !S.name.trim()) || (k === "phone" && S.phone.replace(/\D/g,"").length < 9));
+  $("app").innerHTML = `<div class="top"><div class="logo">SPLETNI</div><div class="h muted" style="font-size:14px">Банкет</div></div>
+  <section class="sec"><div class="h">Сколько гостей</div><div class="card cnt"><button class="q" data-g="-1" aria-label="Меньше">-</button><b>${S.guests}</b><button class="q" data-g="1" aria-label="Больше">+</button><span class="muted small">${plural(S.guests,"гость","гостя","гостей")}</span></div></section>
+  <section class="sec"><div class="h">Когда</div><input class="inp ${bad("date")?"err":""}" type="date" id="date" value="${esc(S.date)}" min="${new Date().toISOString().slice(0,10)}"></section>
+  <section class="sec"><div class="h">Повод</div><div class="chips">${SET.occasions.map(o => `<button class="chip ${S.occ===o.label?"on":""}" data-occ="${esc(o.label)}">${esc(o.label)}</button>`).join("")}</div></section>
+  <section class="sec"><div class="h">Где</div>${ok.length ? "" : `<div class="card small">На ${S.guests} гостей подберём площадку индивидуально - отправьте заявку, менеджер предложит варианты.</div>`}
+    <div class="places">${ok.map(card).join("")}${rest.map(card).join("")}</div>${bad("place") ? `<div class="small bad">Выберите место</div>` : ""}</section>
+  <section class="sec"><div class="h">Контакты</div><div class="form">
+    <label>Имя<input class="inp ${bad("name")?"err":""}" id="name" value="${esc(S.name)}" autocomplete="name"></label>
+    <label>Телефон<input class="inp ${bad("phone")?"err":""}" id="phone" value="${esc(S.phone)}" placeholder="+998" inputmode="tel" autocomplete="tel"></label>
+    <label class="full">Пожелания<textarea class="inp" id="wish" rows="3" placeholder="Что важно для вас: торт, музыка, оформление">${esc(S.wish)}</textarea></label></div></section>
+  <button class="cta" id="send">Отправить заявку</button>
+  <div class="small muted" style="text-align:center">Меню и стоимость менеджер подберёт вместе с вами.</div>`;
+}
+document.addEventListener("click", e => {
+  const v = e.target.closest("[data-vid]"); if (v){ e.stopPropagation(); const p = PLACES.find(x => x.id === v.dataset.vid); openVideo(furl(p.video)); return; }
+  const b = e.target.closest("button"); if (!b || b.disabled) return; const d = b.dataset;
+  if (d.g){ S.guests = Math.max(1, Math.min(300, S.guests + +d.g)); const p = PLACES.find(x => x.id === S.place); if (p && !fits(p)) S.place = ""; render(); }
+  if (d.occ){ S.occ = d.occ; render(); }
+  if (d.pl){ S.place = d.pl; render(); }
+  if (b.id === "send") send();
+});
+document.addEventListener("change", e => { const t = e.target; if (t.id === "date"){ S.date = t.value; const p = PLACES.find(x => x.id === S.place); if (p && !fits(p)) S.place = ""; render(); } });
+document.addEventListener("input", e => { const t = e.target; if (t.id in { name:1, phone:1, wish:1 }) S[t.id] = t.value.slice(0, 1000); });
+async function send(){
+  S.tried = true;
+  const ok = S.date && S.name.trim() && S.phone.replace(/\D/g,"").length >= 9 && (S.place || !PLACES.some(fits));
+  if (!ok){ render(); return; }
+  if (CLOUD){ const btn = $("send"); if (btn){ btn.disabled = true; btn.textContent = "Отправляю…"; }
+    try { const r = await rpc("bq_guest_request", { p_name:S.name.trim(), p_phone:S.phone.trim(), p_date:S.date, p_guests:S.guests, p_place:S.place || null, p_occ:S.occ, p_wish:S.wish.trim() });
+      if (!r || !r.ok){ alert((r && r.error) || "Не отправилось"); if (btn){ btn.disabled = false; btn.textContent = "Отправить заявку"; } return; } }
+    catch(e){ alert(e.message); if (btn){ btn.disabled = false; btn.textContent = "Отправить заявку"; } return; }
+    S.done = true; render(); window.scrollTo({ top:0 }); return; }
+  /* ТОЧКА ПОДКЛЮЧЕНИЯ: в боевой версии - POST в серверную функцию banquet-submit */
+  const D = data() || { v:1, places: JSON.parse(JSON.stringify(SEED.places)), settings: JSON.parse(JSON.stringify(SEED.settings)), banquets:[], seq:0 };
+  D.seq = (D.seq||0) + 1;
+  D.banquets.push({ id:"b" + Date.now().toString(36), no:D.seq, status:"new", source:"Сайт / заявка гостя", created:new Date().toISOString(), updated:new Date().toISOString(),
+    name:S.name.trim(), phone:S.phone.trim(), occ:S.occ, date:S.date, time:"19:00", guests:S.guests, placeId:S.place, tables:[], packId:null, extra:{}, oneoff:[], add:{},
+    wish:S.wish.trim(), staffNote:"", prepayUntil:null, paidAt:null, history:[{ t:new Date().toISOString(), text:"Заявка гостя с сайта" }] });
+  try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){}
+  S.done = true; render(); window.scrollTo({ top:0 });
+}
+if (CLOUD){ render(); rpc("bq_guest_catalog").then(c => { if (c && (c.places || []).length) PLACES = c.places.map(p => Object.assign({}, p, { min:+p.min || 1, max:+p.max || 0, about:p.about || "", photo:p.photo || "", video:p.video || "" }));
+    if (c && (c.occasions || []).length) SET = Object.assign({}, SET, { occasions:c.occasions }); if (c && c.phone) SET = Object.assign({}, SET, { phone:c.phone });
+    if (!S.occ) S.occ = (SET.occasions[0] || {}).label || ""; render(); }).catch(() => {}); }
+else { files().then(render); render(); }
+</script>
+</body>
+</html>
