@@ -1038,16 +1038,16 @@ const KARAOKE_ZONES = [
     imgs: ["vip7_1.jpg","vip7_2.jpg","vip7_3.jpg"],
   },
   {
-    id: "letka",
-    name: { ru: "Летка (Летняя чилл-аут зона)", uz: "Letka (Yozgi chill-out zona)", en: "Letka (Summer chill-out zone)" },
+    id: "terrace",
+    name: { ru: "Терраса", uz: "Terrasa", en: "Terrace" },
     desc: {
-      ru: "Летняя терраса под навесом: плетёные кресла, зелень, цветы и свежий воздух. Уютные беседки с экранами.",
-      uz: "Soyabon ostidagi yozgi terrasa: to'qilgan kreslolar, ko'kalamzor, gullar va toza havo. Ekranli shinam altanka.",
-      en: "A summer terrace under a canopy: wicker chairs, greenery, flowers and fresh air. Cosy gazebos with screens.",
+      ru: "Лаунж-терраса на свежем воздухе: столы на 3 и на 6 гостей.",
+      uz: "Ochiq havodagi lounge-terrasa: 3 va 6 kishilik stollar.",
+      en: "Open-air lounge terrace: tables for 3 and for 6 guests.",
     },
-    cap: { ru: "", uz: "", en: "" },
+    cap: { ru: "до 27 чел.", uz: "27 kishigacha", en: "up to 27" },
     dep: "request",
-    imgs: ["letka_1.jpg","letka_2.jpg","letka_3.jpg","letka_4.jpg","letka_5.jpg"],
+    imgs: [],
   },
 ];
 
@@ -1118,7 +1118,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 07.11 · сборка 20";
+const GUEST_VERSION = "v 08.11 · сборка 21";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1259,7 +1259,7 @@ const T = {
   reviews_btn: {ru:"Отзывы на Яндексе", uz:"Yandex'dagi sharhlar", en:"Reviews on Yandex", kz:"Яндекстегі пікірлер", kg:"Яндекстеги пикирлер", tj:"Шарҳҳо дар Yandex", cn:"Yandex 上的评价"},
   reviews_sub: {ru:"5.0 ★ · читать отзывы", uz:"5.0 ★ · sharhlarni o'qish", en:"5.0 ★ · read reviews", kz:"5.0 ★ · пікірлерді оқу", kg:"5.0 ★ · пикирлерди окуу", tj:"5.0 ★ · хондани шарҳҳо", cn:"5.0 ★ · 查看评价"},
   venue_prompt: {ru:"Выберите место для брони:", uz:"Bron uchun joyni tanlang:", en:"Choose a place to book:", kz:"Брондау үшін орынды таңдаңыз:", kg:"Брондоо үчүн жайды тандаңыз:", tj:"Барои брон ҷойро интихоб кунед:", cn:"请选择预订场所："},
-  venue_kar_long: {ru:"Караоке, Летка, Терраса", uz:"Karaoke, Letka, Terrasa", en:"Karaoke, Letka, Terrace", kz:"Караоке, Летка, Терраса", kg:"Караоке, Летка, Терраса", tj:"Караоке, Летка, Терраса", cn:"卡拉OK、Letka、露台"},
+  venue_kar_long: {ru:"Караоке, Терраса", uz:"Karaoke, Terrasa", en:"Karaoke, Terrace", kz:"Караоке, Терраса", kg:"Караоке, Терраса", tj:"Караоке, Терраса", cn:"卡拉OK、露台"},
   nav_dress: {ru:"Фейс-контроль", uz:"Feys-nazorat", en:"Face Control", kz:"Фейс-контроль", kg:"Фейс-контроль", tj:"Фейс-контрол", cn:"着装规范"},
   tile_dress_sub: {ru:"Дресс-код и вход", uz:"Dress-kod va kirish", en:"Dress code & entry", kz:"Дресс-код және кіру", kg:"Дресс-код жана кирүү", tj:"Дресс-код ва вуруд", cn:"着装与入场"},
   dress_t: {ru:"Face & Dress Control", uz:"Face & Dress Control", en:"Face & Dress Control", kz:"Face & Dress Control", kg:"Face & Dress Control", tj:"Face & Dress Control", cn:"Face & Dress Control"},
@@ -2794,6 +2794,7 @@ function bkfMatchZoneCard(card, venueKey){
     let kw = null;
     if(/^cab|^vip/.test(cid) || /кабин/.test(cname)) kw = "кабин";
     else if(cid==="letka" || /летк/.test(cname)) kw = "летк";
+    else if(cid==="terrace" || /террас/.test(cname)) kw = "террас";
     else if(cid==="big" || /больш/.test(cname)) kw = "больш";
     else if(cid==="small" || /мал/.test(cname)) kw = "мал";
     if(kw) match = dbZones.find(z=>norm(z.title).includes(kw));

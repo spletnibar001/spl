@@ -1,4 +1,4 @@
-<!-- сборка 90 · 08.11.2026 -->
+<!-- сборка 91 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1500,7 +1500,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 90";
+const APP_VERSION = "v 08.11 · сборка 91";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1595,19 +1595,20 @@ const PLACES = {
   big:   {label:"Большой зал", short:"БЗ", limit:4, soft:false}, // жёсткий стоп на 4-м
   mid:   {label:"Средний зал", short:"СЗ", limit:2, soft:false},
   small: {label:"Малый зал",   short:"МЗ", limit:2, soft:false},
-  letka: {label:"Летка",       short:"Л",  limit:2, soft:false},
+  letka: {label:"Летка",       short:"Л",  limit:2, soft:false}, // не работает с 08.11 - остаётся для старых смен
+  terrace:{label:"Терраса",    short:"Т",  limit:2, soft:false},
   cabin: {label:"Кабинки",     short:"К",  limit:1, soft:false},
   // смена в клубе: оплачивается по клубной ставке, если она задана в карточке
   club:  {label:"Клуб",        short:"КЛ", limit:2, soft:true},
 };
-const PLACE_COLORS = {big:"#1fbf7a", mid:"#e2a06b", small:"#4ea6e2", letka:"#d9b04c", cabin:"#b79aee", club:"#e25c5c"};
+const PLACE_COLORS = {big:"#1fbf7a", mid:"#e2a06b", small:"#4ea6e2", letka:"#d9b04c", terrace:"#d9b04c", cabin:"#b79aee", club:"#e25c5c"};
 /* какие места доступны должности (только караоке).
    d — день (Date); для бармена Малый зал доступен только в пятницу/субботу */
 function placesFor(e, d){
   if(e.pos !== "karaoke") return null;
   const weekend = d && (d.getDay()===5 || d.getDay()===6); // пятница/суббота
   if(e.emp_role === "Официант")
-    return weekend ? ["big","mid","small","letka","cabin"] : ["big","mid","letka","cabin"]; // МЗ только в пт/сб
+    return weekend ? ["big","mid","small","terrace","cabin"] : ["big","mid","terrace","cabin"]; // МЗ только в пт/сб
   if(e.emp_role === "Бармен")
     return weekend ? ["big","small"] : ["big"];            // МЗ только в пт/сб
   if(e.emp_role === "Звукооператор")
@@ -4249,7 +4250,7 @@ function renderStaffTotals(days, list){
   // сводка официантов караоке по залам + официанты клуба
   let placeRows = "";
   if(list.some(e=>e.emp_role==="Официант" && e.pos==="karaoke")){
-    for(const pl of ["big","small","letka","cabin"]){
+    for(const pl of ["big","small","terrace","cabin"]){
       const arr = days.map(d=>{
         const ds = iso(d);
         return list.filter(e=>e.emp_role==="Официант" && e.pos==="karaoke")
@@ -5240,7 +5241,7 @@ function bkFilterForWaiter(list){
 async function bkLoadShiftStaff(ds){
   // для каждой зоны: {bar:[], waiter:[]} — элементы вида {name, checkedIn}
   BK.data.shiftStaff = {
-    big:{bar:[],waiter:[]}, small:{bar:[],waiter:[]}, letka:{bar:[],waiter:[]},
+    big:{bar:[],waiter:[]}, small:{bar:[],waiter:[]}, letka:{bar:[],waiter:[]}, terrace:{bar:[],waiter:[]},
     cabin:{bar:[],waiter:[]}, club:{bar:[],waiter:[]}
   };
   // менеджмент/хостес на смене, раздельно по заведению: {mgr:[], host:[]}
@@ -5440,9 +5441,15 @@ function bkRenderKaraoke(){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Малый зал ${bkStaffHead("small")}</span><span class="sub">${weekend?"800 000 за стол":"только пт/сб"}</span></div>
       <div class="bk-maly">${sm.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
-  // Летка
+  // Терраса (с 08.11 вместо Летки)
+  const tr=Z("terrace");
+  if(tr && tr.tables.length){
+    html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Терраса ${bkStaffHead("terrace")}</span></div>
+      <div class="bk-letka">${tr.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
+  }
+  // Летка - только если в базе снова есть её столы
   const lt=Z("letka");
-  if(lt){
+  if(lt && lt.tables.length){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
       <div class="bk-letka">${lt.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
@@ -5914,6 +5921,7 @@ function bkSchemaKaraoke(){
   const cab = bkZonesOf("karaoke").find(z=>z.zone.key==="cabin");
   const sm  = bkZonesOf("karaoke").find(z=>z.zone.key==="small");
   const lt  = bkZonesOf("karaoke").find(z=>z.zone.key==="letka");
+  const tr  = bkZonesOf("karaoke").find(z=>z.zone.key==="terrace");
 
   let html = bkMgmtHead("karaoke") + `<div class="bk-scheme-wrap"><div class="bk-scheme">
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Большой зал ${bkStaffHead("big")}</span><span class="sub">${bkDepSub("депозиты "+(weekend?"пт/сб":"будни"))}</span></div>${big}</div>
@@ -5923,8 +5931,10 @@ function bkSchemaKaraoke(){
       <div class="bk-kab">${cab?cab.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Малый зал ${bkStaffHead("small")}</span><span class="sub">${weekend?"800 000 за стол":"только пт/сб"}</span></div>
       <div class="bk-maly">${sm?sm.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
-    <div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
-      <div class="bk-letka">${lt?lt.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
+    ${tr && tr.tables.length ? `<div class="bk-panel"><div class="bk-zone-lbl"><span>Терраса ${bkStaffHead("terrace")}</span></div>
+      <div class="bk-letka">${tr.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>` : ""}
+    ${lt && lt.tables.length ? `<div class="bk-panel"><div class="bk-zone-lbl"><span>Летка · шатры ${bkStaffHead("letka")}</span></div>
+      <div class="bk-letka">${lt.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>` : ""}
   </div></div>`;
   html += bkLegend() + bkBookingList("Караоке") + bkUpcomingList();
   return html;
