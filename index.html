@@ -1,4 +1,4 @@
-<!-- сборка 92 · 08.11.2026 -->
+<!-- сборка 93 · 08.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1503,7 +1503,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 92";
+const APP_VERSION = "v 08.11 · сборка 93";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -1764,8 +1764,9 @@ async function fetchToken(){
 }
 // пересоздать клиент Supabase со свежим токеном
 function rebuildClient(){
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
-    {global:{headers:{Authorization:"Bearer "+ME.token}}});
+  const g = {headers:{Authorization:"Bearer "+ME.token}};
+  if(PC_MODE && ME && ME.pc) g.fetch = pcLogFetch;      // компьютер хоста: каждое изменение - в журнал
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {global:g});
 }
 // тихо обновить токен (initData у Telegram всегда под рукой) — вызывается по таймеру и при возврате в приложение
 let lastTokenAt = Date.now();
@@ -4616,8 +4617,11 @@ async function startApp(){
     try{ bkInit(); }catch(e){ console.warn("bkInit(phone)",e); }
     return;
   }
+  // компьютер хоста, вход менеджера: только табель (проставка смен), брони скрыты
+  const PC_MGR = PC_MODE && ME.pc === "mgr";
+  if(PC_MGR){ const br = document.getElementById("booking-root"); if(br) br.style.display = "none"; }
   // для staff bkInit вызовется внутри startStaffCabinet (после загрузки его карточки)
-  if(!CAP.staff){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
+  if(!CAP.staff && !PC_MGR){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
   if(!CAP.staff){ try{ rcInit(); }catch(e){ console.warn("rcInit",e); } }   // челлендж «3 отзыва»: панель менеджера
   if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
@@ -6827,6 +6831,119 @@ async function callReveal(gid, phone, btn){
 }
 window.callReveal = callReveal;
 
+
+/* ===== КОМПЬЮТЕР ХОСТА (pc.html, сборка 93): заставка, автовыход, журнал, настройки ADM ===== */
+const PC2_TBL = {bookings:"Бронь", shifts:"Табель · смена", checkins:"Отметка прихода", guests:"Гость", guest_calls:"Обзвон",
+  penalties:"Штраф", bonuses:"Бонус", reprimands:"Выговор", weekly_values:"Табель · неделя", employees:"Сотрудник",
+  approvals:"Утверждение недели", deposit_special_days:"Особые даты", bq_banquets:"Банкет", bq_removed:"Банкет · убран стол",
+  pc_settings:"Настройки входа", call_views:"Просмотр номера"};
+function pc2Esc(v){ return String(v==null?"":v).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+const PC2_ACT = {POST:"добавлено", PATCH:"изменено", DELETE:"удалено"};
+let PC2_SET = {saver_min:1, upr_min:1, mgr_min:1, adm_min:1}, pc2T = null;
+async function pcLogFetch(input, init){
+  const res = await fetch(input, init);
+  try{
+    const url = typeof input === "string" ? input : input.url, m = String((init && init.method) || "GET").toUpperCase();
+    const mt = /\/rest\/v1\/(rpc\/)?([a-z_0-9]+)/.exec(url);
+    if(mt && m !== "GET" && m !== "HEAD" && res.ok && mt[2] !== "pc_log" && (!mt[1] || (/(add|set|save|create|upd|delete|remove|cancel|seat|book|move|approve|insert|handover|unhand|confirm|reject|toggle|mark|award|resolve|grace|start_set)/.test(mt[2]) && !/^(ensure_roster|bs_run|rc_pending|bk_ord_venue|auto_finish_seated|rc_state|get_|cabin_)/.test(mt[2])))){
+      let det = ""; try{ det = typeof init.body === "string" ? init.body : ""; }catch(_){}
+      const q = url.split("?")[1] || "";
+      const action = mt[1] ? "Действие: " + mt[2] : (PC2_TBL[mt[2]] || mt[2]) + " - " + (PC2_ACT[m] || m);
+      fetch(SUPABASE_URL + "/rest/v1/pc_log", {method:"POST", headers:{"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY,
+        Authorization:"Bearer " + ME.token, Prefer:"return=minimal"},
+        body: JSON.stringify({action: action.slice(0,300), details: (decodeURIComponent(q).replace(/&?select=[^&]*/,"") + " " + det).trim().slice(0,1000), device: pc2Dev()})}).catch(()=>{});
+    }
+  }catch(_){}
+  return res;
+}
+function pc2Dev(){ try{ return localStorage.getItem("spl_pc_dev") || ""; }catch(_){ return ""; } }
+const PC2_LBL = {host:"Хост", mgr:"Менеджер", upr:"Управляющий", adm:"ADM"};
+async function pc2Init(){
+  const bar = document.getElementById("pc-bar"); if(!bar) return;
+  bar.innerHTML = `<div class="who">${PC2_LBL[ME.pc]||""}: <span>${pc2Esc(ME.pc==="host" ? ME.name : (ME.who||ME.name))}</span></div><div class="sp"></div>
+    ${ME.pc==="adm" ? `<button type="button" id="pc2-adm">Настройки ADM</button>` : ""}
+    <button type="button" id="pc2-sw">Сменить аккаунт</button>${ME.pc==="host" ? "" : `<button type="button" class="out" id="pc2-out">Выйти</button>`}`;
+  document.getElementById("pc2-sw").onclick = ()=>pc2Out("switch");
+  const o = document.getElementById("pc2-out"); if(o) o.onclick = ()=>pc2Out("out");
+  const a = document.getElementById("pc2-adm"); if(a) a.onclick = pc2AdmOpen;
+  try{ const {data} = await sb.from("pc_settings").select("data").eq("id",1).maybeSingle(); if(data && data.data) PC2_SET = Object.assign(PC2_SET, data.data); }catch(_){}
+  ["pointerdown","keydown","mousemove","wheel","touchstart"].forEach(e=>document.addEventListener(e, pc2Idle, {capture:true, passive:true}));
+  pc2Idle();
+}
+function pc2Idle(){
+  clearTimeout(pc2T);
+  const k = {host:"saver_min", mgr:"mgr_min", upr:"upr_min", adm:"adm_min"}[ME.pc] || "saver_min";
+  const min = Math.max(1, Math.min(240, +PC2_SET[k] || 1));
+  pc2T = setTimeout(()=>pc2Out("idle"), min*60000);
+}
+function pc2Out(why){
+  try{ if(!(ME.pc==="host" && why==="idle")) sessionStorage.removeItem("spl_pc_last_acc"); }catch(_){}   // после заставки - сразу PIN того же хоста
+  try{ sessionStorage.removeItem("spl_tablet_me"); localStorage.removeItem("spl_tablet_me"); }catch(_){}
+  location.replace("pc.html#" + (why==="idle" ? "idle" : "switch"));
+}
+/* --- настройки ADM: время, PIN хостов, журнал --- */
+async function pc2Api(body){
+  const r = await fetch(SUPABASE_URL + "/functions/v1/pc-auth", {method:"POST", headers:{"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:"Bearer "+SUPABASE_ANON_KEY},
+    body: JSON.stringify(Object.assign({device:pc2Dev(), token:ME.token}, body))});
+  try{ return await r.json(); }catch(_){ return {error:"Нет ответа"}; }
+}
+let PC2_LOG = [], PC2_F = {who:"", d:""};
+async function pc2AdmOpen(){
+  let m = document.getElementById("pc2-modal");
+  if(!m){ m = document.createElement("div"); m.id = "pc2-modal";
+    m.style.cssText = "position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:30px 12px";
+    m.addEventListener("click", e=>{ if(e.target===m) m.remove(); }); document.body.appendChild(m); }
+  m.innerHTML = `<div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:760px;max-width:100%">загрузка…</div>`;
+  const [st, pins, lg] = await Promise.all([
+    sb.from("pc_settings").select("data").eq("id",1).maybeSingle(),
+    pc2Api({action:"pins_state"}),
+    sb.from("pc_log").select("at,who,action,details").order("at",{ascending:false}).limit(500)]);
+  if(st.data) PC2_SET = Object.assign(PC2_SET, st.data.data||{});
+  PC2_LOG = lg.data || [];
+  pc2AdmRender(pins.hosts || [], pins.error || lg.error && lg.error.message || "");
+}
+function pc2AdmRender(hosts, err){
+  const m = document.getElementById("pc2-modal"); if(!m) return;
+  const num = (k,l) => `<div class="pc2-row"><span>${l}</span><span><input type="number" min="1" max="240" data-pk="${k}" value="${+PC2_SET[k]||1}" style="width:70px"> мин</span></div>`;
+  const whos = [...new Set(PC2_LOG.map(r=>r.who))].sort();
+  const rows = PC2_LOG.filter(r=>(!PC2_F.who || r.who===PC2_F.who) && (!PC2_F.d || String(r.at).slice(0,10)===PC2_F.d));
+  const t = s => { const d = new Date(s); return d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"}) + " " + d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); };
+  m.innerHTML = `<div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:760px;max-width:100%">
+  <style>#pc2-modal h3{margin:16px 0 8px;font-size:15px}#pc2-modal .pc2-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;gap:10px}
+  #pc2-modal input,#pc2-modal select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit}
+  #pc2-modal button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+  #pc2-modal table{width:100%;border-collapse:collapse;font-size:12.5px}#pc2-modal td,#pc2-modal th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  #pc2-modal th{color:var(--muted);font-weight:500}#pc2-modal td.d{color:var(--muted);font-size:11.5px;max-width:260px;word-break:break-word}</style>
+  <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:17px">Настройки ADM</b><button type="button" onclick="document.getElementById('pc2-modal').remove()">Закрыть</button></div>
+  ${err ? `<div style="color:var(--red);margin-top:8px">${pc2Esc(err)}</div>` : ""}
+  <h3>Время без действий</h3>
+  ${num("saver_min","Заставка у хоста через")}${num("upr_min","Автовыход управляющего через")}${num("mgr_min","Автовыход менеджеров через")}${num("adm_min","Автовыход ADM через")}
+  <div style="margin-top:10px"><button type="button" id="pc2-save">Сохранить время</button> <span id="pc2-saved" style="color:var(--emerald);font-size:13px"></span></div>
+  <h3>PIN хостов</h3>
+  <div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Новый PIN уходит хосту в Telegram. Вы его не видите - так в журнале честно видно, кто что делал.</div>
+  ${hosts.map(h=>`<div class="pc2-row"><span>${pc2Esc(h.name)} <span style="color:var(--muted);font-size:12px">${h.pos==="club"?"клуб":h.pos==="karaoke"?"караоке":""} · ${h.set ? "PIN выдан " + t(h.set) : "PIN не выдан"}</span></span><button type="button" data-pin="${pc2Esc(h.id)}">${h.set ? "Сменить PIN" : "Выдать PIN"}</button></div>`).join("")}
+  <h3>Журнал действий</h3>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><select id="pc2-fw"><option value="">Все</option>${whos.map(w=>`<option ${w===PC2_F.who?"selected":""}>${pc2Esc(w)}</option>`).join("")}</select>
+    <input type="date" id="pc2-fd" value="${PC2_F.d}"><span style="color:var(--muted);font-size:12.5px;align-self:center">${rows.length} записей (последние 500)</span></div>
+  <div style="max-height:420px;overflow:auto"><table><tr><th>Время</th><th>Кто</th><th>Действие</th><th>Подробно</th></tr>
+  ${rows.map(r=>`<tr><td style="white-space:nowrap">${t(r.at)}</td><td>${pc2Esc(r.who)}</td><td>${pc2Esc(r.action)}</td><td class="d">${pc2Esc(r.details||"")}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--muted)">Пока пусто</td></tr>`}</table></div></div>`;
+  document.getElementById("pc2-save").onclick = async ()=>{
+    const d = Object.assign({}, PC2_SET); m.querySelectorAll("[data-pk]").forEach(i=>d[i.dataset.pk] = Math.max(1, Math.min(240, +i.value||1)));
+    const {error} = await sb.from("pc_settings").update({data:d, updated_at:new Date().toISOString()}).eq("id",1);
+    document.getElementById("pc2-saved").textContent = error ? error.message : "Сохранено";
+    if(!error){ PC2_SET = d; pc2Idle(); }
+  };
+  m.querySelectorAll("[data-pin]").forEach(b=>b.onclick = async ()=>{
+    if(!confirm("Выдать новый PIN? Старый перестанет работать, новый придёт хосту в Telegram.")) return;
+    b.disabled = true; b.textContent = "Отправляю…";
+    const j = await pc2Api({action:"set_pin", emp_id:b.dataset.pin});
+    if(j.error){ alert(j.error); }
+    pc2AdmOpen();
+  });
+  document.getElementById("pc2-fw").onchange = e=>{ PC2_F.who = e.target.value; pc2AdmRender(hosts, err); };
+  document.getElementById("pc2-fd").onchange = e=>{ PC2_F.d = e.target.value; pc2AdmRender(hosts, err); };
+}
+
 /* ===== КОМПЬЮТЕР: смена учётной записи и выход ===== */
 const PC_ROLE_LBL = {host:"Хостес", man:"Менеджер", upr:"Управляющий"};
 function pcClearSession(){
@@ -6845,6 +6962,7 @@ function pcLogout(){
 }
 function pcInitBar(){
   if(!PC_MODE) return;
+  if(ME && ME.pc){ pc2Init(); return; }
   const who = document.getElementById("pc-who");
   if(who) who.textContent = (ME && ME.name ? ME.name : "—") + (ME && ME.role ? " · " + (CAPS[ME.role]||{}).label : "");
   document.querySelectorAll("#pc-bar [data-pcr]").forEach(b=>{

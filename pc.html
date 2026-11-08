@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- сборка 1 · 08.11.2026 · компьютер хоста: заставка + вход по PIN -->
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPLETNI · компьютер хоста</title>
+<style>
+:root{--bg:#0B0B0D;--card:#151518;--card2:#1D1D21;--line:#26262B;--line2:#333338;--text:#F2F2F2;--muted:#9A9AA3;--red:#E3262B;--green:#2FD27A}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px Inter,system-ui,Arial,sans-serif}
+.wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+.box{background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:22px;width:420px;max-width:100%}
+.lg{display:flex;justify-content:center;margin-bottom:14px}.lg svg{width:180px;height:auto;color:#fff}
+.lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 6px}
+.acc{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acc button,.kp button,.btn{font:inherit;color:var(--text);background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:12px 8px;cursor:pointer}
+.acc button small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.acc button.on{border:2px solid var(--green);color:var(--green)}
+.acc.one{grid-template-columns:1fr}
+.dots{display:flex;gap:14px;justify-content:center;margin:16px 0 12px}
+.dots i{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--muted)}.dots i.f{background:var(--text);border-color:var(--text)}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.kp button{font-size:20px;padding:14px 0}
+.kp button.s{font-size:13px;color:var(--muted)}
+.msg{min-height:20px;text-align:center;font-size:13px;margin-top:10px;color:var(--muted)}.msg.ok{color:var(--green)}.msg.bad{color:#ff6b6f}
+.who{text-align:center;font-weight:600;margin-top:6px}
+.adm{display:block;margin:16px auto 0;background:none;border:0;border-top:1px solid var(--line);width:100%;padding-top:10px;color:#5a5a62;letter-spacing:3px;font-size:11px;cursor:pointer}
+.back{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:0;margin-bottom:8px}
+.hide{display:none!important}
+</style></head><body>
+<div class="wrap"><div class="box" id="box"></div></div>
+<script src="zastavka.js"></script>
+<script>
+const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function dev(){ let d = ""; try{ d = localStorage.getItem("spl_pc_dev") || ""; }catch(_){}
+  if(!d){ d = "pc-" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2)); try{ localStorage.setItem("spl_pc_dev", d); }catch(_){} } return d; }
+async function api(body){
+  const r = await fetch(SUPABASE_URL + "/functions/v1/pc-auth", { method:"POST",
+    headers:{ "Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:"Bearer " + SUPABASE_ANON_KEY },
+    body: JSON.stringify(Object.assign({ device: dev() }, body)) });
+  let j = {}; try{ j = await r.json(); }catch(_){}
+  return j;
+}
+let S = { accs:[], view:"list", sel:null, pin:"", msg:"", msgCls:"", busy:false, reg:false };
+let idleT = null;
+const POS = { club:"Клуб", karaoke:"Караоке" };
+function logo(){ return `<div class="lg">${SplSaver.logo()}</div>`; }
+function dots(){ return `<div class="dots">${[0,1,2,3].map(i => `<i class="${i < S.pin.length ? "f" : ""}"></i>`).join("")}</div>`; }
+function keypad(){ return `<div class="kp">${[1,2,3,4,5,6,7,8,9].map(n => `<button data-k="${n}">${n}</button>`).join("")}<button class="s" data-k="del">стереть</button><button data-k="0">0</button><button class="s" data-k="back">назад</button></div>`; }
+function render(){
+  const b = $("box");
+  if(S.reg){
+    b.innerHTML = `${logo()}<div class="who">Компьютер не зарегистрирован</div>
+      <div class="msg">Вход разрешён только с компьютеров, которые подтвердил ADM.</div>
+      ${S.sent ? dots() + keypad() : `<button class="btn" style="width:100%;margin-top:12px" id="regsend">Отправить код ADM в Telegram</button>`}
+      <div class="msg ${S.msgCls}">${esc(S.msg)}</div>`;
+    const rs = $("regsend"); if(rs) rs.onclick = regSend; wireKeys(); return;
+  }
+  if(S.view === "list"){
+    const hosts = S.accs.filter(a => a.group === "host").sort((a,b) => (a.pos||"").localeCompare(b.pos||"") || a.label.localeCompare(b.label));
+    b.innerHTML = `${logo()}<div class="lbl">Хосты</div><div class="acc">${hosts.map(a => `<button data-a="${esc(a.acc)}">${esc(a.label)}<small>${POS[a.pos]||""}</small></button>`).join("")}</div>
+      <div class="lbl">Руководство</div><div class="acc">${S.accs.some(a => a.group === "upr") ? `<button data-a="upr">Управляющий</button>` : ""}<button data-v="mgr">Менеджеры</button></div>
+      <div class="msg ${S.msgCls}">${esc(S.msg)}</div><button class="adm" data-a="adm">ADM</button>`;
+  } else if(S.view === "mgr"){
+    b.innerHTML = `${logo()}<button class="back" data-v="list">‹ назад</button><div class="lbl">Кто входит?</div>
+      <div class="acc one">${S.accs.filter(a => a.group === "mgr").map(a => `<button data-a="${esc(a.acc)}">${esc(a.label)}<small>${esc(a.name)}</small></button>`).join("")}</div>`;
+  } else {
+    const a = S.sel;
+    b.innerHTML = `${logo()}<div class="who">${esc(a.label)}${a.group === "host" ? "" : a.name ? " · " + esc(a.name) : ""}</div>
+      <div class="msg ${S.msgCls}">${esc(S.msg || (a.kind === "host" ? "Введите свой PIN" : ""))}</div>${dots()}${keypad()}`;
+  }
+  b.querySelectorAll("[data-a]").forEach(x => x.onclick = () => pick(x.dataset.a));
+  b.querySelectorAll("[data-v]").forEach(x => x.onclick = () => { S.view = x.dataset.v; S.msg = ""; render(); });
+  wireKeys();
+}
+function wireKeys(){ $("box").querySelectorAll("[data-k]").forEach(x => x.onclick = () => key(x.dataset.k)); }
+async function pick(acc){
+  const a = S.accs.find(x => x.acc === acc); if(!a) return;
+  S.sel = a; S.pin = ""; S.view = "pin"; S.msg = ""; S.msgCls = "";
+  if(a.kind === "code"){ S.msg = "Отправляю код в Telegram…"; render();
+    const j = await api({ action:"send_code", acc });
+    if(j.error){ S.msg = j.error; S.msgCls = "bad"; } else { S.msg = j.again ? "Код уже отправлен - проверьте Telegram" : "Код отправлен в Telegram. Действует 5 минут."; S.msgCls = "ok"; } }
+  render();
+}
+function key(k){
+  if(S.busy) return;
+  if(k === "back"){ if(S.reg){ S.sent = false; S.pin = ""; render(); return; } S.view = S.sel && S.sel.group === "mgr" ? "mgr" : "list"; S.pin = ""; S.msg = ""; render(); return; }
+  if(k === "del"){ S.pin = S.pin.slice(0, -1); render(); return; }
+  if(S.pin.length >= 4) return;
+  S.pin += k; render();
+  if(S.pin.length === 4) S.reg ? regDo() : login();
+}
+async function login(){
+  S.busy = true; S.msg = "Проверяю…"; S.msgCls = ""; render();
+  const j = await api({ action:"login", acc:S.sel.acc, pin:S.pin });
+  S.busy = false;
+  if(!j.token){ S.pin = ""; S.msg = j.error || "Ошибка входа"; S.msgCls = "bad"; render(); return; }
+  try{ if(S.sel.group === "host") sessionStorage.setItem("spl_pc_last_acc", S.sel.acc); else sessionStorage.removeItem("spl_pc_last_acc"); }catch(_){}
+  const me = { token:j.token, role:j.role, name:j.name, tg_id:j.tg_id, pc:j.acc, who:j.who };
+  try{ sessionStorage.setItem("spl_tablet_me", JSON.stringify(me)); localStorage.removeItem("spl_tablet_me"); }catch(_){}
+  location.replace("index.html#tablet&pc");
+}
+async function regSend(){ S.msg = "Отправляю…"; render(); const j = await api({ action:"register_send" });
+  if(j.error){ S.msg = j.error; S.msgCls = "bad"; } else { S.sent = true; S.pin = ""; S.msg = "Код отправлен ADM в Telegram"; S.msgCls = "ok"; } render(); }
+async function regDo(){ S.busy = true; const j = await api({ action:"register", pin:S.pin }); S.busy = false; S.pin = "";
+  if(!j.ok){ S.msg = j.error || "Ошибка"; S.msgCls = "bad"; render(); return; }
+  S.reg = false; S.msg = "Компьютер зарегистрирован"; S.msgCls = "ok"; await load(); }
+async function load(){
+  const j = await api({ action:"accounts" });
+  if(j.need_register){ S.reg = true; render(); return; }
+  if(j.error){ $("box").innerHTML = `${logo()}<div class="msg bad">${esc(j.error)}</div>`; return; }
+  S.accs = j.accounts || []; S.settings = j.settings || {};
+  render();
+}
+function resetIdle(){ clearTimeout(idleT); if(S.reg) return;
+  idleT = setTimeout(saver, 60000); }
+function saver(){ if(S.reg) return; S.view = "list"; S.pin = ""; S.msg = ""; S.sel = null; render();
+  SplSaver.show({ onWake(){ SplSaver.hide(); resetIdle();
+    let last = ""; try{ last = sessionStorage.getItem("spl_pc_last_acc") || ""; }catch(_){}
+    if(last && S.accs.some(a => a.acc === last)){ S.sel = S.accs.find(a => a.acc === last); S.view = "pin"; S.pin = ""; S.msg = "Введите PIN или «назад» - другой хост"; render(); } } }); }
+["pointerdown","keydown","mousemove"].forEach(e => document.addEventListener(e, resetIdle, true));
+document.addEventListener("keydown", e => { if(SplSaver.on || S.view !== "pin") return; if(/^[0-9]$/.test(e.key)) key(e.key); else if(e.key === "Backspace") key("del"); else if(e.key === "Escape") key("back"); });
+try{ sessionStorage.removeItem("spl_tablet_me"); }catch(_){}
+load().then(() => { if(!S.reg && !/switch/.test(location.hash)) saver(); else resetIdle(); });
+</script>
+</body></html>
