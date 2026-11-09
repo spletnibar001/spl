@@ -1134,7 +1134,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 08.11 · сборка 23";
+const GUEST_VERSION = "v 09.11 · сборка 24";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1322,9 +1322,9 @@ const FAQ = {
     { q:{ru:"Что такое депозит и куда он идёт?",
          uz:"Depozit nima va u qayerga ketadi?",
          en:"What is the deposit and where does it go?"},
-      a:{ru:"Депозит - это не плата за вход и не доплата сверху. <b>Вся сумма идёт в счёт заказа</b>: еда, напитки, кальян. Вы просто заказываете на эту сумму или больше.",
-         uz:"Depozit - kirish haqi emas va qo'shimcha to'lov ham emas. <b>Butun summa buyurtma hisobiga o'tadi</b>: taom, ichimlik, kalyan.",
-         en:"The deposit is not a cover charge or an extra fee. <b>The full amount goes towards your order</b>: food, drinks, hookah."} },
+      a:{ru:"Депозит - это не плата за вход и не доплата сверху. <b>Вся сумма идёт в счёт заказа по меню</b>: еда, напитки, кальян. Вы просто заказываете на эту сумму или больше. Время кабинки в депозит не входит и оплачивается отдельно.",
+         uz:"Depozit - kirish haqi emas va qo'shimcha to'lov ham emas. <b>Butun summa menyu bo'yicha buyurtma hisobiga o'tadi</b>: taom, ichimlik, kalyan. Kabina soatlari depozitga kirmaydi va alohida to'lanadi.",
+         en:"The deposit is not a cover charge or an extra fee. <b>The full amount goes towards your menu order</b>: food, drinks, hookah. Room time is not covered by the deposit and is paid separately."} },
     { q:{ru:"Сколько стоит депозит?",
          uz:"Depozit qancha turadi?",
          en:"How much is the deposit?"},
@@ -1365,9 +1365,9 @@ const FAQ = {
     { q:{ru:"Сколько стоит кабинка в час?",
          uz:"Kabina bir soatga qancha turadi?",
          en:"How much is a room per hour?"},
-      a:{ru:"Маленькие кабинки - <b>100 000 сум в час</b>, большие - <b>200 000 сум в час</b>. Депозит можно потратить и на меню, и на эти часы. В Большом, Среднем и Малом залах почасовой оплаты нет - только позиции по меню.",
-         uz:"Kichik kabinalar - <b>soatiga 100 000 so'm</b>, kattalari - <b>soatiga 200 000 so'm</b>. Depozitni menyuga ham, shu soatlarga ham sarflash mumkin.",
-         en:"Small rooms - <b>100,000 UZS per hour</b>, large ones - <b>200,000 UZS per hour</b>. The deposit covers both the menu and these hours."} },
+      a:{ru:"Маленькие кабинки - <b>100 000 сум в час</b>, большие - <b>200 000 сум в час</b>. Часы оплачиваются отдельно от депозита: депозит целиком остаётся на меню. В Большом, Среднем и Малом залах почасовой оплаты нет - только позиции по меню.",
+         uz:"Kichik kabinalar - <b>soatiga 100 000 so'm</b>, kattalari - <b>soatiga 200 000 so'm</b>. Soatlar depozitdan alohida to'lanadi: depozit butunlay menyuga qoladi. Katta, O'rta va Kichik zallarda soatlik to'lov yo'q - faqat menyu.",
+         en:"Small rooms - <b>100,000 UZS per hour</b>, large ones - <b>200,000 UZS per hour</b>. The hours are paid separately from the deposit: the deposit stays entirely for your menu order. The Big, Middle and Small halls have no hourly charge - menu items only."} },
     { q:{ru:"Какое оборудование в залах?",
          uz:"Zallarda qanday jihozlar bor?",
          en:"What equipment do you have?"},
