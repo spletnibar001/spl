@@ -1,4 +1,4 @@
-<!-- сборка 99 · 08.11.2026 -->
+<!-- сборка 100 · 09.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -5157,7 +5157,12 @@ async function bkLoadRef(){
     sb.from("closed_days").select("*").order("day")             // закрытые дни (санитарный и т.п.)
   ]);
   BK.data.venues=v.data||[]; BK.data.zones=z.data||[];
-  BK.data.tables=(t.data||[]).filter(x=>!x.archived);  // архивные столы скрыты везде
+  /* Тестовые столы (имя начинается с TEST) видит только админ: бронировать их
+     остальным нельзя. 09.11.2026 - кабинка «TEST 8» используется для проверок
+     плеера и не должна попадать ни к хостес, ни к гостю. */
+  const bkIsTest = x => /^\s*test\b/i.test(String(x.name||""));
+  const bkSeeTest = !!(typeof ME!=="undefined" && ME && ME.role === "admin");
+  BK.data.tables=(t.data||[]).filter(x=>!x.archived && (bkSeeTest || !bkIsTest(x)));  // архивные столы скрыты везде
   BK.data.tablesOff=(t.data||[]).filter(x=>x.archived); // для серой «Летки» - только показать
   BK.data.specials=sp.data||[];
   BK.data.closed=(cl && cl.data) ? cl.data : [];        // закрытые дни (нет таблицы — пусто)
