@@ -1134,7 +1134,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 09.11 · сборка 24";
+const GUEST_VERSION = "v 10.11 · сборка 25";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1547,7 +1547,7 @@ async function guestAuth(){
       BK_AUTH_ERR = "Сервер авторизации: " + (d && d.error ? d.error : ("код "+r.status));
       return false;
     }
-    GUEST = { tg_id: d.tg_id, name: d.name };
+    GUEST = { tg_id: d.tg_id, name: d.name, token: d.token };
     SB = window.supabase.createClient(SB_URL, SB_ANON, {
       global:{ headers:{ Authorization: "Bearer "+d.token } },
       auth:{ persistSession:false }
@@ -2169,7 +2169,7 @@ function bkfCancelOwnPrompt(bookingId, st){
       fetch(`${SB_URL}/functions/v1/smooth-processor`,{
         method:"POST",
         headers:{"Content-Type":"application/json","apikey":SB_ANON,
-                 "Authorization":"Bearer "+SB_ANON},
+                 "Authorization":"Bearer "+((GUEST&&GUEST.token)||SB_ANON)},
         body:JSON.stringify({booking_id:bookingId, event: st==="booked" ? "guest_cancel_booking" : "guest_cancel_request", reason: reason})
       }).catch(()=>{});
     }catch(_){}
@@ -2682,7 +2682,7 @@ async function bkfSubmit(){
       fetch(`${SB_URL}/functions/v1/smooth-processor`,{
         method:"POST",
         headers:{"Content-Type":"application/json","apikey":SB_ANON,
-                 "Authorization":"Bearer "+SB_ANON},
+                 "Authorization":"Bearer "+((GUEST&&GUEST.token)||SB_ANON)},
         body:JSON.stringify({booking_id:ins.id, event:"request"})
       }).catch(()=>{});
     }

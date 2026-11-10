@@ -1,4 +1,4 @@
-<!-- сборка 100 · 09.11.2026 -->
+<!-- сборка 101 · 10.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1517,7 +1517,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 08.11 · сборка 99";
+const APP_VERSION = "v 10.11 · сборка 101";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -8135,7 +8135,7 @@ async function bkNotify(bookingId, event, extra){
       method:"POST",
       keepalive:true,
       headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,
-               "Authorization":"Bearer "+SUPABASE_ANON_KEY},
+               "Authorization":"Bearer "+((ME&&ME.token)||SUPABASE_ANON_KEY)},
       body:JSON.stringify(Object.assign({booking_id:bookingId, event}, extra||{}))
     });
   }catch(_){ /* тихо игнорируем — уведомление не критично для брони */ }
