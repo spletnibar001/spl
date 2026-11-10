@@ -1,4 +1,4 @@
-<!-- сборка 102 · 10.11.2026 -->
+<!-- сборка 103 · 10.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -573,6 +573,13 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 /* караоке: кабинки/малый/летка — сетки */
 .bk-kab{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .bk-kab .bk-t{height:88px}
+/* кабинки - одной строкой, как Большой зал (10.11.2026). На узком экране
+   (планшет хостес) остаётся прежняя сетка по три, иначе плитки станут нечитаемы. */
+.bk-cabrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bk-cabrow .bk-t{height:84px}
+@media (min-width:760px){
+  .bk-cabrow{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr;gap:10px}
+}
 .bk-maly{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .bk-maly .bk-t{height:70px}
 .bk-letka{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -5963,7 +5970,7 @@ function bkSchemaKaraoke(){
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Средний зал ${bkStaffHead("mid")}</span><span class="sub">до 14 гостей за стол</span></div>
       <div class="bk-kab">${(bkZonesOf("karaoke").find(z=>z.zone.key==="mid")||{tables:[]}).tables.slice().sort((a,b)=>(parseInt(a.name.replace(/\D/g,""))||0)-(parseInt(b.name.replace(/\D/g,""))||0)).map(t=>bkTableCell(t,weekend)).join("")}</div></div>
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Кабинки ${bkStaffHead("cabin")}</span></div>
-      <div class="bk-kab">${cab?cab.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
+      <div class="bk-cabrow">${cab?cab.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
     <div class="bk-panel"><div class="bk-zone-lbl"><span>Малый зал ${bkStaffHead("small")}</span><span class="sub">${weekend?"800 000 за стол":"только пт/сб"}</span></div>
       <div class="bk-maly">${sm?sm.tables.map(t=>bkTableCell(t,weekend)).join(""):""}</div></div>
     ${tr && tr.tables.length ? `<div class="bk-panel"><div class="bk-zone-lbl"><span>Терраса ${bkStaffHead("terrace")}</span></div>
