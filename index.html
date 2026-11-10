@@ -1,4 +1,4 @@
-<!-- сборка 101 · 10.11.2026 -->
+<!-- сборка 102 · 10.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1517,7 +1517,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 10.11 · сборка 101";
+const APP_VERSION = "v 10.11 · сборка 102";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -6940,17 +6940,19 @@ async function pc2Api(body){
     body: JSON.stringify(Object.assign({device:pc2Dev(), token:ME.token}, body))});
   try{ return await r.json(); }catch(_){ return {error:"Нет ответа"}; }
 }
-let PC2_LOG = [], PC2_F = {who:"", d:""};
+let PC2_LOG = [], PC2_F = {who:"", d:""}, PC2_DEV = [];
 async function pc2AdmOpen(){
   let m = document.getElementById("pc2-modal");
   if(!m){ m = document.createElement("div"); m.id = "pc2-modal";
     m.style.cssText = "position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:30px 12px";
     m.addEventListener("click", e=>{ if(e.target===m) m.remove(); }); document.body.appendChild(m); }
   m.innerHTML = `<div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:760px;max-width:100%">загрузка…</div>`;
-  const [st, pins, lg] = await Promise.all([
+  const [st, pins, lg, dv] = await Promise.all([
     sb.from("pc_settings").select("data").eq("id",1).maybeSingle(),
     pc2Api({action:"pins_state"}),
-    sb.from("pc_log").select("at,who,action,details").order("at",{ascending:false}).limit(500)]);
+    sb.from("pc_log").select("at,who,action,details").order("at",{ascending:false}).limit(500),
+    sb.rpc("pc_devices_list", {p_dev: pc2Dev()})]);
+  PC2_DEV = dv.data || [];
   if(st.data) PC2_SET = Object.assign(PC2_SET, st.data.data||{});
   PC2_LOG = lg.data || [];
   pc2AdmRender(pins.hosts || [], pins.error || lg.error && lg.error.message || "");
@@ -6975,6 +6977,9 @@ function pc2AdmRender(hosts, err){
   <h3>PIN хостов</h3>
   <div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Новый PIN уходит хосту в Telegram. Вы его не видите - так в журнале честно видно, кто что делал.</div>
   ${hosts.map(h=>`<div class="pc2-row"><span>${pc2Esc(h.name)} <span style="color:var(--muted);font-size:12px">${h.pos==="club"?"клуб":h.pos==="karaoke"?"караоке":""} · ${h.set ? "PIN выдан " + t(h.set) : "PIN не выдан"}</span></span><button type="button" data-pin="${pc2Esc(h.id)}">${h.set ? "Сменить PIN" : "Выдать PIN"}</button></div>`).join("")}
+  <h3>Компьютеры с доступом · ${PC2_DEV.length}</h3>
+  <div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Только с этих компьютеров можно войти по PIN или коду. «Отключить» - компьютер снова попросит код ADM для регистрации.</div>
+  ${PC2_DEV.map(d=>`<div class="pc2-row" style="${d.is_current?"border-left:3px solid var(--emerald);padding-left:8px":""}"><span>${pc2Esc(d.title||"Компьютер")}${d.is_current?` <b style="color:var(--emerald);font-size:12px">этот компьютер</b>`:""}<br><span style="color:var(--muted);font-size:12px">зарегистрирован ${t(d.approved_at)} · ${d.last_seen ? "последний вход " + t(d.last_seen) : "входов не было"}</span></span><button type="button" data-devoff="${pc2Esc(d.key)}" data-cur="${d.is_current?1:""}">Отключить</button></div>`).join("") || `<div style="color:var(--muted);font-size:13px">Список пуст</div>`}
   <h3>Журнал действий</h3>
   <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><select id="pc2-fw"><option value="">Все</option>${whos.map(w=>`<option ${w===PC2_F.who?"selected":""}>${pc2Esc(w)}</option>`).join("")}</select>
     <input type="date" id="pc2-fd" value="${PC2_F.d}"><span style="color:var(--muted);font-size:12.5px;align-self:center">${rows.length} записей (последние 500)</span></div>
@@ -6986,6 +6991,13 @@ function pc2AdmRender(hosts, err){
     document.getElementById("pc2-saved").textContent = error ? error.message : "Сохранено";
     if(!error){ PC2_SET = d; pc2Idle(); }
   };
+  m.querySelectorAll("[data-devoff]").forEach(b=>b.onclick = async ()=>{
+    if(!confirm(b.dataset.cur ? "Отключить ЭТОТ компьютер? Чтобы снова войти с него, понадобится код ADM." : "Отключить этот компьютер? Вход с него станет невозможен, пока вы снова не зарегистрируете его кодом ADM.")) return;
+    b.disabled = true; b.textContent = "Отключаю…";
+    const {data, error} = await sb.rpc("pc_device_off", {p_key: b.dataset.devoff});
+    if(error || (data && data.ok === false)){ alert((error && error.message) || data.error); b.disabled = false; b.textContent = "Отключить"; return; }
+    pc2AdmOpen();
+  });
   m.querySelectorAll("[data-pin]").forEach(b=>b.onclick = async ()=>{
     if(!confirm("Выдать новый PIN? Старый перестанет работать, новый придёт хосту в Telegram.")) return;
     b.disabled = true; b.textContent = "Отправляю…";
