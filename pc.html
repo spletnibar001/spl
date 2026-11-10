@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- сборка 3 · 08.11.2026 · компьютер хоста: заставка + вход по PIN -->
+<!-- сборка 4 · 11.11.2026 · ?to=banket - после входа сразу программа банкетов · компьютер хоста: заставка + вход по PIN -->
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SPLETNI · компьютер хоста</title>
@@ -102,6 +102,7 @@ function key(k){
   S.pin += k; render();
   if(S.pin.length === 4) S.reg ? regDo() : login();
 }
+try{ const q = new URLSearchParams(location.search).get("to"); if(q === "banket") sessionStorage.setItem("spl_pc_to", "banket"); else if(q === "main") sessionStorage.removeItem("spl_pc_to"); }catch(_){}
 async function login(){ /* j - let, может прийти из памяти */
   S.busy = true; S.msg = "Проверяю…"; S.msgCls = ""; render();
   let j = await api({ action:"login", acc:S.sel.acc, pin:S.pin });
@@ -117,6 +118,8 @@ async function login(){ /* j - let, может прийти из памяти */
   const me = { token:j.token, role:j.role, name:j.name, tg_id:j.tg_id, pc:j.acc || j.pc, who:j.who };
   if(S.sel.group === "host" && !j.offline){ try{ const all = offGet(); all[S.sel.acc] = { h: await offHash(S.sel.acc, S.pin), me }; localStorage.setItem("spl_pc_off", JSON.stringify(all)); }catch(_){} }
   try{ sessionStorage.setItem("spl_tablet_me", JSON.stringify(me)); localStorage.removeItem("spl_tablet_me"); }catch(_){}
+  let to = ""; try{ to = sessionStorage.getItem("spl_pc_to") || ""; }catch(_){}
+  if(to === "banket" && ["phone","upr","dir","admin"].includes(j.role)){ location.replace("banket.html"); return; }   // вход «только банкеты» (banketi.html)
   location.replace("index.html#tablet&pc");
 }
 async function regSend(){ S.msg = "Отправляю…"; render(); const j = await api({ action:"register_send" });
