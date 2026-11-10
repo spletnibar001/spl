@@ -2,10 +2,10 @@
    - страницы и скрипты: сначала сеть (чтобы обновления приходили сразу), без сети - из кэша;
    - брони, схема залов, банкеты: сохраняются в кэш ТОЛЬКО под входом хоста (pc_acc=host)
      и отдаются из кэша, когда нет интернета. Себестоимость, журнал, табель, личные данные сотрудников - не кэшируются. */
-const V = "spl-pc-2";
+const V = "spl-pc-3";
 const SHELL = ["pc.html", "index.html", "banket.html", "zastavka.js", "manifest.webmanifest", "img/pc-192.png", "img/pc-512.png"];
 const CDN = /cdn\.jsdelivr\.net|telegram\.org\/js/;
-const DATA_OK = /\/rest\/v1\/(venues|zones|tables|deposit_special_days|closed_days|v_bookings_full|bookings|pc_settings|bq_places|bq_banquets|bq_banquet_tables|bq_removed|bq_items|bq_packs|bq_addons|bq_promos|bq_prices|bq_settings)\?/;
+const DATA_OK = /\/rest\/v1\/(venues|zones|tables|deposit_special_days|closed_days|v_bookings_full|bookings|pc_settings|bq_places|bq_banquets|bq_banquet_tables|bq_removed|bq_pays|bq_items|bq_packs|bq_addons|bq_promos|bq_prices|bq_settings)\?/;
 
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL).catch(() => {}))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
