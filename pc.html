@@ -56,7 +56,7 @@ let S = { accs:[], view:"list", sel:null, pin:"", msg:"", msgCls:"", busy:false,
 let idleT = null;
 const POS = { club:"Клуб", karaoke:"Караоке" };
 function logo(){ return `<div class="lg">${SplSaver.logo()}</div>`; }
-function dots(){ return `<div class="dots">${[0,1,2,3].map(i => `<i class="${i < S.pin.length ? "f" : ""}"></i>`).join("")}</div>`; }
+function dots(){ return `<div class="dots">${(S.reg ? [0,1,2,3,4,5] : [0,1,2,3]).map(i => `<i class="${i < S.pin.length ? "f" : ""}"></i>`).join("")}</div>`; }
 function keypad(){ return `<div class="kp">${[1,2,3,4,5,6,7,8,9].map(n => `<button data-k="${n}">${n}</button>`).join("")}<button class="s" data-k="del">стереть</button><button data-k="0">0</button><button class="s" data-k="back">назад</button></div>`; }
 function render(){
   const b = $("box");
@@ -98,9 +98,9 @@ function key(k){
   if(S.busy) return;
   if(k === "back"){ if(S.reg){ S.sent = false; S.pin = ""; render(); return; } S.view = S.sel && S.sel.group === "mgr" ? "mgr" : "list"; S.pin = ""; S.msg = ""; render(); return; }
   if(k === "del"){ S.pin = S.pin.slice(0, -1); render(); return; }
-  if(S.pin.length >= 4) return;
+  const need = S.reg ? 6 : 4; if(S.pin.length >= need) return;
   S.pin += k; render();
-  if(S.pin.length === 4) S.reg ? regDo() : login();
+  if(S.pin.length === need) S.reg ? regDo() : login();
 }
 try{ const q = new URLSearchParams(location.search).get("to"); if(q === "banket") sessionStorage.setItem("spl_pc_to", "banket"); else if(q === "main") sessionStorage.removeItem("spl_pc_to"); }catch(_){}
 async function login(){ /* j - let, может прийти из памяти */
