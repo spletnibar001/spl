@@ -1,4 +1,4 @@
-<!-- сборка 104 · 11.11.2026 -->
+<!-- сборка 105 · 11.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -2609,7 +2609,22 @@ async function archiveEmployee(id, undo){
 
 /* ================= отрисовка ================= */
 async function refresh(){ await loadAll(); render(); }
+/* Пока курсор стоит в поле таблицы (шаги, суммы), перерисовку придерживаем.
+   11.11.2026: поле сохраняется по «change», ответ сервера приходил уже тогда,
+   когда человек печатал в соседнем поле, и render() стирал набранное.
+   Данные при этом обновляются как раньше - откладывается только отрисовка. */
+let renderHeld = false;
+function isWkField(el){ return !!(el && el.classList && el.classList.contains("wk-inp")); }
+document.addEventListener("focusout", e=>{
+  if(!isWkField(e.target)) return;
+  setTimeout(()=>{                       // даём фокусу перейти в соседнее поле
+    if(isWkField(document.activeElement)) return;
+    if(renderHeld) render();
+  }, 150);
+});
 function render(){
+  if(isWkField(document.activeElement)){ renderHeld = true; return; }
+  renderHeld = false;
   const weekKey = iso(viewStart);
   const days = Array.from({length:7},(_,i)=>addDays(viewStart,i));
   const locked = isApproved(weekKey);
