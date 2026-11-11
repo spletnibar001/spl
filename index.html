@@ -1,4 +1,4 @@
-<!-- сборка 103 · 10.11.2026 -->
+<!-- сборка 104 · 11.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -2933,12 +2933,16 @@ function render(){
           // уже работает с местом -> по клику снова открыть выбор (можно сменить/снять/неявка)
           openPlace(e, ds, sh.place); return;
         }
-        // лимит официантов клуба: максимум 4 на день
+        // лимит официантов клуба: 5 в пятницу/субботу, 4 в остальные дни (11.11.2026)
         if(!sh && e.emp_role==="Официант" && e.pos==="club"){
           const cnt = shiftRows.filter(x=>x.work_date===ds && x.status!==2
             && (byId(x.employee_id)||{}).emp_role==="Официант"
             && (byId(x.employee_id)||{}).pos==="club").length;
-          if(cnt >= 4){ showMsg("В клубе уже 4 официанта на этот день — это максимум."); return; }
+          const clubLim = bkIsWeekend(fromIso(ds)) ? 5 : 4;
+          if(cnt >= clubLim){
+            showMsg(`В клубе уже ${clubLim} ${clubLim===5?"официантов":"официанта"} на этот день - это максимум.`);
+            return;
+          }
         }
         // запрет второй смены тому же человеку (tg id) в этот день
         if(!sh){
