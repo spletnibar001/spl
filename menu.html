@@ -117,7 +117,7 @@ de:{mk:'Küche',mb:'Bar',hb:'Getränkekarte',fin:'Endbetrag - Service 0 %, es ko
 tr:{mk:'Yemek',mb:'Bar',hb:'Bar Menüsü',fin:'Bu son tutardır - servis ücreti %0, hiçbir şey eklenmez',h1:'Yemek Menüsü',sub:'',svc:'Servis ücreti %0',ft:'Fiyatlar UZS · Sultanali Mashhadi Cad. No:62',my:'Siparişim',order:'Siparişim',tot:'Toplam',note:'Bu liste garson içindir, sipariş henüz gönderilmedi.',show:'Garsona göster',clear:'Siparişi temizle',empty:'Siparişiniz boş',hint:'Bu ekranı garsona gösterin',chef:'Şef',hot:'Acı',neu:'Yeni'}};
 const ST={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const nav=(navigator.language||'ru').slice(0,2);
-let L=ST.get('sp_lang',LN.some(x=>x[0]===nav)?nav:'uz');if(!LN.some(x=>x[0]===L))L='uz';
+let L=ST.get('sp_lang',LN.some(x=>x[0]===nav)?nav:'en');if(!LN.some(x=>x[0]===L))L='en';
 let cart=ST.get('sp_cart',{});let MODE=location.hash==='#bar'?'b':(location.hash==='#food'?'k':ST.get('sp_mode','k'));
 const BY={};DATA.forEach(s=>s.items.forEach(i=>BY[i.id]=i));
 const fmt=n=>n.toLocaleString('ru-RU').replace(/,/g,' ');
