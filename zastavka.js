@@ -1,4 +1,4 @@
-/* SPLETNI - заставка хоста: 3 варианта (A скважина, B часы, C неон), случайно при каждом включении.
+/* SPLETNI - заставка хоста: варианты A скважина и C неон чередуются (B часы - белая, с 15.11 не показывается).
    SplSaver.show({ onWake }) - показать; SplSaver.hide() - убрать. Касание/клавиша -> onWake() (там запрос PIN). */
 (function(){
 const KEY = "M441.0 434.8C441.0 434.1 448.2 405.8 457.0 372.1C465.8 338.3 472.8 310.6 472.7 310.5C470.1 309.4 462.7 303.4 458.7 299.0C448.6 288.2 444.0 276.0 444.0 260.5C444.0 244.2 449.1 231.9 460.5 220.5C471.8 209.2 484.2 204.0 500.0 204.0C515.8 204.0 528.2 209.2 539.5 220.5C550.9 231.9 556.0 244.2 556.0 260.5C556.0 276.0 551.4 288.2 541.3 299.0C537.3 303.4 529.9 309.4 527.3 310.5C527.2 310.6 534.2 338.3 543.0 372.1C551.8 405.8 559.0 434.1 559.0 434.8C559.0 435.7 546.5 436.0 500.0 436.0C453.5 436.0 441.0 435.7 441.0 434.8Z";
@@ -62,7 +62,8 @@ function upd(){ if (!el) return; const d = new Date(), h = pad(d.getHours()), m 
   el.querySelectorAll("[data-f=a]").forEach(x => x.innerHTML = `${h}<i>:</i>${m} · ${WD[d.getDay()].toUpperCase()}`);
   el.querySelectorAll("[data-f=b]").forEach(x => x.innerHTML = `${h}<i>:</i>${m}`);
   el.querySelectorAll("[data-f=d]").forEach(x => x.textContent = `${WD[d.getDay()]}, ${d.getDate()} ${MON[d.getMonth()]}`); }
-function pick(){ const all = ["a","b","c"].filter(v => v !== last); return all[Math.floor(Math.random()*all.length)]; }
+function pick(){ const all = ["a","c"].filter(v => v !== last);   // 15.11: белая «B Часы» убрана из показа по просьбе Изольды (код оставлен)
+  return all[Math.floor(Math.random()*all.length)]; }
 window.SplSaver = {
   show(opt){ opt = opt || {}; if (el) return;
     if (!document.getElementById("splsCss")){ const s = document.createElement("style"); s.id = "splsCss"; s.textContent = css; document.head.appendChild(s); }
