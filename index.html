@@ -1,4 +1,4 @@
-<!-- сборка 105 · 11.11.2026 -->
+<!-- сборка 106 · 14.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -5494,7 +5494,7 @@ function bkRenderKaraoke(){
   const cab=Z("cabin");
   if(cab){
     html+=`<div class="bk-panel"><div class="bk-zone-lbl"><span>Кабинки ${bkStaffHead("cabin")}</span><span class="sub">${bkDepSub("депозиты "+(weekend?"пт/сб":"будни"))}</span></div>
-      <div class="bk-kab">${cab.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
+      <div class="bk-cabrow">${cab.tables.map(t=>bkTableCell(t,weekend)).join("")}</div></div>`;
   }
   // Малый зал
   const sm=Z("small");
