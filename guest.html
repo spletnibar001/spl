@@ -1135,7 +1135,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 18.11 · сборка 26";
+const GUEST_VERSION = "v 18.11 · сборка 27";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -2087,6 +2087,7 @@ async function renderBook(force){
     const {data} = await SB.from("bookings")
       .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
       .eq("created_by", Number(GUEST.tg_id))
+      .eq("src","guest")   // сборка 27: брони, созданные сотрудником в рабочей программе, гостю не показываем
       .in("status",["request","booked","cancelled"])
       .order("id",{ascending:false}).limit(20);
     last = mybkPickRelevant(data||[]);
@@ -2160,7 +2161,7 @@ function bkfCancelOwnPrompt(bookingId, st){
         cancelled_by_name: "Гость" + (GUEST && GUEST.name ? (" · "+GUEST.name) : ""),
         cancelled_at: new Date().toISOString()
       };
-      const { data:updRows, error } = await SB.from("bookings").update(upd).eq("id", bookingId).eq("created_by", Number(GUEST.tg_id)).select("id");
+      const { data:updRows, error } = await SB.from("bookings").update(upd).eq("id", bookingId).eq("created_by", Number(GUEST.tg_id)).eq("src","guest").select("id");
       if(error){ document.getElementById("bk-co-msg").textContent = error.message; this.disabled=false; this.textContent=t('bk_cancel_confirm'); return; }
       if(!updRows || !updRows.length){
         document.getElementById("bk-co-msg").textContent = t('bk_cancel_fail');
@@ -2371,6 +2372,7 @@ async function bkfShowForm(){
     try{
       const {data} = await SB.from("bookings").select("phone,created_at")
         .eq("created_by", Number(GUEST.tg_id))
+        .eq("src","guest")   // сборка 27: брони, созданные сотрудником в рабочей программе, гостю не показываем
         .not("phone","is",null)
         .order("created_at",{ascending:false}).limit(1);
       if(data && data.length && data[0].phone) BK_STATE.phone = data[0].phone;
@@ -2675,7 +2677,8 @@ async function bkfSubmit(){
       deposit_amount: depAmount,
       is_paid: false,
       created_by: Number(GUEST.tg_id),
-      created_by_name: GUEST.name
+      created_by_name: GUEST.name,
+      src: "guest"
     };
     const { data:ins, error } = await SB.from("bookings").insert(row).select("id").single();
     if(error){ bkfMsg(error.message); btn.disabled=false; btn.textContent=t('bk_submit'); return; }
@@ -2912,6 +2915,7 @@ async function mybkRefresh(){
     const {data} = await SB.from("bookings")
       .select("id,status,business_date,arrive_at,table_id,deposit_amount,guests_count,note,guest_name,cancel_reason")
       .eq("created_by", Number(GUEST.tg_id))
+      .eq("src","guest")   // сборка 27: брони, созданные сотрудником в рабочей программе, гостю не показываем
       .in("status",["request","booked","cancelled"])
       .order("id",{ascending:false}).limit(20);
     last = mybkPickRelevant(data||[]);
