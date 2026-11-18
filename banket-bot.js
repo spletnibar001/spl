@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 2 · 18.11.2026 - количество подарка по числу гостей
    Сборка 1 · 18.11.2026 - тестовый доступ: раздел видят только тестеры (bq_bot_testers) или все, когда
    в программе банкетов включено «Заявки гостей на банкет».
    3 шага: гости, дата и повод -> зал или кабинка -> предложение (GOLD / PLATINUM / DIAMOND или «своё меню»).
@@ -100,7 +101,8 @@ function gifts(sum){
     if (x.days === "wd" && d && we) return false;
     if (x.type === "guests") return BQ.g >= (+x.at || 0);
     if (x.type === "sum") return (+x.at || 0) === 0 || (sum != null && sum >= +x.at);
-    return false; }).map(x => x.gift);
+    return false; }).map(x => { const q = +x.qty > 0 ? Math.max(1, Math.ceil(+x.qty * BQ.g / ((BQ.info && BQ.info.packBase) || 10) - 1e-9)) : 0;
+      return x.gift + (q ? " " + q + " " + (x.unit || "шт") : ""); });   // 18.11: подарок умножается по числу гостей
 }
 const giftTxt = list => list.map(x => String(x).trim().replace(/^./, c => c.toLowerCase())).join(", ");
 
