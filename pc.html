@@ -115,11 +115,11 @@ async function login(){ /* j - let, может прийти из памяти */
   }
   if(!j.token){ S.pin = ""; S.msg = j.error || "Ошибка входа"; S.msgCls = "bad"; render(); return; }
   try{ if(S.sel.group === "host") sessionStorage.setItem("spl_pc_last_acc", S.sel.acc); else sessionStorage.removeItem("spl_pc_last_acc"); }catch(_){}
-  const me = { token:j.token, role:j.role, name:j.name, tg_id:j.tg_id, pc:j.acc || j.pc, who:j.who };
+  const me = { token:j.token, role:j.role, name:j.name, tg_id:j.tg_id, pc:j.acc || j.pc, who:j.who, bq:!!j.bq };
   if(S.sel.group === "host" && !j.offline){ try{ const all = offGet(); all[S.sel.acc] = { h: await offHash(S.sel.acc, S.pin), me }; localStorage.setItem("spl_pc_off", JSON.stringify(all)); }catch(_){} }
   try{ sessionStorage.setItem("spl_tablet_me", JSON.stringify(me)); localStorage.removeItem("spl_tablet_me"); }catch(_){}
   let to = ""; try{ to = sessionStorage.getItem("spl_pc_to") || ""; }catch(_){}
-  if(to === "banket" && ["phone","upr","dir","admin"].includes(j.role)){ location.replace("banket.html"); return; }   // вход «только банкеты» (banketi.html)
+  if(to === "banket" && (["phone","upr","dir","admin"].includes(j.role) || j.bq)){ location.replace("banket.html"); return; }   // вход «только банкеты» (banketi.html)
   location.replace("index.html#tablet&pc");
 }
 async function regSend(){ S.msg = "Отправляю…"; render(); const j = await api({ action:"register_send" });
