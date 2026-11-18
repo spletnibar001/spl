@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 3 · 18.11.2026 - состав пакета пропорционально гостям
    Сборка 2 · 18.11.2026 - количество подарка по числу гостей
    Сборка 1 · 18.11.2026 - тестовый доступ: раздел видят только тестеры (bq_bot_testers) или все, когда
    в программе банкетов включено «Заявки гостей на банкет».
@@ -85,6 +86,9 @@ async function rpc(action, args){
 const P = id => ((BQ.info && BQ.info.places) || []).find(p => p.id === id);
 const K = id => ((BQ.info && BQ.info.packs) || []).find(p => p.id === id);
 const mult = () => Math.max(1, Math.ceil(BQ.g / ((BQ.info && BQ.info.packBase) || 10)));
+/* сборка 3: состав пакета - пропорционально гостям, вверх (как в программе банкетов) */
+function packQty(qty, g){ const q = +qty || 0; if (!(q > 0)) return 0; const base = (BQ.info && BQ.info.packBase) || 10, step = q % 1 === 0 ? 1 : 0.5;
+  return Math.max(step, Math.ceil(q * (+g || 1) / base / step - 1e-9) * step); }
 function placeState(p){
   if (BQ.g > (+p.max || 999)) return "до " + p.max + " " + pl(+p.max, "гостя", "гостей", "гостей");
   if (BQ.g < (+p.min || 0)) return "от " + p.min + " " + pl(+p.min, "гостя", "гостей", "гостей");
@@ -172,8 +176,8 @@ function view3(){
         <div class="t"><b class="${cls(x.title)}">${esc(x.title)}</b><span>${fmt(x.price)} <small>на гостя</small></span></div>
         ${x.descr ? `<div class="ds">${esc(x.descr)}</div>` : ""}<div class="it">${esc(short(x))}</div>
         <div class="lk" data-a="comp" data-v="${esc(x.id)}">${BQ.open === x.id ? "Скрыть состав" : "Весь состав на " + BQ.g + " " + pl(BQ.g, "гостя", "гостей", "гостей")}</div>
-        ${BQ.open === x.id ? `<div class="bq-comp">${(x.items || []).map(i => `<div><span>${esc(i.n)}</span><span>${fmt1((+i.q || 0) * k)} ${esc(i.u || "")}</span></div>`).join("")}
-          <div class="bq-hint">Количество - на ${BQ.g} ${pl(BQ.g, "гостя", "гостей", "гостей")} (состав рассчитан на каждые ${base}).</div></div>` : ""}</div>`).join("")}
+        ${BQ.open === x.id ? `<div class="bq-comp">${(x.items || []).map(i => `<div><span>${esc(i.n)}</span><span>${fmt1(packQty(i.q, BQ.g))} ${esc(i.u || "")}</span></div>`).join("")}
+          <div class="bq-hint">Количество - на ${BQ.g} ${pl(BQ.g, "гостя", "гостей", "гостей")}.</div></div>` : ""}</div>`).join("")}
     <div class="bq-pk ${BQ.own ? "on" : ""}" data-a="own"><div class="t"><b style="font-size:14px;letter-spacing:0">Своё меню</b></div><div class="ds" style="margin:2px 0 0">соберём вместе с менеджером</div></div>
     <div class="bq-h">Контакты</div>
     <input class="bk-input" id="bq-name" placeholder="Имя" value="${esc(BQ.name)}" style="margin-bottom:8px">
