@@ -430,6 +430,7 @@ textarea.bk-input{resize:vertical;min-height:48px}
   <div class="section" id="sec-menu"></div>
   <!-- БРОНИРОВАНИЕ -->
   <div class="section" id="sec-book"></div>
+  <div class="section" id="sec-banket"></div>
   <div class="section" id="sec-dress"></div>
   <!-- КАК ДОБРАТЬСЯ -->
   <div class="section" id="sec-location"></div>
@@ -1134,7 +1135,7 @@ const CLUB_ZONES = [
 // ============ ВЕРСИЯ ============
 // Виден внизу главной страницы. Если там не последний номер — открылась
 // старая версия из кэша (обновите страницу / очистите кэш Telegram).
-const GUEST_VERSION = "v 10.11 · сборка 25";
+const GUEST_VERSION = "v 18.11 · сборка 26";
 (function(){
   function showGuestVer(){
     if(document.getElementById("guest-ver")) return;
@@ -1570,6 +1571,7 @@ function renderHome(){
       </div>
     </div>
     <div id="bkhome-slot"></div>
+    <div id="bq-home-slot"></div>
     <div class="venue-box">
       <div class="venue-prompt">${t('venue_prompt')}</div>
       <div class="venue-switch" id="venue-switch">
@@ -1626,6 +1628,7 @@ function renderHome(){
     VENUE=b.dataset.vgo; ZONE_VENUE=b.dataset.vgo; go("zones");
   });
   el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  if(window.BqPaintHome) window.BqPaintHome();   // плашка «Банкет» (сборка 26, тестерам)
   // баннер статуса брони рисует mybkRefresh() (новая система с крестиком) — старый вызов убран
 }
 
@@ -3069,7 +3072,7 @@ function renderNav(){
 function go(id){
   CUR = id;
   document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-  const map = {home:"sec-home",songs:"sec-songs",zones:"sec-zones",menu:"sec-menu",book:"sec-book",dress:"sec-dress",faq:"sec-faq",location:"sec-location",contacts:"sec-contacts"};
+  const map = {home:"sec-home",songs:"sec-songs",zones:"sec-zones",menu:"sec-menu",book:"sec-book",banket:"sec-banket",dress:"sec-dress",faq:"sec-faq",location:"sec-location",contacts:"sec-contacts"};
   document.getElementById(map[id]).classList.add("active");
   renderNav();
   window.scrollTo(0,0);
@@ -3079,6 +3082,7 @@ function go(id){
   if(id==="faq"){ if(typeof ZONE_VENUE!=="undefined" && ZONE_VENUE) FAQ_VENUE = ZONE_VENUE;
                   bkfLoadRef().then(renderFaq).catch(()=>renderFaq()); }
   if(id==="songs"){ if(window.PesniOpen) window.PesniOpen(); } else if(window.PesniClose) window.PesniClose();
+  if(id==="banket" && window.BqOpen) window.BqOpen();
 }
 
 // ============ ПЕРЕРИСОВКА ВСЕГО (при смене языка/заведения) ============
@@ -3114,9 +3118,12 @@ renderAll();
 
 </script>
 <script src="pesni.js?v=12"></script>
+<script src="banket-bot.js?v=1"></script>
 <script>
 // «Песни»: тестовый режим - вкладка только у тестовых аккаунтов; открыть сразу по ?tab=songs или приглашению startapp=stol-КОД
 if(window.PesniInit) window.PesniInit();
+// «Банкет» (сборка 26): раздел видят тестеры банкета; открыть сразу по startapp=banket или ?tab=banket
+if(window.BqInit) window.BqInit();
 // «Забронировать снова» из напоминания - сразу форма брони (сборка 18)
 if(typeof BK_REBOOK!=="undefined" && BK_REBOOK) go("book");
 </script>
