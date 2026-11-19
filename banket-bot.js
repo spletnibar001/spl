@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 4 · 19.11.2026 - до 6 фото у зала: точки на карточке, по нажатию - просмотр со свайпом
    Сборка 3 · 18.11.2026 - состав пакета пропорционально гостям
    Сборка 2 · 18.11.2026 - количество подарка по числу гостей
    Сборка 1 · 18.11.2026 - тестовый доступ: раздел видят только тестеры (bq_bot_testers) или все, когда
@@ -49,6 +50,22 @@ const CSS = `
 .bq-pl.on{border:2px solid var(--emerald)}.bq-pl.no{opacity:.38}
 .bq-pl .im{height:78px;background:linear-gradient(135deg,#2a2f37,#1a1d22) center/cover no-repeat;position:relative}
 .bq-pl .im em{position:absolute;right:6px;bottom:6px;font-style:normal;font-size:10px;font-weight:700;background:rgba(0,0,0,.65);border-radius:6px;padding:2px 7px;color:#fff}
+.bq-pl .im .dt{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:4px}
+.bq-pl .im .dt i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.5)}.bq-pl .im .dt i:first-child{background:#fff;width:12px;border-radius:3px}
+.bq-pl .im .nf{position:absolute;left:6px;top:6px;font-size:10px;font-weight:700;background:rgba(0,0,0,.65);border-radius:6px;padding:2px 7px;color:#fff}
+.bq-gal{position:fixed;inset:0;z-index:210;background:#000;display:flex;flex-direction:column;color:#fff}
+.bq-gal .hd{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-size:15px;font-weight:700}
+.bq-gal .hd span{font-size:12px;color:#aaa;font-weight:600}
+.bq-gal .ph{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;touch-action:pan-y}
+.bq-gal .ph img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
+.bq-gal .ar{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:20px;font-family:inherit}
+.bq-gal .ar.l{left:10px}.bq-gal .ar.r{right:10px}
+.bq-gal .dt{display:flex;justify-content:center;gap:6px;padding:10px 0}
+.bq-gal .dt i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}.bq-gal .dt i.on{background:#fff;width:18px;border-radius:4px}
+.bq-gal .th{display:flex;gap:6px;padding:0 14px;overflow-x:auto}
+.bq-gal .th button{flex:none;width:54px;height:54px;border-radius:9px;background:#222 center/cover;border:1px solid transparent;opacity:.5;padding:0}
+.bq-gal .th button.on{opacity:1;border:2px solid var(--emerald)}
+.bq-gal .bt{display:flex;flex-direction:column;gap:8px;padding:12px 16px calc(14px + env(safe-area-inset-bottom))}
 .bq-pl .bd{padding:8px 10px 10px}.bq-pl b{font-size:13px;display:block}.bq-pl span{font-size:11px;color:var(--muted);display:block}
 .bq-pl .why{color:#e06464;font-weight:700}
 .bq-pk{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:12px 13px;margin-bottom:9px;text-align:left;color:var(--text);width:100%;font-family:inherit;display:block}
@@ -161,7 +178,7 @@ function view2(){
   return `${steps(2)}<button class="bq-back" data-a="to" data-v="1">← ${BQ.g} ${pl(BQ.g, "гость", "гостя", "гостей")} · ${esc(dLab(BQ.date))}</button>
     <div class="bq-h" style="margin-top:6px">Где проведём</div>
     <div class="bq-pls">${list.map(({ p, why }) => `<button class="bq-pl ${BQ.place === p.id ? "on" : ""} ${why ? "no" : ""}" data-a="place" data-v="${esc(p.id)}" ${why ? "disabled" : ""}>
-      <div class="im" ${p.photo ? `style="background-image:url('${esc(p.photo)}')"` : ""}>${p.video && !why ? `<em data-a="video" data-v="${esc(p.video)}">видео</em>` : ""}</div>
+      ${(() => { const L = phs(p); return `<div class="im" ${L[0] ? `style="background-image:url('${esc(L[0])}')" data-a="gal" data-v="${esc(p.id)}"` : ""}>${L.length > 1 ? `<span class="nf">${L.length} фото</span><span class="dt">${L.map(() => "<i></i>").join("")}</span>` : ""}${p.video && !why ? `<em data-a="video" data-v="${esc(p.video)}">видео</em>` : ""}</div>`; })()}
       <div class="bd"><b>${esc(p.title)}</b><span>до ${p.max} ${pl(+p.max, "гостя", "гостей", "гостей")}${p.about ? " · " + esc(p.about) : ""}</span>${why ? `<span class="why">${esc(why)}</span>` : ""}</div></button>`).join("")}</div>
     <div class="bq-hint">Столы выбирать не нужно - рассадку сделает менеджер.</div>
     <div class="bq-msg" id="bq-msg">${esc(BQ.err)}</div>
@@ -202,6 +219,25 @@ function viewDone(){
     ${tel ? `<a class="bk-submit ghost" style="display:block;text-align:center;text-decoration:none" href="tel:${esc(tel)}">Позвонить: ${esc(BQ.info.phone || tel)}</a>` : ""}
     <button class="bk-submit ghost" data-a="again">Новая заявка</button>`;
 }
+const phs = p => ((p && Array.isArray(p.photos) && p.photos.length) ? p.photos : (p && p.photo ? [p.photo] : [])).filter(Boolean);
+function showGal(id, i){
+  const p = P(id), L = phs(p); if (!L.length) return;
+  let k = i || 0;
+  const d = document.createElement("div"); d.className = "bq-gal";
+  const paint = () => { k = (k % L.length + L.length) % L.length;
+    d.innerHTML = `<div class="hd"><div>${esc(p.title)}</div><span>${k + 1} / ${L.length}</span></div>
+      <div class="ph"><img src="${esc(L[k])}" alt="">${L.length > 1 ? `<button class="ar l" data-g="-1">‹</button><button class="ar r" data-g="1">›</button>` : ""}</div>
+      ${L.length > 1 ? `<div class="dt">${L.map((_, j) => `<i class="${j === k ? "on" : ""}"></i>`).join("")}</div><div class="th">${L.map((u, j) => `<button class="${j === k ? "on" : ""}" data-t="${j}" style="background-image:url('${esc(u)}')"></button>`).join("")}</div>` : ""}
+      <div class="bt">${placeState(p) ? "" : `<button class="bk-submit" data-s="1">Выбрать этот зал</button>`}<button class="bk-submit ghost" data-c="1">Закрыть</button></div>`;
+    d.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { k += +b.dataset.g; paint(); });
+    d.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { k = +b.dataset.t; paint(); });
+    const s = d.querySelector("[data-s]"); if (s) s.onclick = () => { d.remove(); BQ.place = id; BQ.err = ""; haptic(); render(); };
+    d.querySelector("[data-c]").onclick = () => d.remove(); };
+  let x0 = null;
+  d.addEventListener("touchstart", e => { if (e.target.closest(".ph")) x0 = e.touches[0].clientX; }, { passive:true });
+  d.addEventListener("touchend", e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 40 && L.length > 1){ k += dx < 0 ? 1 : -1; paint(); } }, { passive:true });
+  paint(); document.body.appendChild(d);
+}
 function showVideo(url){
   BQ.video = null;
   const d = document.createElement("div"); d.className = "bq-vid";
@@ -228,6 +264,7 @@ function bind(){
   el.querySelectorAll("[data-a]").forEach(b => b.onclick = async ev => {
     const a = b.dataset.a, v = b.dataset.v;
     if (a === "video"){ ev.stopPropagation(); showVideo(v); return; }
+    if (a === "gal"){ ev.stopPropagation(); saveInputs(); showGal(v, 0); return; }
     if (a === "comp"){ ev.stopPropagation(); saveInputs(); BQ.open = BQ.open === v ? null : v; render(); return; }
     saveInputs(); BQ.err = "";
     if (a === "g"){ BQ.g = Math.max(1, Math.min(300, BQ.g + (+v) * (BQ.g >= 20 && Math.abs(+v) === 1 ? 1 : 1))); haptic(); }
