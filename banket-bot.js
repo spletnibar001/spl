@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 8 · 19.11.2026 - напитки и алкоголь в составе пакета внизу
    Сборка 7 · 19.11.2026 - алкоголь в литрах: шаг 0,5 л
    Сборка 6 · 19.11.2026 - алкоголь в пакете округляется обычным образом, не вверх
    Сборка 5 · 19.11.2026 - состав пакета: раздел меню округляется целиком, добавка - блюдам по порядку
@@ -208,7 +209,7 @@ function view3(){
         <div class="t"><b class="${cls(x.title)}">${esc(x.title)}</b><span>${fmt(x.price)} <small>на гостя</small></span></div>
         ${x.descr ? `<div class="ds">${esc(x.descr)}</div>` : ""}<div class="it">${esc(short(x))}</div>
         <div class="lk" data-a="comp" data-v="${esc(x.id)}">${BQ.open === x.id ? "Скрыть состав" : "Весь состав на " + BQ.g + " " + pl(BQ.g, "гостя", "гостей", "гостей")}</div>
-        ${BQ.open === x.id ? `<div class="bq-comp">${(qs => (x.items || []).map((i, n) => `<div><span>${esc(i.n)}</span><span>${fmt1(qs[n])} ${esc(i.u || "")}</span></div>`).join(""))(packQtys(x.items || [], BQ.g))}
+        ${BQ.open === x.id ? `<div class="bq-comp">${(qs => (x.items || []).map((i, n) => ({ i, q:qs[n] })).sort((a, b) => (+a.i.b || 0) - (+b.i.b || 0)).map(({ i, q }) => `<div><span>${esc(i.n)}</span><span>${fmt1(q)} ${esc(i.u || "")}</span></div>`).join(""))(packQtys(x.items || [], BQ.g))}
           <div class="bq-hint">Количество - на ${BQ.g} ${pl(BQ.g, "гостя", "гостей", "гостей")}.</div></div>` : ""}</div>`).join("")}
     <div class="bq-pk ${BQ.own ? "on" : ""}" data-a="own"><div class="t"><b style="font-size:14px;letter-spacing:0">Своё меню</b></div><div class="ds" style="margin:2px 0 0">соберём вместе с менеджером</div></div>
     <div class="bq-h">Контакты</div>
