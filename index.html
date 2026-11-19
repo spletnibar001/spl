@@ -1,4 +1,4 @@
-<!-- сборка 106 · 14.11.2026 -->
+<!-- сборка 107 · 19.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1524,7 +1524,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 19.11 · сборка 106";
+const APP_VERSION = "v 19.11 · сборка 107";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4675,11 +4675,10 @@ async function startApp(){
     try{ bkInit(); }catch(e){ console.warn("bkInit(phone)",e); }
     return;
   }
-  // компьютер хоста, вход менеджера: только табель (проставка смен), брони скрыты
-  const PC_MGR = PC_MODE && ME.pc === "mgr";
-  if(PC_MGR){ const br = document.getElementById("booking-root"); if(br) br.style.display = "none"; }
+  // 19.11 (сборка 107): менеджер на компьютере хоста работает с бронями так же, как из Telegram.
+  // Раньше на этом компьютере раздел броней менеджеру прятали (только табель) - отменено по решению 19.11.
   // для staff bkInit вызовется внутри startStaffCabinet (после загрузки его карточки)
-  if(!CAP.staff && !PC_MGR){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
+  if(!CAP.staff){ try{ bkInit(); }catch(e){ console.warn("bkInit",e); } }
   if(!CAP.staff){ try{ rcInit(); }catch(e){ console.warn("rcInit",e); } }   // челлендж «3 отзыва»: панель менеджера
   if(CAP.staff){ return startStaffCabinet(); }
   if(!CAP.money) document.querySelectorAll(".money-only").forEach(el=>el.style.display="none");
