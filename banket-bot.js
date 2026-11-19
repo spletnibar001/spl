@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 10 · 19.11.2026 - «Своё меню»: гость сам собирает блюда (шаг 4), подсказки по нормам, состав уходит в заявку
    Сборка 9 · 19.11.2026 - подарок по акции: только за полное число гостей (вниз)
    Сборка 8 · 19.11.2026 - напитки и алкоголь в составе пакета внизу
    Сборка 7 · 19.11.2026 - алкоголь в литрах: шаг 0,5 л
@@ -15,7 +16,7 @@
    Использует из guest.html: SB, guestAuth(), go(), esc(), PHONE_KAR. */
 (function(){
 "use strict";
-const BQ = { info:null, step:1, g:10, date:"", time:"19:00", occ:"", place:"", pack:"", own:false,
+const BQ = { info:null, step:1, g:10, date:"", time:"19:00", occ:"", place:"", pack:"", own:false, sel:{}, msec:0,
   name:"", phone:"", wish:"", busy:[], busyDate:"", done:null, err:"", sending:false, open:null, video:null };
 const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
 const WD = ["вс","пн","вт","ср","чт","пт","сб"];
@@ -94,6 +95,39 @@ const CSS = `
 .bq-mine .s{font-size:12px;color:var(--gold);font-weight:700}
 .bq-vid{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:14px}
 .bq-vid video{max-width:100%;max-height:80vh;border-radius:12px}
+.bq-own{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:12px 13px;margin-bottom:9px}
+.bq-own.on{border:2px solid var(--emerald);padding:11px 12px}
+.bq-own b{font-size:14px;display:block}.bq-own .ds{font-size:12px;color:var(--muted);margin:2px 0 10px}
+.bq-own .bt{display:flex;gap:8px}
+.bq-own .bt button{flex:1;border-radius:11px;padding:10px 6px;font-size:13px;font-weight:700;font-family:inherit;border:1px solid var(--line);background:var(--panel2);color:var(--text)}
+.bq-own .bt button small{display:block;font-weight:500;font-size:11px;margin-top:2px;opacity:.8}
+.bq-own .bt button.go{background:var(--emerald);border-color:var(--emerald);color:#08130d}
+.bq-own .bt button.on{border:2px solid var(--emerald);padding:9px 5px}
+.bq-sec{display:flex;gap:7px;overflow-x:auto;margin:6px -14px 10px;padding:0 14px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.bq-sec::-webkit-scrollbar{display:none}
+.bq-sec button{flex:none;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:18px;padding:8px 12px;font-size:13px;font-family:inherit;white-space:nowrap}
+.bq-sec button.on{border:2px solid var(--emerald);padding:7px 11px;font-weight:700}
+.bq-sec button i{font-style:normal;color:var(--emerald);font-weight:800;margin-left:5px}
+.bq-norm{border:1px solid rgba(201,161,74,.5);background:rgba(201,161,74,.08);border-radius:11px;padding:9px 12px;font-size:13px;line-height:1.45;margin-bottom:10px}
+.bq-norm b{color:#e3c479}
+.bq-dish{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:9px;margin-bottom:8px}
+.bq-dish.on{border:2px solid var(--emerald);padding:8px}
+.bq-dish .im{width:56px;height:56px;border-radius:10px;flex:none;background:linear-gradient(135deg,#2a2f37,#1a1d22) center/cover no-repeat}
+.bq-dish .tx{flex:1;min-width:0}.bq-dish .tx b{display:block;font-size:13.5px;line-height:1.25}.bq-dish .tx span{font-size:12.5px;color:var(--muted)}
+.bq-dish .tx em{font-style:normal;color:var(--text);font-weight:700}
+.bq-ctr{display:flex;align-items:center;gap:6px;flex:none}
+.bq-ctr button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:18px;font-family:inherit;padding:0}
+.bq-ctr b{font-size:14px;min-width:30px;text-align:center;white-space:nowrap}
+.bq-add{flex:none;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;background:var(--panel2);color:var(--text);font-family:inherit}
+.bq-foot{position:sticky;bottom:calc(56px + env(safe-area-inset-bottom));z-index:5;background:rgba(13,15,18,.97);border-top:1px solid var(--line);margin:12px -14px 0;padding:10px 14px 12px}
+.bq-foot .r{display:flex;justify-content:space-between;align-items:center;gap:10px}.bq-foot .r span{font-size:12px;color:var(--muted);line-height:1.4}.bq-foot .r b{font-size:20px;white-space:nowrap}
+.bq-foot .bk-submit{margin-top:8px}
+.bq-ln{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.bq-ln span:last-child{white-space:nowrap;color:var(--muted)}
+.bq-ln.t{font-weight:800;border:0;padding-top:10px;font-size:15px}.bq-ln.t span:last-child{color:var(--text)}
+.bq-gh{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 2px;display:flex;justify-content:space-between;align-items:center}
+.bq-gh button{background:none;border:none;color:var(--emerald);font-size:12px;font-weight:700;font-family:inherit;padding:2px 0}
+.bq-warn{border:1px solid rgba(201,161,74,.5);background:rgba(201,161,74,.08);border-radius:11px;padding:9px 12px;font-size:13px;line-height:1.45;margin-top:10px}
 .bq-back{background:none;border:none;color:var(--muted);font-size:13px;padding:6px 0;font-family:inherit}
 `;
 function injectCss(){ if (document.getElementById("bq-css")) return; const s = document.createElement("style"); s.id = "bq-css"; s.textContent = CSS; document.head.appendChild(s); }
@@ -122,6 +156,81 @@ function packQtys(items, g){
     let left = Math.ceil(ex.reduce((a, e) => a + e, 0) - 1e-9) - fl.reduce((a, e) => a + e, 0);
     ix.forEach((i, n) => { let v = fl[n]; if (left > 0 && ex[n] - fl[n] > 1e-9){ v++; left--; } out[i] = Math.max(st, v * st); }); });
   return out;
+}
+/* ---------- сборка 10: своё меню - гость собирает сам ---------- */
+function loadMenu(){ return new Promise(res => { if (window.BQ_MENU) return res(true);
+  const sc = document.createElement("script"); sc.src = "banket-menu.js?v=1"; sc.onload = () => res(!!window.BQ_MENU); sc.onerror = () => res(false); document.head.appendChild(sc); }); }
+const STRONG = ["Водка", "Виски", "Коньяк и бренди"];
+function catalog(){
+  if (BQ.cat) return BQ.cat;
+  const I = BQ.info || {}, pr = I.prices || {}, ph = I.mphotos || {}, low = x => String(x || "").toLowerCase().replace(/ё/g, "е");
+  const secs = (window.BQ_MENU || []).map(g => ({ t:g.t, bar:g.bar, items:g.items.map(([id, n, p, u]) => ({ ref:"m:" + id, n, u:u || "шт",
+    p: pr[id] != null ? +pr[id] : pr["m:" + id] != null ? +pr["m:" + id] : +p, ph: ph[id] || "" })) }));
+  const menuNames = secs.filter(x => STRONG.includes(x.t)).flatMap(x => x.items.map(i => low(i.n)));
+  const own = (I.own || []).filter(o => !menuNames.some(n => low(o.n).includes(n))).map(o => ({ ref:"c:" + o.id, n:o.n, u:o.u || "шт", p:+o.p || 0, ph:o.photo || "" }));
+  if (own.length){ const at = secs.findIndex(x => x.t === "Лимонады"); secs.splice(at < 0 ? secs.length : at, 0, { t:"Шампанское и напитки", bar:1, items:own }); }
+  const by = {}; secs.forEach((x, si) => x.items.forEach(i => { i.si = si; by[i.ref] = i; }));
+  return (BQ.cat = { secs, by, anyPh: Object.values(by).some(i => i.ph) });   // пока фото блюд не загружены - список без пустых плашек
+}
+const stepOf = it => it.u === "л" ? 0.5 : 1;
+const qtyTxt = (it, q) => fmt1(q) + (it.u === "шт" ? "" : " " + it.u);
+function selLines(){ const C = catalog(); return Object.entries(BQ.sel || {}).filter(([r, q]) => C.by[r] && +q > 0).map(([r, q]) => ({ it:C.by[r], q:+q })); }
+const selSum = () => selLines().reduce((a, l) => a + l.it.p * l.q, 0);
+const secCount = si => selLines().filter(l => l.it.si === si).length;
+/* подсказки количества - те же нормы, что в программе банкетов (Настройки -> Правила) */
+function normFor(t){
+  const N = (BQ.info && BQ.info.norms) || {}, g = BQ.g, T = Math.max(1, Math.ceil(g / (+N.seatsT || 6))), num = (v, d) => v == null || v === "" ? d : +v;
+  const R = [
+    { groups:["Салаты"], need: num(N.salT, 2) * T, txt:["салат", "салата", "салатов"] },
+    { groups:["Холодные закуски"], need: num(N.coldT, 2) * T, txt:["холодную закуску", "холодные закуски", "холодных закусок"] },
+    { groups:["Горячие закуски"], need: num(N.hsT, 2) * T, txt:["горячую закуску", "горячие закуски", "горячих закусок"] },
+    { groups:["Горячие блюда", "Кавказские шашлыки", "Колбаски"], need: Math.ceil(num(N.hotG, 1) * g), txt:["порцию горячего", "порции горячего", "порций горячего"], note:"Сет на компанию заменяет несколько порций." },
+    { groups:["Гарниры"], need: num(N.garT, 2) * T, txt:["гарнир", "гарнира", "гарниров"] },
+    { groups:STRONG, need: Math.round(num(N.strong, 0.25) * g * 2) / 2, litres:true },
+    { groups:["Лимонады"], need: Math.ceil(g / (+N.lemonadeFor || 4)), txt:["графин лимонада", "графина лимонада", "графинов лимонада"] } ];
+  const r = R.find(x => x.groups.includes(t)); if (!r || !(r.need > 0)) return "";
+  const C = catalog(), have = Math.round(selLines().filter(l => r.groups.includes(C.secs[l.it.si].t)).reduce((a, l) => a + l.q, 0) * 10) / 10;
+  const gs = `<b>${g} ${pl(g, "гостя", "гостей", "гостей")}</b>`;
+  const what = r.litres ? `<b>${fmt1(r.need)} л</b> крепкого` : `<b>${r.need} ${pl(r.need, r.txt[0], r.txt[1], r.txt[2])}</b>`;
+  const mine = have ? ` У вас ${fmt1(have)}${r.litres ? " л" : ""}${have < r.need ? " - можно добавить ещё " + fmt1(r.need - have) + (r.litres ? " л" : "") : ""}.` : "";
+  return `<div class="bq-norm">На ${gs} обычно берут ${what}.${mine}${r.note ? " " + r.note : ""}</div>`;
+}
+function ownSteps(){ return `<div class="bq-stp">${[1,2,3,4].map(() => `<div class="on"></div>`).join("")}</div>
+  <div class="bq-stl"><span>Гости и дата</span><span>Зал</span><span>Предложение</span><b>Меню</b></div>`; }
+function view4(){
+  const C = catalog(), si = Math.min(BQ.msec || 0, C.secs.length - 1), S = C.secs[si], n = selLines().length, sum = selSum();
+  return `${ownSteps()}<button class="bq-back" data-a="to" data-v="3">← Предложения</button>
+    <div class="bq-sec" id="bq-sec">${C.secs.map((x, i) => { const c = secCount(i); return `<button class="${i === si ? "on" : ""}" data-a="msec" data-v="${i}">${esc(x.t)}${c ? `<i>${c}</i>` : ""}</button>`; }).join("")}</div>
+    ${normFor(S.t)}
+    ${S.items.map(it => { const q = +(BQ.sel[it.ref] || 0);
+      return `<div class="bq-dish ${q ? "on" : ""}">${C.anyPh ? `<div class="im" ${it.ph ? `style="background-image:url('${esc(it.ph)}')"` : ""}></div>` : ""}
+        <div class="tx"><b>${esc(it.n)}</b><span><em>${fmt(it.p)}</em>${it.u === "шт" ? "" : " · за " + esc(it.u === "л" ? "1 л" : it.u)}</span></div>
+        ${q ? `<div class="bq-ctr"><button data-a="dq" data-v="${esc(it.ref)}" data-d="-1">-</button><b>${esc(qtyTxt(it, q))}</b><button data-a="dq" data-v="${esc(it.ref)}" data-d="1">+</button></div>`
+            : `<button class="bq-add" data-a="dq" data-v="${esc(it.ref)}" data-d="1">Добавить</button>`}</div>`; }).join("")}
+    ${si < C.secs.length - 1 ? `<button class="bk-submit ghost" data-a="msec" data-v="${si + 1}">Дальше - ${esc(C.secs[si + 1].t.toLowerCase())}</button>` : ""}
+    <div class="bq-foot"><div class="r"><span>${n ? "Выбрано " + n + " " + pl(n, "позиция", "позиции", "позиций") + "<br>" + fmt(Math.round(sum / BQ.g)) + " на гостя" : "Пока ничего не выбрано"}</span><b>${n ? fmt(sum) : ""}</b></div>
+      <button class="bk-submit" data-a="review" ${n ? "" : "disabled style=\"opacity:.45\""}>Смотреть мой выбор</button></div>`;
+}
+function view5(){
+  const C = catalog(), L = selLines(), sum = selSum(), gf = gifts(sum), p = P(BQ.place), dep = p && p.kind !== "hall" ? +p.dep || 0 : 0;
+  const groups = C.secs.map((x, i) => ({ x, i, l:L.filter(z => z.it.si === i) })).filter(z => z.l.length);
+  return `${ownSteps()}<button class="bq-back" data-a="to" data-v="4">← Добавить или убрать блюда</button>
+    <div class="bq-h" style="margin-top:6px">Ваш банкет</div>
+    <div class="info-card" style="padding:10px 14px;font-size:13px;line-height:1.55">${esc(dLab(BQ.date))}, ${esc(BQ.time)} · ${BQ.g} ${pl(BQ.g, "гость", "гостя", "гостей")}<br>${esc(p ? p.title : "")}${BQ.occ ? " · " + esc(BQ.occ) : ""}</div>
+    <div class="info-card" style="padding:4px 14px 10px">
+      ${groups.map(z => `<div class="bq-gh"><span>${esc(z.x.t)}</span><button data-a="msecgo" data-v="${z.i}">изменить</button></div>
+        ${z.l.map(({ it, q }) => `<div class="bq-ln"><span>${esc(it.n)} × ${esc(qtyTxt(it, q))}</span><span>${fmt(it.p * q)}</span></div>`).join("")}`).join("")}
+      <div class="bq-ln t"><span>Итого</span><span>${fmt(sum)} сум</span></div>
+      <div class="bq-hint" style="margin-top:0">${fmt(Math.round(sum / BQ.g))} на гостя${(+BQ.info.servicePct || 0) ? " · обслуживание " + BQ.info.servicePct + "%" : ""}</div></div>
+    ${dep && sum < dep ? `<div class="bq-warn">Минимальная сумма заказа за «${esc(p.title)}» - <b>${fmt(dep)}</b>. Заявку можно отправить и так - менеджер подскажет, что добавить.</div>` : ""}
+    ${gf.length ? `<div class="bq-gift">Подарок вашей компании - <b>${esc(giftTxt(gf))}</b></div>` : ""}
+    <div class="bq-h">Контакты</div>
+    <input class="bk-input" id="bq-name" placeholder="Имя" value="${esc(BQ.name)}" style="margin-bottom:8px">
+    <input class="bk-input" id="bq-phone" type="tel" placeholder="+998 __ ___ __ __" value="${esc(BQ.phone)}" style="margin-bottom:8px">
+    <textarea class="bk-input" id="bq-wish" rows="2" placeholder="Пожелания (необязательно)">${esc(BQ.wish)}</textarea>
+    <div class="bq-hint">Расчёт предварительный. Менеджер проверит заявку и пришлёт точный расчёт с депозитом.</div>
+    <div class="bq-msg" id="bq-msg">${esc(BQ.err)}</div>
+    <button class="bk-submit" data-a="send" ${BQ.sending ? "disabled" : ""}>${BQ.sending ? "Отправляю…" : "Отправить заявку"}</button>`;
 }
 function placeState(p){
   if (BQ.g > (+p.max || 999)) return "до " + p.max + " " + pl(+p.max, "гостя", "гостей", "гостей");
@@ -164,7 +273,9 @@ function render(){
   injectCss();
   const el = sec(); if (!el) return;
   if (!BQ.info){ el.innerHTML = `<div class="info-card">Загружаю…</div>`; return; }
-  el.innerHTML = BQ.done ? viewDone() : BQ.step === 1 ? view1() : BQ.step === 2 ? view2() : view3();
+  const sl = document.getElementById("bq-sec"), keep = sl ? sl.scrollLeft : null;
+  el.innerHTML = BQ.done ? viewDone() : BQ.step === 1 ? view1() : BQ.step === 2 ? view2() : BQ.step === 4 && window.BQ_MENU ? view4() : BQ.step === 5 && window.BQ_MENU ? view5() : view3();
+  const s2 = document.getElementById("bq-sec"); if (s2){ if (keep != null && !BQ.secJump) s2.scrollLeft = keep; else { const on = s2.querySelector(".on"); if (on) s2.scrollLeft = Math.max(0, on.offsetLeft - 60); } BQ.secJump = false; }
   bind();
   if (BQ.video) showVideo(BQ.video);
 }
@@ -203,7 +314,8 @@ function view2(){
 }
 function view3(){
   const packs = BQ.info.packs || [], k = mult(), base = (BQ.info.packBase || 10), cls = t => /gold/i.test(t) ? "bq-g" : /plat/i.test(t) ? "bq-p" : /diam/i.test(t) ? "bq-d" : "";
-  const pk = K(BQ.pack), sum = pk ? (+pk.price || 0) * BQ.g : null, gf = gifts(sum);
+  const self = BQ.own === "self", nSel = self && window.BQ_MENU ? selLines().length : 0;
+  const pk = K(BQ.pack), sum = pk ? (+pk.price || 0) * BQ.g : nSel ? selSum() : null, gf = gifts(sum);
   const short = x => (x.items || []).slice(0, 7).map(i => i.n).join(", ") + ((x.items || []).length > 7 ? "…" : "");
   return `${steps(3)}<button class="bq-back" data-a="to" data-v="2">← ${esc(P(BQ.place) ? P(BQ.place).title : "зал")} · ${BQ.g} ${pl(BQ.g, "гость", "гостя", "гостей")}</button>
     ${packs.map(x => `<div class="bq-pk ${BQ.pack === x.id ? "on" : ""}" data-a="pack" data-v="${esc(x.id)}">
@@ -212,18 +324,21 @@ function view3(){
         <div class="lk" data-a="comp" data-v="${esc(x.id)}">${BQ.open === x.id ? "Скрыть состав" : "Весь состав на " + BQ.g + " " + pl(BQ.g, "гостя", "гостей", "гостей")}</div>
         ${BQ.open === x.id ? `<div class="bq-comp">${(qs => (x.items || []).map((i, n) => ({ i, q:qs[n] })).sort((a, b) => (+a.i.b || 0) - (+b.i.b || 0)).map(({ i, q }) => `<div><span>${esc(i.n)}</span><span>${fmt1(q)} ${esc(i.u || "")}</span></div>`).join(""))(packQtys(x.items || [], BQ.g))}
           <div class="bq-hint">Количество - на ${BQ.g} ${pl(BQ.g, "гостя", "гостей", "гостей")}.</div></div>` : ""}</div>`).join("")}
-    <div class="bq-pk ${BQ.own ? "on" : ""}" data-a="own"><div class="t"><b style="font-size:14px;letter-spacing:0">Своё меню</b></div><div class="ds" style="margin:2px 0 0">соберём вместе с менеджером</div></div>
+    <div class="bq-own ${BQ.own ? "on" : ""}"><b>Своё меню</b>
+      <div class="ds">${nSel ? "Вы собрали " + nSel + " " + pl(nSel, "позицию", "позиции", "позиций") + " на " + fmt(selSum()) + " сум" : "Выберите блюда сами или оставьте это менеджеру"}</div>
+      <div class="bt"><button class="${nSel ? "on" : "go"}" data-a="ownself">${nSel ? "Изменить меню" : "Собрать самому"}<small>${nSel ? "добавить или убрать блюда" : "выбрать блюда из меню"}</small></button>
+        <button class="${BQ.own === true ? "on" : ""}" data-a="own">С менеджером<small>позвоним и соберём</small></button></div></div>
     <div class="bq-h">Контакты</div>
     <input class="bk-input" id="bq-name" placeholder="Имя" value="${esc(BQ.name)}" style="margin-bottom:8px">
     <input class="bk-input" id="bq-phone" type="tel" placeholder="+998 __ ___ __ __" value="${esc(BQ.phone)}" style="margin-bottom:8px">
     <textarea class="bk-input" id="bq-wish" rows="2" placeholder="Пожелания (необязательно)">${esc(BQ.wish)}</textarea>
-    <div class="bq-sum"><div class="r"><span>${pk ? BQ.g + " × " + fmt(pk.price) : BQ.own ? "Своё меню" : "Выберите предложение"}</span><b>${pk ? fmt(sum) + " сум" : BQ.own ? "расчёт пришлёт менеджер" : ""}</b></div>
+    <div class="bq-sum"><div class="r"><span>${pk ? BQ.g + " × " + fmt(pk.price) : nSel ? "Своё меню · " + nSel + " " + pl(nSel, "позиция", "позиции", "позиций") : BQ.own ? "Своё меню" : "Выберите предложение"}</span><b>${pk || nSel ? fmt(sum) + " сум" : BQ.own ? "расчёт пришлёт менеджер" : ""}</b></div>
       <div class="bq-hint">${(+BQ.info.servicePct || 0) ? "Обслуживание " + BQ.info.servicePct + "%" : "Обслуживание 0%"}${gf.length ? " · " + esc(giftTxt(gf)) + " - в подарок" : ""}. Итог предварительный - точный расчёт пришлёт менеджер.</div></div>
     <div class="bq-msg" id="bq-msg">${esc(BQ.err)}</div>
     <button class="bk-submit" data-a="send" ${BQ.sending ? "disabled" : ""}>${BQ.sending ? "Отправляю…" : "Отправить заявку"}</button>`;
 }
 function viewDone(){
-  const x = BQ.done, pk = K(x.pack), p = P(x.place), sum = pk ? (+pk.price || 0) * x.g : null, gf = gifts(sum), tel = (BQ.info.phone || "").replace(/[^\d+]/g, "") || (typeof PHONE_KAR !== "undefined" ? PHONE_KAR : "");
+  const x = BQ.done, pk = K(x.pack), p = P(x.place), sum = pk ? (+pk.price || 0) * x.g : x.sum || null, gf = gifts(sum), tel = (BQ.info.phone || "").replace(/[^\d+]/g, "") || (typeof PHONE_KAR !== "undefined" ? PHONE_KAR : "");
   return `<div class="bq-ok"><div class="ring"></div><b>Заявка отправлена</b><div class="bq-id">ID ${esc(x.code)}</div>
       <p>Менеджер свяжется с вами и пришлёт расчёт сюда, в бот. Дата закрепляется после депозита ${BQ.info.depositPct || 10}%.</p></div>
     <div class="info-card" style="padding:6px 14px">
@@ -231,7 +346,7 @@ function viewDone(){
       <div class="bq-kv"><span>Когда</span><b>${esc(dLab(x.date))} · ${esc(x.time)}</b></div>
       <div class="bq-kv"><span>Гостей</span><b>${x.g}</b></div>
       <div class="bq-kv"><span>Где</span><b>${esc(p ? p.title : "")}</b></div>
-      <div class="bq-kv"><span>Предложение</span><b>${pk ? esc(pk.title) + " · ≈ " + fmt(sum) : "своё меню"}</b></div>
+      <div class="bq-kv"><span>Предложение</span><b>${pk ? esc(pk.title) + " · ≈ " + fmt(sum) : x.n ? "своё меню · " + x.n + " " + pl(x.n, "позиция", "позиции", "позиций") + " · ≈ " + fmt(sum) : "своё меню"}</b></div>
       ${gf.length ? `<div class="bq-kv"><span>Подарки</span><b>${esc(giftTxt(gf))}</b></div>` : ""}</div>
     ${tel ? `<a class="bk-submit ghost" style="display:block;text-align:center;text-decoration:none" href="tel:${esc(tel)}">Позвонить: ${esc(BQ.info.phone || tel)}</a>` : ""}
     <button class="bk-submit ghost" data-a="again">Новая заявка</button>`;
@@ -298,22 +413,31 @@ function bind(){
     else if (a === "next2"){ if (!BQ.place){ BQ.err = "Выберите зал или кабинку"; render(); return; } BQ.step = 3; window.scrollTo(0, 0); }
     else if (a === "pack"){ BQ.pack = v; BQ.own = false; haptic(); }
     else if (a === "own"){ BQ.own = true; BQ.pack = ""; haptic(); }
+    else if (a === "ownself"){ haptic(); if (!(await loadMenu())){ BQ.err = "Меню не загрузилось - проверьте интернет и попробуйте ещё раз"; render(); return; }
+      BQ.own = "self"; BQ.pack = ""; BQ.step = 4; BQ.secJump = true; window.scrollTo(0, 0); }
+    else if (a === "msec" || a === "msecgo"){ BQ.msec = +v; BQ.step = 4; BQ.secJump = true; window.scrollTo(0, 0); }
+    else if (a === "dq"){ const it = catalog().by[v]; if (it){ const st = stepOf(it), q = Math.max(0, Math.min(300, (+BQ.sel[v] || 0) + (+b.dataset.d) * st)); if (q) BQ.sel[v] = q; else delete BQ.sel[v]; haptic(); } }
+    else if (a === "review"){ if (!selLines().length) return; BQ.step = 5; window.scrollTo(0, 0); }
     else if (a === "send"){ await send(); return; }
-    else if (a === "again"){ BQ.done = null; BQ.step = 1; BQ.place = ""; BQ.pack = ""; BQ.own = false; BQ.wish = ""; window.scrollTo(0, 0); }
+    else if (a === "again"){ BQ.done = null; BQ.step = 1; BQ.place = ""; BQ.pack = ""; BQ.own = false; BQ.wish = ""; BQ.sel = {}; BQ.msec = 0; window.scrollTo(0, 0); }
     render();
   });
 }
 async function send(){
   if (BQ.sending) return;
   if (!BQ.pack && !BQ.own){ BQ.err = "Выберите предложение или «Своё меню»"; render(); return; }
+  if (BQ.own === "self" && !BQ.pack && !(window.BQ_MENU && selLines().length)){ BQ.err = "Вы ещё не выбрали блюда - нажмите «Собрать самому» или «С менеджером»"; render(); return; }
   if ((BQ.name || "").trim().length < 2){ BQ.err = "Укажите имя"; render(); return; }
   if ((BQ.phone || "").replace(/\D/g, "").length < 9){ BQ.err = "Укажите телефон"; render(); return; }
   BQ.sending = true; render();
-  const d = await rpc("request", { name:BQ.name, phone:BQ.phone, date:BQ.date, time:BQ.time, guests:String(BQ.g), place:BQ.place, occ:BQ.occ, pack:BQ.pack || "", wish:BQ.wish });
+  const self = BQ.own === "self" && !BQ.pack && window.BQ_MENU, L = self ? selLines() : [], extra = {}; L.forEach(l => extra[l.it.ref] = l.q);
+  const sumOwn = self ? selSum() : 0;
+  const d = await rpc("request", Object.assign({ name:BQ.name, phone:BQ.phone, date:BQ.date, time:BQ.time, guests:String(BQ.g), place:BQ.place, occ:BQ.occ, pack:BQ.pack || "", wish:BQ.wish }, L.length ? { extra } : {}));
   BQ.sending = false;
   if (!d || !d.ok){ BQ.err = (d && d.error) || "Не получилось отправить - попробуйте ещё раз"; render(); return; }
   haptic("success");
-  BQ.done = { code:d.code, pack:BQ.pack, place:BQ.place, g:BQ.g, date:BQ.date, time:BQ.time, occ:BQ.occ };
+  BQ.done = { code:d.code, pack:BQ.pack, place:BQ.place, g:BQ.g, date:BQ.date, time:BQ.time, occ:BQ.occ, n:L.length, sum:sumOwn };
+  BQ.sel = {}; BQ.msec = 0;
   render(); window.scrollTo(0, 0);
   const i = await rpc("info"); if (i && i.visible) BQ.info = i;
 }
