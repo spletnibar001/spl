@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 5 · 19.11.2026 - состав пакета: раздел меню округляется целиком, добавка - блюдам по порядку
    Сборка 4 · 19.11.2026 - до 6 фото у зала: точки на карточке, по нажатию - просмотр со свайпом
    Сборка 3 · 18.11.2026 - состав пакета пропорционально гостям
    Сборка 2 · 18.11.2026 - количество подарка по числу гостей
@@ -106,6 +107,16 @@ const mult = () => Math.max(1, Math.ceil(BQ.g / ((BQ.info && BQ.info.packBase) |
 /* сборка 3: состав пакета - пропорционально гостям, вверх (как в программе банкетов) */
 function packQty(qty, g){ const q = +qty || 0; if (!(q > 0)) return 0; const base = (BQ.info && BQ.info.packBase) || 10, step = q % 1 === 0 ? 1 : 0.5;
   return Math.max(step, Math.ceil(q * (+g || 1) / base / step - 1e-9) * step); }
+/* сборка 5: как в программе банкетов (сборка 60) - округляем раздел целиком, добавка по порядку в пакете */
+function packQtys(items, g){
+  const base = (BQ.info && BQ.info.packBase) || 10, k = (+g || 1) / base, out = items.map(() => 0), G = new Map();
+  items.forEach((r, i) => { const q = +r.q || 0; if (!(q > 0)) return; const key = r.g || "#" + i; if (!G.has(key)) G.set(key, []); G.get(key).push(i); });
+  G.forEach(ix => { const st = ix.every(i => (+items[i].q) % 1 === 0) ? 1 : 0.5;
+    const ex = ix.map(i => (+items[i].q) * k / st), fl = ex.map(e => Math.floor(e + 1e-9));
+    let left = Math.ceil(ex.reduce((a, e) => a + e, 0) - 1e-9) - fl.reduce((a, e) => a + e, 0);
+    ix.forEach((i, n) => { let v = fl[n]; if (left > 0 && ex[n] - fl[n] > 1e-9){ v++; left--; } out[i] = Math.max(st, v * st); }); });
+  return out;
+}
 function placeState(p){
   if (BQ.g > (+p.max || 999)) return "до " + p.max + " " + pl(+p.max, "гостя", "гостей", "гостей");
   if (BQ.g < (+p.min || 0)) return "от " + p.min + " " + pl(+p.min, "гостя", "гостей", "гостей");
@@ -193,7 +204,7 @@ function view3(){
         <div class="t"><b class="${cls(x.title)}">${esc(x.title)}</b><span>${fmt(x.price)} <small>на гостя</small></span></div>
         ${x.descr ? `<div class="ds">${esc(x.descr)}</div>` : ""}<div class="it">${esc(short(x))}</div>
         <div class="lk" data-a="comp" data-v="${esc(x.id)}">${BQ.open === x.id ? "Скрыть состав" : "Весь состав на " + BQ.g + " " + pl(BQ.g, "гостя", "гостей", "гостей")}</div>
-        ${BQ.open === x.id ? `<div class="bq-comp">${(x.items || []).map(i => `<div><span>${esc(i.n)}</span><span>${fmt1(packQty(i.q, BQ.g))} ${esc(i.u || "")}</span></div>`).join("")}
+        ${BQ.open === x.id ? `<div class="bq-comp">${(qs => (x.items || []).map((i, n) => `<div><span>${esc(i.n)}</span><span>${fmt1(qs[n])} ${esc(i.u || "")}</span></div>`).join(""))(packQtys(x.items || [], BQ.g))}
           <div class="bq-hint">Количество - на ${BQ.g} ${pl(BQ.g, "гостя", "гостей", "гостей")}.</div></div>` : ""}</div>`).join("")}
     <div class="bq-pk ${BQ.own ? "on" : ""}" data-a="own"><div class="t"><b style="font-size:14px;letter-spacing:0">Своё меню</b></div><div class="ds" style="margin:2px 0 0">соберём вместе с менеджером</div></div>
     <div class="bq-h">Контакты</div>
