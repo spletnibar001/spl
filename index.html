@@ -1524,7 +1524,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 19.11 · сборка 105";
+const APP_VERSION = "v 19.11 · сборка 106";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -7032,10 +7032,14 @@ function pc2AdmRender(hosts, err){
   <div style="max-height:420px;overflow:auto"><table><tr><th>Время</th><th>Кто</th><th>Действие</th><th>Подробно</th></tr>
   ${rows.map(r=>`<tr><td style="white-space:nowrap">${t(r.at)}</td><td>${pc2Esc(r.who)}</td><td>${pc2Esc(r.action)}</td><td class="d">${pc2Esc(r.details||"")}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--muted)">Пока пусто</td></tr>`}</table></div></div>`;
   document.getElementById("pc2-save").onclick = async ()=>{
-    const d = Object.assign({}, PC2_SET); m.querySelectorAll("[data-pk]").forEach(i=>d[i.dataset.pk] = Math.max(1, Math.min(240, +i.value||1)));
-    const {error} = await sb.from("pc_settings").update({data:d, updated_at:new Date().toISOString()}).eq("id",1);
-    document.getElementById("pc2-saved").textContent = error ? error.message : "Сохранено";
-    if(!error){ PC2_SET = d; pc2Idle(); }
+    // 19.11: через pc_set_times - пишет только время, возвращает записанное (update мог молча ничего не записать)
+    const d = {}; m.querySelectorAll("[data-pk]").forEach(i=>d[i.dataset.pk] = Math.max(1, Math.min(240, Math.round(+i.value||1))));
+    const out = document.getElementById("pc2-saved"); out.style.color = "var(--muted)"; out.textContent = "Сохраняю…";
+    const {data:r, error} = await sb.rpc("pc_set_times", { p:d });
+    const ok = !error && r && r.ok === true && Object.keys(d).every(k => +r.data[k] === d[k]);
+    out.style.color = ok ? "var(--emerald)" : "#e5383b";
+    out.textContent = ok ? "Сохранено в базе" : "Не сохранилось: " + ((error && error.message) || (r && r.error) || "база вернула другие значения");
+    if(ok){ PC2_SET = r.data; pc2Idle(); }
   };
   m.querySelectorAll("[data-devoff]").forEach(b=>b.onclick = async ()=>{
     if(!confirm(b.dataset.cur ? "Отключить ЭТОТ компьютер? Чтобы снова войти с него, понадобится код ADM." : "Отключить этот компьютер? Вход с него станет невозможен, пока вы снова не зарегистрируете его кодом ADM.")) return;
