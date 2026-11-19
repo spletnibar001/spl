@@ -1524,7 +1524,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 19.11 · сборка 104";
+const APP_VERSION = "v 19.11 · сборка 105";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -5024,6 +5024,8 @@ function bkInit(){
   if(modalBg) bkWireBackdrop(modalBg);
   bkStartReqPolling();
   BK.date = bkToday();
+  // 19.11 (сборка 105): из банкетов кнопкой «Брони» - сразу открыть брони
+  try{ if(sessionStorage.getItem("spl_open_mode")==="booking"){ sessionStorage.removeItem("spl_open_mode"); if(BK.bkRole) setTimeout(function(){ bkSetMode("booking"); }, 0); } }catch(_){}
   // делегированный тап по столу -> открыть модалку брони
   var content = document.getElementById("bk-content");
   if(content && !content.dataset.bkTap){
