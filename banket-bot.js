@@ -1,4 +1,5 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
+   Сборка 6 · 19.11.2026 - алкоголь в пакете округляется обычным образом, не вверх
    Сборка 5 · 19.11.2026 - состав пакета: раздел меню округляется целиком, добавка - блюдам по порядку
    Сборка 4 · 19.11.2026 - до 6 фото у зала: точки на карточке, по нажатию - просмотр со свайпом
    Сборка 3 · 18.11.2026 - состав пакета пропорционально гостям
@@ -110,7 +111,9 @@ function packQty(qty, g){ const q = +qty || 0; if (!(q > 0)) return 0; const bas
 /* сборка 5: как в программе банкетов (сборка 60) - округляем раздел целиком, добавка по порядку в пакете */
 function packQtys(items, g){
   const base = (BQ.info && BQ.info.packBase) || 10, k = (+g || 1) / base, out = items.map(() => 0), G = new Map();
-  items.forEach((r, i) => { const q = +r.q || 0; if (!(q > 0)) return; const key = r.g || "#" + i; if (!G.has(key)) G.set(key, []); G.get(key).push(i); });
+  items.forEach((r, i) => { const q = +r.q || 0; if (!(q > 0)) return;
+    if (r.g === "~"){ const st = q % 1 === 0 ? 1 : 0.5; out[i] = Math.max(st, Math.round(q * k / st + 1e-9) * st); return; }
+    const key = r.g || "#" + i; if (!G.has(key)) G.set(key, []); G.get(key).push(i); });
   G.forEach(ix => { const st = ix.every(i => (+items[i].q) % 1 === 0) ? 1 : 0.5;
     const ex = ix.map(i => (+items[i].q) * k / st), fl = ex.map(e => Math.floor(e + 1e-9));
     let left = Math.ceil(ex.reduce((a, e) => a + e, 0) - 1e-9) - fl.reduce((a, e) => a + e, 0);
