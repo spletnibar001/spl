@@ -1056,7 +1056,7 @@ body.pc #pc-bar{display:flex;flex-wrap:wrap}
 <!-- ПРИЛОЖЕНИЕ -->
 <div id="app">
 <header>
-  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span><button id="call-btn" style="display:none;margin-left:10px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:5px 12px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">Гости</button>
+  <span class="role-badge" id="role-badge"></span><span id="app-ver" style="font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.05em"></span><button id="bq-tg-btn" type="button" style="display:none;margin-left:10px;border:1px solid var(--line,#333);background:transparent;color:var(--text,#eee);padding:5px 12px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">Банкеты</button><button id="call-btn" style="display:none;margin-left:10px;border:1px solid var(--emerald);background:rgba(31,191,122,.12);color:var(--emerald);padding:5px 12px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer">Гости</button>
 </header>
 
 <!-- ПЕРЕКЛЮЧАТЕЛЬ ТАБЕЛЬ / БРОНИРОВАНИЕ -->
@@ -1524,7 +1524,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 18.11 · сборка 103";
+const APP_VERSION = "v 19.11 · сборка 104";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4635,8 +4635,26 @@ async function applyManagerVenueScope(){
   // обновим бейдж роли с уточнённым названием
   const rb = $("role-badge"); if(rb) rb.textContent = CAP.label + " · " + ME.name;
 }
+/* 19.11 (сборка 104): «Банкеты» в табеле из Telegram - только админ и только с компьютера (Telegram Desktop / веб).
+   С телефона банкеты по-прежнему не открываются (решение 11.11). Вход в банкеты - тем же токеном Telegram, pc:"tg". */
+function initBanketTg(){
+  const btn = $("bq-tg-btn"); if(!btn) return;
+  if(TABLET_MODE || PC_MODE || !ME || ME.role !== "admin") return;
+  const pf = String((window.Telegram && Telegram.WebApp && Telegram.WebApp.platform) || "").toLowerCase();
+  const desk = ["tdesktop","macos","weba","webk","web","unigram"].includes(pf) || (!pf && window.innerWidth >= 1000);
+  if(!desk) return;
+  btn.style.display = "";
+  btn.onclick = () => {
+    try{
+      sessionStorage.setItem("spl_tablet_me", JSON.stringify({ token:ME.token, role:ME.role, name:ME.name, tg_id:ME.tg_id, pc:"tg", who:(CAP && CAP.label ? CAP.label + " · " : "") + ME.name }));
+      sessionStorage.setItem("spl_initData", (window.Telegram && Telegram.WebApp && Telegram.WebApp.initData) || "");
+    }catch(_){}
+    location.href = "banket.html";
+  };
+}
 async function startApp(){
   $("role-badge").textContent = CAP.label + " · " + ME.name;
+  try{ initBanketTg(); }catch(_){}
   try{ pcInitBar(); }catch(_){}      // полоса смены учётной записи на компьютере
   // версия и кнопка обзвона — для всех ролей (а не только менеджеров)
   const av = $("app-ver");
