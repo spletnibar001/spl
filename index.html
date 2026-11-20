@@ -1,4 +1,4 @@
-<!-- сборка 107 · 19.11.2026 -->
+<!-- сборка 108 · 20.11.2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -568,6 +568,9 @@ body.tablet-mode #bk-floorwrap, body.tablet-mode .bk-grid{max-width:100%}
 .bk-t.booked{border-color:var(--emerald);background:rgba(31,191,122,.14)}
 .bk-t.booked .tn{color:var(--emerald)}
 .bk-t.seated{border-color:var(--red);background:rgba(226,92,92,.16);box-shadow:0 0 12px rgba(226,92,92,.2)}
+/* резерв (сборка 108): кабинку придержали для гостя - это не бронь */
+.bk-t.hold{border-color:var(--gold);background:rgba(217,176,76,.14)}
+.bk-t.hold .tn{color:var(--gold)} .bk-t.hold .g{color:var(--gold)} .bk-t.hold .dep{color:var(--gold);opacity:.85}
 .bk-t.seated .tn{color:var(--red)} .bk-t.seated .g{color:var(--red)}
 .bk-t .paid{position:absolute;top:-6px;right:-6px;width:15px;height:15px;border-radius:50%;background:var(--emerald);color:#0a0b0e;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel)}
 /* караоке: кабинки/малый/летка — сетки */
@@ -1524,7 +1527,7 @@ const SUPABASE_URL = "https://wtncocptetgcjsumavev.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmNvY3B0ZXRnY2pzdW1hdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjA0MTQsImV4cCI6MjA5NjczNjQxNH0.WFEIkE8tyLr2p7inMoSuC1K8YISrKRbOI0a0tD-DGVc";
 
 /* ================= справочники (как в локальной версии) ================= */
-const APP_VERSION = "v 19.11 · сборка 107";
+const APP_VERSION = "v 20.11 · сборка 108";
 /* Номер сборки виден СРАЗУ при загрузке — и на экране входа тоже.
    Если здесь не последняя сборка — открылась старая версия из кэша. */
 (function(){
@@ -4851,7 +4854,7 @@ const BK = {
   venue: "karaoke",          // активная подвкладка
   view: "grid",              // grid | schema — вид отображения столов
   date: null,                // выбранная бизнес-дата (Date)
-  data: {venues:[],zones:[],tables:[],bookings:[],upcoming:[],shiftStaff:{}},
+  data: {venues:[],zones:[],tables:[],bookings:[],upcoming:[],shiftStaff:{},holds:[]},
   mode: "tabel",             // tabel | booking
 };
 // должность текущего сотрудника (для staff). RLS отдаёт только его карточку.
@@ -5252,6 +5255,7 @@ async function bkLoadAndRender(){
   let rows = (b.data||[]).filter(x=>x.status!=="cancelled"&&x.status!=="no_show"&&x.status!=="request");
   rows = bkFilterForWaiter(rows);
   BK.data.bookings = rows;
+  await bkHoldLoad(ds);                    // резервы кабинок на эту дату (сборка 108)
   // все будущие брони (от сегодняшней бизнес-даты) — для общего списка
   const today = bkIso(bkToday());
   const up = await sb.from("v_bookings_full").select("*").gte("business_date",today)
@@ -5414,6 +5418,43 @@ function bkWasOccupied(tableId){
   return BK.data.bookings.some(b=>b.table_id===tableId && b.status==="finished");
 }
 function bkTableCls(b){ return b? (b.status==="seated"?"seated":(b.status==="booked"?"booked":"")) : ""; }
+
+/* ===== РЕЗЕРВ КАБИНКИ (сборка 108, 20.11.2026) =====
+   Кабинку придерживают для гостя: это НЕ бронь - гостя в базе нет, депозит не считается,
+   в песни, зарплату, отчёты и кассу резерв не попадает (отдельная таблица table_holds).
+   Ставят и снимают только управляющий и админ. В указанный час резерв гаснет сам. */
+function bkCanHold(){ return !!(typeof ME!=="undefined" && ME && (ME.role==="admin" || ME.role==="upr")); }
+function bkHoldFor(tableId){
+  const now = Date.now();
+  return (BK.data.holds||[]).find(h=>h.table_id===tableId && !h.released_at
+          && new Date(h.until_at).getTime() > now) || null;
+}
+function bkHoldTime(h){
+  try{ return new Date(h.until_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}); }catch(_){ return ""; }
+}
+function bkHoldWho(h){ return (h && h.guest_name) ? h.guest_name : "гостя"; }
+async function bkHoldLoad(ds){
+  try{
+    const { data } = await sb.from("table_holds").select("*").eq("business_date", ds).is("released_at", null);
+    BK.data.holds = data || [];
+  }catch(_){ BK.data.holds = []; }
+}
+// свежая проверка перед сохранением брони - кэш на экране мог устареть
+async function bkHoldCheck(tableId, dsIso){
+  try{
+    const { data } = await sb.from("table_holds").select("*")
+      .eq("table_id", tableId).eq("business_date", dsIso).is("released_at", null)
+      .gt("until_at", new Date().toISOString()).limit(1);
+    return (data && data.length) ? data[0] : null;
+  }catch(_){ return null; }
+}
+async function bkHoldRelease(id, reason){
+  await ensureToken();
+  const { error } = await sb.from("table_holds").update({
+    released_at: new Date().toISOString(), released_by_name: ME.name, release_reason: reason||null
+  }).eq("id", id);
+  return error;
+}
 function bkDepLabel(t, weekend){
   if(!BK.seeMoney) return "";            // звукооператор сумм не видит
   const d = weekend? t.deposit_weekend : t.deposit_weekday;
@@ -5471,14 +5512,17 @@ function bkLetkaOff(){
 function bkTableCell(t, weekend){
   if(BK.view==="dep") return dpCellHtml(t, t.name, "", false);
   const b=bkBookingFor(t.id);
-  const cls=bkTableCls(b);
-  const wasOcc = !b && bkWasOccupied(t.id);
+  const h=!b ? bkHoldFor(t.id) : null;                 // резерв виден, только если стол не занят
+  const cls=b ? bkTableCls(b) : (h ? "hold" : "");
+  const wasOcc = !b && !h && bkWasOccupied(t.id);
   const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid">✓</div>' : "";
   let inner = `<div class="tn">${t.name}</div>`;
   if(b){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const depTxt = (BK.seeMoney && b.deposit_amount>0) ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
     inner += `<div class="g">${b.guest_name||b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
+  }else if(h){
+    inner += `<div class="g">резерв${h.guest_name?(" · "+h.guest_name):""}</div><div class="dep">до ${bkHoldTime(h)}</div>`;
   }else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   }else{
@@ -5957,8 +6001,9 @@ function bkSchemaCell(code, style, opts){
   if(!t) return "";  // архивный/отсутствующий стол — пустое место на схеме
   const weekend = bkIsWeekend(BK.date);
   const b = bkBookingFor(t.id);
-  const cls = bkTableCls(b);
-  const wasOcc = !b && bkWasOccupied(t.id);
+  const h = !b ? bkHoldFor(t.id) : null;               // резерв (сборка 108)
+  const cls = b ? bkTableCls(b) : (h ? "hold" : "");
+  const wasOcc = !b && !h && bkWasOccupied(t.id);
   const paid = (BK.seeMoney && b && b.is_paid) ? '<div class="paid">✓</div>' : "";
   const num0 = opts.label!=null ? opts.label : t.name.replace('Стол ','').replace('Каб. слева ','').replace('Каб. справа ','').replace('Кокт. ','').replace('Подиум ','').replace('ВИП ','ВИП ');
   const num = num0;
@@ -5968,6 +6013,8 @@ function bkSchemaCell(code, style, opts){
     const tm = b.arrive_at ? new Date(b.arrive_at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
     const depTxt = (BK.seeMoney && b.deposit_amount>0) ? `<div class="dep" style="margin-top:2px">${bkFmtMoney(b.deposit_amount)}</div>` : "";
     inner += `<div class="g">${b.guest_name||b.display_name||""}${tm?("<br>~"+tm):""}</div>${depTxt}`;
+  } else if(h){
+    inner += `<div class="g">резерв${h.guest_name?(" · "+h.guest_name):""}</div><div class="dep">до ${bkHoldTime(h)}</div>`;
   } else if(wasOcc){
     inner += `<div class="dep was-occ">были гости</div>`;
   } else if(opts.showDep!==false){
@@ -6190,6 +6237,8 @@ function bkSpecialHint(t, dateObj){
 
 let bkCurrentTable = null;   // стол, по которому открыта модалка
 let bkCurrentBooking = null; // существующая бронь (если есть)
+let bkCurrentHold = null;    // активный резерв кабинки (сборка 108)
+let bkHoldToBook = null;     // id резерва, из которого оформляют бронь - снимаем без лишнего вопроса
 let bkGuestMode = "known";   // known | new (для новой брони)
 
 function bkOpenModal(tableId, editMode){
@@ -6197,12 +6246,13 @@ function bkOpenModal(tableId, editMode){
   if(!t) return;
   bkCurrentTable = t;
   bkCurrentBooking = bkBookingFor(tableId) || null;
+  bkCurrentHold = bkCurrentBooking ? null : bkHoldFor(tableId);   // резерв (сборка 108)
   const z = BK.data.zones.find(z=>z.id===t.zone_id);
   // режим правки только если есть бронь и есть право
   const doEdit = !!(editMode && bkCurrentBooking && BK.canEdit);
-  document.getElementById("bkm-title").textContent = (doEdit?"Изменить бронь · ":(bkCurrentBooking?"Бронь · ":"Новая бронь · ")) + t.name;
+  document.getElementById("bkm-title").textContent = (doEdit?"Изменить бронь · ":(bkCurrentBooking?"Бронь · ":(bkCurrentHold?"Резерв · ":"Новая бронь · "))) + t.name;
   document.getElementById("bkm-sub").textContent = (z?z.title:"") + " · " + bkFmtDate(BK.date);
-  document.getElementById("bkm-body").innerHTML = doEdit ? bkModalEdit() : (bkCurrentBooking ? bkModalExisting() : bkModalNew());
+  document.getElementById("bkm-body").innerHTML = doEdit ? bkModalEdit() : (bkCurrentBooking ? bkModalExisting() : (bkCurrentHold ? bkModalHold() : bkModalNew()));
   // повод визита — сохраняется по клику
   if(!doEdit && bkCurrentBooking && document.getElementById("bkm-occ")){
     try{
@@ -6247,6 +6297,7 @@ function bkOpenModal(tableId, editMode){
     })();
   }
   bkWireModalForm(doEdit);
+  bkWireHold();                                   // кнопки резерва (сборка 108)
   document.getElementById("bk-modal").classList.add("open");
 }
 function bkCloseModal(){
@@ -6306,7 +6357,14 @@ let bkReqTimer = null;
 function bkStartReqPolling(){
   if(bkReqTimer) return;
   bkReqTimer = setInterval(async ()=>{
-    if(BK.mode!=="booking" || !bkCanManageRequests()) return;
+    if(BK.mode!=="booking") return;
+    // резервы кабинок (сборка 108): перерисовываем, если что-то изменилось
+    try{
+      const was = JSON.stringify((BK.data.holds||[]).map(h=>[h.id,h.until_at]));
+      await bkHoldLoad(bkIso(BK.date));
+      if(was !== JSON.stringify((BK.data.holds||[]).map(h=>[h.id,h.until_at]))) bkRender();
+    }catch(_){}
+    if(!bkCanManageRequests()) return;
     const before = (BK.data.requests||[]).length;
     await bkReloadRequests();
     const after = (BK.data.requests||[]).length;
@@ -6900,7 +6958,7 @@ window.callReveal = callReveal;
 const PC2_TBL = {bookings:"Бронь", shifts:"Табель · смена", checkins:"Отметка прихода", guests:"Гость", guest_calls:"Обзвон",
   penalties:"Штраф", bonuses:"Бонус", reprimands:"Выговор", weekly_values:"Табель · неделя", employees:"Сотрудник",
   approvals:"Утверждение недели", deposit_special_days:"Особые даты", bq_banquets:"Банкет", bq_removed:"Банкет · убран стол",
-  pc_settings:"Настройки входа", call_views:"Просмотр номера"};
+  pc_settings:"Настройки входа", call_views:"Просмотр номера", table_holds:"Резерв кабинки"};
 function pc2Esc(v){ return String(v==null?"":v).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 const PC2_ACT = {POST:"добавлено", PATCH:"изменено", DELETE:"удалено"};
 let PC2_SET = {saver_min:1, upr_min:1, dir_min:1, mgr_min:1, adm_min:1}, pc2T = null;
@@ -7111,7 +7169,7 @@ async function bkOpenSpecials(){
   document.getElementById("bkm-sub").textContent = "тариф действует только на указанный день";
   document.getElementById("bkm-body").innerHTML = `<div class="bkm-msg">загрузка…</div>`;
   document.getElementById("bk-modal").classList.add("open");
-  bkCurrentTable = null; bkCurrentBooking = null;
+  bkCurrentTable = null; bkCurrentBooking = null; bkCurrentHold = null; bkHoldToBook = null;
   await ensureToken();
   const err = await bkReloadSpecials();
   bkRenderSpecials(err);
@@ -7235,7 +7293,7 @@ async function bkOpenSrcStats(){
   document.getElementById("bkm-sub").textContent = "загрузка…";
   document.getElementById("bkm-body").innerHTML = "";
   document.getElementById("bk-modal").classList.add("open");
-  bkCurrentTable = null; bkCurrentBooking = null;
+  bkCurrentTable = null; bkCurrentBooking = null; bkCurrentHold = null; bkHoldToBook = null;
   await ensureToken();
   const {data, error} = await sb.from("bookings")
     .select("heard_from,guests_count,business_date,table_id")
@@ -7500,6 +7558,19 @@ async function bkConfirmRequest(rid){
         this.disabled=false; this.textContent="Подтвердить бронь"; return;
       }
     }
+    // резерв (сборка 108): заявку гостя нельзя подтвердить на придержанную кабинку
+    const hr = await bkHoldCheck(tid, newDate);
+    if(hr){
+      if(!bkCanHold()){
+        document.getElementById("bk-req-msg").textContent =
+          "Кабинка придержана для «"+bkHoldWho(hr)+"» до "+bkHoldTime(hr)+". Снять резерв может управляющий.";
+        this.disabled=false; this.textContent="Подтвердить бронь"; return;
+      }
+      if(!confirm("Кабинка придержана для «"+bkHoldWho(hr)+"» до "+bkHoldTime(hr)+". Подтвердить бронь и снять резерв?")){
+        this.disabled=false; this.textContent="Подтвердить бронь"; return;
+      }
+      await bkHoldRelease(hr.id, "подтверждена заявка гостя");
+    }
     const upd = {
       table_id: tid, status:"booked", deposit_amount: dep, guests_count: guests,
       business_date: newDate,
@@ -7631,8 +7702,137 @@ function bkModalNew(){
     <div class="bkm-actions">
       <button class="bkm-btn primary" id="bkm-save">Создать бронь</button>
       <button class="bkm-btn" id="bkm-walkin" style="background:rgba(226,92,92,.16);color:var(--red);border:1px solid var(--red)">Посадить сейчас (по факту)</button>
+      ${bkCanHold()?`<button class="bkm-btn" id="bkm-hold-new" style="background:rgba(217,176,76,.14);color:var(--gold);border:1px solid var(--gold)">Придержать</button>`:""}
     </div>
     <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">«Посадить сейчас» — гости уже за столом. Имя и телефон можно не указывать; достаточно числа гостей и депозита.</div>`;
+}
+
+/* ===== КАРТОЧКИ РЕЗЕРВА (сборка 108) ===== */
+// стол придержан: что видят все, и что может управляющий/админ
+function bkModalHold(){
+  const h = bkCurrentHold;
+  const who = h.created_by_name ? (" · поставил " + h.created_by_name) : "";
+  const info = `
+    <div class="bkm-field"><label>Придержана для</label>
+      <div style="font-weight:700;font-size:15px">${h.guest_name||"гостя"}${h.phone?(" · "+bkFmtPhone(h.phone)):""}</div>
+      <div style="color:var(--muted);font-size:12px;margin-top:4px">до ${bkHoldTime(h)}${who}${h.note?(" · "+h.note):""}</div></div>`;
+  if(!bkCanHold()){
+    return info + `<div class="bkm-msg">Кабинка придержана, бронь на неё поставить нельзя. Снять резерв может управляющий или админ. После ${bkHoldTime(h)} кабинка освободится сама.</div>`;
+  }
+  return info + `
+    <div class="bkm-field"><label>Держать до</label>
+      <input id="bkm-h-until" type="time" value="${bkHoldTime(h)}"></div>
+    <div class="bkm-msg" id="bkm-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn primary" id="bkm-hold-book">Оформить бронь</button>
+      <button class="bkm-btn" id="bkm-hold-ext">Продлить</button>
+      <button class="bkm-btn danger" id="bkm-hold-off">Снять резерв</button>
+    </div>
+    <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">«Продлить» - сохранить новое время из поля выше.</div>`;
+}
+// форма постановки резерва
+function bkModalHoldNew(){
+  return `
+    <div class="bkm-row">
+      <div class="bkm-field"><label>Для кого</label>
+        <input id="bkm-h-name" type="text" placeholder="Имя гостя" autocomplete="off"></div>
+      <div class="bkm-field"><label>Держать до</label>
+        <input id="bkm-h-until" type="time" value="23:00"></div>
+    </div>
+    <div class="bkm-field"><label>Телефон <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
+      <input id="bkm-h-phone" type="text" inputmode="numeric" placeholder="+998 94 063 88 88" autocomplete="off"></div>
+    <div class="bkm-field"><label>Комментарий <span style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">· необязательно</span></label>
+      <textarea id="bkm-h-note" class="bkm-textarea" rows="2" placeholder="Например: постоянный гость, подтвердит днём"></textarea></div>
+    <div class="bkm-msg" id="bkm-msg"></div>
+    <div class="bkm-actions">
+      <button class="bkm-btn primary" id="bkm-h-save">Придержать</button>
+      <button class="bkm-btn" id="bkm-h-back">Назад</button>
+    </div>
+    <div class="bkm-hint" style="color:var(--muted);font-size:12px;margin-top:8px">Резерв - не бронь: гость в базу не попадает, депозит не считается. В указанный час кабинка освободится сама, хостес сможет её продать.</div>`;
+}
+// обвязка всех кнопок резерва в открытой модалке
+function bkWireHold(){
+  const bNew = document.getElementById("bkm-hold-new");
+  if(bNew) bNew.onclick = function(){
+    document.getElementById("bkm-title").textContent = "Придержать · " + bkCurrentTable.name;
+    document.getElementById("bkm-body").innerHTML = bkModalHoldNew();
+    bkWireHold();
+  };
+  const bBack = document.getElementById("bkm-h-back");
+  if(bBack) bBack.onclick = function(){
+    document.getElementById("bkm-title").textContent = "Новая бронь · " + bkCurrentTable.name;
+    document.getElementById("bkm-body").innerHTML = bkModalNew();
+    bkWireModalForm(false); bkWireHold();
+  };
+  const bSave = document.getElementById("bkm-h-save");
+  if(bSave) bSave.onclick = bkHoldCreate;
+  const bOff = document.getElementById("bkm-hold-off");
+  if(bOff) bOff.onclick = async function(){
+    const h = bkCurrentHold; if(!h) return;
+    if(!confirm("Снять резерв кабинки " + bkCurrentTable.name + "? Её сразу можно будет забронировать.")) return;
+    this.disabled = true;
+    const err = await bkHoldRelease(h.id, "снят вручную");
+    if(err){ bkMsg(err.message); this.disabled=false; return; }
+    bkCloseModal(); await bkLoadAndRender();
+  };
+  const bExt = document.getElementById("bkm-hold-ext");
+  if(bExt) bExt.onclick = async function(){
+    const h = bkCurrentHold; if(!h) return;
+    const until = (document.getElementById("bkm-h-until")||{}).value || "";
+    if(!until){ bkMsg("Укажите, до какого часа держим"); return; }
+    this.disabled = true;
+    await ensureToken();
+    const { error } = await sb.from("table_holds")
+      .update({ until_at: bkComposeArrive(h.business_date, until) }).eq("id", h.id);
+    if(error){ bkMsg(error.message); this.disabled=false; return; }
+    bkCloseModal(); await bkLoadAndRender();
+  };
+  const bBook = document.getElementById("bkm-hold-book");
+  if(bBook) bBook.onclick = function(){
+    const h = bkCurrentHold;
+    bkHoldToBook = h ? h.id : null;      // при создании брони снимем этот резерв без лишнего вопроса
+    document.getElementById("bkm-title").textContent = "Новая бронь · " + bkCurrentTable.name;
+    document.getElementById("bkm-body").innerHTML = bkModalNew();
+    bkWireModalForm(false); bkWireHold();
+    try{
+      if(h && h.guest_name) document.getElementById("bkm-name").value = h.guest_name;
+      if(h && h.phone) document.getElementById("bkm-phone").value = bkFmtPhone(h.phone);
+    }catch(_){}
+  };
+}
+// поставить резерв
+async function bkHoldCreate(){
+  const t = bkCurrentTable; if(!t) return;
+  const name = (document.getElementById("bkm-h-name").value||"").trim();
+  const until = (document.getElementById("bkm-h-until").value||"").trim();
+  if(!until){ bkMsg("Укажите, до какого часа держим"); return; }
+  const rawPhone = (document.getElementById("bkm-h-phone").value||"").trim();
+  let digits = rawPhone.replace(/[^\d]/g,""); if(digits.startsWith("998")) digits = digits.slice(3);
+  const phoneNorm = digits.length>=9 ? bkNormPhone(rawPhone) : null;
+  const note = (document.getElementById("bkm-h-note").value||"").trim() || null;
+  const ds = bkIso(BK.date);
+  const btn = document.getElementById("bkm-h-save"); if(btn) btn.disabled = true;
+  bkMsg("Сохранение…", true);
+  try{
+    await ensureToken();
+    // уже стоит бронь — резерв не нужен
+    const { data: clash } = await sb.from("bookings").select("id,guest_name")
+      .eq("table_id", t.id).eq("business_date", ds).in("status",["booked","seated"]);
+    if(clash && clash.length){ bkMsg("На эту дату стол уже занят бронью"); if(btn) btn.disabled=false; return; }
+    const ex = await bkHoldCheck(t.id, ds);
+    if(ex){ bkMsg("Кабинка уже придержана для «"+bkHoldWho(ex)+"» до "+bkHoldTime(ex)); if(btn) btn.disabled=false; return; }
+    // закрываем просроченные резервы этого стола на эту дату, чтобы не мешали новому
+    await sb.from("table_holds").update({ released_at: new Date().toISOString(),
+      released_by_name: ME.name, release_reason: "истёк" })
+      .eq("table_id", t.id).eq("business_date", ds).is("released_at", null);
+    const { error } = await sb.from("table_holds").insert({
+      table_id: t.id, business_date: ds, until_at: bkComposeArrive(ds, until),
+      guest_name: name||null, phone: phoneNorm, note: note,
+      created_by: (ME.tg_id||ME.telegram_id||null), created_by_name: ME.name
+    });
+    if(error){ bkMsg(error.message); if(btn) btn.disabled=false; return; }
+    bkCloseModal(); await bkLoadAndRender();
+  }catch(e){ bkMsg(String(e.message||e)); if(btn) btn.disabled=false; }
 }
 
 // форма РЕДАКТИРОВАНИЯ существующей брони (долгий тап)
@@ -8237,6 +8437,20 @@ async function bkActionCreate(){
         document.getElementById("bkm-save").disabled=false; bkMsg(""); return;
       }
     }
+    /* резерв (сборка 108): поверх придержанной кабинки бронь ставит только
+       управляющий или админ, и резерв при этом снимается */
+    const hh = await bkHoldCheck(t.id, bkIso(bizDate));
+    if(hh){
+      if(!bkCanHold()){
+        bkMsg("Кабинка придержана для «"+bkHoldWho(hh)+"» до "+bkHoldTime(hh)+". Снять резерв может управляющий.");
+        document.getElementById("bkm-save").disabled=false; return;
+      }
+      if(bkHoldToBook !== hh.id &&
+         !confirm("Кабинка придержана для «"+bkHoldWho(hh)+"» до "+bkHoldTime(hh)+". Создать бронь и снять резерв?")){
+        document.getElementById("bkm-save").disabled=false; bkMsg(""); return;
+      }
+      await bkHoldRelease(hh.id, "оформлена бронь");
+    }
     // время прихода -> timestamptz на бизнес-дату (с учётом ночных часов)
     const arriveAt = bkComposeArrive(bizDate, time);
     const dep = bkReadDep(); // берём из редактируемого поля (авторасчёт + ручная правка)
@@ -8298,6 +8512,14 @@ async function bkActionWalkin(){
       if(!confirm("Стол "+t.name+" — "+st+who+". Всё равно посадить?")){
         if(btn) btn.disabled=false; bkMsg(""); return;
       }
+    }
+    // резерв (сборка 108): гость уже за столом - спрашиваем и снимаем резерв
+    const hw = await bkHoldCheck(t.id, bkIso(bizDate));
+    if(hw){
+      if(!confirm("Кабинка придержана для «"+bkHoldWho(hw)+"» до "+bkHoldTime(hw)+". Всё равно посадить гостей?")){
+        if(btn) btn.disabled=false; bkMsg(""); return;
+      }
+      await bkHoldRelease(hw.id, "посадка по факту");
     }
     const dep = bkReadDep();
     const nowIso = new Date().toISOString();
