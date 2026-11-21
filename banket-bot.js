@@ -1,5 +1,6 @@
 /* SPLETNI · «Банкет» в гостевом приложении (guest.html, бот @spletni_ai_bot)
    Сборка 10 · 19.11.2026 - «Своё меню»: гость сам собирает блюда (шаг 4), подсказки по нормам, состав уходит в заявку
+   Сборка 11 · 21.11.2026 - акция «к готовому предложению» (икра) показывается только при выбранном пакете
    Сборка 9 · 19.11.2026 - подарок по акции: только за полное число гостей (вниз)
    Сборка 8 · 19.11.2026 - напитки и алкоголь в составе пакета внизу
    Сборка 7 · 19.11.2026 - алкоголь в литрах: шаг 0,5 л
@@ -246,6 +247,7 @@ function gifts(sum){
     if (x.to && BQ.date && BQ.date > x.to) return false;
     if (x.days === "we" && d && !we) return false;
     if (x.days === "wd" && d && we) return false;
+    if (x.pack) return !!(BQ.pack || (BQ.done && BQ.done.pack));   /* сборка 11: подарок только к готовому предложению */
     if (x.type === "guests") return BQ.g >= (+x.at || 0);
     if (x.type === "sum") return (+x.at || 0) === 0 || (sum != null && sum >= +x.at);
     return false; }).map(x => { const q = +x.qty > 0 ? Math.max(1, Math.floor(+x.qty * BQ.g / ((BQ.info && BQ.info.packBase) || 10) + 1e-9)) : 0;
