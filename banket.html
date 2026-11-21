@@ -654,8 +654,9 @@ function promoState(b, g, base){
     if (p.type === "pay"){ const m = (b.promos||{})[p.id];   /* сборка 66: autoPack - сама кладётся к готовому предложению, к своему меню - только вручную */
       const auto = !!p.autoPack && !!b.packId, per = Math.round(base / g), need = +p.minPer || 0, ok = auto || !need || per >= need;   /* сборка 67: вручную - только от суммы на гостя */
       return { p, on: m === false ? false : !!m || auto, auto: auto && !m, left: ok ? 0 : need - per, per, minPer: need, blocked: !ok }; }
-    const have = p.type === "guests" ? g : base, need = +p.at || 0;
-    return { p, on: have >= need, left: Math.max(0, need - have), have, need };   // 17.11: порог 0 - подарок всегда
+    const have = p.type === "guests" ? g : base, need = +p.at || 0, per = Math.round(base / g), mp = +p.minPer || 0, perOk = !mp || per >= mp;
+    const forced = (b.promos||{})[p.id] === true;   /* сборка 67: условие «от суммы на гостя»; true - оставлен вручную (банкеты до правила) */
+    return { p, on: forced || (have >= need && perOk), left: Math.max(0, need - have), have, need, per, minPer: mp, perLow: have >= need && !perOk && !forced };   // 17.11: порог 0 - подарок всегда
   });
 }
 function promoUsed(id){ return D.banquets.filter(b => b.status !== "lost" && calc(b).gifts.some(x => x.p.id === id)).length; }
@@ -1061,6 +1062,7 @@ function promoCard(b, c){
                                      : x.blocked ? `<div class="xs muted">Можно дать от ${fmt(x.minPer)} на гостя, сейчас ${fmt(x.per)} - не хватает ${fmt(x.left)} на гостя</div>`
                                      : `<button class="btn sm grn" data-act="promo" data-id="${p.id}">${+p.pay ? "Добавить за " + fmt(p.pay) : "Добавить в подарок"}</button>`;
     else act = x.on ? `<span class="tag on">Подарок положен</span>`
+      : x.perLow ? `<div class="xs muted">Условие по гостям выполнено, но нужно от ${fmt(x.minPer)} на гостя - сейчас ${fmt(x.per)}, не хватает ${fmt(x.minPer - x.per)} на гостя</div>`
       : `<div class="xs muted">${p.type === "guests" ? "Нужно ещё " + x.left + " " + plural(x.left,"гость","гостя","гостей") + " (сейчас " + x.have + ")" : "До подарка осталось " + fmt(x.left)}</div><div class="bar"><i style="width:${Math.min(100, Math.round(x.have / Math.max(1, x.need) * 100))}%"></i></div>`;
     return `<div class="promo ${x.on ? "added" : ""}"><div class="pth" ${u ? `style="background-image:url('${esc(u)}')"` : ""}>${u ? "" : "фото"}</div>
       <div class="col" style="gap:4px;flex:1;min-width:0"><b class="small">${esc(p.title)}</b>${priceLine}${act}</div></div>`; }).join("")}
@@ -1550,8 +1552,9 @@ function setPromos(){
     <label class="f full">Название для гостя<input class="inp" data-s="${sc}" data-k="title" value="${esc(p.title)}"></label>
     <label class="f full">Текст в предложении<input class="inp" data-s="${sc}" data-k="text" value="${esc(p.text||"")}" placeholder="Добавьте 50 000 сум и получите…"></label>
     <div class="f full" style="font-size:12px;color:var(--muted)">Тип акции<div class="seg" style="margin-top:6px">${segT}</div></div>
-    ${p.type === "pay" ? `<label class="f">Гость доплачивает<input class="inp" type="number" min="0" step="10000" data-s="${sc}" data-k="pay" data-ty="n" value="${p.pay||0}"></label><label class="f" style="flex-direction:row;align-items:center;gap:8px;color:var(--soft)"><input type="checkbox" data-s="${sc}" data-k="autoPack" data-ty="b" ${p.autoPack ? "checked" : ""}> Сама к готовым предложениям (GOLD, PLATINUM, DIAMOND), к своему меню - вручную</label><label class="f">Вручную - от суммы на гостя, сум <span class="xs muted">0 - без условия</span><input class="inp" type="number" min="0" step="10000" data-s="${sc}" data-k="minPer" data-ty="n" value="${+p.minPer || ""}" placeholder="0"></label>`
+    ${p.type === "pay" ? `<label class="f">Гость доплачивает<input class="inp" type="number" min="0" step="10000" data-s="${sc}" data-k="pay" data-ty="n" value="${p.pay||0}"></label><label class="f" style="flex-direction:row;align-items:center;gap:8px;color:var(--soft)"><input type="checkbox" data-s="${sc}" data-k="autoPack" data-ty="b" ${p.autoPack ? "checked" : ""}> Сама к готовым предложениям (GOLD, PLATINUM, DIAMOND), к своему меню - вручную</label>`
       : `<label class="f">${p.type === "guests" ? "От скольких гостей" : "От суммы заказа, сум"} <span class="xs muted">0 - для всех банкетов</span><input class="inp" type="number" min="0" step="${p.type === "guests" ? 1 : 100000}" data-s="${sc}" data-k="at" data-ty="n" value="${p.at||0}"></label>`}
+    <label class="f">${p.type === "pay" ? "Вручную - от суммы на гостя" : "И от суммы на гостя"}, сум <span class="xs muted">0 - без условия</span><input class="inp" type="number" min="0" step="10000" data-s="${sc}" data-k="minPer" data-ty="n" value="${+p.minPer || ""}" placeholder="0"></label>
     <label class="f">Подарок<select class="inp" data-s="${sc}" data-k="giftRef">${opts}</select></label>
     <label class="f">Количество на ${D.settings.packBase || 10} гостей <span class="xs muted">пусто - 1 на банкет</span><input class="inp" type="number" min="0" step="0.5" data-s="${sc}" data-k="qty" data-ty="nn" value="${+p.qty > 0 ? p.qty : ""}" placeholder="1 на банкет"></label>
     <label class="f">Единица<input class="inp" data-s="${sc}" data-k="unit" value="${esc(p.unit || "")}" placeholder="шт"></label>
