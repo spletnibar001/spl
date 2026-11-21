@@ -644,8 +644,10 @@ function packQtys(rows, g){   // rows: [{qty, grp}] -> количества в �
 function giftQty(p, g, old){ const q = +p.qty || 0; if (!(q > 0)) return 1; const v = q * (+g || 1) / (+D.settings.packBase || 10);
   return Math.max(1, old ? Math.ceil(v - 1e-9) : Math.floor(v + 1e-9)); }
 const giftQtyTxt = (p, q) => (+p.qty > 0 || q > 1) ? q + " " + (p.unit || "шт") : "";
+const bookedDay = b => { const t = Date.parse(b.created || "") || Date.now(); return new Date(t + 5 * 3600e3).toISOString().slice(0, 10); };   // день создания по Ташкенту
 function promoFits(p, b){ if (p.active === false) return false; const d = b.date || "";
   if (p.from && d && d < p.from) return false; if (p.to && d && d > p.to) return false;
+  if (p.booked && bookedDay(b) > p.booked) return false;   /* сборка 66: ранняя бронь - банкет создан не позже даты */
   if (p.days === "wd" && d && isWeekend(d)) return false; if (p.days === "we" && d && !isWeekend(d)) return false; return true; }
 function promoState(b, g, base){
   return (D.promos||[]).filter(p => promoFits(p, b)).map(p => {
@@ -1534,7 +1536,7 @@ function setPromos(){
     <div class="list">${D.promos.map(x => { const gi = promoGift(x), u = furl(gi.photo);
       return `<button class="bq promo-it ${p && x.id === p.id ? "sel" : ""}" data-act="setpromo" data-id="${x.id}" style="grid-template-columns:52px 1fr auto;align-items:center">
         <div class="pth" style="width:44px;height:44px${u ? `;background-image:url('${esc(u)}')` : ""}"></div>
-        <div><b class="small">${esc(x.title)}</b><div class="xs muted">${PTYPE[x.type]}${x.type === "pay" ? " · +" + fmt(x.pay) : x.type === "guests" ? " · от " + x.at + " гостей" : " · от " + fmt(x.at)}${x.from || x.to ? " · " + (x.from ? dLab(x.from).split(",")[0] : "…") + " - " + (x.to ? dLab(x.to).split(",")[0] : "…") : ""}</div></div>
+        <div><b class="small">${esc(x.title)}</b><div class="xs muted">${PTYPE[x.type]}${x.type === "pay" ? " · +" + fmt(x.pay) : x.type === "guests" ? " · от " + x.at + " гостей" : " · от " + fmt(x.at)}${x.from || x.to ? " · " + (x.from ? dLab(x.from).split(",")[0] : "…") + " - " + (x.to ? dLab(x.to).split(",")[0] : "…") : ""}${x.booked ? " · бронь до " + dLab(x.booked).split(",")[0] : ""}</div></div>
         <span class="tag ${x.active !== false ? "on" : ""}">${x.active !== false ? "Включена" : "Выключена"}</span></button>`; }).join("") || `<div class="small muted">Акций нет</div>`}</div></div>`;
   if (!p) return hp + list;
   const sc = "pr:" + p.id, gi = promoGift(p), it = p.giftRef ? item(p.giftRef) : null;
@@ -1557,6 +1559,7 @@ function setPromos(){
     ${setCost() ? `<label class="f">Себестоимость подарка ${it && it.cost != null ? "(пусто - " + fmt(it.cost) + ")" : ""}<input class="inp" type="number" min="0" step="1000" data-s="${sc}" data-k="giftCost" data-ty="nn" value="${p.giftCost ?? ""}" placeholder="${it && it.cost != null ? fmt(it.cost) : "нет данных"}"></label>` : ""}
     <label class="f">Банкеты с<input class="inp" type="date" data-s="${sc}" data-k="from" value="${esc(p.from||"")}" style="color-scheme:dark"></label>
     <label class="f">по<input class="inp" type="date" data-s="${sc}" data-k="to" value="${esc(p.to||"")}" style="color-scheme:dark"></label>
+    <label class="f">Бронь сделана до (включительно) <span class="xs muted">пусто - любая</span><input class="inp" type="date" data-s="${sc}" data-k="booked" value="${esc(p.booked||"")}" style="color-scheme:dark"></label>
     <div class="f full" style="font-size:12px;color:var(--muted)">Дни<div class="seg" style="margin-top:6px">${segD}</div></div>
     ${upField("Фото (если пусто - фото позиции)", sc, "photo", p.photo, "img")}
     <label class="f" style="flex-direction:row;align-items:center;gap:8px;color:var(--soft)"><input type="checkbox" data-s="${sc}" data-k="active" data-ty="b" ${p.active!==false?"checked":""}> Включена</label>
@@ -2383,7 +2386,7 @@ function cloudRows(){
   R.bq_addons = (D.addons||[]).map((a, i) => { if (a.cost != null && a.cost !== "") costs.push({ ref:"a:" + a.id, cost:+a.cost });
     return { id:a.id, name:a.n || "", descr:a.desc || "", unit:a.unit || "", price:+a.price || 0, photo:a.photo || "", active:a.active !== false, sort:i }; });
   R.bq_promos = (D.promos||[]).map((x, i) => { if (x.giftCost != null && x.giftCost !== "") costs.push({ ref:"p:" + x.id, cost:+x.giftCost });
-    return { id:x.id, title:x.title || "", text:x.text || "", photo:x.photo || "", type:x.type || "pay", pay:+x.pay || 0, at:+x.at || 0, gift_ref:x.giftRef || "", auto_pack:!!x.autoPack, gift_name:x.giftName || "", gift_price:+x.giftPrice || 0, qty:+x.qty > 0 ? +x.qty : null, unit:x.unit || null, date_from:nz(x.from), date_to:nz(x.to), days:x.days || "all", active:x.active !== false, sort:i }; });
+    return { id:x.id, title:x.title || "", text:x.text || "", photo:x.photo || "", type:x.type || "pay", pay:+x.pay || 0, at:+x.at || 0, gift_ref:x.giftRef || "", auto_pack:!!x.autoPack, gift_name:x.giftName || "", gift_price:+x.giftPrice || 0, qty:+x.qty > 0 ? +x.qty : null, unit:x.unit || null, date_from:nz(x.from), date_to:nz(x.to), booked_to:nz(x.booked), days:x.days || "all", active:x.active !== false, sort:i }; });
   R.bq_prices = Object.entries(D.priceOv || {}).filter(([k, v]) => v != null && v !== "").map(([k, v]) => ({ ref:k, price:+v }));
   Object.entries(D.costs || {}).forEach(([k, v]) => { if (v != null && v !== "") costs.push({ ref:"m:" + k, cost:+v }); });
   const st = clone(D.settings); delete st.pinHash;
@@ -2462,7 +2465,7 @@ async function cloudPull(first){
   N.citems = pick("bq_items", it, r => ({ id:r.id, n:r.name, cat:r.cat, unit:r.unit, price:+r.price || 0, desc:r.descr || "", photo:r.photo || "", active:r.active !== false, cost:IS_MGR ? cv("c:" + r.id) : null }));
   N.packs = pick("bq_packs", pk, r => ({ id:r.id, title:r.title, price:+r.price || 0, desc:r.descr || "", photo:r.photo || "", active:r.active !== false, items:r.items || [] }));
   N.addons = pick("bq_addons", ad, r => ({ id:r.id, n:r.name, desc:r.descr || "", price:+r.price || 0, unit:r.unit || "", photo:r.photo || "", active:r.active !== false, cost:IS_MGR ? cv("a:" + r.id) : null }));
-  N.promos = pick("bq_promos", pr, r => ({ id:r.id, title:r.title, text:r.text || "", type:r.type, pay:+r.pay || 0, at:+r.at || 0, giftRef:r.gift_ref || "", autoPack:!!r.auto_pack, giftName:r.gift_name || "", giftPrice:+r.gift_price || 0, qty:+r.qty > 0 ? +r.qty : null, unit:r.unit || "", giftCost:IS_MGR ? cv("p:" + r.id) : null, from:r.date_from || "", to:r.date_to || "", days:r.days || "all", active:r.active !== false, photo:r.photo || "" }));
+  N.promos = pick("bq_promos", pr, r => ({ id:r.id, title:r.title, text:r.text || "", type:r.type, pay:+r.pay || 0, at:+r.at || 0, giftRef:r.gift_ref || "", autoPack:!!r.auto_pack, giftName:r.gift_name || "", giftPrice:+r.gift_price || 0, qty:+r.qty > 0 ? +r.qty : null, unit:r.unit || "", giftCost:IS_MGR ? cv("p:" + r.id) : null, from:r.date_from || "", to:r.date_to || "", booked:r.booked_to || "", days:r.days || "all", active:r.active !== false, photo:r.photo || "" }));
   { const isP = dirty("bq_prices"), po = {}; (prc || []).forEach(r => po[r.ref] = +r.price);
     Object.keys(D.priceOv || {}).forEach(k => { if (isP(k)) po[k] = D.priceOv[k]; }); N.priceOv = po; }
   if (IS_MGR){ const mc = {}; Object.entries(cost).forEach(([k, v]) => { if (k.startsWith("m:")) mc[k.slice(2)] = v; }); N.costs = mc; } else N.costs = {};
