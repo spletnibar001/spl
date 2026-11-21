@@ -159,7 +159,7 @@ function packQtys(items, g){
 }
 /* ---------- сборка 10: своё меню - гость собирает сам ---------- */
 function loadMenu(){ return new Promise(res => { if (window.BQ_MENU) return res(true);
-  const sc = document.createElement("script"); sc.src = "banket-menu.js?v=1"; sc.onload = () => res(!!window.BQ_MENU); sc.onerror = () => res(false); document.head.appendChild(sc); }); }
+  const sc = document.createElement("script"); sc.src = "banket-menu.js?v=2"; sc.onload = () => res(!!window.BQ_MENU); sc.onerror = () => res(false); document.head.appendChild(sc); }); }
 const STRONG = ["Водка", "Виски", "Коньяк и бренди"];
 function catalog(){
   if (BQ.cat) return BQ.cat;
